@@ -1,0 +1,12 @@
+---
+- hosts: server_type_delius_core_db
+  # connection: local
+
+  tasks:
+    - name: get hostname
+      command: hostname
+      register: hostname
+
+    - name: debug
+      ansible.builtin.debug:
+        var: hostname

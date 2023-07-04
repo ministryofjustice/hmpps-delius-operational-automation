@@ -1,0 +1,30 @@
+plugin: amazon.aws.aws_ec2
+regions:
+  - eu-west-2
+include_filters:
+  - instance-state-name:
+      - running
+exclude_filters:
+  - tag:aws:autoscaling:groupName:
+      - "*"
+hostnames:
+  - "tag:Name"
+
+compose:
+  ansible_host: instance_id # private_ip_address - use ip address if need to go through bastion
+
+groups:
+  bastion: tags.Name is search('bastion')
+  windows: (platform is defined) and (platform in 'windows')
+
+keyed_groups:
+  - key: tags['environment-name']
+    prefix: environment-name
+  - key: tags['ami']
+    prefix: ami
+  - key: tags['server-type']
+    prefix: server-type
+  - key: tags['os-type'] | lower
+    prefix: os-type
+
+strict: no
