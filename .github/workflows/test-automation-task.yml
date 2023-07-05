@@ -24,7 +24,7 @@ on:
 jobs:
   deployment:
     name: Test automation task
-    environment: ${{ inputs.environment }}
+    environment: development # fix during testing
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -38,3 +38,14 @@ jobs:
           aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup ansible-playbook
+        run: |
+          apt update
+          apt install python3.9 python3.9-env python3-pip -y
+          python=$(which python3)
+          $python -m pip install ansible==6.0.0
+
+      - name: Run ansible
+        run: |
+          ansible --version
