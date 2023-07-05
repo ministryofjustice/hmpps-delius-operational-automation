@@ -32,7 +32,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       # Already installed
       # - name: Install python and ansible
@@ -60,4 +60,4 @@ jobs:
           ansible-galaxy collection install -r requirements.yml
           pip freeze
           pwd
-          ansible-inventory | grep delius
+          ansible-inventory --graph | grep delius
