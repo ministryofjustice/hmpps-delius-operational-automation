@@ -40,7 +40,7 @@ ansible-inventory --graph
 5. Run ansible
 
 ```
-no_proxy="*" ansible-playbook playbooks/test/playbook.yml --extra-vars "@group_vars/dev.yml" -i "hosts/"
+no_proxy="*" ansible-playbook playbooks/test/playbook.yml --extra-vars "@group_vars/dev.yml"
 ```
 
 6. Finish / tidy up
