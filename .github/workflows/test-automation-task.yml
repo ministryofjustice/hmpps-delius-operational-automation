@@ -60,5 +60,6 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Test ansible
+        working-directory: ansible
         run: |
           ansible-inventory --graph | grep delius
