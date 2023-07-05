@@ -11,10 +11,9 @@ on:
     types: [opened, edited, reopened, synchronize]
 
 jobs:
-  test-automation-task:
+  deployment:
     name: Test automation task
-    permissions:
-      contents: read
+    environment: development
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
