@@ -41,6 +41,13 @@ jobs:
       #     sudo apt install python3.10 python3.10-venv python3-pip -y
       #     python -m pip install ansible==6.0.0
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - name: Setup ansible
         run: |
           cd ansible
@@ -51,15 +58,4 @@ jobs:
           python -m pip install -r requirements.txt
           ansible-galaxy role install -r requirements.yml
           ansible-galaxy collection install -r requirements.yml
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Test ansible
-        working-directory: ansible
-        run: |
           ansible-inventory --graph | grep delius
