@@ -41,18 +41,18 @@ jobs:
 
       - name: Install python and ansible
         run: |
-          sudo apt update
-          sudo apt install python3.10 python3.10-venv python3-pip -y
-          python=$(which python3)
-          $python -m pip install ansible==6.0.0
+          # Already installed
+          # sudo apt update
+          # sudo apt install python3.10 python3.10-venv python3-pip -y
+          python -m pip install ansible==6.0.0
 
       - name: Setup ansible
         run: |
           cd ansible
           mkdir ./python-env && cd python-env
-          $python -m venv ansible
+          python -m venv ansible
           source ansible/bin/activate
           cd ../ansible
-          $python -m pip install -r requirements.txt
+          python -m pip install -r requirements.txt
           ansible-galaxy role install -r requirements.yml
           ansible-galaxy collection install -r requirements.yml
