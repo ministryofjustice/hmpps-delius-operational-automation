@@ -41,8 +41,8 @@ jobs:
 
       - name: Setup ansible-playbook
         run: |
-          apt update
-          apt install python3.9 python3.9-env python3-pip -y
+          sudo apt update
+          sudo apt install python3.9 python3.9-env python3-pip -y
           python=$(which python3)
           $python -m pip install ansible==6.0.0
 
