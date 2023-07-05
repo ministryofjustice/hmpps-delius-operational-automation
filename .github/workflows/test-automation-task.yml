@@ -39,12 +39,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Install python and ansible
-        run: |
-          # Already installed
-          # sudo apt update
-          # sudo apt install python3.10 python3.10-venv python3-pip -y
-          python -m pip install ansible==6.0.0
+      # Already installed
+      # - name: Install python and ansible
+      #   run: |
+      #     sudo apt update
+      #     sudo apt install python3.10 python3.10-venv python3-pip -y
+      #     python -m pip install ansible==6.0.0
 
       - name: Setup ansible
         run: |
@@ -52,7 +52,7 @@ jobs:
           mkdir ./python-env && cd python-env
           python -m venv ansible
           source ansible/bin/activate
-          cd ../ansible
+          cd ../
           python -m pip install -r requirements.txt
           ansible-galaxy role install -r requirements.yml
           ansible-galaxy collection install -r requirements.yml
