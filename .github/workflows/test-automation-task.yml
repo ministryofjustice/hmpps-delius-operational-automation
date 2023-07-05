@@ -24,8 +24,6 @@ on:
 jobs:
   deployment:
     name: Test automation task
-    permissions:
-      contents: read
     environment: development # fix during testing
     runs-on: ubuntu-latest
     steps:
