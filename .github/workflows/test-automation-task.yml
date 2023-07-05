@@ -1,6 +1,17 @@
 name: Test automation task
 
 on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Delius environment"
+        required: true
+        default: "development"
+        type: choice
+        options:
+          - development
+          - test
+
   push:
     branches:
       - main
@@ -13,7 +24,7 @@ on:
 jobs:
   deployment:
     name: Test automation task
-    environment: development
+    environment: ${{ inputs.environment }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
