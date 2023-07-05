@@ -42,7 +42,7 @@ jobs:
       - name: Setup ansible-playbook
         run: |
           sudo apt update
-          sudo apt install python3.10 python3.10-env python3-pip -y
+          sudo apt install python3.10 python3.10-venv python3-pip -y
           python=$(which python3)
           $python -m pip install ansible==6.0.0
 
