@@ -3,6 +3,7 @@
 coverage/
 venv/
 env/
+python-env/
 .DS_STORE
 .vscode
 *.code-workspace
