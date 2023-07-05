@@ -49,12 +49,8 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup ansible
+        working-directory: ansible
         run: |
-          cd ansible
-          mkdir ./python-env && cd python-env
-          python -m venv ansible
-          source ansible/bin/activate
-          cd ../
           python -m pip install -r requirements.txt
           ansible-galaxy role install -r requirements.yml
           ansible-galaxy collection install -r requirements.yml
