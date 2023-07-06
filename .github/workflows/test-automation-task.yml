@@ -51,8 +51,8 @@ jobs:
         run: |
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.CORE_SHARED_SERVICES_PRODUCTION_AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
           docker pull $image
-          docker images
-          docker run -v $GITHUB_WORKSPACE/ansible:/ansible $image ls /ansible
+          docker run -v $GITHUB_WORKSPACE/ansible:/ansible $image ls /
+          echo "ran"
         env:
           image: ${{ secrets.CORE_SHARED_SERVICES_PRODUCTION_AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-ansible-aws-ecr-repo:latest
 
