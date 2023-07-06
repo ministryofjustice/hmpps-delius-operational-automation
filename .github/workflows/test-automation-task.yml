@@ -53,7 +53,7 @@ jobs:
 
       - name: Pull and run container
         run: |
-          docker pull ${{ steps.login-aws.outputs.aws-account-id }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-ansible-aws-ecr-repo:latest
+          docker pull ${{ secrets.CORE_SHARED_SERVICES_PRODUCTION_AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-ansible-aws-ecr-repo:latest
 
       # - name: Setup ansible
       #   run: |
