@@ -49,13 +49,14 @@ jobs:
       - name: Setup ansible
         run: |
           cd ansible
-          mkdir ./python-env && cd python-env
-          python -m venv ansible
-          source ansible/bin/activate
-          cd ../
+          mkdir venv
+          python -m venv venv
+          source venv/bin/activate
           python -m pip install -r requirements.txt
           ansible-galaxy role install -r requirements.yml
           ansible-galaxy collection install -r requirements.yml
+          which python
+          which ansible
           pip freeze
           pwd
           ansible-inventory --graph | grep delius
