@@ -40,23 +40,32 @@ jobs:
       #     python -m pip install ansible==6.0.0
 
       - name: Configure AWS Credentials
+        id: login-aws
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Setup ansible
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Pull and run container
         run: |
-          cd ansible
-          mkdir venv
-          python -m venv venv
-          source venv/bin/activate
-          python -m pip install -r requirements.txt
-          ansible-galaxy role install -r requirements.yml
-          ansible-galaxy collection install -r requirements.yml
-          which python
-          which ansible
-          pip freeze
-          pwd
-          ansible-inventory --graph | grep delius
+          docker pull ${{ steps.login-aws.outputs.aws-account-id }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-ansible-aws-ecr-repo:latest
+
+      # - name: Setup ansible
+      #   run: |
+      #     cd ansible
+      #     mkdir venv
+      #     python -m venv venv
+      #     source venv/bin/activate
+      #     python -m pip install -r requirements.txt
+      #     ansible-galaxy role install -r requirements.yml
+      #     ansible-galaxy collection install -r requirements.yml
+      #     which python
+      #     which ansible
+      #     pip freeze
+      #     pwd
+      #     ansible-inventory --graph | grep delius
