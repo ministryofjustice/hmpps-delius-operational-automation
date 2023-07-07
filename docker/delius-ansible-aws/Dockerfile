@@ -14,6 +14,12 @@ RUN set -ex && apk add --no-cache make git gcc libc-dev curl bash zip && \
 # Stage 2 of multi-stage docker file - build the final image that copies in the plugin built above
 FROM python:3-alpine3.18
 
+LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-webops@digital.justice.gov.uk)" \
+  org.opencontainers.image.vendor="Ministry of Justice" \
+  org.opencontainers.image.title="delius-ansible-aws" \
+  org.opencontainers.image.description="delius-ansible-aws" \
+  org.opencontainers.image.source="https://github.com/ministryofjustice/hmpps-delius-operational-automation"
+
 # Update and add packages
 RUN apk update; \
   apk add gcc musl-dev python3-dev libffi-dev openssl-dev cargo; \
