@@ -27,11 +27,18 @@ on:
       - ansible/**
       - .github/workflows/test-automation-task.yml
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   deployment:
     name: Test automation task
     environment: development # fix during testing
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -45,22 +52,28 @@ jobs:
       #     sudo apt install python3.10 python3.10-venv python3-pip -y
       #     python -m pip install ansible==6.0.0
 
-      - name: Configure AWS Credentials
-        id: login-aws
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+      # - name: Configure AWS Credentials
+      #   id: login-aws
+      #   uses: aws-actions/configure-aws-credentials@v2
+      #   with:
+      #     aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+      #     aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+      #     aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Pull and run container
+      - name: Test context
         run: |
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.CORE_SHARED_SERVICES_PRODUCTION_AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-          docker pull $image
-          docker run -v $GITHUB_WORKSPACE/ansible:/ansible $image ls /
-          echo "ran"
-        env:
-          image: ${{ secrets.CORE_SHARED_SERVICES_PRODUCTION_AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-ansible-aws-ecr-repo:latest
+          which ansible
+          which python
+          pwd
+
+      # - name: Pull and run container
+      #   run: |
+      #     aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.CORE_SHARED_SERVICES_PRODUCTION_AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+      #     docker pull $image
+      #     docker run -v $GITHUB_WORKSPACE/ansible:/ansible $image ls /
+      #     echo "ran"
+      #   env:
+      #     image: ${{ secrets.CORE_SHARED_SERVICES_PRODUCTION_AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-ansible-aws-ecr-repo:latest
 
       # - name: Setup ansible
       #   run: |
