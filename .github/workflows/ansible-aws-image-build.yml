@@ -46,7 +46,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: ./docker/delius-ansible-aws
-          file: ../docker/delius-ansible-aws
+          file: ./docker/delius-ansible-aws/Dockerfile
           platforms: linux/amd64
           push: false
           # tags: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
