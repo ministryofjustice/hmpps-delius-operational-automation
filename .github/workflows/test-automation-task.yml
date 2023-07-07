@@ -70,6 +70,7 @@ jobs:
         working-directory: ansible
         run: |
           ansible-inventory --graph | grep delius
+          no_proxy="*" ansible-playbook playbooks/test/playbook.yml --extra-vars "@group_vars/dev.yml"
 
       # - name: Pull and run container
       #   run: |
