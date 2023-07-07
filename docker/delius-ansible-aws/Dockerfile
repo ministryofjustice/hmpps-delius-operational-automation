@@ -46,6 +46,6 @@ RUN apk del python3-dev build-base py-setuptools libffi-dev openssl-dev; \
 
 RUN adduser -D -u 1000 ansible
 
-USER ansible
+# USER ansible
 
 ENTRYPOINT /bin/bash
