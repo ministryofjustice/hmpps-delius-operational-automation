@@ -8,13 +8,13 @@ on:
       - docker/delius-ansible-aws/**
       - .github/workflows/ansible-aws-image-build.yml
 
-  pull_request:
-    branches:
-      - main
-    types: [opened, edited, reopened, synchronize]
-    paths:
-      - docker/delius-ansible-aws/**
-      - .github/workflows/ansible-aws-image-build.yml
+  # pull_request:
+  #   branches:
+  #     - main
+  #   types: [opened, edited, reopened, synchronize]
+  #   paths:
+  #     - docker/delius-ansible-aws/**
+  #     - .github/workflows/ansible-aws-image-build.yml
 
 permissions:
   packages: write
