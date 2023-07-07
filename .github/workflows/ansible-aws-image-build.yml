@@ -30,3 +30,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: docker build
+        run: |
+          docker build docker/ansible-aws -t ansible-aws:0.1
