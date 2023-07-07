@@ -23,6 +23,9 @@ on:
     branches:
       - main
     types: [opened, edited, reopened, synchronize]
+    paths:
+      - ansible/**
+      - .github/workflows/test-automation-task.yml
 
 jobs:
   deployment:

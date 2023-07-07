@@ -48,8 +48,8 @@ jobs:
           context: ./docker/delius-ansible-aws
           file: ./docker/delius-ansible-aws/Dockerfile
           platforms: linux/amd64
-          push: false
-          # tags: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+          push: true
+          tags: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
 
       # - name: docker build
       #   run: |
