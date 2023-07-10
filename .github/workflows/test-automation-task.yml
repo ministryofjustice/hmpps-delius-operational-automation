@@ -32,9 +32,10 @@ permissions:
   packages: read
 
 jobs:
+  # Start deployment container job based on the build delius-ansible-aws image
   deployment:
     name: Test automation task
-    environment: development # fix during testing
+    environment: development # hard-coded this while spiking this out
     runs-on: ubuntu-22.04
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
@@ -45,13 +46,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Already installed
-      # - name: Install python and ansible
-      #   run: |
-      #     sudo apt update
-      #     sudo apt install python3.10 python3.10-venv python3-pip -y
-      #     python -m pip install ansible==6.0.0
-
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v2
@@ -60,38 +54,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # - name: Test context
-      #   run: |
-      #     which ansible
-      #     which python
-      #     pwd
-
       - name: Test ansible
         working-directory: ansible
         run: |
           ansible-inventory --graph | grep delius
           no_proxy="*" ansible-playbook playbooks/test/playbook.yml --extra-vars "@group_vars/dev.yml"
-
-      # - name: Pull and run container
-      #   run: |
-      #     aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.CORE_SHARED_SERVICES_PRODUCTION_AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-      #     docker pull $image
-      #     docker run -v $GITHUB_WORKSPACE/ansible:/ansible $image ls /
-      #     echo "ran"
-      #   env:
-      #     image: ${{ secrets.CORE_SHARED_SERVICES_PRODUCTION_AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-ansible-aws-ecr-repo:latest
-
-      # - name: Setup ansible
-      #   run: |
-      #     cd ansible
-      #     mkdir venv
-      #     python -m venv venv
-      #     source venv/bin/activate
-      #     python -m pip install -r requirements.txt
-      #     ansible-galaxy role install -r requirements.yml
-      #     ansible-galaxy collection install -r requirements.yml
-      #     which python
-      #     which ansible
-      #     pip freeze
-      #     pwd
-      #     ansible-inventory --graph | grep delius
