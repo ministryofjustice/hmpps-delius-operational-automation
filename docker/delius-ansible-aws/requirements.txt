@@ -1,0 +1,13 @@
+awscli
+ansible==6.0.0
+ansible-lint==5.*
+boto
+boto3
+botocore
+pycrypto
+pywinrm
+requests
+python-semantic-release
+click
+requests
+semver

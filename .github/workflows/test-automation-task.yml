@@ -15,26 +15,47 @@ on:
   push:
     branches:
       - main
+    paths:
+      - ansible/**
+      - .github/workflows/test-automation-task.yml
 
   pull_request:
     branches:
       - main
     types: [opened, edited, reopened, synchronize]
+    paths:
+      - ansible/**
+      - .github/workflows/test-automation-task.yml
+
+permissions:
+  contents: read
+  packages: read
 
 jobs:
+  # Start deployment container job based on the build delius-ansible-aws image
   deployment:
     name: Test automation task
-    environment: ${{ inputs.environment }}
-    runs-on: ubuntu-latest
+    environment: development # hard-coded this while spiking this out
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Configure AWS Credentials
+        id: login-aws
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Test ansible
+        working-directory: ansible
+        run: |
+          ansible-inventory --graph | grep delius
+          no_proxy="*" ansible-playbook playbooks/test/playbook.yml --extra-vars "@group_vars/dev.yml"
