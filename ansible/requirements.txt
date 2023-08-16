@@ -1,4 +1,4 @@
 boto3
 botocore
 psutil
-ansible==6.0.0
+ansible==8.3.0
