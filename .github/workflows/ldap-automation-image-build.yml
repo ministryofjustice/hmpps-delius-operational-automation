@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - docker/delius-ansible-aws/**
-      - .github/workflows/ansible-aws-image-build.yml
+      - docker/ldap-automation/**
+      - .github/workflows/ldap-*.yml
 
   # Commented out while spiking this work out
   # pull_request:
