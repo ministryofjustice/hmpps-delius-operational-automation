@@ -56,7 +56,7 @@ jobs:
 
                     $.containerDefinitions[0].containerName: "ldap-automation-task-${{ github.run_id }}"
 
-                    $.containerDefinitions[0].secrets: [{"name": "LDAP_HOST", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core/LDAP_HOST"}, {"name": "LDAP_USER", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core/LDAP_PRINCIPAL"}, {"name": "LDAP_PASSWORD", "valueFrom": "arn:aws:secretsmanager:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:secret:delius-core-dev-openldap-bind-password-CagKSo"}]
+                    $.containerDefinitions[0].secrets: [{"name": "VARS_LDAP_HOST", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core/LDAP_HOST"}, {"name": "VARS_LDAP_USER", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core/LDAP_PRINCIPAL"}, {"name": "SECRET_LDAP_BIND_PASSWORD", "valueFrom": "arn:aws:secretsmanager:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:secret:delius-core-dev-openldap-bind-password-CagKSo"}]
 
                     $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-group": "/ecs/ldap-automation"
                     $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-region": "${{secrets.AWS_REGION}}"
