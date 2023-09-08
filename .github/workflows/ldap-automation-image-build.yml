@@ -9,15 +9,6 @@ on:
       - docker/ldap-automation/**
       - .github/workflows/ldap-*.yml
 
-  # Commented out while spiking this work out
-  # pull_request:
-  #   branches:
-  #     - main
-  #   types: [opened, edited, reopened, synchronize]
-  #   paths:
-  #     - docker/delius-ansible-aws/**
-  #     - .github/workflows/ansible-aws-image-build.yml
-
 permissions:
   packages: write
   contents: read
