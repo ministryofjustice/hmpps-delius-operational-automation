@@ -1,0 +1,79 @@
+name: "LDAP: Update user home area"
+on:
+  workflow_dispatch:
+    inputs:
+        environment:
+            required: true
+            type: choice
+            options:
+              - "dev"
+        old_home_area:
+            required: true
+            type: string
+        new_home_area:
+            required: true
+            type: string
+            
+jobs:
+    deploy:
+        name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}
+        runs-on: ubuntu-latest
+        environment: delius-core-${{ github.event.inputs.environment }}
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v3
+            
+          - name: Configure AWS Credentials
+            uses: aws-actions/configure-aws-credentials@v2
+            with:
+                aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+                aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+                aws-region: "eu-west-2"
+          - name: Set cluster ARN
+            id: set-cluster-arn
+            run: |
+                echo "CLUSTER_ARN=delius-core-${{ github.event.inputs.environment }}-cluster" >> $GITHUB_OUTPUT        
+          - name: Get security groups and subnet ids
+            id: get-ids
+            run: |
+                echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=*${{ github.event.inputs.environment }}-ldap-sg*" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
+                echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-general-private-*" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT          
+
+          - name: Template task def
+            uses: christherama/render-json-template@v1
+            id: render
+            with:
+                # Path to JSON file serving as the template for rendering an output file. Required.
+                json-file-path: operational-automation/automation-task-def.json
+                # Multi-line string containing key/value pairs of JSON property paths and desired property values
+                field-value-pairs: |
+                    $.containerDefinitions[0].command: ["ldap-automation", "update-user-home-areas", "--old-home-area", "${{ github.event.inputs.old_home_area }}", "--new-home-area", "${{ github.event.inputs.new_home_area }}"]
+
+                    $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task-exec"
+                    $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task"
+
+                    $.containerDefinitions[0].image: "${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-ldap-automation-ecr-repo:${{ vars.LDAP_AUTOMATION_IMAGE_TAG }}"
+
+                    $.containerDefinitions[0].containerName: "ldap-automation-task-${{ github.run_id }}"
+
+                    $.containerDefinitions[0].secrets: [{"name": "LDAP_HOST", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core/LDAP_HOST"}, {"name": "LDAP_USER", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core/LDAP_PRINCIPAL"}, {"name": "LDAP_PASSWORD", "valueFrom": "arn:aws:secretsmanager:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:secret:delius-core-dev-openldap-bind-password-CagKSo"}]
+
+                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-group": "/ecs/ldap-automation"
+                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-region": "${{secrets.AWS_REGION}}"
+                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-stream-prefix": "${{ github.run_id }}"
+                    
+          - name: Show rendered user service task
+            if: github.ref != 'refs/heads/main'
+            run: cat ${{ steps.render.outputs.rendered-json-file }}
+          - name: Run Standalone ECS Task
+            id: run-task
+            run: |
+                task_definition=$(aws ecs register-task-definition --cli-input-json file://${{ steps.render.outputs.rendered-json-file }})
+                task_definition_arn=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn') 
+                echo "TASK_DEF_ARN=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn') " >> $GITHUB_OUTPUT
+
+                aws ecs run-task --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --task-definition $task_definition_arn --network-configuration "awsvpcConfiguration={subnets=${{ steps.get-ids.outputs.SUBNET_IDS }},securityGroups=${{ steps.get-ids.outputs.SEC_GROUPS }},assignPublicIp=DISABLED}" --launch-type FARGATE --count 1
+          - name: Delete Task Definition
+            run: |
+                aws ecs deregister-task-definition --task-definition ${{steps.run-task.outputs.TASK_DEF_ARN}}
+                
