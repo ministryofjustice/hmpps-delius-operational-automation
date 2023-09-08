@@ -42,7 +42,7 @@ jobs:
             id: render
             with:
                 # Path to JSON file serving as the template for rendering an output file. Required.
-                json-file-path: operational-automation/task-def.json
+                json-file-path: docker/ldap-automation/task-def.json
                 # Multi-line string containing key/value pairs of JSON property paths and desired property values
                 field-value-pairs: |
                     $.containerDefinitions[0].command: ["ldap-automation", "add-roles-to-users", "\"${{ github.event.inputs.user-role-list }}\""]
