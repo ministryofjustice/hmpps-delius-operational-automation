@@ -1,6 +1,7 @@
 name: Delius Ansible AWS Image Build
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
