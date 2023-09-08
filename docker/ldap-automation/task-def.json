@@ -1,38 +1,38 @@
 {
-    "containerDefinitions": [
+  "containerDefinitions": [
+    {
+      "command": [
+        "---"
+      ],
+      "secrets": [
         {
-            "command": [
-                "---"
-            ],
-            "secrets": [
-                {
-                    "name": "key",
-                    "valueFrom": "value"
-                }
-            ],
-            "essential": true,
-            "image": "value",
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "/ecs/ldap-automation",
-                    "awslogs-region": "eu-west-2",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            },
-            "name": "ldap-automation"
+          "name": "key",
+          "valueFrom": "value"
         }
-    ],
-    "cpu": "256",
-    "memory": "512",
-    "executionRoleArn": "arn:aws:iam::012345678910:role/ecsTaskExecutionRole",
-    "taskRoleArn": "arn:aws:iam::012345678910:role/ecsTaskExecutionRole",
-    "family": "ldap-automation",
-    "networkMode": "awsvpc",
-    "runtimePlatform": {
-        "operatingSystemFamily": "LINUX"
-    },
-    "requiresCompatibilities": [
-        "FARGATE"
-    ]
+      ],
+      "essential": true,
+      "image": "value",
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/ldap-automation",
+          "awslogs-region": "eu-west-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "name": "ldap-automation"
+    }
+  ],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::012345678910:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::012345678910:role/ecsTaskExecutionRole",
+  "family": "ldap-automation",
+  "networkMode": "awsvpc",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX"
+  },
+  "requiresCompatibilities": [
+    "FARGATE"
+  ]
 }
