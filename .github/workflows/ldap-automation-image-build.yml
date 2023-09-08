@@ -1,4 +1,4 @@
-name: Delius Ansible AWS Image Build
+name: LDAO Automation Image Build
 
 on:
   workflow_dispatch:
