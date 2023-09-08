@@ -60,4 +60,4 @@ jobs:
           file: ./docker/ldap-automation/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:${{ steps.safe_tag.outputs.SAFE_TAG }}
+          tags: ghcr.io/ministryofjustice/hmpps-ldap-automation:${{ steps.safe_tag.outputs.SAFE_TAG }}
