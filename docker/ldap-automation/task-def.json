@@ -1,13 +1,17 @@
 {
   "containerDefinitions": [
     {
-      "command": [
-        "---"
-      ],
+      "command": ["---"],
       "secrets": [
         {
           "name": "key",
           "valueFrom": "value"
+        }
+      ],
+      "environment": [
+        {
+          "name": "key",
+          "value": "value"
         }
       ],
       "essential": true,
@@ -32,7 +36,5 @@
   "runtimePlatform": {
     "operatingSystemFamily": "LINUX"
   },
-  "requiresCompatibilities": [
-    "FARGATE"
-  ]
+  "requiresCompatibilities": ["FARGATE"]
 }
