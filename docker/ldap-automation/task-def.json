@@ -1,9 +1,7 @@
 {
   "containerDefinitions": [
     {
-      "command": [
-        "---"
-      ],
+      "command": ["---"],
       "secrets": [
         {
           "name": "key",
@@ -38,7 +36,5 @@
   "runtimePlatform": {
     "operatingSystemFamily": "LINUX"
   },
-  "requiresCompatibilities": [
-    "FARGATE"
-  ]
+  "requiresCompatibilities": ["FARGATE"]
 }
