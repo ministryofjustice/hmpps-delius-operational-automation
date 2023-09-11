@@ -1,16 +1,36 @@
-name: "LDAP: Add Roles to Users"
+name: "LDAP: Update user roles"
 on:
   workflow_dispatch:
     inputs:
-        environment:
-            required: true
-            type: choice
-            options:
-              - "dev"
-        # Example: username1,role1;role2;role3|username2,role1;role2
-        user-role-list:
-            required: true
-            type: string
+      environment:
+          required: true
+          type: choice
+          options:
+            - "dev"
+      roles:
+        required: true
+        type: string
+      user_note:
+        required: false
+        type: string
+        default: ""
+      action:
+        required: true
+        type: choice
+        options:
+          - "add"
+          - "remove"
+        default: "add"
+      update_notes:
+        required: false
+        type: boolean
+        default: false
+      role_filter:
+        required: false
+        type: string
+      user_filter:
+        required: false
+        type: string
             
 jobs:
     deploy:
@@ -36,16 +56,34 @@ jobs:
             run: |
                 echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=*${{ github.event.inputs.environment }}-ldap-sg*" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
                 echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-general-private-*" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT          
-
+          - name: Calculate command args
+            id: calculate-args
+            run: |
+                if [ "${{ github.event.inputs.update_notes }}" == "true" ]; then
+                    echo "UPDATE_NOTES_ARG=--update-notes" >> $GITHUB_OUTPUT
+                else
+                    echo "UPDATE_NOTES_ARG=" >> $GITHUB_OUTPUT
+                fi
+                if [ "${{ github.event.inputs.role_filter }}" != "" ]; then
+                    echo "ROLE_FILTER_ARG=--role-filter ${{ github.event.inputs.role_filter }}" >> $GITHUB_OUTPUT
+                else
+                    echo "ROLE_FILTER_ARG=" >> $GITHUB_OUTPUT
+                fi
+                if [ "${{ github.event.inputs.user_filter }}" != "" ]; then
+                    echo "USER_FILTER_ARG=--user-filter ${{ github.event.inputs.user_filter }}" >> $GITHUB_OUTPUT
+                else
+                    echo "USER_FILTER_ARG=" >> $GITHUB_OUTPUT
+                fi
           - name: Template task def
             uses: christherama/render-json-template@v1
             id: render
             with:
                 # Path to JSON file serving as the template for rendering an output file. Required.
-                json-file-path: docker/ldap-automation/task-def.json
+                json-file-path: operational-automation/task-def.json
                 # Multi-line string containing key/value pairs of JSON property paths and desired property values
                 field-value-pairs: |
-                    $.containerDefinitions[0].command: ["ldap-automation", "add-roles-to-users", "${{ github.event.inputs.user-role-list }}"]
+                    $.containerDefinitions[0].command: ["ldap-automation", "update-user-roles", "${{ github.event.inputs.roles }}", "${{ github.event.inputs.user_note }}", "--${{ github.event.inputs.action }}", "${{ steps.calculate-args.outputs.UPDATE_NOTES_ARG }}", "${{ steps.calculate-args.outputs.ROLE_FILTER_ARG }}", "${{ steps.calculate-args.outputs.USER_FILTER_ARG }}"]
+
                     $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task-exec"
                     $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task"
 

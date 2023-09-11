@@ -1,0 +1,166 @@
+name: "LDAP: RBAC uplift"
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+          required: true
+          type: choice
+          options:
+            - "dev"
+      rbac_tag:
+        required: true
+        type: string
+jobs:
+    deploy:
+        name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}
+        runs-on: ubuntu-latest
+        environment: delius-core-${{ github.event.inputs.environment }}
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v3
+            
+          - name: Configure AWS Credentials
+            uses: aws-actions/configure-aws-credentials@v2
+            with:
+                aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+                aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+                aws-region: "eu-west-2"
+          - name: Set cluster ARN
+            id: set-cluster-arn
+            run: |
+                echo "CLUSTER_ARN=delius-core-${{ github.event.inputs.environment }}-cluster" >> $GITHUB_OUTPUT        
+          - name: Get security groups and subnet ids
+            id: get-ids
+            run: |
+                echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=*${{ github.event.inputs.environment }}-ldap-sg*" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
+                echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-general-private-*" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT          
+          - name: Template task def
+            uses: christherama/render-json-template@v1
+            id: render
+            with:
+                # Path to JSON file serving as the template for rendering an output file. Required.
+                json-file-path: operational-automation/task-def.json
+                # Multi-line string containing key/value pairs of JSON property paths and desired property values
+                field-value-pairs: |
+                    $.containerDefinitions[0].command: ["ldap-automation", "rbac-uplift", "-t", "${{ github.event.inputs.rbac_tag }}"]
+
+                    $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task-exec"
+                    $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task"
+
+                    $.containerDefinitions[0].image: "ghcr.io/ministryofjustice/hmpps-ldap-automation:${{ vars.LDAP_AUTOMATION_IMAGE_TAG }}"
+
+                    $.containerDefinitions[0].containerName: "ldap-automation-task-${{ github.run_id }}"
+
+                    $.containerDefinitions[0].secrets: [
+                      {
+                        "name": "SECRET_LDAP_BIND_PASSWORD",
+                        "valueFrom": "arn:aws:secretsmanager:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:secret:delius-core-dev-openldap-bind-password-CagKSo"
+                      },
+                      {
+                        "name": "SECRET_LDAP_ADMIN_PASSWORD",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.events.inputs.environment }}/LDAP_ADMIN_PASSWORD"
+                      },
+                      {
+                        "name": "SECRET_oasys_user",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.events.inputs.environment }}/oasys_user"
+                      },
+                      {
+                        "name": "SECRET_oasys_password",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.events.inputs.environment }}/oasys_password"
+                      },
+                      {
+                        "name": "SECRET_iaps_user",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.events.inputs.environment }}/iaps_user"
+                      },
+                      {
+                        "name": "SECRET_iaps_user_password",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.events.inputs.environment }}/iaps_user_password"
+                      },
+                      {
+                        "name": "SECRET_dss_user",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.events.inputs.environment }}/dss_user"
+                      },
+                      {
+                        "name": "SECRET_dss_user_password",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.events.inputs.environment }}/dss_user_password"
+                      },
+                      {
+                        "name": "SECRET_casenotes_user",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.events.inputs.environment }}/casenotes_user"
+                      },
+                      {
+                        "name": "SECRET_casenotes_user_password",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.events.inputs.environment }}/casenotes_user_password"
+                      },
+                      {
+                        "name": "SECRET_test_user_password",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.events.inputs.environment }}/test_user_password"
+                      },
+                      {
+                        "name": "SECRET_/delius-core-${{ github.event.inputs.environment }}/delius-core-${{ github.event.inputs.environment }}/gdpr/api/client_secret",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter:/delius-core-${{ github.event.inputs.environment }}/gdpr/api/client_secret"
+                      },
+                      {
+                        "name": "SECRET_/delius-core-${{ github.event.inputs.environment }}/delius-core-${{ github.event.inputs.environment }}/pwm/pwm/config_password",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter:/delius-core-${{ github.event.inputs.environment }}/pwm/pwm/config_password"
+                      },
+                      {
+                        "name": "SECRET_/delius-core-${{ github.event.inputs.environment }}/delius-core-${{ github.event.inputs.environment }}/merge/api/client_secret",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter:/delius-core-${{ github.event.inputs.environment }}/merge/api/client_secret"
+                      },
+                      {
+                        "name": "SECRET_/delius-core-${{ github.event.inputs.environment }}/delius-core-${{ github.event.inputs.environment }}/weblogic/ndelius-domain/umt_client_secret",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter:/delius-core-${{ github.event.inputs.environment }}/weblogic/ndelius-domain/umt_client_secret"
+                      },
+                      {
+                        "name": "VAR_LDAP_HOST",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_HOST"
+                      },
+                      {
+                        "name": "VAR_LDAP_USER",
+                        "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_PRINCIPAL"
+                      },
+                      {
+                        "name": "VAR_LDAP_CONFIG_DICT",
+                        "value": "${{ vars.VAR_LDAP_CONFIG_DICT }}"
+                      },
+                      {
+                        "name": "VAR_RBAC_SUBSTITUTIONS_DICT",
+                        "value": "${{ vars.VAR_RBAC_SUBSTITUTIONS_DICT }}"
+                      },
+                      {
+                        "name": "VAR_SSM_PREFIX",
+                        "value": "SSM_"
+                      },
+                      {
+                        "name": "VAR_PROJECT_NAME",
+                        "value": "delius-core"
+                      },
+                      {
+                        "name": "VAR_ENVIRONMENT_NAME",
+                        "value": "delius-core-${{ github.event.inputs.environment }}"
+                      },
+                      {
+                        "name": "VAR_LDAP_ADMIN_USERNAME",
+                        "value": "admin"
+                      }
+                    ]
+                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-group": "/ecs/ldap-automation"
+                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-region": "${{secrets.AWS_REGION}}"
+                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-stream-prefix": "${{ github.run_id }}"
+                    
+          - name: Show rendered user service task
+            if: github.ref != 'refs/heads/main'
+            run: cat ${{ steps.render.outputs.rendered-json-file }}
+          - name: Run Standalone ECS Task
+            id: run-task
+            run: |
+                task_definition=$(aws ecs register-task-definition --cli-input-json file://${{ steps.render.outputs.rendered-json-file }})
+                task_definition_arn=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn') 
+                echo "TASK_DEF_ARN=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn') " >> $GITHUB_OUTPUT
+
+                aws ecs run-task --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --task-definition $task_definition_arn --network-configuration "awsvpcConfiguration={subnets=${{ steps.get-ids.outputs.SUBNET_IDS }},securityGroups=${{ steps.get-ids.outputs.SEC_GROUPS }},assignPublicIp=DISABLED}" --launch-type FARGATE --count 1
+          - name: Delete Task Definition
+            run: |
+                aws ecs deregister-task-definition --task-definition ${{steps.run-task.outputs.TASK_DEF_ARN}}
+                
