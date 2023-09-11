@@ -7,30 +7,9 @@ on:
           type: choice
           options:
             - "dev"
-      roles:
+      rbac_tag:
         required: true
         type: string
-      user_note:
-        required: false
-        type: string
-        default: ""
-      action:
-        required: true
-        type: choice
-        options:
-          - "add"
-          - "remove"
-        default: "add"
-      update_notes:
-        required: false
-        type: boolean
-        default: false
-      role_filter:
-        required: false
-        type: string
-      user_filter:
-        required: false
-        type: string          
 jobs:
     deploy:
         name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}
