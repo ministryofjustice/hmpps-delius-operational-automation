@@ -10,6 +10,12 @@
           "valueFrom": "value"
         }
       ],
+      "environment": [
+        {
+          "name": "key",
+          "value": "value"
+        }
+      ],
       "essential": true,
       "image": "value",
       "logConfiguration": {
