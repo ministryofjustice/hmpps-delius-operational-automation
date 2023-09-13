@@ -52,7 +52,7 @@ on:
       VerboseOutput: 
         description: "Verbose Output level"
         type: choice
-        default: ""
+          - ""
           - "-v"
           - "-vv"
           - "-vvv"
