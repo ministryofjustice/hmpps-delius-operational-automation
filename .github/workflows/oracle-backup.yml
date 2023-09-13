@@ -65,6 +65,13 @@ on:
         description: "Source version for the hmpps-env-configs repository. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "master"
+
+    paths:
+      - ansible/**
+      - .github/workflows/oracle-backup.yml
+    branches:
+      - DBA-511
+
 jobs:
   # Start deployment container job based on the build delius-ansible-aws image
   deployment:
