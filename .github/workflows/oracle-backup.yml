@@ -55,7 +55,7 @@ on:
         default: ""
           - "-v"
           - "-vv"
-          - "-vvv", 
+          - "-vvv"
           - "-vvvv"
       SourceCodeVersion:
         description: "Source version for the delius-manual-deployments. Enter a pull request, branch, commit ID, tag, or reference."
