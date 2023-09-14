@@ -70,7 +70,7 @@ on:
       - ansible/**
       - .github/workflows/oracle-backup.yml
     branches:
-      - DBA-511
+      - main
 
 jobs:
   # Start deployment container job based on the build delius-ansible-aws image
