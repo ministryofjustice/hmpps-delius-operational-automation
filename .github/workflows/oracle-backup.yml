@@ -1,4 +1,4 @@
-name: Oracle Database Backup
+name: "Oracle Database Backup"
 on:
   workflow_dispatch:
     inputs:
@@ -66,11 +66,11 @@ on:
         type: string
         default: "master"
 
-    paths:
-      - ansible/**
-      - .github/workflows/oracle-backup.yml
-    branches:
-      - DBA-511
+    # paths:
+    #   - ansible/**
+    #   - .github/workflows/oracle-backup.yml
+    # branches:
+    #   - DBA-511
 
 jobs:
   # Start deployment container job based on the build delius-ansible-aws image
