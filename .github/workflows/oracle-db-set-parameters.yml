@@ -11,6 +11,11 @@ on:
         options:
           - development
           - test
+      mp_operational_automation_ref:
+        description: "MP Operational Automation ref"
+        required: true
+        default: "main"
+        type: string
 
 permissions:
   contents: read
@@ -42,7 +47,9 @@ jobs:
       - name: Clone supercharge docs repository
         uses: actions/checkout@v4.0.0
         with:
+          fetch-depth: 0
           repository: ministryofjustice/modernisation-platform-configuration-management
+          ref: ${{ github.event.inputs.mp_operational_automation_ref }}
 
       - name: Trigger ansible playbook
         working-directory: modernisation-platform-configuration-management/ansible
