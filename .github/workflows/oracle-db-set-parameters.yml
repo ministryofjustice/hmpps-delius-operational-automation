@@ -1,0 +1,50 @@
+name: Test automation task
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Delius environment"
+        required: true
+        default: "development"
+        type: choice
+        options:
+          - development
+          - test
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  # Start deployment container job based on the build delius-ansible-aws image
+  deployment:
+    name: Test automation task
+    environment: development # hard-coded this while spiking this out
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Clone supercharge docs repository
+        uses: actions/checkout@v4.0.0
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+
+      - name: Trigger ansible playbook
+        working-directory: modernisation-platform-configuration-management/ansible
+        run: |
+          no_proxy="*" ansible-playbook roles/oracle-db-parameters/set_oracle_parameters.yml --extra-vars "@group_vars/dev.yml target_host=server_type_delius_core_db"
