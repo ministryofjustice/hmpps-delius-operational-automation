@@ -59,40 +59,53 @@ on:
           - "-vvv"
           - "-vvvv"
       SourceCodeVersion:
-        description: "Source version for the delius-manual-deployments. Enter a pull request, branch, commit ID, tag, or reference."
+        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
-        default: "master"
+        default: "main"
       SourceConfigVersion:
-        description: "Source version for the hmpps-env-configs repository. Enter a pull request, branch, commit ID, tag, or reference."
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
-        default: "master"
+        default: "main"
   push:
     branches:
       - DBA-511
     paths:
-      - ansible/**
       - .github/workflows/oracle-backup.yml
   pull_request:
     branches:
       - DBA-511
     types: [opened, edited, reopened, synchronize]
     paths:
-      - ansible/**
       - .github/workflows/oracle-backup.yml
+
+# Allow permissions on repository and docker image respectively
+permissions:
+  contents: read
+  packages: read
 
 jobs:
   # Start deployment container job based on the build delius-ansible-aws image
   deployment:
-    name: Test
+    name: "oracle-${var.short_environment_name}" "${local.component}-backup"
     environment: development
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    env:
+      ssm_parameter_status: /oracle/backups/${{ inputs.TargetHost }}/status
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+
+      - name: Checkout hmpps-delius-operation-automation
+        uses: actions/checkout@${{ inputs.SourceCodeVersion }}
         with:
           fetch-depth: 0
+
+      - name: Checkout modernisation-platform-configuration-management
+        uses: actions/checkout@${{ inputs.SourceConfigVersion }}
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          fetch-depth: 0
+          path: ansible
 
       - name: Configure AWS Credentials
         id: login-aws
@@ -102,8 +115,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: SetInitialStatus
+        uses: stephenbawks/aws-ssm-parameter@v1.0.0
+        with:
+          name: $ssm_parameter_status
+          value: NotPassed
+          description: Put AWS Parameter Status
+
       - name: Test ansible
         working-directory: ansible
         run: |
-          ansible-inventory --graph | grep delius
-          no_proxy="*" ansible-playbook playbooks/test/playbook.yml --extra-vars "@group_vars/dev.yml"
+          ansible-inventory --graph 
+          
+          
+#no_proxy="*"    
+# ansible-playbook backup.yml --limit environment_name_delius_core_development_dev_${{ inputs.TargetHost }} --extra-vars "@group_vars/dev.yml"
