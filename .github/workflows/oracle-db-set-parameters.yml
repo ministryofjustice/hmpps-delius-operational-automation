@@ -6,10 +6,10 @@ on:
       environment:
         description: "Delius environment"
         required: true
-        default: "development"
+        default: "dev"
         type: choice
         options:
-          - development
+          - dev
           - test
       mp_operational_automation_ref:
         description: "MP Operational Automation ref"
@@ -25,7 +25,7 @@ jobs:
   # Start deployment container job based on the build delius-ansible-aws image
   deployment:
     name: Test automation task
-    environment: development # hard-coded this while spiking this out
+    environment: delius-core-${{ github.event.inputs.environment }}
     runs-on: ubuntu-22.04
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
@@ -54,4 +54,4 @@ jobs:
       - name: Trigger ansible playbook
         working-directory: modernisation-platform-configuration-management/ansible
         run: |
-          no_proxy="*" ansible-playbook roles/oracle-db-parameters/set_oracle_parameters.yml --extra-vars "@group_vars/dev.yml target_host=server_type_delius_core_db"
+          no_proxy="*" ansible-playbook site.yml --limit environment_name_delius_core_development_${{ github.event.inputs.environment }}_delius_primarydb -e role=oracle-db-parameters/set_oracle_parameters
