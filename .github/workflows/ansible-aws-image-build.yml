@@ -1,6 +1,7 @@
 name: Delius Ansible AWS Image Build
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -81,7 +82,7 @@ jobs:
         with:
           format: 'sarif'
           severity: 'MEDIUM,HIGH,CRITICAL'
-          image-ref: 'delius-core-openldap-ecr-repo:${{ github.sha }}'
+          image-ref: 'hmpps-delius-operational-automation:${{ github.sha }}'
           exit-code: '1'
           output: 'trivy-results.sarif'
       - name: Upload Trivy scan results to GitHub Security tab
