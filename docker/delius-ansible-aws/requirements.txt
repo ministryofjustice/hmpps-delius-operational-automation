@@ -1,10 +1,9 @@
 awscli
-ansible==6.0.0
+ansible==7.0.0
 ansible-lint==5.*
 boto
 boto3
 botocore
-pycrypto
 pywinrm
 requests
 python-semantic-release
