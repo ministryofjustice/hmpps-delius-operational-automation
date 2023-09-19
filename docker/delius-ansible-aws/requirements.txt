@@ -4,7 +4,6 @@ ansible-lint==5.*
 boto
 boto3
 botocore
-pycrypto
 pywinrm
 requests
 python-semantic-release
