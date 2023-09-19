@@ -1,6 +1,7 @@
 name: Delius Ansible AWS Image Build
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -125,7 +126,7 @@ jobs:
         with:
           name: openldap-image
           path: /tmp
-          
+
       - name: Load and retag image for publish
         run: |
           docker load --input /tmp/openldap.tar
