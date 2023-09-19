@@ -27,12 +27,10 @@ RUN apk update; \
 
 # Pip
 RUN pip install -U pip; 
-COPY ./requirements.txt requirements.txt
-COPY ./requirements.yml requirements.yml
+COPY requirements.txt requirements.yml ./
 RUN pip install --upgrade -r requirements.txt \
   && ansible-galaxy collection install -r requirements.yml \
   && ansible-galaxy role install -r requirements.yml
-RUN rm requirements.*
 
 # Install session manager
 COPY  --from=ssm-builder /go/src/github.com/session-manager-plugin/bin/linux_amd64_plugin/session-manager-plugin /usr/local/bin/
