@@ -1,5 +1,4 @@
-name: Test automation task
-
+name: "Oracle: Set DB Parameters"
 on:
   workflow_dispatch:
     inputs:
