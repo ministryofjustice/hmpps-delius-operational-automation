@@ -124,12 +124,12 @@ jobs:
       - name: Download Artifact
         uses: actions/download-artifact@v3
         with:
-          name: openldap-image
+          name: ansible-aws-image
           path: /tmp
           
       - name: Load and retag image for publish
         run: |
-          docker load --input /tmp/openldap.tar
+          docker load --input /tmp/ansible-aws-image.tar
           docker tag ghcr.io/ministryofjustice/hmpps-delius-operational-automation:${{ steps.safe_tag.outputs.SAFE_TAG }}
 
       - name: Log into ghcr
