@@ -110,7 +110,8 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: ${{ inputs.SourceConfigVersion }}
+          ref: DBA-511
+          #${{ inputs.SourceConfigVersion }}
           fetch-depth: 1
 
       - name: Configure AWS Credentials
@@ -121,14 +122,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: SetInitialStatus
-        uses: dwardu89/aws-ssm-parameter-store@latest
-        with:
-          ssm-path: $ssm_parameter_status
-          ssm-value: "NotPassed"
-          aws-region: ${{ secrets.AWS_REGION }}
-          ssm-value-type: "String"
-
       # - name: SetInitialStatus
       #   uses: stephenbawks/aws-ssm-parameter@v1.0.0
       #   with:
@@ -136,8 +129,13 @@ jobs:
       #     value: NotPassed
       #     description: Put AWS Parameter Status
 
-      - name: Test ansible playbook
+      - name: Start Ansible Backup
         run: |
-          ansible-playbook operations/playbooks/oracle_backup/playbook.yml -i inventory/ansible -e target=environment_name_delius_core_development_dev_delius_primarydb
+          ansible-playbook operations/playbooks/oracle_backup/backup.yml \
+          -i inventory/ansible \
+          -e rman_target=environment_name_delius_core_development_dev_delius_primarydb \
+          -e daily_weekly="weekly" \
+          -e enable_trace="no" \
+          -e delete_defunct="no"
 
 #${{ github.inputs.TargetHost }}
