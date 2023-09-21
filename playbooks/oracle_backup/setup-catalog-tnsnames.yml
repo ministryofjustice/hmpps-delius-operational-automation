@@ -1,0 +1,76 @@
+---
+
+- name: Set fact for marker name
+  set_fact:
+    marker_name: "ANSIBLE MANAGED BLOCK ADD {{ catalog }} DATABASE"
+
+- name: Get the oracle home for {{ database_primary_sid }}
+  shell: "grep {{ database_primary_sid | default(database_standby_sid) }} /etc/oratab | awk -F':' '{print $2}'"
+  changed_when: false
+  register: oracle_home
+
+- name: Register tnsnames contents
+  shell: cat {{ oracle_home.stdout }}/network/admin/tnsnames.ora
+  register: tnsnames_file
+
+- set_fact:
+    tnsnames_entry_exists: false
+
+- name: Check if catalog entry exists that have been created
+  set_fact:
+    tnsnames_entry_exists: true
+  when: tnsnames_file.stdout is search(catalog)
+
+- name: Display entry exists
+  debug:
+    msg: "{{ catalog }} exists in tnsnames: {{ tnsnames_entry_exists }}" 
+
+- name: Add catalog connect identifier to {{ oracle_home.stdout }}/network/admin/tnsnames.ora
+  blockinfile:
+    backup:
+    insertafter: EOF
+    path: '{{ oracle_home.stdout }}/network/admin/tnsnames.ora'  
+    block: |
+
+      {{ catalog }} =
+        (DESCRIPTION =
+          (LOAD_BALANCE=0FF)
+          (FAILOVER=OFF)
+          (CONNECT_TIMEOUT=10)
+          (RETRY_COUNT=3)
+          (ADDRESS_LIST=
+            (ADDRESS = (PROTOCOL = TCP)(HOST={{ hostvars[groups['rman_primarydb'][0]]['inventory_hostname'] }})(PORT = 1521))
+          )
+          (CONNECT_DATA=(SERVICE_NAME={{ catalog }}_TAF))
+        )
+
+    owner: "oracle"
+    marker: "# {mark} {{ marker_name }}"
+  when: not tnsnames_entry_exists
+
+- name: Check we can connect to the catalog
+  block:
+
+    - name: Get catalog rman password
+      shell: ". /etc/environment && aws ssm get-parameters --region ${REGION} --with-decryption --name /${HMPPS_ENVIRONMENT}/${APPLICATION}/oracle-db-operation/rman/rman_password | jq -r '.Parameters[].Value'" 
+      changed_when: false
+      register: rman_password
+      no_log: true
+
+    - name: Attempt to connect to the catalog as rman 
+      shell: 
+        cmd: |
+          . ~/.bash_profile
+          sqlplus -s /nolog<< EOF
+          whenever sqlerror exit failure
+          connect rman19c/{{ rman_password.stdout }}@{{ catalog }} 
+          EOF
+      become_user: oracle
+      changed_when: false
+      register: rman_connect
+      no_log: true
+
+    - name: Display connection result
+      debug:
+        msg: "Catalog connection good"
+      when: rman_connect.rc == 0
