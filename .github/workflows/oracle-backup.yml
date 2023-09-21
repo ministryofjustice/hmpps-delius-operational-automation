@@ -121,6 +121,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: SetInitialStatus
+        uses: joshghent/aws-ssm-parameter-store@v2
+        with:
+          ssm-path: $ssm_parameter_status
+          ssm-value: "NotPassed"
+          aws-region: ${{ secrets.AWS_REGION }}
+          ssm-value-type: "String"
+
       # - name: SetInitialStatus
       #   uses: stephenbawks/aws-ssm-parameter@v1.0.0
       #   with:
