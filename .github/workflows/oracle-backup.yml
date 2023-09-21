@@ -122,7 +122,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: SetInitialStatus
-        uses: joshghent/aws-ssm-parameter-store@latest
+        uses: dwardu89/aws-ssm-parameter-store@latest
         with:
           ssm-path: $ssm_parameter_status
           ssm-value: "NotPassed"
