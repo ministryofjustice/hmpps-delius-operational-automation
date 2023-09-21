@@ -129,4 +129,4 @@ jobs:
 
       - name: Test ansible playbook
         run: |
-          ansible-playbook operations/playbooks/oracle_backup/playbook.yml -i inventory/ansible -e target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }}"
+          ansible-playbook operations/playbooks/oracle_backup/playbook.yml -i inventory/ansible -e target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }}
