@@ -98,7 +98,8 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_backup
           path: operations
-          ref: ${{ inputs.SourceCodeVersion }}
+          ref: DBA-511
+          #${{ inputs.SourceCodeVersion }}
           fetch-depth: 1
 
       - name: Checkout modernisation-platform-configuration-management
