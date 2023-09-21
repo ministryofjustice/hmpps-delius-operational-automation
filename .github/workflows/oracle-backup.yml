@@ -6,7 +6,7 @@ on:
         description: "Backup target host"
         required: true
         type: choice
-         default: "delius_primarydb"
+        default: "delius_primarydb"
         options: 
           - "delius_primarydb"
           - "mis_primarydb"
