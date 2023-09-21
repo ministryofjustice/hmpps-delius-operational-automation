@@ -85,7 +85,7 @@ jobs:
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4.0.0
+        uses: actions/checkout@v4
         with:
           sparse-checkout-cone-mode: false
           sparse_checkout: |
@@ -95,7 +95,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@v4.0.0
+        uses: actions/checkout@v4
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
