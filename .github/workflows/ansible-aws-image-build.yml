@@ -1,6 +1,7 @@
 name: Delius Ansible AWS Image Build
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -22,7 +23,7 @@ permissions:
   contents: read
 
 jobs:
-  build-and-push:
+  build-image:
     runs-on: ubuntu-22.04
 
     steps:
@@ -35,13 +36,6 @@ jobs:
         id: setup_buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Log into ghcr
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build and push to ghcr
         id: build_publish
         uses: docker/build-push-action@v2
@@ -49,5 +43,104 @@ jobs:
           context: ./docker/delius-ansible-aws
           file: ./docker/delius-ansible-aws/Dockerfile
           platforms: linux/amd64
-          push: true
-          tags: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+          push: false
+          tags: hmpps-delius-operational-automation:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/ansible-aws-image.tar
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ansible-aws-image
+          path: /tmp/ansible-aws-image.tar
+          retention-days: 1
+
+  scan-image:
+    name: Scan Image
+    needs: build-image
+    permissions:
+      # required for all workflows
+      security-events: write
+      # only required for workflows in private repositories
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ansible-aws-image
+          path: /tmp
+
+      - name: Load image
+        run: |
+          docker load --input /tmp/ansible-aws-image.tar
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
+        with:
+          format: 'sarif'
+          severity: 'MEDIUM,HIGH,CRITICAL'
+          image-ref: 'hmpps-delius-operational-automation:${{ github.sha }}'
+          exit-code: '1'
+          output: 'trivy-results.sarif'
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: failure() # If Trivy found vulnerabilities
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  publish-image:
+    name: Publish image
+    needs: [build-image, scan-image]
+    permissions:
+      contents: write
+      packages: write
+    runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.bump-version.outputs.new_tag }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Bump version and push tag
+        id: bump-version
+        uses: anothrNick/github-tag-action@1.67.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: false
+          DEFAULT_BUMP: minor # Making this default visible
+          TAG_CONTEXT: repo # Making this default visible
+          PRERELEASE: ${{ github.base_ref != 'refs/heads/main' }}
+          PRERELEASE_SUFFIX: ${{ github.base_ref }} # Branch name
+      
+      - name: Create safe tag
+        id: safe_tag
+        run: |
+          echo "SAFE_TAG=$(echo ${{ steps.bump-version.outputs.new_tag }} | sed 's/[^a-zA-Z0-9.]/-/g')" >> $GITHUB_OUTPUT
+      
+      - name: Download Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ansible-aws-image
+          path: /tmp
+          
+      - name: Load and retag image for publish
+        run: |
+          docker load --input /tmp/ansible-aws-image.tar
+          docker tag hmpps-delius-operational-automation:${{ github.sha }} ghcr.io/ministryofjustice/hmpps-delius-operational-automation:${{ steps.safe_tag.outputs.SAFE_TAG }}
+
+      - name: Log into ghcr
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish image
+        run: docker push ghcr.io/ministryofjustice/hmpps-delius-operational-automation:${{ steps.safe_tag.outputs.SAFE_TAG }}
+
+        

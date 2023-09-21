@@ -1,4 +1,4 @@
-name: "Oracle Database Backup"
+name: "Oracle: Database Backup"
 on:
   workflow_dispatch:
     inputs:
