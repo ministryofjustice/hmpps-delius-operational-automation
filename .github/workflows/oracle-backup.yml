@@ -6,6 +6,7 @@ on:
         description: "Backup target host"
         required: true
         type: choice
+         default: "delius_primarydb"
         options: 
           - "delius_primarydb"
           - "mis_primarydb"
@@ -129,4 +130,6 @@ jobs:
 
       - name: Test ansible playbook
         run: |
-          ansible-playbook operations/playbooks/oracle_backup/playbook.yml -i inventory/ansible -e target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }}
+          ansible-playbook operations/playbooks/oracle_backup/playbook.yml -i inventory/ansible -e target=environment_name_delius_core_development_dev_delius_primarydb
+
+#${{ github.inputs.TargetHost }}
