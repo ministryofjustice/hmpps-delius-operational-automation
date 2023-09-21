@@ -88,7 +88,7 @@ jobs:
         uses: actions/checkout@v4.0.0
         with:
           sparse-checkout-cone-mode: false
-          sparse_checkout: |
+          sparse-checkout: |
             playbooks/oracle_backup
           path: operations
           ref: ${{ inputs.SourceCodeVersion }}
@@ -99,7 +99,7 @@ jobs:
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
-          sparse_checkout: |
+          sparse-checkout: |
             ansible/hosts
             ansible/group_vars
           path: inventory
