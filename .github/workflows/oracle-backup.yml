@@ -144,14 +144,14 @@ jobs:
       - name: Start Ansible Backup (Workflow Dispatch)
         if: ${{ github.event.workflow_dispatch }}
         run: |
-            $command -i $inventory \
-            -e rman_target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }} \
-            -e daily_weekly=${{ inputs.Period }} \
-            -e enable_trace=${{ inputs.EnableTrace }}
+          $command -i $inventory \
+          -e rman_target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }} \
+          -e daily_weekly=${{ inputs.Period }} \
+          -e enable_trace=${{ inputs.EnableTrace }}
 
       - name: Start Ansible Backup (Workflow Call)
         if: ${{ github.event.workflow_call }}
         run: |
-           $command -i $inventory \
+          $command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }} \
           -e daily_weekly=${{ inputs.Period }}
