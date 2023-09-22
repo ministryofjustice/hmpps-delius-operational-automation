@@ -134,18 +134,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Start Ansible Backup
-        if: ${{ github.event.issue.push }}
+      - name: Start Ansible Backup (Push)
+        if: ${{ github.event.push }}
         run: |
           $command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_delius_primarydb \
           -e daily_weekly="daily"
-        if: ${{ github.event.issue.workflow_dispatch }}
+
+      - name: Start Ansible Backup (Workflow Dispatch)
+        if: ${{ github.event.workflow_dispatch }}
         run: |
-          $command -i $inventory \
-          -e rman_target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }} \
-          -e daily_weekly=${{ inputs.Period }} \
-          -e enable_trace=${{ inputs.EnableTrace }}
+            $command -i $inventory \
+            -e rman_target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }} \
+            -e daily_weekly=${{ inputs.Period }} \
+            -e enable_trace=${{ inputs.EnableTrace }}
+
+      - name: Start Ansible Backup (Workflow Call)
         if: ${{ github.event.issue.workflow_call }}
         run: |
            $command -i $inventory \
