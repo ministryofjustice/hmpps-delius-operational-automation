@@ -132,6 +132,7 @@ jobs:
 
       - name: Start Ansible Backup
         run: |
+          mv  inventory/ansible/environment_name_delius_core_development_dev_all.yml inventory/ansible/all.yml \
           ansible-playbook operations/playbooks/oracle_backup/backup.yml \
           -i inventory/ansible \
           -e rman_target=environment_name_delius_core_development_dev_delius_primarydb \
