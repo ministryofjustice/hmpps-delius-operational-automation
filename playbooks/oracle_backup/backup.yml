@@ -55,7 +55,7 @@
         when: daily_weekly == 'weekly'
 
       - name: Setup catalog connect identifier in tnsnames if catalog defined
-        include: setup-catalog-tnsnames.yml
+        include_tasks: setup-catalog-tnsnames.yml
         when: (catalog is defined)
         ignore_errors: yes
 
