@@ -9,97 +9,95 @@
   become_method: sudo
 
   tasks:
+    - name: RMAN script
+      block:
+        - name: Set database_global_database
+          set_fact:
+            database_global_database: "{{ hostvars[groups[ ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb'][0]]['database_global_database'] }}"
+          when: ((database_global_database is defined) and (database_global_database|length == 0)) or (database_global_database is not defined)
 
-  - name: RMAN script
-    block:
+        - name: Check variables are defined
+          fail:
+            msg: "Variable {{item}} not defined, can not run RMAN script"
+          when: item is not defined
+          with_items:
+            - daily_weekly
 
-      - name: Set database_global_database
-        set_fact:
-          database_global_database: "{{ hostvars[groups[ ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb'][0]]['database_global_database'] }}"
-        when: ((database_global_database is defined) and (database_global_database|length == 0)) or (database_global_database is not defined)
+        - name: debug daily_weekly
+          debug: var=daily_weekly
 
-      - name: Check variables are defined
-        fail:
-          msg: 'Variable {{item}} not defined, can not run RMAN script'
-        when: item is not defined
-        with_items:
-          - daily_weekly
+        - name: Create rman_scripts dir
+          file:
+            path: /home/oracle/admin/rman_scripts
+            owner: oracle
+            group: oinstall
+            mode: 0755
+            state: directory
 
-      - name: debug daily_weekly
-        debug: var=daily_weekly
+        - name: Install RMAN script
+          copy:
+            src: rman_backup.sh
+            dest: /home/oracle/admin/rman_scripts/rman_backup.sh
+            owner: oracle
+            group: oinstall
+            mode: 0544
 
-      - name: Create rman_scripts dir
-        file:
-          path: /home/oracle/admin/rman_scripts
-          owner: oracle
-          group: oinstall
-          mode: 0755
-          state: directory
+        - name: Set rman_options when "daily"
+          set_fact:
+            rman_options: "-t HOT -i 1 -b Y"
+          when: daily_weekly == 'daily'
 
-      - name: Install RMAN script
-        copy:
-          src: rman_backup.sh
-          dest: /home/oracle/admin/rman_scripts/rman_backup.sh
-          owner: oracle
-          group: oinstall
-          mode: 0544
+        - name: Set rman_options when "weekly"
+          set_fact:
+            rman_options: "-t HOT -i 0 -b Y"
+          when: daily_weekly == 'weekly'
 
-      - name: Set rman_options when "daily"
-        set_fact:
-          rman_options: "-t HOT -i 1 -b Y"
-        when: daily_weekly == 'daily'
+        - name: Setup catalog connect identifier in tnsnames if catalog defined
+          include_tasks: setup-catalog-tnsnames.yml
+          when: (catalog is defined)
+          ignore_errors: yes
 
-      - name: Set rman_options when "weekly"
-        set_fact:
-          rman_options: "-t HOT -i 0 -b Y"
-        when: daily_weekly == 'weekly'
+        - name: Set catalog options when variable not null
+          set_fact:
+            catalog_options: "-n Y -c {{ catalog }}"
+          when: (catalog is defined)
 
-      - name: Setup catalog connect identifier in tnsnames if catalog defined
-        include_tasks: setup-catalog-tnsnames.yml
-        when: (catalog is defined)
-        ignore_errors: yes
-
-      - name: Set catalog options when variable not null
-        set_fact:
-          catalog_options: "-n Y -c {{ catalog }}"
-        when: (catalog is defined)
-
-      - name: Set backup duration target when variable is not null
-        set_fact:
+        - name: Set backup duration target when variable is not null
+          set_fact:
             duration_options: "-m {{ rman_level_0_backup_duration_target }}"
-        when: daily_weekly == 'weekly' and (rman_level_0_backup_duration_target is defined)
+          when: daily_weekly == 'weekly' and (rman_level_0_backup_duration_target is defined)
 
-      - name: Calculate backup duration target
-        set_fact:
-              hours: "{{ rman_level_0_backup_duration_target | regex_replace('^([0-9]+):[0-9]{2}$','\\1') }}"
-              mins: "{{ rman_level_0_backup_duration_target | regex_replace('^[0-9]+:([0-9]{2})$','\\1') }}"
-        when: daily_weekly == 'weekly' and (rman_level_0_backup_duration_target is defined)
+        - name: Calculate backup duration target
+          set_fact:
+            hours: "{{ rman_level_0_backup_duration_target | regex_replace('^([0-9]+):[0-9]{2}$','\\1') }}"
+            mins: "{{ rman_level_0_backup_duration_target | regex_replace('^[0-9]+:([0-9]{2})$','\\1') }}"
+          when: daily_weekly == 'weekly' and (rman_level_0_backup_duration_target is defined)
 
-      - name: Calculate Allowable Backup Duration
-        set_fact:
-              # Allow a margin of additional 4 hours margin beyond specified limit
-              # to allow for archivelog and backup crosscheck after backup completes
-              allowable_duration:  "{{ (hours|int) * 3600 + (mins|int) * 60 + 14400 }}"
-        when: daily_weekly == 'weekly' and (rman_level_0_backup_duration_target is defined)
+        - name: Calculate Allowable Backup Duration
+          set_fact:
+            # Allow a margin of additional 4 hours margin beyond specified limit
+            # to allow for archivelog and backup crosscheck after backup completes
+            allowable_duration: "{{ (hours|int) * 3600 + (mins|int) * 60 + 14400 }}"
+          when: daily_weekly == 'weekly' and (rman_level_0_backup_duration_target is defined)
 
-      - name: Set uncompressed backup when variable is not null
-        set_fact:
+        - name: Set uncompressed backup when variable is not null
+          set_fact:
             uncompress_options: "-u {{ rman_uncompressed_backup }}"
-        when: (rman_uncompressed_backup is defined)
+          when: (rman_uncompressed_backup is defined)
 
-      - name: Enable Tracing Flag if required
-        set_fact:
+        - name: Enable Tracing Flag if required
+          set_fact:
             enable_trace_flag: "-e Y"
-        when: enable_trace | default(false) | bool
+          when: enable_trace | default(false) | bool
 
-      - name: Set ssm parameter when variable is not null
-        set_fact:
+        - name: Set ssm parameter when variable is not null
+          set_fact:
             ssm_parameter_option: "-p {{ ssm_parameter }}"
-        when: ssm_parameter is defined
+          when: ssm_parameter is defined
 
-      - block:
+        - block:
             - name: Get Current RMAN Retention
-              script:  get_rman_retention.sh {{ database_primary_sid | default(database_standby_sid) }} 
+              script: get_rman_retention.sh {{ database_primary_sid | default(database_standby_sid) }}
               register: rman_retention_output
               changed_when: false
               become_user: oracle
@@ -111,54 +109,52 @@
             - name: Set RMAN Retention Policy if Incorrect
               script: set_rman_retention.sh {{ database_primary_sid | default(database_standby_sid) }} "{{ rman_retention_policy }}"
               become_user: oracle
-              when: 
+              when:
                 - rman_retention_policy != current_rman_retention
-        when: rman_retention_policy is defined
+          when: rman_retention_policy is defined
 
-      # We space the snaphot controlfile on ASM as this prevents cluttering
-      # of the ORACLE_HOME which complicates de-installation and also is
-      # incompatible with Read Only ORACLE_HOMEs in 21c onwards.  Place this in
-      # the FLASH disk group.
-      - name: Define Required Path to Snapshot Controlfile  
-        set_fact:
-          snapshot_controlfile_name: "+FLASH/snapcf_{{ database_primary_sid | default(database_standby_sid) }}.f"
-    
-      - name: Get Existing Path to Snapshot Controlfile from RMAN
-        script: get_snapshot_controlfile_location.sh
-        register: get_snapshot_controlfile_location
-        changed_when: false
-        become_user: oracle
+        # We space the snaphot controlfile on ASM as this prevents cluttering
+        # of the ORACLE_HOME which complicates de-installation and also is
+        # incompatible with Read Only ORACLE_HOMEs in 21c onwards.  Place this in
+        # the FLASH disk group.
+        - name: Define Required Path to Snapshot Controlfile
+          set_fact:
+            snapshot_controlfile_name: "+FLASH/snapcf_{{ database_primary_sid | default(database_standby_sid) }}.f"
 
-      - name: Get Current Path to Snapshot Controlfile
-        set_fact:
-           current_snapshot_controlfile_name: "{{ get_snapshot_controlfile_location.stdout_lines | select('match','CONFIGURE SNAPSHOT CONTROLFILE NAME TO *') | list | first | regex_replace('CONFIGURE SNAPSHOT CONTROLFILE NAME TO (.*);','\\1') | replace(\"'\",'') }}"
+        - name: Get Existing Path to Snapshot Controlfile from RMAN
+          script: get_snapshot_controlfile_location.sh
+          register: get_snapshot_controlfile_location
+          changed_when: false
+          become_user: oracle
 
+        - name: Get Current Path to Snapshot Controlfile
+          set_fact:
+            current_snapshot_controlfile_name: "{{ get_snapshot_controlfile_location.stdout_lines | select('match','CONFIGURE SNAPSHOT CONTROLFILE NAME TO *') | list | first | regex_replace('CONFIGURE SNAPSHOT CONTROLFILE NAME TO (.*);','\\1') | replace(\"'\",'') }}"
 
-      - name: Set Path to Snapshot Controlfile
-        script: set_snapshot_controlfile_location.sh "{{ snapshot_controlfile_name }}"
-        become_user: oracle
-        when: snapshot_controlfile_name != current_snapshot_controlfile_name
+        - name: Set Path to Snapshot Controlfile
+          script: set_snapshot_controlfile_location.sh "{{ snapshot_controlfile_name }}"
+          become_user: oracle
+          when: snapshot_controlfile_name != current_snapshot_controlfile_name
 
-      - name: Create RMAN Command
-        set_fact:
-           rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }} {{ ssm_parameter_option|default() }}"
+        - name: Create RMAN Command
+          set_fact:
+            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }} {{ ssm_parameter_option|default() }}"
 
-      - name: Show RMAN Command
-        debug:
-           msg: "About to run:  {{ rman_command }}"  
+        - name: Show RMAN Command
+          debug:
+            msg: "About to run:  {{ rman_command }}"
 
-      - name: Running RMAN script
-        shell: "{{ rman_command }}"
-        async: "{{ allowable_duration|default(28800) }}"
-        poll: 60
-        register: backup_cmd_output
+        - name: Running RMAN script
+          shell: "{{ rman_command }}"
+          async: "{{ allowable_duration|default(28800) }}"
+          poll: 60
+          register: backup_cmd_output
 
-    rescue:
-
-      - name: Set SSM Parameter to Failed if Block Fails
-        community.aws.aws_ssm_parameter_store:
-          region: "{{ region }}"
-          name: "{{ ssm_parameter }}"
-          overwrite_value: "always"
-          value: "FAILED"
-        when: ssm_parameter is defined    
+      rescue:
+        - name: Set SSM Parameter to Failed if Block Fails
+          community.aws.aws_ssm_parameter_store:
+            region: "{{ region }}"
+            name: "{{ ssm_parameter }}"
+            overwrite_value: "always"
+            value: "FAILED"
+          when: ssm_parameter is defined
