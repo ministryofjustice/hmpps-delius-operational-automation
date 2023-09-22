@@ -68,9 +68,20 @@ on:
         type: string
         default: "main"
 
+  workflow_call:
+    inputs:
+      TargetHost:
+        description: "Backup target host"
+        required: true
+        type: string
+      Period:
+        description: "Is this a daily or weekly backup?"
+        required: true
+        type: string
+
   push:
     branches:
-      - DBA-511
+      - main
     paths:
       - .github/workflows/oracle-backup.yml
 
@@ -88,6 +99,9 @@ jobs:
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
+    env:
+      command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
+      inventory: inventory/ansible
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
@@ -97,8 +111,7 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_backup
           path: operations
-          ref: DBA-511
-          #${{ inputs.SourceCodeVersion }}
+          ref: ${{ inputs.SourceCodeVersion }}
           fetch-depth: 1
 
       - name: Checkout modernisation-platform-configuration-management
@@ -110,8 +123,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: DBA-511
-          #${{ inputs.SourceConfigVersion }}
+          ref: ${{ inputs.SourceConfigVersion }}
           fetch-depth: 1
 
       - name: Configure AWS Credentials
@@ -123,10 +135,19 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Start Ansible Backup
+        if: ${{ github.event.issue.push }}
         run: |
-          ansible-playbook operations/playbooks/oracle_backup/backup.yml \
-          -i inventory/ansible \
+          $command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_delius_primarydb \
-          -e daily_weekly="weekly" \
-          -e enable_trace="no" \
-          -e delete_defunct="no"
+          -e daily_weekly="daily"
+        if: ${{ github.event.issue.workflow_dispatch }}
+        run: |
+          $command -i $inventory \
+          -e rman_target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }} \
+          -e daily_weekly=${{ inputs.Period }} \
+          -e enable_trace=${{ inputs.EnableTrace }}
+        if: ${{ github.event.issue.workflow_call }}
+        run: |
+           $command -i $inventory \
+          -e rman_target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }} \
+          -e daily_weekly=${{ inputs.Period }}
