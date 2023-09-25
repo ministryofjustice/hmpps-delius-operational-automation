@@ -150,7 +150,7 @@ jobs:
           $backup_command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
           -e daily_weekly=${{ github.event.inputs.Period }} \
-          -e enale_trace=${{ github.event.inputs.EnableTrace }}
+          -e enable_trace=${{ github.event.inputs.EnableTrace }}
 
       - name: Start Ansible Backup (Workflow Call)
         if: github.event_name == 'schedule'
@@ -159,11 +159,12 @@ jobs:
           -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
           -e daily_weekly=${{ github.event.inputs.Period }}
 
-      - name: Start Ansible Validate Backup (Fix Absent Chunks)
+      - name: Start Ansible Validate And Fix Absent Chunks)
         run: |
           $validate_command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_delius_primarydb \
-          -e fix_absent_chunks="yes"
+          -e fix_absent_chunks=${{ inputs.FixAbsentChunks }}
+
 
       # - name: Start Ansible Delete DBID's Not In Use
       #   run: |
