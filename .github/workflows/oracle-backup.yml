@@ -62,17 +62,22 @@ on:
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
-        default: "main"
+        default: "DBA-511"
       SourceConfigVersion:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
 
-  push:
-    branches:
-      - DBA-511
-    paths:
-      - .github/workflows/oracle-backup.yml
+  workflow_call:
+    inputs:
+      TargetHost:
+        description: "Backup target host"
+        required: true
+        type: string
+      Period:
+        description: "Is this a daily or weekly backup?"
+        required: true
+        type: string
 
 # Allow permissions on repository and docker image respectively 
 permissions:
@@ -88,6 +93,9 @@ jobs:
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
+    env:
+      command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
+      inventory: inventory/ansible
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
@@ -97,8 +105,7 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_backup
           path: operations
-          ref: DBA-511
-          #${{ inputs.SourceCodeVersion }}
+          ref: ${{ inputs.SourceCodeVersion }}
           fetch-depth: 1
 
       - name: Checkout modernisation-platform-configuration-management
@@ -110,8 +117,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: DBA-511
-          #${{ inputs.SourceConfigVersion }}
+          ref: ${{ inputs.SourceConfigVersion }}
           fetch-depth: 1
 
       - name: Configure AWS Credentials
@@ -122,11 +128,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Start Ansible Backup
+      - name: Start Ansible Backup (Push)
+        if: github.event_name == 'push'
         run: |
-          ansible-playbook operations/playbooks/oracle_backup/backup.yml \
-          -i inventory/ansible \
+          $command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_delius_primarydb \
-          -e daily_weekly="weekly" \
-          -e enable_trace="no" \
-          -e delete_defunct="no"
+          -e daily_weekly="daily"
+
+      - name: Start Ansible Backup (Workflow Dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          $command -i $inventory \
+          -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
+          -e daily_weekly=${{  github.event.inputs.Period }} \
+          -e enale_trace=${{  github.event.inputs.EnableTrace }}
+
+      - name: Start Ansible Backup (Workflow Call)
+        if: github.event_name == 'workflow_call'
+        run: |
+          $command -i $inventory \
+          -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
+          -e daily_weekly=${{ github.event.inputs.Period }}
