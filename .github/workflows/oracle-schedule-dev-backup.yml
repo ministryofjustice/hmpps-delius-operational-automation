@@ -2,12 +2,7 @@ name: "Oracle: Scheduled Delius Development Database Backup"
 on:
   schedule:
     - cron: '30 06 * * 1,2,4,5'
-    - cron: '10 13 * * 1'
-  # push:
-  #   branches:
-  #     - DBA-511
-  #   paths:
-  #     - .github/workflows/oracle-schedule-dev-backup.yml
+    - cron: '00 14 * * 1'
 jobs:
   call-workflow:
     strategy:
