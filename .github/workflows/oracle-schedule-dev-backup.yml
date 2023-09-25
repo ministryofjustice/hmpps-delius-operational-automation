@@ -17,8 +17,5 @@ jobs:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@DBA-511
     with:
       TargetHost: ${{ matrix.database_type }}_primarydb
-      #if: github.event.schedule != '30 06 * * 1,2,4,5'
-      #Period: weekly
-      #if: github.event.schedule != '30 06 * * 3'
       Period: daily
     secrets: inherit
