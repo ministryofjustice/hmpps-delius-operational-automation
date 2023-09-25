@@ -153,7 +153,7 @@ jobs:
           -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
           -e daily_weekly=${{ github.event.inputs.Period }}
 
-      - name: Start Ansible Validate And Fix Absent Chunks)
+      - name: Start Ansible Validate And Fix Absent Chunks
         run: |
           $validate_command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
