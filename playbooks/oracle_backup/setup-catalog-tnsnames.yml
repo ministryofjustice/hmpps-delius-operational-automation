@@ -1,5 +1,4 @@
 ---
-
 - name: Set fact for marker name
   set_fact:
     marker_name: "ANSIBLE MANAGED BLOCK ADD {{ catalog }} DATABASE"
@@ -23,13 +22,13 @@
 
 - name: Display entry exists
   debug:
-    msg: "{{ catalog }} exists in tnsnames: {{ tnsnames_entry_exists }}" 
+    msg: "{{ catalog }} exists in tnsnames: {{ tnsnames_entry_exists }}"
 
 - name: Add catalog connect identifier to {{ oracle_home.stdout }}/network/admin/tnsnames.ora
   blockinfile:
     backup:
     insertafter: EOF
-    path: '{{ oracle_home.stdout }}/network/admin/tnsnames.ora'  
+    path: "{{ oracle_home.stdout }}/network/admin/tnsnames.ora"
     block: |
 
       {{ catalog }} =
@@ -50,15 +49,14 @@
 
 - name: Check we can connect to the catalog
   block:
-
     - name: Get catalog rman password
-      shell: ". /etc/environment && aws ssm get-parameters --region ${REGION} --with-decryption --name /${HMPPS_ENVIRONMENT}/${APPLICATION}/oracle-db-operation/rman/rman_password | jq -r '.Parameters[].Value'" 
+      shell: ". /etc/environment && aws ssm get-parameters --region ${REGION} --with-decryption --name /${HMPPS_ENVIRONMENT}/${APPLICATION}/oracle-db-operation/rman/rman_password | jq -r '.Parameters[].Value'"
       changed_when: false
       register: rman_password
       no_log: true
 
-    - name: Attempt to connect to the catalog as rman 
-      shell: 
+    - name: Attempt to connect to the catalog as rman
+      shell:
         cmd: |
           . ~/.bash_profile
           sqlplus -s /nolog<< EOF
