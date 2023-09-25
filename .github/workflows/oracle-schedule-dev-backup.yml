@@ -21,3 +21,4 @@ jobs:
       #Period: weekly
       #if: github.event.schedule != '30 06 * * 3'
       Period: daily
+    secrets: inherit
