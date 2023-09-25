@@ -14,7 +14,7 @@ jobs:
       matrix:
         database_type: [delius]
     uses: 
-      ministryofjustice/hmpps-delius-operation-automation/.github/workflows/oracle-backup.yml@DBA-511
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@DBA-511
     with:
       TargetHost: ${{ matrix.database_type }}_primarydb
       #if: github.event.schedule != '30 06 * * 1,2,4,5'
