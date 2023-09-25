@@ -151,7 +151,7 @@ jobs:
           -e enale_trace=${{  github.event.inputs.EnableTrace }}
 
       - name: Start Ansible Backup (Workflow Call)
-        if: ${{ github.event.workflow_call }}
+        if: contains(github.event_name,'workflow_call')
         run: |
           $command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
