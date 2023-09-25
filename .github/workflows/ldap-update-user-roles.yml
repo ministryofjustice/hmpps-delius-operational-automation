@@ -85,7 +85,7 @@ jobs:
                 field-value-pairs: |
 
                     
-                    $.containerDefinitions[0].command: ["ldap-automation", "update-user-roles", "${{ github.event.inputs.roles }}", '"${{ github.event.inputs.user_note }}'", "--${{ github.event.inputs.action }}", "${{ steps.calculate-args.outputs.UPDATE_NOTES_ARG }}"]
+                    $.containerDefinitions[0].command: ["ldap-automation", "update-user-roles", "${{ github.event.inputs.roles }}", '"${{ github.event.inputs.user_note }}"', "--${{ github.event.inputs.action }}", "${{ steps.calculate-args.outputs.UPDATE_NOTES_ARG }}"]
 
                     $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task-exec"
                     $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task"
