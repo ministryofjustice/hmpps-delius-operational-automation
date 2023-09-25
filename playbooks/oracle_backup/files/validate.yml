@@ -1,0 +1,86 @@
+---
+- name: Oracle validate chunk
+  hosts: '{{ rman_target | default("localhost", true) }}'
+  gather_facts: yes
+  become: yes
+  become_user: oracle
+  become_method: sudo
+
+  tasks:  
+
+
+    - block:
+
+        - name: Set database_global_database
+          set_fact:
+            database_global_database: "{{ hostvars[groups[ ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb'][0]]['database_global_database'] }}"
+          when: ((database_global_database is defined) and (database_global_database|length == 0)) or (database_global_database is not defined)
+
+            # Create local copy of fix_absent_chunks called run_fix as we cannot
+        # override externally supplied extra variables to prevent the fix attempt running twice
+        - name: Set Flag if We Are to Attempt to Fix Missing Chunks
+          set_fact:
+            run_fix: "{{ fix_absent_chunks | default(false) | bool }}"
+            previous_fix_attempt: false
+
+        - name: Validate Chunks with Fix
+          block:
+
+            - name: Fix missing chunks
+              include_tasks: validate_chunks.yml
+
+            - name: Report Missing Chunks
+              debug:
+                  msg: "Invalid Chunks Found - Fix Attempted"
+              when: missing_chunks_found
+
+            # If we attempted the fix then validate chunks again to check it worked
+            # but do not run another fix if it did not
+            - set_fact:
+                  run_fix: false
+                  previous_fix_attempt: true
+              when: missing_chunks_found
+                
+          when: run_fix
+
+        - name: Validate missing chunks have been fixed
+          include_tasks: validate_chunks.yml
+          when: not ( run_fix | bool )
+
+        - fail:
+            msg: "Missing Chunks Found after Fix Attempt"
+          when: 
+            - missing_chunks_found
+            - previous_fix_attempt
+
+        - fail:
+            msg: "Missing Chunks Found and No Fix Attempted"
+          when: 
+            - missing_chunks_found
+            - not previous_fix_attempt
+
+        # - name: Updating ssm parameter to indicate process complete
+        #   community.aws.aws_ssm_parameter_store:
+        #     region: "{{ region }}"
+        #     name: "{{ ssm_parameter }}"
+        #     overwrite_value: "always"
+        #     value: "Validated"
+
+        # - name: Pause to Ensure Eventual Consistency in SSM Parameter Store
+        #   pause:
+        #      seconds: 60
+
+      rescue:
+
+      # - name: Set SSM Parameter to Failed if Block Fails
+      #   community.aws.aws_ssm_parameter_store:
+      #     region: "{{ region }}"
+      #     name: "{{ ssm_parameter }}"
+      #     overwrite_value: "always"
+      #     value: "FAILED"
+      #   when: ssm_parameter is defined    
+
+      - name: Block Failure
+        fail:
+           msg: "Validation block has failed."
+           
