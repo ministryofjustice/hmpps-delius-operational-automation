@@ -40,55 +40,55 @@
     metadata_working_directory:  /home/oracle/admin/metadata_validation
     num_of_days_back_to_validate: 7
 
-- name: Slurp Environment File to Get Backup Bucket Location
-  slurp:
-      src: /etc/environment
-  register: environmentfile
+# - name: Slurp Environment File to Get Backup Bucket Location
+#   slurp:
+#       src: /etc/environment
+#   register: environmentfile
 
-- name: Set Backup Location
-  set_fact:
-    hmpps_s3_oracledb_backups_arn: "{{ environmentfile['content'] | b64decode | regex_search('S3_ORACLEDB_BACKUPS_ARN=\".*\"') | regex_replace('S3_ORACLEDB_BACKUPS_ARN=\"arn:aws:s3:::(.*)\"','\\1') }}"
+# - name: Set Backup Location
+#   set_fact:
+#     hmpps_s3_oracledb_backups_arn: "{{ environmentfile['content'] | b64decode | regex_search('S3_ORACLEDB_BACKUPS_ARN=\".*\"') | regex_replace('S3_ORACLEDB_BACKUPS_ARN=\"arn:aws:s3:::(.*)\"','\\1') }}"
 
-- name: Set Current Environment
-  set_fact:
-    hmpps_environment: "{{ environmentfile['content'] | b64decode | regex_search('HMPPS_ENVIRONMENT=\"?[-\\w]+\"?') | regex_replace('HMPPS_ENVIRONMENT=\"?([-\\w]+)\"?','\\1') }}"
+# - name: Set Current Environment
+#   set_fact:
+#     hmpps_environment: "{{ environmentfile['content'] | b64decode | regex_search('HMPPS_ENVIRONMENT=\"?[-\\w]+\"?') | regex_replace('HMPPS_ENVIRONMENT=\"?([-\\w]+)\"?','\\1') }}"
 
-- name: Set Current Application
-  set_fact:
-    application: "{{ environmentfile['content'] | b64decode | regex_search('APPLICATION=\".*\"') | regex_replace('APPLICATION=\"(.*)\"','\\1') }}"
+# - name: Set Current Application
+#   set_fact:
+#     application: "{{ environmentfile['content'] | b64decode | regex_search('APPLICATION=\".*\"') | regex_replace('APPLICATION=\"(.*)\"','\\1') }}"
 
-- name: Set Current Region
-  set_fact:
-    region: "{{ environmentfile['content'] | b64decode | regex_search('REGION=\".*\"') | regex_replace('REGION=\"(.*)\"','\\1') }}"
+# - name: Set Current Region
+#   set_fact:
+#     region: "{{ environmentfile['content'] | b64decode | regex_search('REGION=\".*\"') | regex_replace('REGION=\"(.*)\"','\\1') }}"
 
-- name: Establish SSM Name
-  set_fact:
-    ssmname: "/{{ hmpps_environment }}/{{ application }}/{% if application == 'engineering' %}rman-database/db{% else %}oracle-db-operation/rman{% endif %}/rman_password"
+# - name: Establish SSM Name
+#   set_fact:
+#     ssmname: "/{{ hmpps_environment }}/{{ application }}/{% if application == 'engineering' %}rman-database/db{% else %}oracle-db-operation/rman{% endif %}/rman_password"
   
 
 # Get the Delius Slack token is stored in various places depending on the environment:  try all 3 known locations
-- name: Get Slack Token
-  shell: aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || \
-         aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value || \
-         aws ssm get-parameter --name /engineering-prod/engineering/oem-database/db/slack_token --region {{ region }} --output text --with-decryption --query Parameter.Value
-  register: getslacktoken
-  changed_when: false
+# - name: Get Slack Token
+#   shell: aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || \
+#          aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value || \
+#          aws ssm get-parameter --name /engineering-prod/engineering/oem-database/db/slack_token --region {{ region }} --output text --with-decryption --query Parameter.Value
+#   register: getslacktoken
+#   changed_when: false
 
-- name: Setup Slack Configuration
-  set_fact:
-    slack_channel: "#delius-aws-oracle-dev-alerts"
+# - name: Setup Slack Configuration
+#   set_fact:
+#     slack_channel: "#delius-aws-oracle-dev-alerts"
 
 # Only production database alerts should go to the prod channel
-- name: Setup Slack Configuration for Production
-  set_fact:
-    slack_channel: "#delius-aws-oracle-prod-alerts"
-  when: environment_name in ['delius-prod','engineering-prod']
+# - name: Setup Slack Configuration for Production
+#   set_fact:
+#     slack_channel: "#delius-aws-oracle-prod-alerts"
+#   when: environment_name in ['delius-prod','engineering-prod']
 
-- name: Get RMAN Catalog Password
-  shell: aws ssm get-parameters --region {{ region }} --with-decryption --name {{ ssmname }} | jq -r '.Parameters[].Value'
-  register: rman_password
-  changed_when: false
-  no_log: true
+# - name: Get RMAN Catalog Password
+#   shell: aws ssm get-parameters --region {{ region }} --with-decryption --name {{ ssmname }} | jq -r '.Parameters[].Value'
+#   register: rman_password
+#   changed_when: false
+#   no_log: true
 
 - name: Set RMAN Catalog Connection
   set_fact: 
@@ -112,7 +112,7 @@
   command: mkdir {{ metadata_working_directory }}
 
 - name: Fetch Metadata Files from AWS to Local Working Directory
-  script: get_metadata_files.sh {{ hmpps_s3_oracledb_backups_arn }} {{ dbid }} {{ database_global_database }}  {{ metadata_working_directory }}/s3_metadata {{ num_of_days_back_to_validate }}
+  script: get_metadata_files.sh "arn:aws:s3:::${{ db_backup_s3_bucket_name }}"  {{ dbid }} {{ database_global_database }}  {{ metadata_working_directory }}/s3_metadata {{ num_of_days_back_to_validate }}
   register: fetch_metadata
   vars:
     ansible_aws_ssm_timeout: "{{ num_of_days_back_to_validate*25| int }}"
@@ -195,56 +195,56 @@
             corrupt_backup_pieces: "{{ ( corrupt_backup_pieces | default([]) ) + [ item.value.backup_piece ] }}"
         with_dict: "{{ dict_actual_vs_expected }}"
 
-      - name: Send notification message via Slack if Missing Chunks Detected Without Previous Fix Attempt
-        community.general.slack:
-          token: "{{ getslacktoken.stdout }}"
-          msg: "Missing chunks detected in backuppieces {{ corrupt_backup_pieces | join(',') }}.  Attempting fix by re-running backup for these items."
-          channel: "{{ slack_channel }}"
-          username: 'Missing Backup Chunks {{ inventory_hostname }}'
-          icon_emoji: ':repeat:'
-        when: 
-           - not ( previous_fix_attempt | default(false) )  
-           - run_fix
-        delegate_to: localhost
-        become: no
+      # - name: Send notification message via Slack if Missing Chunks Detected Without Previous Fix Attempt
+      #   community.general.slack:
+      #     token: "{{ getslacktoken.stdout }}"
+      #     msg: "Missing chunks detected in backuppieces {{ corrupt_backup_pieces | join(',') }}.  Attempting fix by re-running backup for these items."
+      #     channel: "{{ slack_channel }}"
+      #     username: 'Missing Backup Chunks {{ inventory_hostname }}'
+      #     icon_emoji: ':repeat:'
+      #   when: 
+      #      - not ( previous_fix_attempt | default(false) )  
+      #      - run_fix
+      #   delegate_to: localhost
+      #   become: no
 
-      - name: Send notification message via Slack if Missing Chunks Detected And No Fix Attempt Specified
-        community.general.slack:
-          token: "{{ getslacktoken.stdout }}"
-          msg: "Missing chunks detected in backuppieces {{ corrupt_backup_pieces | join(',') }}.  No Fix will be attempted."
-          channel: "{{ slack_channel }}"
-          username: 'Missing Backup Chunks {{ inventory_hostname }}'
-          icon_emoji: ':x:'
-        when:
-           - not ( previous_fix_attempt | default(false) ) 
-           - not (run_fix)
-        delegate_to: localhost
-        become: no
+      # - name: Send notification message via Slack if Missing Chunks Detected And No Fix Attempt Specified
+      #   community.general.slack:
+      #     token: "{{ getslacktoken.stdout }}"
+      #     msg: "Missing chunks detected in backuppieces {{ corrupt_backup_pieces | join(',') }}.  No Fix will be attempted."
+      #     channel: "{{ slack_channel }}"
+      #     username: 'Missing Backup Chunks {{ inventory_hostname }}'
+      #     icon_emoji: ':x:'
+      #   when:
+      #      - not ( previous_fix_attempt | default(false) ) 
+      #      - not (run_fix)
+      #   delegate_to: localhost
+      #   become: no
 
-      - name: Send notification message via Slack if Missing Chunks Detected After Previous Fix Attempt
-        community.general.slack:
-          token: "{{ getslacktoken.stdout }}"
-          msg: "Missing chunks detected (after fix attempt) in backuppieces {{ corrupt_backup_pieces | join(',') }}."
-          channel: "{{ slack_channel }}"
-          username: 'Missing Backup Chunks {{ inventory_hostname }}'
-          icon_emoji: ':x:'
-        when:
-           - ( previous_fix_attempt | default(false) )
-        delegate_to: localhost
-        become: no
+#       - name: Send notification message via Slack if Missing Chunks Detected After Previous Fix Attempt
+#         community.general.slack:
+#           token: "{{ getslacktoken.stdout }}"
+#           msg: "Missing chunks detected (after fix attempt) in backuppieces {{ corrupt_backup_pieces | join(',') }}."
+#           channel: "{{ slack_channel }}"
+#           username: 'Missing Backup Chunks {{ inventory_hostname }}'
+#           icon_emoji: ':x:'
+#         when:
+#            - ( previous_fix_attempt | default(false) )
+#         delegate_to: localhost
+#         become: no
 
-- name: Send notification message via Slack if Not Missing Chunks Detected After Previous Fix Attempt
-  community.general.slack:
-    token: "{{ getslacktoken.stdout }}"
-    msg: "Backups with missing chunks successfully replaced by new backups."
-    channel: "{{ slack_channel }}"
-    username: 'Missing Backup Chunks {{ inventory_hostname }}'
-    icon_emoji: ':white_check_mark:'
-  when: 
-     - dict_actual_vs_expected == {}
-     - ( previous_fix_attempt | default(false) )
-  delegate_to: localhost
-  become: no
+# - name: Send notification message via Slack if Not Missing Chunks Detected After Previous Fix Attempt
+#   community.general.slack:
+#     token: "{{ getslacktoken.stdout }}"
+#     msg: "Backups with missing chunks successfully replaced by new backups."
+#     channel: "{{ slack_channel }}"
+#     username: 'Missing Backup Chunks {{ inventory_hostname }}'
+#     icon_emoji: ':white_check_mark:'
+#   when: 
+#      - dict_actual_vs_expected == {}
+#      - ( previous_fix_attempt | default(false) )
+#   delegate_to: localhost
+#   become: no
 
 # We not have an optional block which attempts to fix any problems with Corrupt backup sets (i.e. ones with absent chunks)
 # This block will only run if run_fix is true and if backup pieces have been found above without the correct number of chunks
@@ -426,15 +426,15 @@
       - name:  Set Corrupt Backupsets Unavailable
         script: run_rman_command.sh {{ database_primary_sid | default(database_standby_sid) }}  "{{ rman_catalog_connect }}" "change backupset {{ corrupt_backup_sets | join(',') }} unavailable;"
 
-      - name: Send notification message via Slack that Fix It Job has Run
-        community.general.slack:
-          token: "{{ getslacktoken.stdout }}"
-          msg: "Fix-it job run to take new backups to replace existing backups with missing chunks - {{ notification }}."
-          channel: "{{ slack_channel }}"
-          username: 'Missing Backup Chunks {{ inventory_hostname }}'
-          icon_emoji: ':repeat_one:'
-        delegate_to: localhost
-        become: no
+      # - name: Send notification message via Slack that Fix It Job has Run
+      #   community.general.slack:
+      #     token: "{{ getslacktoken.stdout }}"
+      #     msg: "Fix-it job run to take new backups to replace existing backups with missing chunks - {{ notification }}."
+      #     channel: "{{ slack_channel }}"
+      #     username: 'Missing Backup Chunks {{ inventory_hostname }}'
+      #     icon_emoji: ':repeat_one:'
+      #   delegate_to: localhost
+      #   become: no
 
   when: dict_actual_vs_expected != {} and ( run_fix )
 
