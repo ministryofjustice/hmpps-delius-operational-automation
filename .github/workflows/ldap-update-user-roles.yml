@@ -74,6 +74,12 @@ jobs:
                 else
                     echo "USER_FILTER_ARG=" >> $GITHUB_OUTPUT
                 fi
+
+          - name: Calculate full cmd
+            id: full-cmd
+            run: |
+                echo "FULL_CMD=ldap-automation update-user-roles ${{ github.event.inputs.roles }} ${{ github.event.inputs.user_note }} --${{ github.event.inputs.action }} ${{ steps.calculate-args.outputs.UPDATE_NOTES_ARG }} ${{ steps.calculate-args.outputs.ROLE_FILTER_ARG }} ${{ steps.calculate-args.outputs.USER_FILTER_ARG }}" >> $GITHUB_OUTPUT
+          
           - name: Template task def
             uses: christherama/render-json-template@v1
             id: render
@@ -83,9 +89,8 @@ jobs:
                 # Multi-line string containing key/value pairs of JSON property paths and desired property values
                 # $.containerDefinitions[0].command: ["ldap-automation", "update-user-roles", "${{ github.event.inputs.roles }}", "${{ github.event.inputs.user_note }}", "--${{ github.event.inputs.action }}", "${{ steps.calculate-args.outputs.UPDATE_NOTES_ARG }}", "${{ steps.calculate-args.outputs.ROLE_FILTER_ARG }}", "${{ steps.calculate-args.outputs.USER_FILTER_ARG }}"]
                 field-value-pairs: |
-
                     
-                    $.containerDefinitions[0].command: ["ldap-automation", "update-user-roles", "${{ github.event.inputs.roles }}", "${{ github.event.inputs.user_note }}", "--${{ github.event.inputs.action }}", "${{ steps.calculate-args.outputs.UPDATE_NOTES_ARG }}"]
+                    $.containerDefinitions[0].command: ${{ steps.full-cmd.outputs.FULL_CMD }}
 
                     $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task-exec"
                     $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task"
