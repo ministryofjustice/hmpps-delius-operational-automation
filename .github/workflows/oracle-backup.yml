@@ -62,7 +62,7 @@ on:
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
-        default: "DBA-511"
+        default: "main"
       SourceConfigVersion:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -78,12 +78,6 @@ on:
         description: "Is this a daily or weekly backup?"
         required: true
         type: string
-
-  push:
-    branches:
-      - DBA-511
-    paths:
-      - .github/workflows/oracle-backup.yml
 
 # Allow permissions on repository and docker image respectively 
 permissions:
@@ -162,11 +156,5 @@ jobs:
       - name: Start Ansible Validate And Fix Absent Chunks)
         run: |
           $validate_command -i $inventory \
-          -e rman_target=environment_name_delius_core_development_dev_delius_primarydb \
+          -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
           -e fix_absent_chunks=${{ inputs.FixAbsentChunks }}
-
-
-      # - name: Start Ansible Delete DBID's Not In Use
-      #   run: |
-      #     $delete_dbids_command -i $inventory \
-      #     -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }}
