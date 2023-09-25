@@ -62,7 +62,7 @@ on:
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
-        default: "DBA-511"
+        default: "main"
       SourceConfigVersion:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -140,8 +140,8 @@ jobs:
         run: |
           $command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
-          -e daily_weekly=${{  github.event.inputs.Period }} \
-          -e enale_trace=${{  github.event.inputs.EnableTrace }}
+          -e daily_weekly=${{ github.event.inputs.Period }} \
+          -e enale_trace=${{ github.event.inputs.EnableTrace }}
 
       - name: Start Ansible Backup (Workflow Call)
         if: github.event_name == 'workflow_call'
