@@ -162,7 +162,7 @@ jobs:
       - name: Start Ansible Validate Backup (Fix Absent Chunks)
         run: |
           $validate_command -i $inventory \
-          -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }}
+          -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
           -e fix_absent_chunks=${{ github.event.inputs.FixAbsentChunks }}
 
       # - name: Start Ansible Delete DBID's Not In Use
