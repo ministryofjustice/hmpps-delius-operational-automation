@@ -1,8 +1,8 @@
 name: "Oracle: Scheduled Delius Development Database Backup"
 on:
   schedule:
-    - cron:  '30 06 * * 1,2,4,5'
-    - cron: '33 11 * * 1'
+    - cron: '30 06 * * 1,2,4,5'
+    - cron: '40 11 * * 1'
   # push:
   #   branches:
   #     - DBA-511
@@ -14,7 +14,7 @@ jobs:
       matrix:
         database_type: [delius]
     uses: 
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@DBA-511
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@main
     with:
       TargetHost: ${{ matrix.database_type }}_primarydb
       Period: daily
