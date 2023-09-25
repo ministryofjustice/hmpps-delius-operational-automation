@@ -81,7 +81,7 @@ on:
 
   push:
     branches:
-      - DBA-511
+      - main
     paths:
       - .github/workflows/oracle-backup.yml
 
@@ -150,7 +150,7 @@ jobs:
           -e enale_trace=${{  github.event.inputs.EnableTrace }}
 
       - name: Start Ansible Backup (Workflow Call)
-        if: github.event.inputs.externall_call
+        if: github.event_name == 'workflow_call'
         run: |
           $command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
