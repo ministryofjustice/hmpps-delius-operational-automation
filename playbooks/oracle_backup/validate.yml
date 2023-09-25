@@ -59,26 +59,7 @@
             - missing_chunks_found
             - not previous_fix_attempt
 
-        # - name: Updating ssm parameter to indicate process complete
-        #   community.aws.aws_ssm_parameter_store:
-        #     region: "{{ region }}"
-        #     name: "{{ ssm_parameter }}"
-        #     overwrite_value: "always"
-        #     value: "Validated"
-
-        # - name: Pause to Ensure Eventual Consistency in SSM Parameter Store
-        #   pause:
-        #      seconds: 60
-
       rescue:
-
-      # - name: Set SSM Parameter to Failed if Block Fails
-      #   community.aws.aws_ssm_parameter_store:
-      #     region: "{{ region }}"
-      #     name: "{{ ssm_parameter }}"
-      #     overwrite_value: "always"
-      #     value: "FAILED"
-      #   when: ssm_parameter is defined    
 
       - name: Block Failure
         fail:
