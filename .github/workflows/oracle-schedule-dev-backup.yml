@@ -2,7 +2,7 @@ name: "Oracle: Scheduled Delius Development Database Backup"
 on:
   schedule:
     - cron: '30 06 * * 1,2,4,5'
-    - cron: '33 11 * * 1'
+    - cron: '40 11 * * 1'
   # push:
   #   branches:
   #     - DBA-511
