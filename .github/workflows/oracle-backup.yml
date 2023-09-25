@@ -102,7 +102,7 @@ jobs:
     env:
       backup_command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
       validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
-      delete_dbids_command: operations/oracle_backup/delete_dbids_not_in_use.yml
+      delete_dbids_command: ansible-playbook operations/oracle_backup/delete_dbids_not_in_use.yml
       inventory: inventory/ansible
     continue-on-error: false
     steps:
