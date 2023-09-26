@@ -8,6 +8,7 @@
 # (Chunks are typically lost during backup creation, so we do not need to repeatedly validate older backups; 
 #  therefore we avoid fetching all the metadata files, as this is slow and incurs AWS costs)
 #
+. ~/.bash_profile
 
 S3_URL=$1
 DBID=$2
