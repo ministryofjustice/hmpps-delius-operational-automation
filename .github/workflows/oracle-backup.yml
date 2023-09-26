@@ -62,7 +62,7 @@ on:
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
-        default: "DBA-511"
+        default: "main"
       SourceConfigVersion:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -94,8 +94,11 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     env:
-      command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
+      backup_command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
+      validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
+      delete_dbids_command: ansible-playbook operations/oracle_backup/delete_dbids_not_in_use.yml
       inventory: inventory/ansible
+    continue-on-error: false
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
@@ -128,24 +131,30 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Start Ansible Backup (Push)
-        if: github.event_name == 'push'
-        run: |
-          $command -i $inventory \
-          -e rman_target=environment_name_delius_core_development_dev_delius_primarydb \
-          -e daily_weekly="daily"
+      # - name: Start Ansible Backup (Push)
+      #   if: github.event_name == 'push'
+      #   run: |
+      #     $back_command -i $inventory \
+      #     -e rman_target=environment_name_delius_core_development_dev_delius_primarydb \
+      #     -e daily_weekly="daily"
 
       - name: Start Ansible Backup (Workflow Dispatch)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          $command -i $inventory \
+          $backup_command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
           -e daily_weekly=${{ github.event.inputs.Period }} \
-          -e enale_trace=${{ github.event.inputs.EnableTrace }}
+          -e enable_trace=${{ github.event.inputs.EnableTrace }}
 
       - name: Start Ansible Backup (Workflow Call)
         if: github.event_name == 'schedule'
         run: |
-          $command -i $inventory \
+          $backup_command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
           -e daily_weekly=${{ github.event.inputs.Period }}
+
+      - name: Start Ansible Validate And Fix Absent Chunks)
+        run: |
+          $validate_command -i $inventory \
+          -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
+          -e fix_absent_chunks=${{ inputs.FixAbsentChunks }}
