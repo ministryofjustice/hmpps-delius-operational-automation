@@ -18,7 +18,7 @@
 #
 # On occassion it has been noticed that sometimes not all of the chunks are present in the AWS S3 bucket (the reasons for this are still under
 # investigation).   This obviously results in a corrupt backup piece, useless for restore or duplicate operations - however, this will be unknown
-# to RMAN as it does not crosscheck at chunk level, and the backup piece directory itself still exists.   
+# to RMAN as it does not crosscheck at chunk level, and the backup piece directory itself still exists.
 #
 # Therefore this play scans all of the backups known by RMAN and checks that the number of chunks present in the AWS bucket match those expected
 # to be there by reference to the corresponding metadata.  An error is raised if there is a mis-match.   It is intended to run this play upon
@@ -37,7 +37,7 @@
 #   (3) Avoid use of Ansible Regex which is much slower than native Linux regex
 - name: Metadata Working Directory
   set_fact:
-    metadata_working_directory:  /home/oracle/admin/metadata_validation
+    metadata_working_directory: /home/oracle/admin/metadata_validation
     num_of_days_back_to_validate: 7
 
 # - name: Slurp Environment File to Get Backup Bucket Location
@@ -64,7 +64,6 @@
 # - name: Establish SSM Name
 #   set_fact:
 #     ssmname: "/{{ hmpps_environment }}/{{ application }}/{% if application == 'engineering' %}rman-database/db{% else %}oracle-db-operation/rman{% endif %}/rman_password"
-  
 
 # Get the Delius Slack token is stored in various places depending on the environment:  try all 3 known locations
 # - name: Get Slack Token
@@ -91,7 +90,7 @@
 #   no_log: true
 
 - name: Set RMAN Catalog Connection
-  set_fact: 
+  set_fact:
     rman_catalog_connect: "{{ 'rman19c/' + rman_password.stdout + '@' + catalog if (catalog is defined) else 'NOCATALOG' }}"
   no_log: true
 
@@ -102,13 +101,13 @@
 
 - name: Get the DBID
   set_fact:
-      dbid: "{{ get_dbid.stdout_lines | select('match','.*DBID.*') | list | first | regex_search('DBID=(\\d+)') | regex_replace('DBID=(\\d+)','\\1') }}"
+    dbid: "{{ get_dbid.stdout_lines | select('match','.*DBID.*') | list | first | regex_search('DBID=(\\d+)') | regex_replace('DBID=(\\d+)','\\1') }}"
 
 # Get rid of working files from any previous run
-- name: Pre-Purge Metadata Directory 
+- name: Pre-Purge Metadata Directory
   command: rm -rf {{ metadata_working_directory }}
-  
-- name: Prepare Metadata Directory 
+
+- name: Prepare Metadata Directory
   command: mkdir {{ metadata_working_directory }}
 
 - name: Fetch Metadata Files from AWS to Local Working Directory
@@ -127,11 +126,11 @@
 # (1) Path to Metadata file, (2) Backup Piece Handle, (3) Expected Number of Backup Piece Chunks in AWS Bucket
 - name: Get the Number of Chunks Reported in the Metadata
   shell: |
-          cd {{ metadata_working_directory }}/s3_metadata; \
-          find . -type f -name metadata.xml -exec grep -oPm1 "(?<=<Chunks>)[^<]+" {} + \
-          | awk -F/ '{print $0,$(NF-2),$NF} ' \
-          | sed 's/\/metadata.xml:[[:digit:]]\+//' \
-          | sed 's/metadata.xml://' > {{ metadata_working_directory }}/metadata_summary.txt
+    cd {{ metadata_working_directory }}/s3_metadata; \
+    find . -type f -name metadata.xml -exec grep -oPm1 "(?<=<Chunks>)[^<]+" {} + \
+    | awk -F/ '{print $0,$(NF-2),$NF} ' \
+    | sed 's/\/metadata.xml:[[:digit:]]\+//' \
+    | sed 's/metadata.xml://' > {{ metadata_working_directory }}/metadata_summary.txt
   register: get_metadata_summary
   failed_when: get_metadata_summary.rc != 0 or ( get_metadata_summary.stderr | length ) > 0
 
@@ -152,9 +151,9 @@
 # (1) Backup Piece Handle, (2) Backup Piece ID, (3) Availability, (4) Expected Number of Chunks
 - name: Merge Backup List with Metadata Summary
   shell: |
-          awk 'NR==FNR {h[$2]=$NF; next} {print $1,$2,$3,h[$1]}' \
-          {{ metadata_working_directory }}/metadata_summary.txt {{ metadata_working_directory }}/rman_backup_list.txt \
-          > {{ metadata_working_directory }}/rman_backup_list_with_metadata_summary.txt
+    awk 'NR==FNR {h[$2]=$NF; next} {print $1,$2,$3,h[$1]}' \
+    {{ metadata_working_directory }}/metadata_summary.txt {{ metadata_working_directory }}/rman_backup_list.txt \
+    > {{ metadata_working_directory }}/rman_backup_list_with_metadata_summary.txt
   vars:
     ansible_aws_ssm_timeout: "{{ num_of_days_back_to_validate*25| int }}"
 
@@ -163,63 +162,62 @@
 # (1) Backup Piece Handle, (2) Backup Piece ID, (3) Availability, (4) Expected Number of Chunks, (5) Actual Number of Chunks
 - name: Merge Backup List Metadata Summary with Actual Chunk Counts
   shell: |
-          awk 'NR==FNR {h[$1]=$NF; next} {print $1,$2,$3,$4,h[$1]}' \
-          {{ metadata_working_directory }}/actual_chunks.txt {{ metadata_working_directory }}/rman_backup_list_with_metadata_summary.txt \
-          > {{ metadata_working_directory}}/chunk_actual_vs_expected.txt
+    awk 'NR==FNR {h[$1]=$NF; next} {print $1,$2,$3,$4,h[$1]}' \
+    {{ metadata_working_directory }}/actual_chunks.txt {{ metadata_working_directory }}/rman_backup_list_with_metadata_summary.txt \
+    > {{ metadata_working_directory}}/chunk_actual_vs_expected.txt
 
 # Now that we have done all the manipulation, read the results into Ansible variable
 # We look for all cases in chunk_actual_vs_expected.txt where the Expected Number of Chunks is not the same as the Actual Number
 # of Chunks (we exclude cases were we have marked the backup piece as Unavailable as this identifies known cases)
 - name: Import Failing Actual vs Expected Summary Data (Exclude Unavailable Backup Sets)
   shell: |
-          awk '!/UNAVAILABLE/{if($4!=$5){print $0}}' {{ metadata_working_directory }}/chunk_actual_vs_expected.txt
+    awk '!/UNAVAILABLE/{if($4!=$5){print $0}}' {{ metadata_working_directory }}/chunk_actual_vs_expected.txt
   register: chunk_actual_vs_expected
 
 # Initialise empty dictionary so we overwrite this variable having been set in previous run of this play
 - name: Initialise Dictionary of Actual vs Expected
   set_fact:
-      dict_actual_vs_expected: {}
+    dict_actual_vs_expected: {}
 
 # Convert above output into Ansible dictionary of failed backup pieces (missing chunks)
 - name: Create Dictionary of Actual vs Expected
   set_fact:
-      dict_actual_vs_expected: "{{ dict_actual_vs_expected | combine({item.split(' ')[0]: {'backup_piece': item.split(' ')[1], 'availability': item.split(' ')[2], 'expected_chunks': item.split(' ')[3], 'actual_chunks': ( item.split(' ')[4] | default(0) ) }}) }}"
+    dict_actual_vs_expected: "{{ dict_actual_vs_expected | combine({item.split(' ')[0]: {'backup_piece': item.split(' ')[1], 'availability': item.split(' ')[2], 'expected_chunks': item.split(' ')[3], 'actual_chunks': ( item.split(' ')[4] | default(0) ) }}) }}"
   loop: "{{ chunk_actual_vs_expected.stdout_lines }}"
 
 - name: Notify of Missing Chunks
   when: dict_actual_vs_expected != {}
   block:
+    - name: Create List of Backup Pieces with Missing Chunks
+      set_fact:
+        corrupt_backup_pieces: "{{ ( corrupt_backup_pieces | default([]) ) + [ item.value.backup_piece ] }}"
+      with_dict: "{{ dict_actual_vs_expected }}"
 
-      - name: Create List of Backup Pieces with Missing Chunks
-        set_fact:
-            corrupt_backup_pieces: "{{ ( corrupt_backup_pieces | default([]) ) + [ item.value.backup_piece ] }}"
-        with_dict: "{{ dict_actual_vs_expected }}"
+    # - name: Send notification message via Slack if Missing Chunks Detected Without Previous Fix Attempt
+    #   community.general.slack:
+    #     token: "{{ getslacktoken.stdout }}"
+    #     msg: "Missing chunks detected in backuppieces {{ corrupt_backup_pieces | join(',') }}.  Attempting fix by re-running backup for these items."
+    #     channel: "{{ slack_channel }}"
+    #     username: 'Missing Backup Chunks {{ inventory_hostname }}'
+    #     icon_emoji: ':repeat:'
+    #   when:
+    #      - not ( previous_fix_attempt | default(false) )
+    #      - run_fix
+    #   delegate_to: localhost
+    #   become: no
 
-      # - name: Send notification message via Slack if Missing Chunks Detected Without Previous Fix Attempt
-      #   community.general.slack:
-      #     token: "{{ getslacktoken.stdout }}"
-      #     msg: "Missing chunks detected in backuppieces {{ corrupt_backup_pieces | join(',') }}.  Attempting fix by re-running backup for these items."
-      #     channel: "{{ slack_channel }}"
-      #     username: 'Missing Backup Chunks {{ inventory_hostname }}'
-      #     icon_emoji: ':repeat:'
-      #   when: 
-      #      - not ( previous_fix_attempt | default(false) )  
-      #      - run_fix
-      #   delegate_to: localhost
-      #   become: no
-
-      # - name: Send notification message via Slack if Missing Chunks Detected And No Fix Attempt Specified
-      #   community.general.slack:
-      #     token: "{{ getslacktoken.stdout }}"
-      #     msg: "Missing chunks detected in backuppieces {{ corrupt_backup_pieces | join(',') }}.  No Fix will be attempted."
-      #     channel: "{{ slack_channel }}"
-      #     username: 'Missing Backup Chunks {{ inventory_hostname }}'
-      #     icon_emoji: ':x:'
-      #   when:
-      #      - not ( previous_fix_attempt | default(false) ) 
-      #      - not (run_fix)
-      #   delegate_to: localhost
-      #   become: no
+    # - name: Send notification message via Slack if Missing Chunks Detected And No Fix Attempt Specified
+    #   community.general.slack:
+    #     token: "{{ getslacktoken.stdout }}"
+    #     msg: "Missing chunks detected in backuppieces {{ corrupt_backup_pieces | join(',') }}.  No Fix will be attempted."
+    #     channel: "{{ slack_channel }}"
+    #     username: 'Missing Backup Chunks {{ inventory_hostname }}'
+    #     icon_emoji: ':x:'
+    #   when:
+    #      - not ( previous_fix_attempt | default(false) )
+    #      - not (run_fix)
+    #   delegate_to: localhost
+    #   become: no
 
 #       - name: Send notification message via Slack if Missing Chunks Detected After Previous Fix Attempt
 #         community.general.slack:
@@ -240,7 +238,7 @@
 #     channel: "{{ slack_channel }}"
 #     username: 'Missing Backup Chunks {{ inventory_hostname }}'
 #     icon_emoji: ':white_check_mark:'
-#   when: 
+#   when:
 #      - dict_actual_vs_expected == {}
 #      - ( previous_fix_attempt | default(false) )
 #   delegate_to: localhost
@@ -250,191 +248,185 @@
 # This block will only run if run_fix is true and if backup pieces have been found above without the correct number of chunks
 - name: Fix It Steps (Only to be run if Available Backup Sets are Found to be Corrupted)
   block:
+    # Using the list of Backup Piece IDs we use RMAN to get the corresponding Backup Set IDs
+    - name: Get Backup Sets Containing Missing Backup Pieces
+      script: run_rman_command.sh {{ database_primary_sid | default(database_standby_sid) }}  "{{ rman_catalog_connect }}" "list backuppiece {{ corrupt_backup_pieces | join(',') }} ;"
+      register: get_backupsets
+      changed_when: false
 
-      # Using the list of Backup Piece IDs we use RMAN to get the corresponding Backup Set IDs
-      - name: Get Backup Sets Containing Missing Backup Pieces
-        script: run_rman_command.sh {{ database_primary_sid | default(database_standby_sid) }}  "{{ rman_catalog_connect }}" "list backuppiece {{ corrupt_backup_pieces | join(',') }} ;"
-        register: get_backupsets
-        changed_when: false
+    - name: Show Backup Sets Containing Missing Backup Pieces
+      debug: var=get_backupsets.stdout_lines
 
-      - name: Show Backup Sets Containing Missing Backup Pieces
-        debug: var=get_backupsets.stdout_lines
+    # Convert the above output into list of Backup Set IDs
+    - name: Create List of Backup Sets with Missing Chunks
+      set_fact:
+        corrupt_backup_sets: "{{ ( corrupt_backup_sets | default([]) ) + [ item.split()[1] ] }}"
+      with_items: "{{ get_backupsets.stdout_lines | select('match','\\s*\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+AVAILABLE\\s+SBT_TAPE\\s+\\w+') | list }}"
 
-      # Convert the above output into list of Backup Set IDs
-      - name: Create List of Backup Sets with Missing Chunks
-        set_fact:
-            corrupt_backup_sets: "{{ ( corrupt_backup_sets | default([]) ) + [ item.split()[1] ] }}"
-        with_items: "{{ get_backupsets.stdout_lines | select('match','\\s*\\d+\\s+\\d+\\s+\\d+\\s+\\d+\\s+AVAILABLE\\s+SBT_TAPE\\s+\\w+') | list }}"
+    # Now run RMAN to find what was in those Backup Sets - these may be Datafile backups or Archivelog backups
+    - name: Get Datafiles and Archivelogs in Corrupt Backup Sets
+      script: run_rman_command.sh {{ database_primary_sid | default(database_standby_sid) }}  "{{ rman_catalog_connect }}" "list backupset {{ corrupt_backup_sets | join(',') }} ;"
+      register: backupset_contents
+      changed_when: false
 
-      # Now run RMAN to find what was in those Backup Sets - these may be Datafile backups or Archivelog backups
-      - name: Get Datafiles and Archivelogs in Corrupt Backup Sets
-        script: run_rman_command.sh {{ database_primary_sid | default(database_standby_sid) }}  "{{ rman_catalog_connect }}" "list backupset {{ corrupt_backup_sets | join(',') }} ;"
-        register: backupset_contents
-        changed_when: false
+    - name: Show Datafiles and Archivelogs in Corrupt Backup Sets
+      debug: var=backupset_contents.stdout_lines
 
-      - name: Show Datafiles and Archivelogs in Corrupt Backup Sets
-        debug: var=backupset_contents.stdout_lines
+    - name: Create List of Datafiles in Need of Level 0 Backup
+      set_fact:
+        level0_data_files: "{{ ( level0_data_files | default([]) ) + [ item.split()[0] ] }}"
+      with_items: "{{ backupset_contents.stdout_lines | select('match','\\s*\\d+\\s+0\\s+Incr\\s+\\d+\\s+\\d{2}-\\w{3}-\\d{2}\\s+\\d*\\s+(YES|NO)\\s+\\+\\w+') | list }}"
 
-      - name: Create List of Datafiles in Need of Level 0 Backup
-        set_fact:
-            level0_data_files: "{{ ( level0_data_files | default([]) ) + [ item.split()[0] ] }}"
-        with_items: "{{ backupset_contents.stdout_lines | select('match','\\s*\\d+\\s+0\\s+Incr\\s+\\d+\\s+\\d{2}-\\w{3}-\\d{2}\\s+\\d*\\s+(YES|NO)\\s+\\+\\w+') | list }}"
+    - name: Create List of Datafiles in Need of Level 1 Backup
+      set_fact:
+        level1_data_files: "{{ ( level1_data_files | default([]) ) + [ item.split()[0] ] }}"
+      with_items: "{{ backupset_contents.stdout_lines | select('match','\\s*\\d+\\s+1\\s+Incr\\s+\\d+\\s+\\d{2}-\\w{3}-\\d{2}\\s+\\d*\\s+(YES|NO)\\s+\\+\\w+') | list }}"
 
-      - name: Create List of Datafiles in Need of Level 1 Backup
-        set_fact:
-            level1_data_files: "{{ ( level1_data_files | default([]) ) + [ item.split()[0] ] }}"
-        with_items: "{{ backupset_contents.stdout_lines | select('match','\\s*\\d+\\s+1\\s+Incr\\s+\\d+\\s+\\d{2}-\\w{3}-\\d{2}\\s+\\d*\\s+(YES|NO)\\s+\\+\\w+') | list }}"
+    # If we are about to do a Level 0 backup do not bother with Level 1 for the same Datafile
+    - name: Remove Level 1 Backup Requirements if Level 0 Requirement Exists
+      set_fact:
+        level1_data_files: "{{ level1_data_files | difference(level0_data_files | default([])  ) }}"
+      when: level1_data_files is defined
 
-      # If we are about to do a Level 0 backup do not bother with Level 1 for the same Datafile
-      - name: Remove Level 1 Backup Requirements if Level 0 Requirement Exists
-        set_fact:
-                level1_data_files: "{{ level1_data_files | difference(level0_data_files | default([])  ) }}"
-        when: level1_data_files is defined
+    - name: Create List of Archivelogs in Need of Backup
+      set_fact:
+        archivelogs: "{{ ( archivelogs | default([]) ) + [ item.split()[1] ] }}"
+      with_items: "{{ backupset_contents.stdout_lines | select('match','\\s*\\d+\\s+\\d+\\s+\\d+\\s+\\d{2}-\\w{3}-\\d{2}\\s+\\d+\\s+\\d{2}-\\w{3}-\\d{2}') | list }}"
 
-      - name: Create List of Archivelogs in Need of Backup
-        set_fact:
-            archivelogs: "{{ ( archivelogs | default([]) ) + [ item.split()[1] ] }}"
-        with_items: "{{ backupset_contents.stdout_lines | select('match','\\s*\\d+\\s+\\d+\\s+\\d+\\s+\\d{2}-\\w{3}-\\d{2}\\s+\\d+\\s+\\d{2}-\\w{3}-\\d{2}') | list }}"
+    # We generate a range of Archivelog Sequence Numbers to Backup again - this will be minimum Sequence number
+    # in any corrupt backup set to the maximum Sequence number in any corrupt backup set.  (Its possible we may end up
+    # backing up more than needed if there are, say, 3 archivelog backup sets and only sets 1 and 3 are corrupt, but this
+    # will be pretty rare and its harmless to backup set 2 again anyway)
+    - name: Create Range of Archivelogs in Need of Backup
+      set_fact:
+        archivelog_range: "{{ archivelogs | min }},{{ archivelogs | max}}"
+      when: archivelogs is defined
 
-      # We generate a range of Archivelog Sequence Numbers to Backup again - this will be minimum Sequence number
-      # in any corrupt backup set to the maximum Sequence number in any corrupt backup set.  (Its possible we may end up
-      # backing up more than needed if there are, say, 3 archivelog backup sets and only sets 1 and 3 are corrupt, but this
-      # will be pretty rare and its harmless to backup set 2 again anyway)
-      - name: Create Range of Archivelogs in Need of Backup
-        set_fact:
-            archivelog_range: "{{ archivelogs | min }},{{ archivelogs | max}}"
-        when: archivelogs is defined
+    # Ensure that we have found something to backup (in case of RMAN output format changes the match may fail)
+    - assert:
+        that: ( level0_data_files |  default([]) | length > 0 )
+          or ( level1_data_files |  default([]) | length > 0 )
+          or ( archivelog_range |  default([]) | length > 0 )
 
-      # Ensure that we have found something to backup (in case of RMAN output format changes the match may fail)
-      - assert:
-           that:  ( level0_data_files |  default([]) | length > 0 ) 
-                  or ( level1_data_files |  default([]) | length > 0 ) 
-                  or ( archivelog_range |  default([]) | length > 0 )
+    # The following replicates activity from the backup job itself (i.e. redeploy the backup shell script)
+    - name: Create rman_scripts dir
+      file:
+        path: /home/oracle/admin/rman_scripts
+        owner: oracle
+        group: oinstall
+        mode: 0755
+        state: directory
 
-      # The following replicates activity from the backup job itself (i.e. redeploy the backup shell script)
-      - name: Create rman_scripts dir
-        file:
-          path: /home/oracle/admin/rman_scripts
-          owner: oracle
-          group: oinstall
-          mode: 0755
-          state: directory
+    - name: Install RMAN script
+      copy:
+        src: rman_backup.sh
+        dest: /home/oracle/admin/rman_scripts/rman_backup.sh
+        owner: oracle
+        group: oinstall
+        mode: 0544
 
-      - name: Install RMAN script
-        copy:
-          src: rman_backup.sh
-          dest: /home/oracle/admin/rman_scripts/rman_backup.sh
-          owner: oracle
-          group: oinstall
-          mode: 0544
+    # Backup any datafiles that which had Level 0 Backups in Corrupt Backup Sets
+    - name: Block to Replace Corrupt Level 0 Backup Sets
+      block:
+        - name: Running RMAN script to Replace Corrupt Level 0 Backup Sets
+          shell: /home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} -t HOT -b Y -i 0 -n Y -c {{ catalog }} -l {{ level0_data_files | join(',') }}
+          async: "{{ allowable_duration|default(7200) }}"
+          poll: 20
+          register: backup_cmd_output_0
 
-      # Backup any datafiles that which had Level 0 Backups in Corrupt Backup Sets
-      - name: Block to Replace Corrupt Level 0 Backup Sets
-        block:
+        - name: Print RMAN script output
+          debug:
+            var: backup_cmd_output_0.stdout_lines
 
-            - name: Running RMAN script to Replace Corrupt Level 0 Backup Sets
-              shell: /home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} -t HOT -b Y -i 0 -n Y -c {{ catalog }} -l {{ level0_data_files | join(',') }}
-              async: "{{ allowable_duration|default(7200) }}"
-              poll: 20
-              register: backup_cmd_output_0
-              
-            - name: Print RMAN script output
-              debug:
-                var: backup_cmd_output_0.stdout_lines
+        - name: Update Notification
+          set_fact:
+            notification: "{{ (notification | default('')) + 'Level 0 Backups of Datafiles: ' + ( level0_data_files | join(',') ) }} "
 
-            - name: Update Notification
-              set_fact:
-                 notification: "{{ (notification | default('')) + 'Level 0 Backups of Datafiles: ' + ( level0_data_files | join(',') ) }} "
-              
-        when: level0_data_files |  default([]) | length > 0
+      when: level0_data_files |  default([]) | length > 0
 
+    # Backup any datafiles that which had Level 1 Backups in Corrupt Backup Sets
+    # (this will exclude any for which we have just done a Level 0 backup)
+    - name: Block to Replace Corrupt Level 1 Backup Sets
+      block:
+        - name: Running RMAN script to Replace Corrupt Level 1 Backup Sets
+          shell: /home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }}  -g {{ database_global_database }} -t HOT -b Y -i 1 -n Y -c {{ catalog }} -l {{ level1_data_files | join(',') }}
+          async: "{{ allowable_duration|default(3600) }}"
+          poll: 20
+          register: backup_cmd_output_1
 
-      # Backup any datafiles that which had Level 1 Backups in Corrupt Backup Sets
-      # (this will exclude any for which we have just done a Level 0 backup)
-      - name: Block to Replace Corrupt Level 1 Backup Sets
-        block:
+        - name: Print RMAN script output
+          debug:
+            var: backup_cmd_output_1.stdout_lines
 
-            - name: Running RMAN script to Replace Corrupt Level 1 Backup Sets
-              shell: /home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }}  -g {{ database_global_database }} -t HOT -b Y -i 1 -n Y -c {{ catalog }} -l {{ level1_data_files | join(',') }}
-              async: "{{ allowable_duration|default(3600) }}"
-              poll: 20
-              register: backup_cmd_output_1
-              
-            - name: Print RMAN script output
-              debug:
-                var: backup_cmd_output_1.stdout_lines
+        - name: Update Notification
+          set_fact:
+            notification: "{{ (notification | default('')) + 'Level 1 Backups of Datafiles: ' +  ( level1_data_files | join(',') ) }} "
 
-            - name: Update Notification
-              set_fact:
-                 notification: "{{ (notification | default('')) + 'Level 1 Backups of Datafiles: ' +  ( level1_data_files | join(',') ) }} "
-        
-        when: level1_data_files |  default([]) | length > 0
+      when: level1_data_files |  default([]) | length > 0
 
-      # Backup range of Archivelogs covering all those in Corrupt Backup Sets
-      - name: Block to Replace Corrupt Archivelog Backup Sets
-        block:
+    # Backup range of Archivelogs covering all those in Corrupt Backup Sets
+    - name: Block to Replace Corrupt Archivelog Backup Sets
+      block:
+        - name: Running RMAN script to Replace Corrupt Archivelog Backup Sets
+          shell: /home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} -t HOT -b Y -i 0 -n Y -c {{ catalog }} -a {{ archivelog_range }}
+          async: "{{ allowable_duration|default(3600) }}"
+          poll: 20
+          register: backup_cmd_output_arc
 
-            - name: Running RMAN script to Replace Corrupt Archivelog Backup Sets
-              shell: /home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} -t HOT -b Y -i 0 -n Y -c {{ catalog }} -a {{ archivelog_range }}
-              async: "{{ allowable_duration|default(3600) }}"
-              poll: 20
-              register: backup_cmd_output_arc
-              
-            - name: Print RMAN script output
-              debug:
-                var: backup_cmd_output_arc.stdout_lines
+        - name: Print RMAN script output
+          debug:
+            var: backup_cmd_output_arc.stdout_lines
 
-            - name: Update Notification
-              set_fact:
-                 notification: "{{ (notification | default('')) + 'Backups of Archivelogs: ' + archivelog_range }}"
+        - name: Update Notification
+          set_fact:
+            notification: "{{ (notification | default('')) + 'Backups of Archivelogs: ' + archivelog_range }}"
 
-            # For Archivelog backups we want to ensure that we were able to backup the archivelogs successfully since
-            # these may have aged out of the FRA if they are old.   This is unlikely as should be validating immediately after a backup
-            # but it is possible if the backup sets being validated are quite old for some reason.
-            - name: Get Name of RMAN Progress Log file
-              set_fact:
-                      rman_log_filename: "{{ backup_cmd_output_arc.stdout_lines | select('match','INFO.*Please check progress /tmp/rman\\d+.log') | list | first | regex_replace('.*Please check progress (/tmp/rman\\d+\\.log) \\.\\.\\.','\\1') }}"
+        # For Archivelog backups we want to ensure that we were able to backup the archivelogs successfully since
+        # these may have aged out of the FRA if they are old.   This is unlikely as should be validating immediately after a backup
+        # but it is possible if the backup sets being validated are quite old for some reason.
+        - name: Get Name of RMAN Progress Log file
+          set_fact:
+            rman_log_filename: "{{ backup_cmd_output_arc.stdout_lines | select('match','INFO.*Please check progress /tmp/rman\\d+.log') | list | first | regex_replace('.*Please check progress (/tmp/rman\\d+\\.log) \\.\\.\\.','\\1') }}"
 
-            - name: Read RMAN Progress Log File
-              slurp:
-                      src:  "{{ rman_log_filename }}"
-              register: rman_log_file
+        - name: Read RMAN Progress Log File
+          slurp:
+            src: "{{ rman_log_filename }}"
+          register: rman_log_file
 
-              # Read Information about Archivelog Backups from Log File
-            - name: Read All Input Archivelogs for the Backups
-              set_fact:
-                    rman_log_content: "{{ rman_log_file['content'] | b64decode | regex_findall('input archived log.*')  }}"
+          # Read Information about Archivelog Backups from Log File
+        - name: Read All Input Archivelogs for the Backups
+          set_fact:
+            rman_log_content: "{{ rman_log_file['content'] | b64decode | regex_findall('input archived log.*')  }}"
 
-            - name: Show Archivelog Backups
-              debug: var=rman_log_content
+        - name: Show Archivelog Backups
+          debug: var=rman_log_content
 
-            # The range of archivelog sequence numbers should correspond to the size of the list of archive log sequences in
-            # the corrupt backup sets.   If it is not then this normally means some of the archive logs that we want to backup
-            # again are no longer in the FRA.   This situation cannot be handled automatically so raise an error.
-            # (It is possible these log may be found on the standby hosts; if not there may be a discontinuity in the
-            # available recovery times available)
-            - name: Check All Requested Archivelog Sequences for Backup were Available in FRA
-              assert:
-                      that: ({{ archivelogs | max }} - {{ archivelogs | min }} + 1) == ( rman_log_content | length )
-                    
-        when: archivelog_range |  default([]) | length > 0
+        # The range of archivelog sequence numbers should correspond to the size of the list of archive log sequences in
+        # the corrupt backup sets.   If it is not then this normally means some of the archive logs that we want to backup
+        # again are no longer in the FRA.   This situation cannot be handled automatically so raise an error.
+        # (It is possible these log may be found on the standby hosts; if not there may be a discontinuity in the
+        # available recovery times available)
+        - name: Check All Requested Archivelog Sequences for Backup were Available in FRA
+          assert:
+            that: ({{ archivelogs | max }} - {{ archivelogs | min }} + 1) == ( rman_log_content | length )
 
+      when: archivelog_range |  default([]) | length > 0
 
-      # Mark Corrupt Backupsets as Unavailable after we have backed up alternatives.
-      # This avoids the corrupt Backup Sets being considered again in any subsquent processing but leaves the information
-      # intact in the RMAN catalog for any subsequent diagnostics.  
-      - name:  Set Corrupt Backupsets Unavailable
-        script: run_rman_command.sh {{ database_primary_sid | default(database_standby_sid) }}  "{{ rman_catalog_connect }}" "change backupset {{ corrupt_backup_sets | join(',') }} unavailable;"
+    # Mark Corrupt Backupsets as Unavailable after we have backed up alternatives.
+    # This avoids the corrupt Backup Sets being considered again in any subsquent processing but leaves the information
+    # intact in the RMAN catalog for any subsequent diagnostics.
+    - name: Set Corrupt Backupsets Unavailable
+      script: run_rman_command.sh {{ database_primary_sid | default(database_standby_sid) }}  "{{ rman_catalog_connect }}" "change backupset {{ corrupt_backup_sets | join(',') }} unavailable;"
 
-      # - name: Send notification message via Slack that Fix It Job has Run
-      #   community.general.slack:
-      #     token: "{{ getslacktoken.stdout }}"
-      #     msg: "Fix-it job run to take new backups to replace existing backups with missing chunks - {{ notification }}."
-      #     channel: "{{ slack_channel }}"
-      #     username: 'Missing Backup Chunks {{ inventory_hostname }}'
-      #     icon_emoji: ':repeat_one:'
-      #   delegate_to: localhost
-      #   become: no
+    # - name: Send notification message via Slack that Fix It Job has Run
+    #   community.general.slack:
+    #     token: "{{ getslacktoken.stdout }}"
+    #     msg: "Fix-it job run to take new backups to replace existing backups with missing chunks - {{ notification }}."
+    #     channel: "{{ slack_channel }}"
+    #     username: 'Missing Backup Chunks {{ inventory_hostname }}'
+    #     icon_emoji: ':repeat_one:'
+    #   delegate_to: localhost
+    #   become: no
 
   when: dict_actual_vs_expected != {} and ( run_fix )
 
@@ -444,5 +436,5 @@
   when: dict_actual_vs_expected != {}
 
 - name: Set Missing Chunks Flag
-  set_fact: 
-     missing_chunks_found: "{{ true if (dict_actual_vs_expected != {}) else false }}"
+  set_fact:
+    missing_chunks_found: "{{ true if (dict_actual_vs_expected != {}) else false }}"
