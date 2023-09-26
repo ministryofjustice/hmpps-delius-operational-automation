@@ -151,10 +151,6 @@
           register: backup_cmd_output
 
       rescue:
-        - name: Set SSM Parameter to Failed if Block Fails
-          community.aws.aws_ssm_parameter_store:
-            region: "{{ region }}"
-            name: "{{ ssm_parameter }}"
-            overwrite_value: "always"
-            value: "FAILED"
-          when: ssm_parameter is defined
+        - name: Block Failure
+          fail:
+            msg: "RMAN block has failed."
