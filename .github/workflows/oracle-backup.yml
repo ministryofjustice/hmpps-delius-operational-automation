@@ -104,8 +104,10 @@ jobs:
       validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
       delete_dbids_command: ansible-playbook operations/oracle_backup/delete_dbids_not_in_use.yml
       inventory: inventory/ansible
-      FixAbsentChunks: "${{ github.event.inputs.FixAbsentChunks == '' && 'yes' || github.event.inputs.FixAbsentChunks }}"
       TargetHost: "${{ (github.event.inputs.TargetHost == '' &&  (inputs.TargetHost == '' && 'delius_primarydb' || inputs.TargetHost) || github.event.inputs.TargetHost) }}"
+      Period: "${{ (github.event.inputs.Period == '' &&  (inputs.Period == '' && 'daily' || inputs.Period) || github.event.inputs.Period) }}"
+      FixAbsentChunks: "${{ github.event.inputs.FixAbsentChunks == '' && 'yes' || github.event.inputs.FixAbsentChunks }}"
+      EnableTrace: "${{ github.event.inputs.EnableTrace == '' && 'no' || github.event.inputs.EnableTrace }}"
     continue-on-error: false
     steps:
 
@@ -140,19 +142,19 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Start Ansible Backup (Workflow Dispatch)
-        if: github.event_name == 'workflow_dispatch'
+        #if: github.event_name == 'workflow_dispatch'
         run: |
           $backup_command -i $inventory \
-          -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
-          -e daily_weekly=${{ github.event.inputs.Period }} \
-          -e enable_trace=${{ github.event.inputs.EnableTrace }}
+          -e rman_target=environment_name_delius_core_development_dev_$TargetHost \
+          -e daily_weekly=$Period \
+          -e enable_trace=$EnableTrace
 
-      - name: Start Ansible Backup (Workflow Call)
-        if: github.event_name == 'schedule'
-        run: |
-          $backup_command -i $inventory \
-          -e rman_target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }} \
-          -e daily_weekly=${{ inputs.Period }}
+      # - name: Start Ansible Backup (Workflow Call)
+      #   #if: github.event_name == 'schedule'
+      #   run: |
+      #     $backup_command -i $inventory \
+      #     -e rman_target=environment_name_delius_core_development_dev_$TargetHost \
+      #     -e daily_weekly=$Period
 
       - name: Start Ansible Validate And Fix Absent Chunks
         run: |
