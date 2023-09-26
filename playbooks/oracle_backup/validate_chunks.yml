@@ -112,7 +112,7 @@
   command: mkdir {{ metadata_working_directory }}
 
 - name: Fetch Metadata Files from AWS to Local Working Directory
-  script: get_metadata_files.sh "arn:aws:s3:::${{ db_backup_s3_bucket_name }}"  {{ dbid }} {{ database_global_database }}  {{ metadata_working_directory }}/s3_metadata {{ num_of_days_back_to_validate }}
+  script: get_metadata_files.sh {{ db_backup_s3_bucket_name }}  {{ dbid }} {{ database_global_database }}  {{ metadata_working_directory }}/s3_metadata {{ num_of_days_back_to_validate }}
   register: fetch_metadata
   vars:
     ansible_aws_ssm_timeout: "{{ num_of_days_back_to_validate*25| int }}"
