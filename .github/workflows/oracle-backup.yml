@@ -131,7 +131,7 @@ jobs:
             ansible/group_vars
           path: inventory
           ref: ${{ inputs.SourceConfigVersion }}
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Configure AWS Credentials
         id: login-aws
