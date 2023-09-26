@@ -104,7 +104,7 @@ jobs:
       validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
       delete_dbids_command: ansible-playbook operations/oracle_backup/delete_dbids_not_in_use.yml
       inventory: inventory/ansible
-      TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost) || (github.event_name == 'schedule' && inputs.TargetHost) }}"
+      TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost) || (github.event_name == 'schedule' && inputs.TargetHost) || (github.event_name == 'push' && 'delius_primarydb') }}"
       Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period) || (github.event_name == 'schedule' && inputs.Period) }}"
       FixAbsentChunks: "${{ github.event.inputs.FixAbsentChunks == '' && 'yes' || github.event.inputs.FixAbsentChunks }}"
       EnableTrace: "${{ github.event.inputs.EnableTrace == '' && 'no' || github.event.inputs.EnableTrace }}"
