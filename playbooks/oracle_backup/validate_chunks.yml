@@ -120,6 +120,8 @@
   vars:
     ansible_aws_ssm_timeout: "{{ num_of_days_back_to_validate*25| int }}"
 
+- debug: var=fetch_metadata
+
 # The rman_backup_list.txt file contains 3 columns:
 # (1) Backup Piece Handle, (2) Backup Piece ID, (3) Availability
 - name: Get List of Backup Pieces from RMAN Catalog and log to Local Working File
