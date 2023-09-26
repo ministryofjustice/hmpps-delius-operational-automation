@@ -151,7 +151,6 @@
           register: backup_cmd_output
 
       rescue:
-
         - name: Block Failure
           fail:
             msg: "RMAN block has failed."
