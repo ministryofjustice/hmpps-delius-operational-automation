@@ -119,7 +119,7 @@ jobs:
             playbooks/oracle_backup
           path: operations
           ref: ${{ inputs.SourceCodeVersion }}
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Checkout modernisation-platform-configuration-management
         uses: actions/checkout@v4
