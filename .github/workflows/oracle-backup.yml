@@ -105,6 +105,7 @@ jobs:
       delete_dbids_command: ansible-playbook operations/oracle_backup/delete_dbids_not_in_use.yml
       inventory: inventory/ansible
       FixAbsentChunks: "${{ github.event.inputs.FixAbsentChunks == '' && 'yes' || github.event.inputs.FixAbsentChunks }}"
+      TargetHost: "${{ (github.event.inputs.TargetHost == '' &&  (inputs.TargetHost == '' && 'delius_primarydb' || inputs.TargetHost) || github.event.inputs.TargetHost) }}"
     continue-on-error: false
     steps:
 
@@ -150,18 +151,11 @@ jobs:
         if: github.event_name == 'schedule'
         run: |
           $backup_command -i $inventory \
-          -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
-          -e daily_weekly=${{ github.event.inputs.Period }}
+          -e rman_target=environment_name_delius_core_development_dev_${{ inputs.TargetHost }} \
+          -e daily_weekly=${{ inputs.Period }}
 
-      # - name: Start Ansible Validate And Fix Absent Chunks
-      #   run: |
-      #     $validate_command -i $inventory \
-      #     -e rman_target=environment_name_delius_core_development_dev_${{ github.event.inputs.TargetHost }} \
-      #     -e fix_absent_chunks=$FixAbsentChunks
-
-      - name: Start Ansible Validate And Fix Absent Chunks (Push)
-        if: github.event_name == 'push'
+      - name: Start Ansible Validate And Fix Absent Chunks
         run: |
           $validate_command -i $inventory \
-          -e rman_target=environment_name_delius_core_development_dev_delius_primarydb \
+          -e rman_target=environment_name_delius_core_development_dev_$TargetHost \
           -e fix_absent_chunks=$FixAbsentChunks
