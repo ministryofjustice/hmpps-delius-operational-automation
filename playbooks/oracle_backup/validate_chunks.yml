@@ -146,7 +146,7 @@
 # The actual_chunks.txt file contains 2 columns:
 # (1) Backup Piece Handle, (2) Actual Number of Backup Piece Chunks in AWS Bucket
 - name: Get Count of Actual Backup Chunks in the Bucket
-  script: get_chunk_counts.sh {{ hmpps_s3_oracledb_backups_arn }} {{ dbid }} {{ database_global_database }} {{ metadata_working_directory }} {{ num_of_days_back_to_validate }}
+  script: get_chunk_counts.sh {{ db_backup_s3_bucket_name }} {{ dbid }} {{ database_global_database }} {{ metadata_working_directory }} {{ num_of_days_back_to_validate }}
   vars:
     ansible_aws_ssm_timeout: "{{ num_of_days_back_to_validate*25| int }}"
 
