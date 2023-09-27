@@ -1,0 +1,109 @@
+---
+# An Inventory should be in place already for this bucket to create a daily CSV file listing the contents.
+# The inventory is created by hmpps-delius-network-terraform:s3\oracledb-backups\main.tf
+# (This is used to greatly reduce the number of LIST operations run against the bucket)
+- name: Set Backup Inventory Location
+  set_fact:
+    s3_oracledb_backups_inventory: "{{ db_backup_s3_bucket_name | regex_replace('^(.*)(-oracle-database-backups)$','\\1-oracle-database-backuppieces') }}"
+    s3_oracledb_backups_inventory_arn: "{{ db_backup_s3_bucket_name }}-inventory"
+
+# Symlink to the Inventory file is kept in the folder using format dt=YYYY-MM-DD-HH24-MI
+# (We ignore the time component, HH24-MI, as that is not within our control)
+
+# Get Possible Dates for the Inventory File
+- name: Calculate Symlink Dates
+  set_fact:
+    link_today: "dt={{ '%Y-%m-%d' | strftime( ( ansible_date_time.epoch | int ) ) }}"
+    link_yesterday: "dt={{ '%Y-%m-%d' | strftime( ( ansible_date_time.epoch | int ) - 86400 ) }}"
+
+# Get rid of previous working directory so it can be recreated empty
+# (For simplicity, we use the same path on the Ansible Controller as on the RMAN target host.
+#  That may mean creating /home/oracle directory on the Controller even though there is
+#  no oracle user there.  This is ok since it's just a temporary directory name.)
+- name: Remove Inventory Working Directory
+  file:
+    path: "{{ inventory_directory }}"
+    state: absent
+
+- name: Create Inventory Working Directory
+  file:
+    path: "{{ inventory_directory }}"
+    state: directory
+
+- name: Create Temporary File for Downloading Symlink to Inventory file
+  set_fact:
+    inventory_symlink: "{{ inventory_directory }}/symlink.txt"
+
+# Get List of Available Symlink Files
+- name: Check for Availability of Todays Inventory file
+  amazon.aws.aws_s3:
+    bucket: "{{ s3_oracledb_backups_inventory_arn }}"
+    prefix: "{{ db_backup_s3_bucket_name }}/{{ s3_oracledb_backups_inventory }}/hive/{{ link_today }}-"
+    mode: list
+  register: symlink_today
+
+# First Attempt to get Todays Symlink File
+- name: Download Todays Symlink File
+  amazon.aws.aws_s3:
+    bucket: "{{ s3_oracledb_backups_inventory_arn }}"
+    object: "{{ symlink_today.s3_keys[0] }}"
+    prefix: "/{{ s3_oracledb_backups_inventory }}/hive/{{ link_today }}"
+    dest: "{{ inventory_symlink }}"
+    mode: get
+  ignore_errors: true
+  when: ( symlink_today.s3_keys | length ) > 0
+
+# If we cannot get todays symlink file then we try to get yesterdays one instead.
+# Inventories are created Daily so one should be available for either today or yesterday at any time.
+- name: Check for Availability of Yesterdays Inventory file
+  amazon.aws.aws_s3:
+    bucket: "{{ s3_oracledb_backups_inventory_arn }}"
+    prefix: "{{ db_backup_s3_bucket_name }}/{{ s3_oracledb_backups_inventory }}/hive/{{ link_yesterday }}-"
+    mode: list
+  register: symlink_yesterday
+  when: ( symlink_today.s3_keys | length ) == 0
+
+# Get yesterdays symlink file if todays one does not exist (we allow the play to fail if we cannot get this either)
+- name: Download Yesterdays Symlink File
+  amazon.aws.aws_s3:
+    bucket: "{{ s3_oracledb_backups_inventory_arn }}"
+    object: "{{ symlink_yesterday.s3_keys[0] }}"
+    dest: "{{ inventory_symlink }}"
+    mode: get
+  when: ( symlink_today.s3_keys | length ) == 0
+
+# There is normally just one inventory file but occassionally there may be more.   Each relevant file is listed in the symlink file
+# so we will need to loop through then and download each of the inventory files in turn.
+- name: Slurp Symlink File to Get Path to Inventory File
+  slurp:
+    src: "{{ inventory_symlink }}"
+  register: symlink_file
+
+- name: Set Paths to Inventory Files
+  set_fact:
+    paths_to_inventory_files: "{{ symlink_file['content'] | b64decode | regex_replace('s3://' + s3_oracledb_backups_inventory_arn + '/(.*)','\\1') }}"
+
+- name: Download the Inventory Files
+  amazon.aws.aws_s3:
+    bucket: "{{ s3_oracledb_backups_inventory_arn }}"
+    object: "{{ item }}"
+    dest: "{{ inventory_file }}.{{ file_idx }}.gz"
+    mode: get
+  loop: "{{ paths_to_inventory_files.splitlines() }}"
+  loop_control:
+    index_var: file_idx
+
+# Unarchive module requires gzipped tar files, cannot use for gzipped csv files so shell out
+- name: Unzip the Inventory File
+  shell: |
+    cd {{ inventory_directory }}
+    gzip --decompress {{ inventory_file }}.{{ file_idx }}.gz
+  loop: "{{ paths_to_inventory_files.splitlines() }}"
+  loop_control:
+    index_var: file_idx
+
+- name: Combine Inventory Files into Single File
+  assemble:
+    src: "{{ inventory_directory }}"
+    regexp: "{{ inventory_filename + '\\.\\d+$' }}"
+    dest: "{{ inventory_file }}"

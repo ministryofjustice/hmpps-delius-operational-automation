@@ -79,12 +79,6 @@ on:
         required: true
         type: string
 
-  push:
-    branches:
-      - DBA-511
-    paths:
-      - .github/workflows/oracle-backup.yml
-
 # Allow permissions on repository and docker image respectively 
 permissions:
   contents: read
@@ -102,9 +96,9 @@ jobs:
     env:
       backup_command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
       validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
-      delete_dbids_command: ansible-playbook operations/oracle_backup/delete_dbids_not_in_use.yml
+      delete_dbids_command: ansible-playbook operations/playbooks/oracle_backup/delete_dbids_not_in_use.yml
       inventory: inventory/ansible
-      TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost) || (github.event_name == 'schedule' && inputs.TargetHost) }}"
+      TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost) || (github.event_name == 'schedule' && inputs.TargetHost) || (github.event_name == 'push' && 'delius_primarydb') }}"
       Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period) || (github.event_name == 'schedule' && inputs.Period) }}"
       FixAbsentChunks: "${{ github.event.inputs.FixAbsentChunks == '' && 'yes' || github.event.inputs.FixAbsentChunks }}"
       EnableTrace: "${{ github.event.inputs.EnableTrace == '' && 'no' || github.event.inputs.EnableTrace }}"
@@ -119,7 +113,7 @@ jobs:
             playbooks/oracle_backup
           path: operations
           ref: ${{ inputs.SourceCodeVersion }}
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -131,7 +125,7 @@ jobs:
             ansible/group_vars
           path: inventory
           ref: ${{ inputs.SourceConfigVersion }}
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Configure AWS Credentials
         id: login-aws
@@ -153,3 +147,8 @@ jobs:
           $validate_command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_$TargetHost \
           -e fix_absent_chunks=$FixAbsentChunks
+
+      - name: Start Ansible Delete DBIDs Not In Use
+        run: |
+          $delete_dbids_command -i $inventory \
+          -e rman_target=environment_name_delius_core_development_dev_$TargetHost

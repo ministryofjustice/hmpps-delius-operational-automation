@@ -1,0 +1,20 @@
+- name: Delete DBIDs Not Longer in Use
+  hosts: '{{ rman_target | default("localhost", true) }}'
+  gather_facts: yes
+  become: yes
+  become_user: oracle
+  become_method: sudo
+
+  tasks:
+    - block:
+        - name: Set database_global_database
+          set_fact:
+            database_global_database: "{{ hostvars[groups[ ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb'][0]]['database_global_database'] }}"
+          when: ((database_global_database is defined) and (database_global_database|length == 0)) or (database_global_database is not defined)
+
+        - name: Delete Backups for DBIDs No Longer in Use
+          include_tasks: check_defunct_backups.yml
+
+      rescue:
+        - fail:
+            msg: "Deletion of DBIDs no longer in use has failed."
