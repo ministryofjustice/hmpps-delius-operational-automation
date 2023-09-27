@@ -1,0 +1,181 @@
+---
+
+- name: Inventory Working Directory
+  set_fact:
+    inventory_directory:  /home/oracle/admin/backup_inventory
+
+# Get rid of previous working directory so it can be recreated empty
+- name: Remove Inventory Working Directory
+  file:
+     path: "{{ inventory_directory }}"
+     state: absent
+
+- name: Create Inventory Working Directory
+  file:
+     path: "{{ inventory_directory }}"
+     state: directory
+
+- name: Create Temporary Filename for Downloading Inventory File
+  set_fact:
+    inventory_filename: "inventory_file.csv"
+
+- name: Create Temporary Fully Qualified File for Downloading Inventory File
+  set_fact:
+    inventory_file: "{{ inventory_directory }}/{{ inventory_filename }}"
+
+# - name: Slurp Environment File to Get Backup Bucket Location
+#   slurp:
+#       src: /etc/environment
+#   register: environmentfile
+
+# - name: Set Backup Location
+#   set_fact:
+#     hmpps_s3_oracledb_backups_arn: "{{ environmentfile['content'] | b64decode | regex_search('S3_ORACLEDB_BACKUPS_ARN=\".*\"') | regex_replace('S3_ORACLEDB_BACKUPS_ARN=\"arn:aws:s3:::(.*)\"','\\1') }}"
+
+- block:
+    - include_tasks: fetch_inventory_files.yml
+  delegate_to: localhost
+  become: no
+
+# Copy inventory file from Ansible Controller to same directory on the target Host
+- name: Copy Inventory File to Target Host for Further Processing
+  copy:
+     src: "{{ inventory_file }}"
+     dest: "{{ inventory_file }}"
+     owner: oracle
+
+- name: Establish SSM Name
+  set_fact:
+    ssmname: "/{{ environment_name }}/{{ project_name }}/oracle-db-operation/rman/rman_password"
+
+- name: Get RMAN Catalog Password
+  shell: aws ssm get-parameters --region {{ region }} --with-decryption --name {{ ssmname }} | jq -r '.Parameters[].Value'
+  register: rman_password
+  changed_when: false
+  no_log: true
+
+- name: Setup Slack Configuration
+  set_fact:
+    slack_channel: "#delius-aws-oracle-dev-alerts"
+
+# Get the Delius Slack token or the Alfresco Slack token if it does not exist
+- name: Get Slack Token
+  shell: aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value
+  register: getslacktoken
+  changed_when: false
+
+# Get RMAN Catalog Password (Cannot use this as runs on the control instance)
+# - name: lookup ssm parameter store in the current region
+#   set_fact:
+#      rman_password="{{ lookup('aws_ssm',ssmname,region=region) }}"
+
+# As we do not have a tnsnames.ora file on the standby we pick up the tnsnames definition for the catalog from the primary
+- name: Get RMAN Catalog TNS Alias from Primary (TNSNAMES file not in place on Standby)
+  script: get_catalog_connection.sh {{ hostvars[groups['delius_primarydb'][0]]['database_primary_sid'] }} {{ catalog }}
+  delegate_to: "{{ groups['delius_primarydb'][0] }}"
+  register: rman_tnsnames       
+
+- name: Set RMAN Connect String
+  set_fact: 
+      connect_to_catalog: "{{ 'rman19c/' + rman_password.stdout + '@' + rman_tnsnames.stdout_lines[0] if (catalog is defined) else 'NOCATALOG' }}"
+  no_log: true
+
+- name: Get DBID
+  script: run_rman_command.sh "{{ database_primary_sid | default(database_standby_sid) }}" "{{ connect_to_catalog }}" exit
+  register: getdbid
+  changed_when: false
+
+- name: Set DBID
+  set_fact:
+     dbid: "{{ getdbid.stdout_lines | select('search','^.*\\(DBID=\\d+(, not open)?\\)$') | first | regex_replace('^.*\\(DBID=(\\d+)(, not open)?\\)$', '\\1')  }}"
+
+- name: Show DBID
+  debug: var=dbid
+
+- name: Get DBIDs in Catalog for this Database 
+  script: run_rman_command.sh "{{ database_primary_sid | default(database_standby_sid) }}" "{{ connect_to_catalog }}" "list incarnation of database;"
+  register: getincarnations
+
+# The DBID is the first numeric column after the database name in the output
+- name: Populate List of Registered DBIDs
+  set_fact:
+     registered_dbids: "{{  (( registered_dbids | default([]) ) + [ item | regex_replace('^.*\\d+\\s+\\d+\\s+' + ( database_global_database | upper ) + '\\s+(\\d+)\\s+(CURRENT|ORPHAN|PARENT)\\s+\\d+\\s+\\d{2}-\\w{3}-\\d{2}$','\\1') ]) | unique }}"
+  loop: "{{ getincarnations.stdout_lines }}"
+  when: item is search('^.*\\d+\\s+\\d+\\s+' + ( database_global_database | upper ) + '\\s+\\d+\\s+(CURRENT|ORPHAN|PARENT)\\s+\\d+\\s+\\d{2}-\\w{3}-\\d{2}$')
+
+- name: Get list of DBIDs for which there are backups of this database name
+  shell:  awk -F\",\" '{print $2}' {{ inventory_file }}  | awk -F/ -v DBNAME={{ database_global_database | upper }} '$1=="file_chunk"&&$3==DBNAME{print $2}' | sort | uniq
+  register: getbackupdbids
+  changed_when: false
+
+- name: Get Backup Folder Sizes
+  shell:  awk -F\",\" '{print $2,$3}' {{ inventory_file }} | awk '/file_chunk/{printf("%s/%s\n",$1,$2)}' | awk -F/ -v DBID={{ item }} 'BEGIN{SUM=0}{if($2==DBID){SUM+=$NF}}END{print SUM/1024/1024/1024;}'
+  register: getfoldersizes
+  loop: "{{ getbackupdbids.stdout_lines }}"
+  when: item != dbid
+  changed_when: false
+
+- name: Get Most Recently Backed Up File Dates
+  shell: awk -F\",\" '{print $2,$4}' {{ inventory_file }}  | awk '/file_chunk/{printf("%s/%s\n",$1,$2)}' | awk -F/ -v DBID={{ item }} '{if($2==DBID){print $NF}}' | awk -FT '{print $1}' | sort -n | tail -1
+  register: getfolderdates
+  loop: "{{ getbackupdbids.stdout_lines }}"
+  when: item != dbid
+  changed_when: false
+  
+- name: Initialize Backup Folders
+  set_fact:
+     backup_folders: {}
+
+- name: Populate Dictionary of Backup Folder Information
+  set_fact:
+     backup_folders: "{{ backup_folders | combine ( { item: {'size': (getfoldersizes.results | selectattr('item','equalto',item) | map(attribute='stdout') | first), 'last_used':  (getfolderdates.results | selectattr('item','equalto',item) | map(attribute='stdout') | first)  } } ) }}"
+  loop: "{{ getbackupdbids.stdout_lines }}"
+  when: item != dbid
+
+- name: Display Backup Folder Information
+  debug:
+     var=backup_folders
+
+- name: Get Backup Retention Policy
+  script: run_rman_command.sh "{{ database_primary_sid | default(database_standby_sid) }}" "{{ connect_to_catalog }}" "show retention policy;"
+  register: getretentionpolicy
+  changed_when: false
+
+- name: Set Policy Value for Recovery Window
+  set_fact:
+      retention_policy: "{{ getretentionpolicy.stdout_lines | select('search','^CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF \\d+ DAYS;$') | first |  regex_replace('^CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF (\\d+) DAYS;$', '\\1')  }}" 
+  when: getretentionpolicy.stdout is search('.*CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF \\d+ DAYS;.*')
+
+# If the retention policy uses REDUNDANCY rather than RECOVERY WINDOW then arbitrarily allow 7 days for each backup (since we normally take a full backup weekly)
+# and then add one more week to provide a further margin.
+- name: Set Policy Value for Redundancy
+  set_fact:
+      retention_policy: "{{ ( ( getretentionpolicy.stdout_lines | select('search','^CONFIGURE RETENTION POLICY TO REDUNDANCY \\d+;.*') | first |  regex_replace('^CONFIGURE RETENTION POLICY TO REDUNDANCY (\\d+);.*', '\\1') | int  ) * 7) + 7 }}"
+  when: getretentionpolicy.stdout is search('.*CONFIGURE RETENTION POLICY TO REDUNDANCY \\d+;.*')
+
+- name: Check that Retention Policy is Numeric and Above 0
+  assert:
+    that:
+      - retention_policy is regex("[0-9]+")
+      - ( retention_policy | int ) > 0
+    msg: "'retention_policy' must be a non-zero number"
+
+- name: Get Current Date
+  setup:
+     filter: ansible_date_time
+
+- name: Show Backup Folders
+  debug: var=backup_folders
+
+- name: Delete Unused DBID Backups
+  include_tasks: delete_defunct_backups.yml
+  vars:
+     bucket: "{{ db_backup_s3_bucket_name }}"
+     defunct_dbid: "{{ item.key }}"
+     last_used: "{{ item.value.last_used }}"
+     folder_size: "{{ item.value.size }} Gb"
+  loop: "{{ backup_folders | dict2items }}"
+  when:  
+     - item != dbid
+     - (ansible_date_time.date | to_datetime('%Y-%m-%d') - item.value.last_used | to_datetime('%Y-%m-%d')).days > ( retention_policy | int )
+      
