@@ -9,6 +9,8 @@
 #  therefore we avoid counting all the chunks, as this is slow and incurs AWS costs)
 #
 
+. ~/.bash_profile
+
 S3_URL=$1
 DBID=$2
 DATABASE_NAME=$3
