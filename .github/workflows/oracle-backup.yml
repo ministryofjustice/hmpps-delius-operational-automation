@@ -107,7 +107,7 @@ jobs:
       TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost) || (github.event_name == 'schedule' && inputs.TargetHost) || (github.event_name == 'push' && 'delius_primarydb') }}"
       Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period) || (github.event_name == 'schedule' && inputs.Period) || (github.event_name == 'push' && 'daily')   }}"
       FixAbsentChunks: "${{ github.event.inputs.FixAbsentChunks == '' && 'yes' || github.event.inputs.FixAbsentChunks }}"
-      DeleteDefunct: "${{ (github.event.inputs.DeleteDefunct == '' && 'no' || github.event.inputs.DeleteDefunct) || (github.event_name == 'push' && 'yes') }}"
+      DeleteDefunct: "${{ (github.event.inputs.DeleteDefunct == '' && 'no' || github.event.inputs.DeleteDefunct) }}"
       EnableTrace: "${{ github.event.inputs.EnableTrace == '' && 'no' || github.event.inputs.EnableTrace }}"
     continue-on-error: false
     steps:
@@ -156,7 +156,7 @@ jobs:
       #     -e fix_absent_chunks=$FixAbsentChunks
 
       - name: Start Ansible Delete DBIDs Not In Use
-        if: ${{ env.DeleteDefunct == 'yes' }}
+        #if: ${{ env.DeleteDefunct == 'yes' }}
         run: |
           $delete_dbids_command -i $inventory \
           -e rman_target=environment_name_delius_core_development_dev_$TargetHost
