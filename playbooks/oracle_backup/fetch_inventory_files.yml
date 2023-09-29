@@ -34,9 +34,6 @@
   set_fact:
     inventory_symlink: "{{ inventory_directory }}/symlink.txt"
 
-- debug: 
-    msg:  "{{ s3_oracledb_backups_inventory_arn }}/{{ db_backup_s3_bucket_name }}/{{ s3_oracledb_backups_inventory }}/hive/{{ link_today }}"
-
 # Get List of Available Symlink Files
 - name: Check for Availability of Todays Inventory file
   amazon.aws.aws_s3:
@@ -67,6 +64,8 @@
     mode: list
   register: symlink_yesterday
   when: ( symlink_today.s3_keys | length ) == 0
+
+- debug: var=symlink_yesterday
 
 # Get yesterdays symlink file if todays one does not exist (we allow the play to fail if we cannot get this either)
 - name: Download Yesterdays Symlink File
