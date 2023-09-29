@@ -101,7 +101,8 @@
 - name: Unzip the Inventory File
   shell: |
     cd {{ inventory_directory }}
-    gzip --decompress {{ inventory_file }}.{{ file_idx }}.gz
+    #gzip --decompress {{ inventory_file }}.{{ file_idx }}.gz
+    gzip -d {{ inventory_file }}.{{ file_idx }}.gz
   loop: "{{ paths_to_inventory_files.splitlines() }}"
   loop_control:
     index_var: file_idx
