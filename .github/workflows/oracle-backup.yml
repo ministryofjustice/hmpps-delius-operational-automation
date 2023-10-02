@@ -1,4 +1,4 @@
-run-name: "Oracle: ${{ github.event_name == 'push' && 'delius' }}-daily-database-backup"
+run-name: "Oracle: ${{ (github.event_name == 'push' && 'delius') }}-daily-database-backup"
   workflow_dispatch:
     inputs:
       TargetHost:
