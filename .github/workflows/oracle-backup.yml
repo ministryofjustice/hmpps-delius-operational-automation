@@ -1,4 +1,4 @@
-run-name: "Oracle: ${{ contains(fromJSON('["workflow_dispatch","schedule","push"]'), github.event_name) && (startsWith(github.event.inputs.TargetHost,'delius') && 'delius-daily-database-backup') }}"
+run-name: "Oracle: ${{ contains(fromJSON('["workflow_dispatch","schedule","push"]'), github.event_name)  && 'delius-daily-database-backup' }}"
 on:
   workflow_dispatch:
     inputs:
