@@ -113,38 +113,35 @@ jobs:
     continue-on-error: false
     steps:
 
-      - name: Echo statement
-        run: echo "Echo statement"
+      - name: Checkout hmpps-delius-operation-automation
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oracle_backup
+          path: operations
+          ref: ${{ inputs.SourceCodeVersion }}
+          fetch-depth: 0
 
-      # - name: Checkout hmpps-delius-operation-automation
-      #   uses: actions/checkout@v4
-      #   with:
-      #     sparse-checkout-cone-mode: false
-      #     sparse-checkout: |
-      #       playbooks/oracle_backup
-      #     path: operations
-      #     ref: ${{ inputs.SourceCodeVersion }}
-      #     fetch-depth: 0
+      - name: Checkout modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ inputs.SourceConfigVersion }}
+          fetch-depth: 0
 
-      # - name: Checkout modernisation-platform-configuration-management
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: ministryofjustice/modernisation-platform-configuration-management
-      #     sparse-checkout-cone-mode: false
-      #     sparse-checkout: |
-      #       ansible/hosts
-      #       ansible/group_vars
-      #     path: inventory
-      #     ref: ${{ inputs.SourceConfigVersion }}
-      #     fetch-depth: 0
-
-      # - name: Configure AWS Credentials
-      #   id: login-aws
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
-      #     aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
-      #     aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       # - name: Start Ansible Backup
       #   run: |
@@ -159,8 +156,9 @@ jobs:
       #     -e rman_target=environment_name_delius_core_development_dev_$TargetHost \
       #     -e fix_absent_chunks=$FixAbsentChunks
 
-      # - name: Start Ansible Delete DBIDs Not In Use
-      #   #if: ${{ env.DeleteDefunct == 'yes' }}
-      #   run: |
-      #     $delete_dbids_command -i $inventory \
-      #     -e rman_target=environment_name_delius_core_development_dev_$TargetHost
+      - name: Start Ansible Delete DBIDs Not In Use
+        #if: ${{ env.DeleteDefunct == 'yes' }}
+        run: |
+          $delete_dbids_command -i $inventory \
+          -e rman_target=environment_name_delius_core_development_dev_$TargetHost
+          
