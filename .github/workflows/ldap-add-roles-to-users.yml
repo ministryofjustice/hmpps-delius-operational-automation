@@ -45,7 +45,7 @@ jobs:
                 json-file-path: docker/ldap-automation/task-def.json
                 # Multi-line string containing key/value pairs of JSON property paths and desired property values
                 field-value-pairs: |
-                    $.containerDefinitions[0].command: ["ldap-automation", "add-roles-to-users", "${{ github.event.inputs.user-role-list }}"]
+                    $.containerDefinitions[0].command: ["ldap-automation", "add-roles-to-users", "${{ github.event.inputs.user-role-list }}", "; echo END_OF_LOG"]
                     $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task-exec"
                     $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task"
 
@@ -76,4 +76,4 @@ jobs:
                 aws ecs deregister-task-definition --task-definition ${{steps.run-task.outputs.TASK_DEF_ARN}}
           - name: Output Cloudwatch Logs
             run: |
-                aws logs tail /ecs/ldap-automation --follow &
+                echo "just testing log delimiter for now"
