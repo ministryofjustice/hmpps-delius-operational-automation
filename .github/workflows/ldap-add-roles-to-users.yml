@@ -76,4 +76,4 @@ jobs:
                 aws ecs deregister-task-definition --task-definition ${{steps.run-task.outputs.TASK_DEF_ARN}}
           - name: Output Cloudwatch Logs
             run: |
-                timeout 1m aws logs tail /ecs/ldap-automation --follow
+                aws logs tail /ecs/ldap-automation --follow
