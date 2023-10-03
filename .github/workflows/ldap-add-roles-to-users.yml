@@ -103,4 +103,4 @@ jobs:
           done
 
 
-          aws logs tail /ecs/ldap-automation
+          aws logs tail /ecs/ldap-automation --log-stream-names /ecs/ldap-automation/"$task_id"
