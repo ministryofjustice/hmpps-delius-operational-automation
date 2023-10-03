@@ -11,25 +11,21 @@ on:
 jobs:
   prepare-workflow-call:
     runs-on: ubuntu-latest
+    outputs:
+      parameters_matrix: ${{ steps.parseparameters.outputs.parameters_matrix }}
     steps:
-      - name: Parse Inputs
-        id: parseinputs
+      - name: Parse parameters
+        id: parseparameters
         run: |
           echo -n "parameters_matrix={\"include\":[" >> $GITHUB_OUTPUT
-          # if [[ "${cron_time}" == '30 09 * * 1,2,4,5' ]]
-          # then
-            echo -n '{"TargetAccount":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"daily"}' >> $GITHUB_OUTPUT
-          #elif [[ "${cron_time}" == '30 06 * * 1' ]]
-          #then
-          #  echo -n '{"TargetAccount":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"weekly"},' >> $GITHUB_OUTPUT
-          #fi
+          echo -n '{"TargetAccount":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"daily"}' >> $GITHUB_OUTPUT
           echo "]}" >> $GITHUB_OUTPUT
-
-  run-workflow_call:
+  run-workflow-call:
     needs: prepare-workflow-call
     strategy:
       matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
       fail-fast: true
+    runs-on: ubuntu-latest
     uses: 
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@main
     with:
