@@ -33,7 +33,7 @@ jobs:
     uses: 
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@main
     with:
-      TargetAccount: ${{ env_matrix.TargetAccount }}
-      TargetHost: ${{ env_matrix.TargetHost }}
-      Period: ${{ env_matrix.Period }}
+      TargetAccount: ${{ matrix.TargetAccount }}
+      TargetHost: ${{ matrix.TargetHost }}
+      Period: ${{ matrix.Period }}
     secrets: inherit
