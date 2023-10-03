@@ -102,5 +102,5 @@ jobs:
               fi
           done
 
-          log_stream_name=$(aws logs describe-log-streams --log-group-name "/ecs/ldap-automation" --query "logStreams[?contains(log_stream_name,\"$task_id\")].log_stream_name" --output text)
+          log_stream_name="ecs/ldap-automation/${task_id}"
           aws logs tail /ecs/ldap-automation --log-stream-names $log_stream_name
