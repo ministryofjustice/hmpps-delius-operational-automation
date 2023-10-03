@@ -80,9 +80,7 @@ jobs:
 
           echo "TASK_DEF_ARN=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn') " >> $GITHUB_OUTPUT
 
-
           # Run task and store task id for later use
-
           task_id=$(aws ecs run-task --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --task-definition $task_definition_arn --network-configuration "awsvpcConfiguration={subnets=${{ steps.get-ids.outputs.SUBNET_IDS }},securityGroups=${{ steps.get-ids.outputs.SEC_GROUPS }},assignPublicIp=DISABLED}" --launch-type FARGATE --count 1 | jq -r '.tasks[0].taskArn' | cut -d '/' -f 2)
       - name: Delete Task Definition
         run: >
@@ -102,5 +100,4 @@ jobs:
               fi
           done
 
-          log_stream_name="ecs/ldap-automation/${task_id}"
-          aws logs tail /ecs/ldap-automation --log-stream-names $log_stream_name
+          aws logs tail /ecs/ldap-automation
