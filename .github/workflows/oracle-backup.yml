@@ -1,4 +1,4 @@
-run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetAccount, github.event.inputs.Period, github.event.inputs.TargetHost) || (github.event_name == 'push' && 'delius_core_development_dev_daily_delius_primarydb') }}_database_backup"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetAccount, github.event.inputs.Period, github.event.inputs.TargetHost) || (github.event_name == 'schedule' && format('{0}_{1}_{2}',inputs.TargetAccount, inputs.Period, inputs.TargetHost) )}}_database_backup"
 on:
   workflow_dispatch:
     inputs:
@@ -54,7 +54,7 @@ on:
         type: choice
         default: "no"
         options: 
-          - "yes"
+          - "yes" 
           - "no"     
       VerboseOutput: 
         description: "Verbose Output level"
@@ -115,9 +115,9 @@ jobs:
       validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
       delete_dbids_command: ansible-playbook operations/playbooks/oracle_backup/delete_dbids_not_in_use.yml
       inventory: inventory/ansible
-      TargetAccount: "${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.TargetAccount) || ((github.event_name == 'schedule' && inputs.TargetAccount) || (github.event_name == 'push' && 'delius_core_development_dev'))) }}"
-      TargetHost: "${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost) || ((github.event_name == 'schedule' && inputs.TargetHost) || (github.event_name == 'push' && 'delius_primarydb'))) }}"
-      Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period) || (github.event_name == 'schedule' && inputs.Period) || (github.event_name == 'push' && 'daily')   }}"
+      TargetAccount: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetAccount || (github.event_name == 'schedule' && inputs.TargetAccount || (github.event_name == 'push' && 'delius_core_development_dev'))) }}"
+      TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || (github.event_name == 'schedule' && inputs.TargetHost || (github.event_name == 'push' && 'delius_primarydb'))) }}"
+      Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period || (github.event_name == 'schedule' && inputs.Period || (github.event_name == 'push' && 'daily')))  }}"
       FixAbsentChunks: "${{ github.event.inputs.FixAbsentChunks == '' && 'yes' || github.event.inputs.FixAbsentChunks }}"
       DeleteDefunct: "${{ (github.event.inputs.DeleteDefunct == '' && 'no' || github.event.inputs.DeleteDefunct) }}"
       EnableTrace: "${{ github.event.inputs.EnableTrace == '' && 'no' || github.event.inputs.EnableTrace }}"
