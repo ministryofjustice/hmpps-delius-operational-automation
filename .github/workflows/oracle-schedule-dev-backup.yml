@@ -18,7 +18,7 @@ jobs:
           echo -n "env_matrix={\"include\":[" >> $GITHUB_OUTPUT
           if [[ "${cron_time}" == '30 09 * * 1,2,4,5' ]]
           then
-            echo -n '{"TargetAccount":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"daily"},' >> $GITHUB_OUTPUT
+            echo -n '{"TargetAccount":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"daily"}' >> $GITHUB_OUTPUT
           #elif [[ "${cron_time}" == '30 06 * * 1' ]]
           #then
           #  echo -n '{"TargetAccount":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"weekly"},' >> $GITHUB_OUTPUT
