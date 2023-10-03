@@ -25,7 +25,6 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
       fail-fast: true
-    runs-on: ubuntu-latest
     uses: 
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@main
     with:
