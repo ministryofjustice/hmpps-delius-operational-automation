@@ -117,7 +117,7 @@ jobs:
       validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
       delete_dbids_command: ansible-playbook operations/playbooks/oracle_backup/delete_dbids_not_in_use.yml
       inventory: inventory/ansible
-      TargetAccount: "${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.TargetAccount) || ((github.event_name == 'schedule' && inputs.TargetAccount) || (github.event_name == 'push' && 'delius_primarydb'))) }}"
+      TargetAccount: "${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.TargetAccount) || ((github.event_name == 'schedule' && inputs.TargetAccount) || (github.event_name == 'push' && 'delius_core_development_dev'))) }}"
       TargetHost: "${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost) || ((github.event_name == 'schedule' && inputs.TargetHost) || (github.event_name == 'push' && 'delius_primarydb'))) }}"
       Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period) || (github.event_name == 'schedule' && inputs.Period) || (github.event_name == 'push' && 'daily')   }}"
       FixAbsentChunks: "${{ github.event.inputs.FixAbsentChunks == '' && 'yes' || github.event.inputs.FixAbsentChunks }}"
@@ -133,7 +133,7 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_backup
           path: operations
-          ref: ${{ inputs.SourceCodeVersion }}
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
@@ -145,7 +145,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: ${{ inputs.SourceConfigVersion }}
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -156,18 +156,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Start Ansible Backup
-        run: |
-          $backup_command -i $inventory \
-          -e rman_target=environment_name_$TargetAccount_$TargetHost \
-          -e daily_weekly=$Period \
-          -e enable_trace=$EnableTrace
+      - name: RMAN Target Output
+        run: echo environment_name_$TargetAccount_$TargetHost
+        
+      # - name: Start Ansible Backup
+      #   run: |
+      #     $backup_command -i $inventory \
+      #     -e rman_target=environment_name_$TargetAccount_$TargetHost \
+      #     -e daily_weekly=$Period \
+      #     -e enable_trace=$EnableTrace
 
-      - name: Start Ansible Validate And Fix Absent Chunks
-        run: |
-          $validate_command -i $inventory \
-          -e rman_target=environment_name_$TargetAccount_$TargetHost \
-          -e fix_absent_chunks=$FixAbsentChunks
+      # - name: Start Ansible Validate And Fix Absent Chunks
+      #   run: |
+      #     $validate_command -i $inventory \
+      #     -e rman_target=environment_name_$TargetAccount_$TargetHost \
+      #     -e fix_absent_chunks=$FixAbsentChunks
 
       # - name: Start Ansible Delete DBIDs Not In Use
       #   #if: ${{ env.DeleteDefunct == 'yes' }}
