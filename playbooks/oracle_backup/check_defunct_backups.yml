@@ -59,7 +59,9 @@
 
 # Get the Delius Slack token or the Alfresco Slack token if it does not exist
 - name: Get Slack Token
-  shell: aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value
+  shell: |
+    . ~/.bash_profile
+    aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value
   register: getslacktoken
   changed_when: false
 
