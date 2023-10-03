@@ -15,27 +15,25 @@ jobs:
       - name: Parse Inputs
         id: parseinputs
         run: |
-          echo -n "env_matrix={\"include\":[" >> $GITHUB_OUTPUT
-          if [[ "${cron_time}" == '30 09 * * 1,2,4,5' ]]
-          then
+          echo -n "parameters_matrix={\"include\":[" >> $GITHUB_OUTPUT
+          # if [[ "${cron_time}" == '30 09 * * 1,2,4,5' ]]
+          # then
             echo -n '{"TargetAccount":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"daily"}' >> $GITHUB_OUTPUT
           #elif [[ "${cron_time}" == '30 06 * * 1' ]]
           #then
           #  echo -n '{"TargetAccount":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"weekly"},' >> $GITHUB_OUTPUT
-          fi
+          #fi
           echo "]}" >> $GITHUB_OUTPUT
-      - name: Output
-        run: echo $GITHUB_OUTPUT
 
-  # run-workflow_call:
-  #   needs: prepare-workflow-call
-  #   strategy:
-  #     matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.env_matrix) }}
-  #     fail-fast: true
-  #   uses: 
-  #     ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@main
-  #   with:
-  #     TargetAccount: ${{ matrix.TargetAccount }}
-  #     TargetHost: ${{ matrix.TargetHost }}
-  #     Period: ${{ matrix.Period }}
-  #   secrets: inherit
+  run-workflow_call:
+    needs: prepare-workflow-call
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
+      fail-fast: true
+    uses: 
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@main
+    with:
+      TargetAccount: ${{ matrix.TargetAccount }}
+      TargetHost: ${{ matrix.TargetHost }}
+      Period: ${{ matrix.Period }}
+    secrets: inherit
