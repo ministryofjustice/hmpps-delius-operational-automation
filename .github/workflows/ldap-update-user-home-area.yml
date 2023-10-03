@@ -68,12 +68,13 @@ jobs:
           - name: Run Standalone ECS Task
             id: run-task
             run: |
-                task_definition=$(aws ecs register-task-definition --cli-input-json file://${{ steps.render.outputs.rendered-json-file }})
-                task_definition_arn=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn') 
-                echo "TASK_DEF_ARN=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn') " >> $GITHUB_OUTPUT
+              task_definition=$(aws ecs register-task-definition --cli-input-json file://${{ steps.render.outputs.rendered-json-file }})
+              task_definition_arn=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn')
 
-                aws ecs run-task --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --task-definition $task_definition_arn --network-configuration "awsvpcConfiguration={subnets=${{ steps.get-ids.outputs.SUBNET_IDS }},securityGroups=${{ steps.get-ids.outputs.SEC_GROUPS }},assignPublicIp=DISABLED}" --launch-type FARGATE --count 1
+              echo "TASK_DEF_ARN=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn') " >> $GITHUB_OUTPUT
+
+              # Run task and store task id for later use
+              echo "TASK_ID=$(aws ecs run-task --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --task-definition $task_definition_arn --network-configuration "awsvpcConfiguration={subnets=${{ steps.get-ids.outputs.SUBNET_IDS }},securityGroups=${{ steps.get-ids.outputs.SEC_GROUPS }},assignPublicIp=DISABLED}" --launch-type FARGATE --count 1 | jq -r '.tasks[0].taskArn' | cut -d '/' -f 3)" >> $GITHUB_OUTPUT
           - name: Delete Task Definition
             run: |
-                aws ecs deregister-task-definition --task-definition ${{steps.run-task.outputs.TASK_DEF_ARN}}
-                
+              aws ecs deregister-task-definition --task-definition ${{steps.run-task.outputs.TASK_DEF_ARN}}
