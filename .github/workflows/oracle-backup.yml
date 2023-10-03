@@ -157,7 +157,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: RMAN Target Output
-        run: echo "environment_name_$TargetAccount_$TargetHost"
+        run: echo "environment_name_$TargetAccount"
 
       # - name: Start Ansible Backup
       #   run: |
