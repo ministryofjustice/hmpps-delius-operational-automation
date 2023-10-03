@@ -3,19 +3,43 @@ on:
   schedule:
     - cron: '30 09 * * 1,2,4,5'
     - cron: '30 06 * * 1'
-  push:
-    branches:
-      - DBA-511
-    paths:
-      - .github/workflows/oracle-schedule-dev-backup.yml
+  # push:
+  #   branches:
+  #     - DBA-511
+  #   paths:
+  #     - .github/workflows/oracle-schedule-dev-backup.yml
 jobs:
-  call-workflow:
+  prepare-workflow-call:
+    runs-on: ubuntu-latest
+    outputs:
+      parameters_matrix: ${{ steps.parseparameters.outputs.parameters_matrix }}
+    steps:
+      - name: Parse parameters
+        id: parseparameters
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "schedule" ]]
+          then
+            echo -n "parameters_matrix={\"include\":[" >> $GITHUB_OUTPUT
+            cron_time="${{github.event.schedule}}"
+            if [[ "${cron_time}" == '30 09 * * 1,2,4,5' ]]
+            then
+              echo -n '{"TargetAccount":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"daily"}' >> $GITHUB_OUTPUT
+            fi
+            if [[ "${cron_time}" == '30 06 * * 1' ]]
+            then
+              echo -n '{"TargetAccount":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"weekly"}' >> $GITHUB_OUTPUT
+            fi
+            echo "]}" >> $GITHUB_OUTPUT
+          fi
+  run-workflow-call:
+    needs: prepare-workflow-call
     strategy:
-      matrix:
-        database_type: [delius]
+      matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
+      fail-fast: true
     uses: 
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@main
     with:
-      TargetHost: ${{ matrix.database_type }}_primarydb
-      Period: daily
+      TargetAccount: ${{ matrix.TargetAccount }}
+      TargetHost: ${{ matrix.TargetHost }}
+      Period: ${{ matrix.Period }}
     secrets: inherit
