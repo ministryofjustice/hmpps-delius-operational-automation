@@ -1,4 +1,4 @@
-run-name: "Oracle: ${{ ( (github.event_name == 'workflow_dispatch') && ( startsWith(github.event.inputs.TargetHost,'delius') && format('{0}-{1}', github.event.inputs.Period,'-delius')) ) || (github.event_name == 'push' && 'daily-delius') }}-database-backup"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetAccount, github.event.inputs.Period, github.event.inputs.TargetHost) || (github.event_name == 'push' && 'delius_core_development_dev_daily_delius_primarydb') }}_database_backup"
 on:
   workflow_dispatch:
     inputs:
@@ -6,7 +6,6 @@ on:
         description: "Target AWS Account [EC2 Tags: <environment-name>_<delius-environment-name>]"
         required: true
         type: choice
-        default: ""
         options:
           - "delius_core_development_dev"
           - "delius_core_development_mis_dev"
@@ -14,7 +13,6 @@ on:
         description: "Backup target host"
         required: true
         type: choice
-        default: ""
         options: 
           - "delius_primarydb"
           - "mis_primarydb"
@@ -162,19 +160,19 @@ jobs:
       # - name: Start Ansible Backup
       #   run: |
       #     $backup_command -i $inventory \
-      #     -e rman_target=environment_name_$TargetAccount_$TargetHost \
+      #     -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }} \
       #     -e daily_weekly=$Period \
       #     -e enable_trace=$EnableTrace
 
       # - name: Start Ansible Validate And Fix Absent Chunks
       #   run: |
       #     $validate_command -i $inventory \
-      #     -e rman_target=environment_name_$TargetAccount_$TargetHost \
+      #     -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }} \
       #     -e fix_absent_chunks=$FixAbsentChunks
 
       # - name: Start Ansible Delete DBIDs Not In Use
       #   #if: ${{ env.DeleteDefunct == 'yes' }}
       #   run: |
       #     $delete_dbids_command -i $inventory \
-      #     -e rman_target=environment_name_$TargetAccount_$TargetHost
+      #     -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
           
