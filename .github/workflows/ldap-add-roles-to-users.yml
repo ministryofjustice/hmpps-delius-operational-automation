@@ -76,8 +76,7 @@ jobs:
                 aws ecs deregister-task-definition --task-definition ${{steps.run-task.outputs.TASK_DEF_ARN}}
           - name: Output Cloudwatch Logs
             run: |
-                
-              while [ "$task_running" = true ]; do
+                while [ "$task_running" = true ]; do
 
                   task_info=$(aws ecs describe-tasks --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --tasks "$task_id")
                   last_status=$(echo "$task_info" | jq -r '.tasks[0].lastStatus')
@@ -90,4 +89,3 @@ jobs:
               done
 
               aws logs tail /ecs/ldap-automation --profile delius-core-development
-
