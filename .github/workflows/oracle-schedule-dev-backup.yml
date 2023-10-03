@@ -24,16 +24,18 @@ jobs:
           #  echo -n '{"TargetAccount":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"weekly"},' >> $GITHUB_OUTPUT
           fi
           echo "]}" >> $GITHUB_OUTPUT
+      - name: Output
+        run: echo $GITHUB_OUTPUT
 
-  run-workflow_call:
-    needs: prepare-workflow-call
-    strategy:
-      matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.env_matrix) }}
-      fail-fast: true
-    uses: 
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@main
-    with:
-      TargetAccount: ${{ matrix.TargetAccount }}
-      TargetHost: ${{ matrix.TargetHost }}
-      Period: ${{ matrix.Period }}
-    secrets: inherit
+  # run-workflow_call:
+  #   needs: prepare-workflow-call
+  #   strategy:
+  #     matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.env_matrix) }}
+  #     fail-fast: true
+  #   uses: 
+  #     ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@main
+  #   with:
+  #     TargetAccount: ${{ matrix.TargetAccount }}
+  #     TargetHost: ${{ matrix.TargetHost }}
+  #     Period: ${{ matrix.Period }}
+  #   secrets: inherit
