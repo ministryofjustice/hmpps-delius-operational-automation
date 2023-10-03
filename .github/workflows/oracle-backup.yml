@@ -154,21 +154,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: RMAN Target Output
-        run: echo environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
+      - name: Start Ansible Backup
+        run: |
+          $backup_command -i $inventory \
+          -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }} \
+          -e daily_weekly=$Period \
+          -e enable_trace=$EnableTrace
 
-      # - name: Start Ansible Backup
-      #   run: |
-      #     $backup_command -i $inventory \
-      #     -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }} \
-      #     -e daily_weekly=$Period \
-      #     -e enable_trace=$EnableTrace
-
-      # - name: Start Ansible Validate And Fix Absent Chunks
-      #   run: |
-      #     $validate_command -i $inventory \
-      #     -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }} \
-      #     -e fix_absent_chunks=$FixAbsentChunks
+      - name: Start Ansible Validate And Fix Absent Chunks
+        run: |
+          $validate_command -i $inventory \
+          -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }} \
+          -e fix_absent_chunks=$FixAbsentChunks
 
       # - name: Start Ansible Delete DBIDs Not In Use
       #   #if: ${{ env.DeleteDefunct == 'yes' }}
