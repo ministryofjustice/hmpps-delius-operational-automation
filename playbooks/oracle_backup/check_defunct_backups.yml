@@ -70,10 +70,16 @@
 #   set_fact:
 #      rman_password="{{ lookup('aws_ssm',ssmname,region=region) }}"
 
+- name: Change rman target group name if not ending with delius_primarydb
+  set_fact:
+    delius_primarydb: "{{ rman_target | replace (rman_target.split('_')[-2] + '_' + rman_target.split('_')[-1], 'delius_primarydb')}}"
+  when: rman_target is not search ('delius_primarydb')
+
 # As we do not have a tnsnames.ora file on the standby we pick up the tnsnames definition for the catalog from the primary
 - name: Get RMAN Catalog TNS Alias from Primary (TNSNAMES file not in place on Standby)
-  script: get_catalog_connection.sh {{ hostvars[groups['delius_primarydb'][0]]['database_primary_sid'] }} {{ catalog }}
-  delegate_to: "{{ groups['delius_primarydb'][0] }}"
+  script: get_catalog_connection.sh {{ hostvars[groups[delius_primarydb][0]]['database_primary_sid'] }} {{ catalog }}
+  delegate_to: "{{ groups[delius_primarydb][0] }}"
+  when: catalog is defined
   register: rman_tnsnames
 
 - name: Set RMAN Connect String
