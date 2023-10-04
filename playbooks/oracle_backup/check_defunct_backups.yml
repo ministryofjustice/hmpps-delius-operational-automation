@@ -70,7 +70,7 @@
 #   set_fact:
 #      rman_password="{{ lookup('aws_ssm',ssmname,region=region) }}"
 
-- name:  Change rman target group name if not ending with delius_primarydb
+- name: Change rman target group name if not ending with delius_primarydb
   set_fact:
     delius_primarydb: "{{ rman_target | replace (rman_target.split('_')[-2] + '_' + rman_target.split('_')[-1], 'delius_primarydb')}}"
   when: rman_target is not search ('delius_primarydb')
