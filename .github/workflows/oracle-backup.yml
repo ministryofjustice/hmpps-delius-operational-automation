@@ -131,7 +131,7 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_backup
           path: operations
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
@@ -143,7 +143,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -167,9 +167,9 @@ jobs:
           -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }} \
           -e fix_absent_chunks=$FixAbsentChunks
 
-      # - name: Start Ansible Delete DBIDs Not In Use
-      #   #if: ${{ env.DeleteDefunct == 'yes' }}
-      #   run: |
-      #     $delete_dbids_command -i $inventory \
-      #     -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
+      - name: Start Ansible Delete DBIDs Not In Use
+        #if: ${{ env.DeleteDefunct == 'yes' }}
+        run: |
+          $delete_dbids_command -i $inventory \
+          -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
           
