@@ -76,7 +76,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
             ansible/roles/oracle-db-autotasks
-          path: .
+          path: inventory
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
           fetch-depth: 0
 
@@ -101,7 +101,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Configure Oracle Autotasks
-        run: ls -l ansible operations
+        run: ls -l inventory operations
           # export ANSIBLE_ROLES_PATH=./ansible/roles
-          # $command -i ansible -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
+          # $command -i inventory/ansible -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
           
