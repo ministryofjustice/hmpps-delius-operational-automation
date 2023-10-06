@@ -191,7 +191,6 @@
 - name: Notify of Missing Chunks
   when: dict_actual_vs_expected != {}
   block:
-  
     - name: Create List of Backup Pieces with Missing Chunks
       set_fact:
         corrupt_backup_pieces: "{{ ( corrupt_backup_pieces | default([]) ) + [ item.value.backup_piece ] }}"
@@ -202,11 +201,11 @@
         token: "{{ getslacktoken.stdout }}"
         msg: "Missing chunks detected in backuppieces {{ corrupt_backup_pieces | join(',') }}.  Attempting fix by re-running backup for these items."
         channel: "{{ slack_channel }}"
-        username: 'Missing Backup Chunks {{ inventory_hostname }}'
-        icon_emoji: ':repeat:'
+        username: "Missing Backup Chunks {{ inventory_hostname }}"
+        icon_emoji: ":repeat:"
       when:
-         - not ( previous_fix_attempt | default(false) )
-         - run_fix
+        - not ( previous_fix_attempt | default(false) )
+        - run_fix
       delegate_to: localhost
       become: no
 
@@ -215,11 +214,11 @@
         token: "{{ getslacktoken.stdout }}"
         msg: "Missing chunks detected in backuppieces {{ corrupt_backup_pieces | join(',') }}.  No Fix will be attempted."
         channel: "{{ slack_channel }}"
-        username: 'Missing Backup Chunks {{ inventory_hostname }}'
-        icon_emoji: ':x:'
+        username: "Missing Backup Chunks {{ inventory_hostname }}"
+        icon_emoji: ":x:"
       when:
-         - not ( previous_fix_attempt | default(false) )
-         - not (run_fix)
+        - not ( previous_fix_attempt | default(false) )
+        - not (run_fix)
       delegate_to: localhost
       become: no
 
@@ -228,10 +227,10 @@
         token: "{{ getslacktoken.stdout }}"
         msg: "Missing chunks detected (after fix attempt) in backuppieces {{ corrupt_backup_pieces | join(',') }}."
         channel: "{{ slack_channel }}"
-        username: 'Missing Backup Chunks {{ inventory_hostname }}'
-        icon_emoji: ':x:'
+        username: "Missing Backup Chunks {{ inventory_hostname }}"
+        icon_emoji: ":x:"
       when:
-          - ( previous_fix_attempt | default(false) )
+        - ( previous_fix_attempt | default(false) )
       delegate_to: localhost
       become: no
 
@@ -240,11 +239,11 @@
     token: "{{ getslacktoken.stdout }}"
     msg: "Backups with missing chunks successfully replaced by new backups."
     channel: "{{ slack_channel }}"
-    username: 'Missing Backup Chunks {{ inventory_hostname }}'
-    icon_emoji: ':white_check_mark:'
+    username: "Missing Backup Chunks {{ inventory_hostname }}"
+    icon_emoji: ":white_check_mark:"
   when:
-     - dict_actual_vs_expected == {}
-     - ( previous_fix_attempt | default(false) )
+    - dict_actual_vs_expected == {}
+    - ( previous_fix_attempt | default(false) )
   delegate_to: localhost
   become: no
 
@@ -427,8 +426,8 @@
         token: "{{ getslacktoken.stdout }}"
         msg: "Fix-it job run to take new backups to replace existing backups with missing chunks - {{ notification }}."
         channel: "{{ slack_channel }}"
-        username: 'Missing Backup Chunks {{ inventory_hostname }}'
-        icon_emoji: ':repeat_one:'
+        username: "Missing Backup Chunks {{ inventory_hostname }}"
+        icon_emoji: ":repeat_one:"
       delegate_to: localhost
       become: no
 
