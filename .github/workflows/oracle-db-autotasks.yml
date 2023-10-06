@@ -1,6 +1,9 @@
 run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetAccount, github.event.inputs.TargetHost) }}_autotask"
 on:
   workflow_dispatch:
+    branches:
+      - main
+      - DBA-528
     inputs:
       TargetAccount:
         description: "Target AWS Account [EC2 Tags: <environment-name>_<delius-environment-name>]"
