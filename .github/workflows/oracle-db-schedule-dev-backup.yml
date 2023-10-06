@@ -1,13 +1,8 @@
 name: "Oracle: Scheduled Delius Development Database Backup"
 on:
   schedule:
-    - cron: '30 09 * * 1,2,4,5'
-    - cron: '30 06 * * 1'
-  # push:
-  #   branches:
-  #     - DBA-511
-  #   paths:
-  #     - .github/workflows/oracle-schedule-dev-backup.yml
+    - cron: '30 08 * * 1,2,4,5'
+    - cron: '30 08 * * 3'
 jobs:
   prepare-workflow-call:
     runs-on: ubuntu-latest
@@ -37,7 +32,7 @@ jobs:
       matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
       fail-fast: true
     uses: 
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-backup.yml@main
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
     with:
       TargetAccount: ${{ matrix.TargetAccount }}
       TargetHost: ${{ matrix.TargetHost }}
