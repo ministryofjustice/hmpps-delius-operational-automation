@@ -60,7 +60,7 @@ jobs:
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
-            playbooks/configure_oracle_autotask.yml
+            playbooks/configure_oracle_autotasks.yml
           path: operations
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'DBA-528' }}
           fetch-depth: 0
