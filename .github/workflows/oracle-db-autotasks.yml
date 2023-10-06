@@ -101,6 +101,6 @@ jobs:
 
       - name: Configure Oracle Autotasks
         run: ls -l operations/ansible inventory/ansible .
-          export ANSIBLE_ROLES_PATH=./operations/ansible/roles
-          $command -i $inventory -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
+          # export ANSIBLE_ROLES_PATH=./operations/ansible/roles
+          # $command -i $inventory -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
           
