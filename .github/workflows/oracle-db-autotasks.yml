@@ -30,11 +30,11 @@ on:
         type: string
         default: "main"
 
-  # push:
-  #   branches:
-  #     - DBA-528
-  #   paths:
-  #     - .github/workflows/oracle-db-autotasks.yml
+  push:
+    branches:
+      - DBA-528
+    paths:
+      - .github/workflows/oracle-db-autotasks.yml
 
 # Allow permissions on repository and docker image respectively 
 permissions:
