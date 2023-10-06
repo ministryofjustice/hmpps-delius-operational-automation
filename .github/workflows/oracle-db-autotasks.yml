@@ -62,7 +62,7 @@ jobs:
           sparse-checkout: |
             playbooks/configure_oracle_autotask.yml
           path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'DBA-528' }}
           fetch-depth: 0
 
       - name: Checkout Role From modernisation-platform-configuration-management
