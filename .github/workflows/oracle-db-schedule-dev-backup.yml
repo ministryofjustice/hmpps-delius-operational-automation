@@ -1,8 +1,8 @@
 name: "Oracle: Scheduled Delius Development Database Backup"
 on:
   schedule:
-    - cron: '30 09 * * 1,2,4,5'
-    - cron: '30 06 * * 1'
+    - cron: '30 08 * * 1,2,4,5'
+    - cron: '30 08 * * 3'
 jobs:
   prepare-workflow-call:
     runs-on: ubuntu-latest
