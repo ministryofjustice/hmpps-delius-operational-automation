@@ -191,6 +191,7 @@
 - name: Notify of Missing Chunks
   when: dict_actual_vs_expected != {}
   block:
+  
     - name: Create List of Backup Pieces with Missing Chunks
       set_fact:
         corrupt_backup_pieces: "{{ ( corrupt_backup_pieces | default([]) ) + [ item.value.backup_piece ] }}"
@@ -222,17 +223,17 @@
       delegate_to: localhost
       become: no
 
-      - name: Send notification message via Slack if Missing Chunks Detected After Previous Fix Attempt
-        community.general.slack:
-          token: "{{ getslacktoken.stdout }}"
-          msg: "Missing chunks detected (after fix attempt) in backuppieces {{ corrupt_backup_pieces | join(',') }}."
-          channel: "{{ slack_channel }}"
-          username: 'Missing Backup Chunks {{ inventory_hostname }}'
-          icon_emoji: ':x:'
-        when:
-           - ( previous_fix_attempt | default(false) )
-        delegate_to: localhost
-        become: no
+    - name: Send notification message via Slack if Missing Chunks Detected After Previous Fix Attempt
+      community.general.slack:
+        token: "{{ getslacktoken.stdout }}"
+        msg: "Missing chunks detected (after fix attempt) in backuppieces {{ corrupt_backup_pieces | join(',') }}."
+        channel: "{{ slack_channel }}"
+        username: 'Missing Backup Chunks {{ inventory_hostname }}'
+        icon_emoji: ':x:'
+      when:
+          - ( previous_fix_attempt | default(false) )
+      delegate_to: localhost
+      become: no
 
 - name: Send notification message via Slack if Not Missing Chunks Detected After Previous Fix Attempt
   community.general.slack:
