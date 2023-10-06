@@ -30,11 +30,11 @@ on:
         type: string
         default: "main"
 
-  push:
-    branches:
-      - DBA-528
-    paths:
-      - .github/workflows/oracle-db-autotasks.yml
+  # push:
+  #   branches:
+  #     - DBA-528
+  #   paths:
+  #     - .github/workflows/oracle-db-autotasks.yml
 
 # Allow permissions on repository and docker image respectively 
 permissions:
@@ -57,16 +57,6 @@ jobs:
       TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || (github.event_name == 'push' && 'delius_primarydb')) }}"
     continue-on-error: false
     steps:
-
-      # - name: Checkout Playbook From hmpps-delius-operation-automation
-      #   uses: actions/checkout@v4
-      #   with:
-      #     sparse-checkout-cone-mode: false
-      #     sparse-checkout: |
-      #       playbooks/configure_oracle_autotasks.yml
-      #     path: operations
-      #     ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'DBA-528' }}
-      #     fetch-depth: 0
 
       - name: Checkout Role From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -100,7 +90,5 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Configure Oracle Autotasks
-        run: |
-          ls -l ./operations/ansible/roles/oracle-db-autotasks
-          $command -i $inventory -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
+        run: $command -i $inventory -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
           
