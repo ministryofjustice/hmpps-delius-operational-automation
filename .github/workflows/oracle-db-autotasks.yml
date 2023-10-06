@@ -51,7 +51,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     env:
-      command: ansible-playbook playbooks/configure_oracle_autotasks.yml
+      command: ansible-playbook operations/playbooks/configure_oracle_autotasks.yml
       TargetAccount: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetAccount || (github.event_name == 'push' && 'delius_core_development_dev')) }}"
       TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || (github.event_name == 'push' && 'delius_primarydb')) }}"
     continue-on-error: false
@@ -63,7 +63,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/configure_oracle_autotasks.yml
-          path: .
+          path: operations
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'DBA-528' }}
           fetch-depth: 0
 
@@ -101,7 +101,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Configure Oracle Autotasks
-        run: ls -l ansible playbooks
-          # export ANSIBLE_ROLES_PATH=./operations/ansible/roles
+        run: ls -l ansible operations
+          # export ANSIBLE_ROLES_PATH=./ansible/roles
           # $command -i ansible -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
           
