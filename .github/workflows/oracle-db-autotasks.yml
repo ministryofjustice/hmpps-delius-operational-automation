@@ -1,4 +1,4 @@
-run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetAccount, github.event.inputs.TargetHost }}_autotask"
+run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetAccount, github.event.inputs.TargetHost) }}_autotask"
 on:
   workflow_dispatch:
     inputs:
@@ -50,6 +50,8 @@ jobs:
     env:
       command: ansible-playbook operations/playbooks/configure_oracle_autotask.yml
       inventory: inventory/ansible
+      TargetAccount: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetAccount ||  (github.event_name == 'push' && 'delius_core_development_dev')) }}"
+      TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || (github.event_name == 'push' && 'delius_primarydb')) }}"
     continue-on-error: false
     steps:
 
