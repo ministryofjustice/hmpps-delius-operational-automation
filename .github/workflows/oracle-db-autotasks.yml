@@ -68,6 +68,9 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'DBA-528' }}
           fetch-depth: 0
 
+      - name: List operations directory 
+        run: ls -l operations
+
       - name: Checkout Role From modernisation-platform-configuration-management
         uses: actions/checkout@v4
         with:
@@ -78,6 +81,9 @@ jobs:
           path: operations
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
           fetch-depth: 0
+
+      - name: List operations directory 
+        run: ls -l operations/ansible
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -91,16 +97,19 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
           fetch-depth: 0
 
-      - name: Configure AWS Credentials
-        id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
       - name: Configure Oracle Autotasks
-        run: ls -l operations inventory
+        run: ls -l operations inventory/ansible
+
+      # - name: Configure AWS Credentials
+      #   id: login-aws
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+      #     aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+      #     aws-region: ${{ secrets.AWS_REGION }}
+
+      # - name: Configure Oracle Autotasks
+      #   run: ls -l operations/ansible inventory/ansible
           # export ANSIBLE_ROLES_PATH=./operations/ansible/roles
           # $command -i $inventory -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
           
