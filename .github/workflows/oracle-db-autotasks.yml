@@ -101,7 +101,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Configure Oracle Autotasks
-        run: ls -l inventory operations
-          # export ANSIBLE_ROLES_PATH=./ansible/roles
-          # $command -i inventory/ansible -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
+        run: |
+          export ANSIBLE_ROLES_PATH=./inventory/ansible/roles
+          $command -i inventory/ansible -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
           
