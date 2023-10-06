@@ -51,22 +51,22 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     env:
-      command: ansible-playbook operations/playbooks/configure_oracle_autotasks.yml
+      command: ansible-playbook operations/ansible/roles/oracle-db-autotasks/configure_oracle_autotasks.yml
       inventory: inventory/ansible
       TargetAccount: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetAccount || (github.event_name == 'push' && 'delius_core_development_dev')) }}"
       TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || (github.event_name == 'push' && 'delius_primarydb')) }}"
     continue-on-error: false
     steps:
 
-      - name: Checkout Playbook From hmpps-delius-operation-automation
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            playbooks/configure_oracle_autotasks.yml
-          path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'DBA-528' }}
-          fetch-depth: 0
+      # - name: Checkout Playbook From hmpps-delius-operation-automation
+      #   uses: actions/checkout@v4
+      #   with:
+      #     sparse-checkout-cone-mode: false
+      #     sparse-checkout: |
+      #       playbooks/configure_oracle_autotasks.yml
+      #     path: operations
+      #     ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'DBA-528' }}
+      #     fetch-depth: 0
 
       - name: Checkout Role From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -75,7 +75,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             ansible/roles/oracle-db-autotasks
-          path: roles
+          path: operations
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
           fetch-depth: 0
 
@@ -101,7 +101,6 @@ jobs:
 
       - name: Configure Oracle Autotasks
         run: |
-          ls -l ./roles/ansible/roles/oracle-db-autotasks
-          export ANSIBLE_ROLES_PATH=./roles/ansible/roles
+          ls -l ./operations/ansible/roles/oracle-db-autotasks
           $command -i $inventory -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
           
