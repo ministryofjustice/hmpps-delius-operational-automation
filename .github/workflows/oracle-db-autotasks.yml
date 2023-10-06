@@ -1,0 +1,94 @@
+run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetAccount, github.event.inputs.TargetHost) }}_autotask"
+on:
+  workflow_dispatch:
+    branches:
+      - main
+      - DBA-528
+    inputs:
+      TargetAccount:
+        description: "Target AWS Account [EC2 Tags: <environment-name>_<delius-environment-name>]"
+        required: true
+        type: choice
+        options:
+          - "delius_core_development_dev"
+          - "delius_core_development_mis_dev"
+      TargetHost:
+        description: "Database target host"
+        required: true
+        type: choice
+        options: 
+          - "delius_primarydb"
+          - "mis_primarydb"
+          - "misboe_primarydb"
+          - "misdsd_primarydb"   
+      SourceCodeVersion:
+        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+
+  # push:
+  #   branches:
+  #     - DBA-528
+  #   paths:
+  #     - .github/workflows/oracle-db-autotasks.yml
+
+# Allow permissions on repository and docker image respectively 
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  # Start deployment container job based on the build delius-ansible-aws image
+  deployment:
+    name: oracle-db-autotask
+    environment: development
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    timeout-minutes: 1440
+    env:
+      command: ansible-playbook operations/ansible/roles/oracle-db-autotasks/configure_oracle_autotasks.yml
+      inventory: inventory/ansible
+      TargetAccount: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetAccount || (github.event_name == 'push' && 'delius_core_development_dev')) }}"
+      TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || (github.event_name == 'push' && 'delius_primarydb')) }}"
+    continue-on-error: false
+    steps:
+
+      - name: Checkout Role From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/roles/oracle-db-autotasks
+          path: operations
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
+          fetch-depth: 0
+
+      - name: Checkout Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Configure Oracle Autotasks
+        run: $command -i $inventory -e target_hosts=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
+          
