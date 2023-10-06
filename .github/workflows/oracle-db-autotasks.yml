@@ -69,7 +69,7 @@ jobs:
           fetch-depth: 0
 
       - name: List operations directory 
-        run: ls -l operations
+        run: ls -l operations/playbooks
 
       - name: Checkout Role From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -83,7 +83,7 @@ jobs:
           fetch-depth: 0
 
       - name: List operations directory 
-        run: ls -l operations/ansible
+        run: ls -l operations operations/ansible/roles
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -98,7 +98,7 @@ jobs:
           fetch-depth: 0
 
       - name: Configure Oracle Autotasks
-        run: ls -l operations inventory/ansible
+        run: ls -l inventory/ansible
 
       # - name: Configure AWS Credentials
       #   id: login-aws
