@@ -38,8 +38,7 @@ permissions:
 jobs:
   # Start deployment container job based on the build delius-ansible-aws image
   deployment:
-deployment:
-    name: oracle-db-patching
+    name: oracle-db-parameters
     environment: development
     runs-on: ubuntu-latest
     container:
