@@ -84,7 +84,7 @@ jobs:
       InstallAbsentPatches: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.InstallAbsentPatches || 'yes' }}"
       OnlyPatchOffline: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.OnlyPatchOffline || 'yes' }}"
       VerboseOutput:  "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
-      OracleVarsDir: operations/ansible/roles/oracle-db-bootstrap/vars
+      OracleVarsDir: ${GITHUB_WORKSPACE}/operations/ansible/roles/oracle-db-bootstrap/vars
     continue-on-error: false
     steps:
 
@@ -108,22 +108,19 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
           fetch-depth: 0
 
-      - name: List directories
-        run: ls -l ${GITHUB_WORKSPACE}/operations/ansible/roles/oracle-db-bootstrap/vars inventory/ansible
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      # - name: Configure AWS Credentials
-      #   id: login-aws
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
-      #     aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
-      #     aws-region: ${{ secrets.AWS_REGION }}
-
-      # - name: Start Oracle Patching
-      #   run: |
-      #     $command -i $inventory \
-      #     -e target_host=environment_name_${{ env.TargetEnvironment }}_${{ env.TargetHost }} \
-      #     -e install_absent_patches=${{ env.InstallAbsentPatches }} \
-      #     -e requested_patch_id=${{ env.PatchId }} \
-      #     -e only_patch_offline=${{ env.OnlyPatchOffline }} \
-      #     -e oracle_vars_dir=${{ env.OracleVarsDir }} ${{ env.VerboseOutput }}
+      - name: Start Oracle Patching
+        run: |
+          $command -i $inventory \
+          -e target_host=environment_name_${{ env.TargetEnvironment }}_${{ env.TargetHost }} \
+          -e install_absent_patches=${{ env.InstallAbsentPatches }} \
+          -e requested_patch_id=${{ env.PatchId }} \
+          -e only_patch_offline=${{ env.OnlyPatchOffline }} \
+          -e oracle_vars_dir=${{ env.OracleVarsDir }} ${{ env.VerboseOutput }}
