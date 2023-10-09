@@ -1,0 +1,77 @@
+name: "Oracle: Patching"
+run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_patching"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius_core_development_dev"
+          - "delius_core_development_mis_dev"
+      TargetHost:
+        description: "Database target host"
+        required: true
+        type: choice
+        options: 
+          "delius_primarydb"
+          "delius_standbydb1"
+          "delius_standbydb2"
+          "mis_primarydb"
+          "mis_standbydb1"
+          "misboe_primarydb"
+          "misboe_standbydb1"
+          "misdsd_primarydb"
+          "misdsd_standbydb1"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+
+  push:
+    branches:
+      - DBA-528-PATCHING
+    paths:
+      - .github/workflows/oracle-db-patching.yml
+
+# Allow permissions on repository and docker image respectively 
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  # Start deployment container job based on the build delius-ansible-aws image
+  deployment:
+    name: oracle-db-patching
+    environment: development
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    timeout-minutes: 1440
+    env:
+      TargetAccount: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetAccount || (github.event_name == 'push' && 'delius_core_development_dev')) }}"
+      TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || (github.event_name == 'push' && 'delius_primarydb')) }}"
+    continue-on-error: false
+    steps:
+
+      - name: Checkout modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Start Oracle Patching
+        working-directory: modernisation-platform-configuration-management/ansible
+        run: |
+          no_proxy="*" ansible-playbook site.yml --limit environment_name_${{ env.TargetEnvironment }}_${{ env.TargetHost }} -e role=oracle-db-patches/oneoffpatch
+          
