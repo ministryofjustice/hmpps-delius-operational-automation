@@ -45,7 +45,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     env:
-      command: ansible-playbook inventory/ansible/roles/oracle-db-patches/set_oracle_parameters.yml
+      command: ansible-playbook inventory/ansible/roles/oracle-db-parameters/set_oracle_parameters.yml
       inventory: inventory/ansible
     continue-on-error: false
     steps:
@@ -66,7 +66,7 @@ jobs:
           sparse-checkout: |
             ansible/hosts
             ansible/group_vars
-            ansible/roles/oracle-db-patches
+            ansible/roles/oracle-db-parameters
           path: inventory
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
