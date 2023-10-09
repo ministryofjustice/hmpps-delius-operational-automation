@@ -24,6 +24,33 @@ on:
           - "misboe_standbydb1"
           - "misdsd_primarydb"
           - "misdsd_standbydb1"
+      PatchId:
+        description: "OPTIONAL [ID of Patch to be Installed (Patch should already be available in S3 bucket)].  If not specified then all configured patches will be installed."
+        type: string
+        default: ""
+      InstallAbsentPatches:
+        description: Install any patches found to be absent according to the configuration for this environment.  By default no patches are installed and instead an error is returned if any are missing."
+        type: choice
+        default: "no"
+        options:
+          - "no"
+          - "yes"
+      OnlyPatchOffline:
+        description: "Install any patches offline (recommended), even those indicated to be online installable."
+        type: string
+        default: "yes"
+        options:
+        - "no"
+        - "yes"
+      VerboseOutput:
+        description: "Verbose Output level"
+        type: string
+        default: ""
+          - ""
+          - "-v"
+          - "-vv"
+          - "-vvv"
+          - "-vvvv"
       SourceConfigVersion:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -52,8 +79,13 @@ jobs:
     env:
       command: ansible-playbook operations/ansible/roles/oracle-db-patches/oneoffpatch.yml
       inventory: inventory/ansible
-      TargetEnvironment: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || (github.event_name == 'push' && 'delius_core_development_dev')) }}"
-      TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || (github.event_name == 'push' && 'delius_primarydb')) }}"
+      TargetEnvironment: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || 'delius_core_development_dev' }}"
+      TargetHost: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || 'delius_primarydb' }}"
+      PatchId: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.PatchId || '' }}"
+      InstallAbsentPatches: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.InstallAbsentPatches || 'yes' }}"
+      OnlyPatchOffline: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.OnlyPatchOffline || 'yes' }}"
+      VerboseOutput:  "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
+      OracleVarsDir: operations/ansible/roles/oracle-db-bootstrap/vars
     continue-on-error: false
     steps:
 
@@ -86,5 +118,11 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Start Oracle Patching
-        run: $command -i $inventory -e target_host=environment_name_${{ env.TargetEnvironment }}_${{ env.TargetHost }}
-          
+        run: |
+          $command -i $inventory \
+          -e target_host=environment_name_${{ env.TargetEnvironment }}_${{ env.TargetHost }} \
+          -e install_absent_patches=${{ env.InstallAbsentPatches }} \
+          -e requested_patch_id=${{ env.PatchId }} \
+          -e only_patch_offline=${{ env.OnlyPatchOffline }} \
+          -e oracle_vars_dir=${{ env.OracleVarsDir }}
+          ${{ env.VerboseOutput }}
