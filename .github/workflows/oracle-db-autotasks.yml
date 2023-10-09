@@ -1,9 +1,9 @@
+name: "Oracle: Autotask"
 run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetAccount, github.event.inputs.TargetHost) }}_autotask"
 on:
   workflow_dispatch:
     branches:
       - main
-      - DBA-528
     inputs:
       TargetAccount:
         description: "Target AWS Account [EC2 Tags: <environment-name>_<delius-environment-name>]"
@@ -30,11 +30,11 @@ on:
         type: string
         default: "main"
 
-  # push:
-  #   branches:
-  #     - DBA-528
-  #   paths:
-  #     - .github/workflows/oracle-db-autotasks.yml
+  push:
+    branches:
+      - DBA-528-AUTOTASKS
+    paths:
+      - .github/workflows/oracle-db-autotasks.yml
 
 # Allow permissions on repository and docker image respectively 
 permissions:
