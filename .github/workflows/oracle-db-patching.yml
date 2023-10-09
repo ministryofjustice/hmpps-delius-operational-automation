@@ -109,7 +109,7 @@ jobs:
           fetch-depth: 0
 
       - name: List directories
-        run: ls -l operations/ansible/roles inventory/ansible
+        run: ls -l operations/ansible/roles/oracle-db-bootstrap/vars inventory/ansible
 
       # - name: Configure AWS Credentials
       #   id: login-aws
