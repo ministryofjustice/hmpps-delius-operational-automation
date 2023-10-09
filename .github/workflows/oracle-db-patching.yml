@@ -37,14 +37,14 @@ on:
           - "yes"
       OnlyPatchOffline:
         description: "Install any patches offline (recommended), even those indicated to be online installable."
-        type: string
+        type: choice
         default: "yes"
         options:
         - "no"
         - "yes"
       VerboseOutput:
         description: "Verbose Output level"
-        type: string
+        type: choice
         default: ""
           - ""
           - "-v"
