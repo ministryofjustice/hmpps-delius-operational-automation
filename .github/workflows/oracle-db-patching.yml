@@ -55,12 +55,6 @@ on:
         type: string
         default: "main"
 
-  push:
-    branches:
-      - DBA-528-PATCHING
-    paths:
-      - .github/workflows/oracle-db-patching.yml
-
 # Allow permissions on repository and docker image respectively 
 permissions:
   contents: read
@@ -78,12 +72,6 @@ jobs:
     env:
       command: ansible-playbook operations/ansible/roles/oracle-db-patches/oneoffpatch.yml
       inventory: inventory/ansible
-      TargetEnvironment: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || 'delius_core_development_dev' }}"
-      TargetHost: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || 'delius_primarydb' }}"
-      PatchId: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.PatchId || '' }}"
-      InstallAbsentPatches: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.InstallAbsentPatches || 'yes' }}"
-      OnlyPatchOffline: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.OnlyPatchOffline || 'yes' }}"
-      VerboseOutput:  "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
       OracleVarsDir: ${GITHUB_WORKSPACE}/operations/ansible/roles/oracle-db-bootstrap/vars
     continue-on-error: false
     steps:
@@ -93,7 +81,7 @@ jobs:
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'DBA-528-PATCHING' }}
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
@@ -105,7 +93,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -119,8 +107,8 @@ jobs:
       - name: Start Oracle Patching
         run: |
           $command -i $inventory \
-          -e target_host=environment_name_${{ env.TargetEnvironment }}_${{ env.TargetHost }} \
-          -e install_absent_patches=${{ env.InstallAbsentPatches }} \
-          -e requested_patch_id=${{ env.PatchId }} \
-          -e only_patch_offline=${{ env.OnlyPatchOffline }} \
-          -e oracle_vars_dir=${{ env.OracleVarsDir }} ${{ env.VerboseOutput }}
+          -e target_host=environment_name_${{ github.event.inputs.TargetEnvironment }}_${{ github.event.inputs.TargetHost }} \
+          -e install_absent_patches=${{ github.event.inputs.InstallAbsentPatches }} \
+          -e requested_patch_id=${{ github.event.inputs.PatchId }} \
+          -e only_patch_offline=${{ github.event.inputs.OnlyPatchOffline }} \
+          -e oracle_vars_dir=${{ env.OracleVarsDir }} ${{ github.event.inputs.VerboseOutput }}
