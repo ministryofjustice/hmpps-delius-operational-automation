@@ -1,0 +1,115 @@
+name: "Oracle: Patching"
+run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_patching"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius_core_development_dev"
+          - "delius_core_development_mis_dev"
+      TargetHost:
+        description: "Database target host"
+        required: true
+        type: choice
+        options: 
+          - "delius_primarydb"
+          - "delius_standbydb1"
+          - "delius_standbydb2"
+          - "mis_primarydb"
+          - "mis_standbydb1"
+          - "misboe_primarydb"
+          - "misboe_standbydb1"
+          - "misdsd_primarydb"
+          - "misdsd_standbydb1"
+      PatchId:
+        description: "OPTIONAL [ID of Patch to be Installed (Patch should already be available in S3 bucket)].  If not specified then all configured patches will be installed."
+        type: string
+        default: ""
+      InstallAbsentPatches:
+        description: Install any patches found to be absent according to the configuration for this environment.  By default no patches are installed and instead an error is returned if any are missing."
+        type: choice
+        default: "no"
+        options:
+          - "no"
+          - "yes"
+      OnlyPatchOffline:
+        description: "Install any patches offline (recommended), even those indicated to be online installable."
+        type: choice
+        default: "yes"
+        options:
+        - "no"
+        - "yes"
+      VerboseOutput:
+        description: "Verbose Output level"
+        type: choice
+        options:
+          - ""
+          - "-v"
+          - "-vv"
+          - "-vvv"
+          - "-vvvv"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+
+# Allow permissions on repository and docker image respectively 
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  # Start deployment container job based on the build delius-ansible-aws image
+  deployment:
+    name: oracle-db-patching
+    environment: development
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    timeout-minutes: 1440
+    env:
+      command: ansible-playbook operations/ansible/roles/oracle-db-patches/oneoffpatch.yml
+      inventory: inventory/ansible
+      OracleVarsDir: ${GITHUB_WORKSPACE}/operations/ansible/roles/oracle-db-bootstrap/vars
+    continue-on-error: false
+    steps:
+
+      - name: Checkout Role From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          path: operations
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Start Oracle Patching
+        run: |
+          $command -i $inventory \
+          -e target_host=environment_name_${{ github.event.inputs.TargetEnvironment }}_${{ github.event.inputs.TargetHost }} \
+          -e install_absent_patches=${{ github.event.inputs.InstallAbsentPatches }} \
+          -e requested_patch_id=${{ github.event.inputs.PatchId }} \
+          -e only_patch_offline=${{ github.event.inputs.OnlyPatchOffline }} \
+          -e oracle_vars_dir=${{ env.OracleVarsDir }} ${{ github.event.inputs.VerboseOutput }}
