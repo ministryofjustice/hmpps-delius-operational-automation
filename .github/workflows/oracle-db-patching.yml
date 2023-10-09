@@ -50,7 +50,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     env:
-      TargetAccount: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetAccount || (github.event_name == 'push' && 'delius_core_development_dev')) }}"
+      TargetEnvironment: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || (github.event_name == 'push' && 'delius_core_development_dev')) }}"
       TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || (github.event_name == 'push' && 'delius_primarydb')) }}"
     continue-on-error: false
     steps:
