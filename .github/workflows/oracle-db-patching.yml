@@ -45,7 +45,6 @@ on:
       VerboseOutput:
         description: "Verbose Output level"
         type: choice
-        default: ""
           - ""
           - "-v"
           - "-vv"
@@ -124,5 +123,4 @@ jobs:
           -e install_absent_patches=${{ env.InstallAbsentPatches }} \
           -e requested_patch_id=${{ env.PatchId }} \
           -e only_patch_offline=${{ env.OnlyPatchOffline }} \
-          -e oracle_vars_dir=${{ env.OracleVarsDir }}
-          ${{ env.VerboseOutput }}
+          -e oracle_vars_dir=${{ env.OracleVarsDir }} ${{ env.VerboseOutput }}
