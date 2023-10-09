@@ -108,19 +108,22 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
           fetch-depth: 0
 
-      - name: Configure AWS Credentials
-        id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+      - name: List directories
+        run: ls -l operations/ansible/roles inventory/ansible
 
-      - name: Start Oracle Patching
-        run: |
-          $command -i $inventory \
-          -e target_host=environment_name_${{ env.TargetEnvironment }}_${{ env.TargetHost }} \
-          -e install_absent_patches=${{ env.InstallAbsentPatches }} \
-          -e requested_patch_id=${{ env.PatchId }} \
-          -e only_patch_offline=${{ env.OnlyPatchOffline }} \
-          -e oracle_vars_dir=${{ env.OracleVarsDir }} ${{ env.VerboseOutput }}
+      # - name: Configure AWS Credentials
+      #   id: login-aws
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+      #     aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+      #     aws-region: ${{ secrets.AWS_REGION }}
+
+      # - name: Start Oracle Patching
+      #   run: |
+      #     $command -i $inventory \
+      #     -e target_host=environment_name_${{ env.TargetEnvironment }}_${{ env.TargetHost }} \
+      #     -e install_absent_patches=${{ env.InstallAbsentPatches }} \
+      #     -e requested_patch_id=${{ env.PatchId }} \
+      #     -e only_patch_offline=${{ env.OnlyPatchOffline }} \
+      #     -e oracle_vars_dir=${{ env.OracleVarsDir }} ${{ env.VerboseOutput }}
