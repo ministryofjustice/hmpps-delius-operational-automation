@@ -1,20 +1,35 @@
-name: "Oracle: Set DB Parameters"
+name: "Oracle: Set Database Parameters"
+run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_parameters"
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: "Delius environment"
+      TargetEnvironment:
+        description: "Target environment"
         required: true
-        default: "dev"
         type: choice
         options:
-          - dev
-          - test
-      mp_operational_automation_ref:
-        description: "MP Operational Automation ref"
+          - "delius_core_development_dev"
+          - "delius_core_development_mis_dev"
+      TargetHost:
+        description: "Database target host"
         required: true
-        default: "main"
-        type: string
+        type: choice
+        options:
+          - "delius_primarydb"
+          - "delius_standbydb1"
+          - "delius_standbydb2"
+          - "mis_primarydb"
+          - "mis_standbydb1"
+          - "misboe_primarydb"
+          - "misboe_standbydb1"
+          - "misdsd_primarydb"
+          - "misdsd_standbydb1"
+
+  push:
+    branches:
+      - DBA-528-SET-PARAMETERS
+    paths:
+      - .github/workflows/oracle-db-set-parameters.yml
 
 permissions:
   contents: read
@@ -23,16 +38,38 @@ permissions:
 jobs:
   # Start deployment container job based on the build delius-ansible-aws image
   deployment:
-    name: Test automation task
-    environment: delius-core-${{ github.event.inputs.environment }}
-    runs-on: ubuntu-22.04
+deployment:
+    name: oracle-db-patching
+    environment: development
+    runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
-
+    timeout-minutes: 1440
+    env:
+      command: ansible-playbook inventory/ansible/roles/oracle-db-patches/set_oracle_parameters.yml
+      inventory: inventory/ansible
+    continue-on-error: false
     steps:
-      - name: Checkout Code
+
+      # - name: Checkout Role From modernisation-platform-configuration-management
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: ministryofjustice/modernisation-platform-configuration-management
+      #     path: operations
+      #     ref: ${{ github.event.inputs.SourceConfigVersion }}
+      #     fetch-depth: 0
+
+      - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
         with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+            ansible/roles/oracle-db-patches
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -43,14 +80,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Clone supercharge docs repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          repository: ministryofjustice/modernisation-platform-configuration-management
-          ref: ${{ github.event.inputs.mp_operational_automation_ref }}
-
-      - name: Trigger ansible playbook
-        working-directory: modernisation-platform-configuration-management/ansible
-        run: |
-          no_proxy="*" ansible-playbook site.yml --limit environment_name_delius_core_development_${{ github.event.inputs.environment }}_delius_primarydb -e role=oracle-db-parameters/set_oracle_parameters
+      - name: Start Set Parameters
+        run: $command -i $inventory -e target_host=environment_name_delius_core_development_dev_delius_primarydb
+        #$command -i $inventory -e target_host=environment_name_${{ github.event.inputs.TargetEnvironment }}_${{ github.event.inputs.TargetHost }} 
