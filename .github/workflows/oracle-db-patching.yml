@@ -63,7 +63,9 @@ jobs:
           fetch-depth: 0
 
       - name: List directory
-        run: ls -l 
+        run: |
+          pwd
+          ls -l 
 
       # - name: Configure AWS Credentials
       #   id: login-aws
