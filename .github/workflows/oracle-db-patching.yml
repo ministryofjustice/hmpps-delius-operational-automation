@@ -86,5 +86,5 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Start Oracle Patching
-        run: $command -i $inventory -e target_host=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
+        run: $command -i $inventory -e target_host=environment_name_${{ env.TargetEnvironment }}_${{ env.TargetHost }}
           
