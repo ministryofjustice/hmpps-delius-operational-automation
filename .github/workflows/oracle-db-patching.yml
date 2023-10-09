@@ -93,7 +93,7 @@ jobs:
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'DBA-528-PATCHING' }}
           fetch-depth: 0
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
