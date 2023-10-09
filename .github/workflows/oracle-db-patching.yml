@@ -45,6 +45,7 @@ on:
       VerboseOutput:
         description: "Verbose Output level"
         type: choice
+        options:
           - ""
           - "-v"
           - "-vv"
