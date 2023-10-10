@@ -87,10 +87,12 @@ jobs:
           role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: githubactionsrolesession
           aws-region: "eu-west-2"
+
       - name: Scale ECS Service to 0
         id: scale-ecs-service
         run: |
           aws ecs update-service --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --service delius-core-${{ github.event.inputs.destination_env }}-openldap --desired-count 0
+
       - name: Confirm ECS Service is scaled to 0
         id: confirm-ecs-service-scaled
         run: |
@@ -111,18 +113,18 @@ jobs:
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.source_env }}
     steps:
-      - name: install aws-cli
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-pip
-          sudo pip3 install awscli
-
       - name: "Configure AWS Credentials"
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: githubactionsrolesession
           aws-region: "eu-west-2"
+
+      - name: install aws-cli
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          sudo pip3 install awscli
 
       - name: Set recovery point ARN to use
         id: set-recovery-point-arn
@@ -200,23 +202,23 @@ jobs:
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.destination_env }}
     steps:
-      - name: install aws-cli
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-pip
-          sudo pip3 install awscli
-      - name: install aws-cli
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-pip
-          sudo pip3 install awscli
-
       - name: "Configure AWS Credentials"
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: githubactionsrolesession
           aws-region: "eu-west-2"
+
+      - name: install aws-cli
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          sudo pip3 install awscli
+      - name: install aws-cli
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          sudo pip3 install awscli
 
       - name: Scale ECS Service back to 1
         id: scale-ecs-service
