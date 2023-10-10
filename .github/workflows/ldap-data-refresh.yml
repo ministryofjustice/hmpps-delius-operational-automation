@@ -5,6 +5,15 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
+      account:
+        description: AWS account the environment is in
+        required: true
+        type: choice
+        options:
+          - "development"
+          - "test"
+          - "preproduction"
+          - "production"
       source_env:
         description: environment to copy data from [dev|test|preprod|prod]
         required: true
@@ -79,7 +88,7 @@ jobs:
           echo "Copying from ${source_env} to ${destination_env}"
   destination-pre:
     runs-on: ubuntu-latest
-    environment: delius-core-${{ github.event.inputs.destination_env }}
+    environment: delius-core-${{ github.event.inputs.account }}-${{ github.event.inputs.destination_env }}
     steps:
       - name: Scale ECS Service to 0
         id: scale-ecs-service
@@ -101,7 +110,7 @@ jobs:
           echo "ECS Service scaled to 0"
   source:
     runs-on: ubuntu-latest
-    environment: delius-core-${{ github.event.inputs.source_env }}
+    environment: delius-core-${{ github.event.inputs.account }}-${{ github.event.inputs.source_env }}
     steps:
       - name: install aws-cli
         run: |
@@ -187,7 +196,7 @@ jobs:
           echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed. Switching to destination account"
   destination-post:
     runs-on: ubuntu-latest
-    environment: delius-core-${{ github.event.inputs.destination_env }}
+    environment: delius-core-${{ github.event.inputs.account }}-${{ github.event.inputs.destination_env }}
     steps:
       - name: install aws-cli
         run: |
