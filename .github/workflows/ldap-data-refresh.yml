@@ -107,7 +107,7 @@ jobs:
           echo "ECS Service scaled to 0"
   source:
     needs:
-      - destination-pre
+      - pre-checks
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.source_env }}
     steps:
