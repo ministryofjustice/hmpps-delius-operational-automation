@@ -78,6 +78,8 @@ jobs:
           
           echo "Copying from ${source_env} to ${destination_env}"
   destination-pre:
+    needs:
+        - pre-checks
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.destination_env }}
     steps:
@@ -100,6 +102,8 @@ jobs:
           done
           echo "ECS Service scaled to 0"
   source:
+    needs:
+      - destination-pre
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.source_env }}
     steps:
@@ -186,6 +190,8 @@ jobs:
           done
           echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed. Switching to destination account"
   destination-post:
+    needs:
+      - source
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.destination_env }}
     steps:
