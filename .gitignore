@@ -9,3 +9,4 @@ python-env/
 *.code-workspace
 *.sha256
 terraform.tfstate
+.idea/

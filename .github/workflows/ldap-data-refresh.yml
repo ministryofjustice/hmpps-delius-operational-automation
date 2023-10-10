@@ -1,0 +1,69 @@
+---
+name: ldap-data-refresh
+permissions:
+  id-token: write  # This is required for requesting the JWT
+on:
+  workflow_dispatch:
+    inputs:
+      source_env:
+        description: environment to copy data from [dev|test|preprod|prod]
+        options:
+          - dev
+          - test
+          - preprod
+          - prod
+        required: true
+      destination_env:
+        description: environment to copy data to [dev|test|preprod|prod]
+        options:
+          - dev
+          - test
+          - preprod
+          - prod
+
+jobs:
+  share-latest-manual-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source and destination environments are different
+        run: |
+          if [ "${{ github.event.inputs.source_env }}" == "${{ github.event.inputs.destination_env }}" ]; then
+            echo "Source and destination environments must be different"
+            exit 1
+          fi
+      - name: Check that copy is valid
+        run: |
+          source_env="${{ github.event.inputs.source_env }}"
+          destination_env="${{ github.event.inputs.destination_env }}"
+          
+          if [ "${source_env}" == "prod" && destination_env != "preprod" ]; then
+            echo "Cannot copy from prod to ${destination_env}"
+            exit 1
+          fi
+          
+          # Check that the destination environment is not a higher environment than the source environment
+          indexof() { i=-1; for ((j=0;j<${#list[@]};j++)); do [ "${list[$j]}" = "$1" ] && { i=$j; break; } done; echo $i; }
+          
+          source_env_index=index_of "${{ github.event.inputs.source_env }}" ('dev' 'test' 'preprod' 'prod')
+          destination_env_index=index_of "${{ github.event.inputs.destination_env }}" ('dev' 'test' 'preprod' 'prod')
+          
+          if [ "${source_env_index}" -lt "${destination_env_index}" ]; then
+            echo "Destination environment must be a higher environment than the source environment"
+            exit 1
+          fi
+          
+          echo "Copying from ${source_env} to ${destination_env}"
+
+      - name: install aws-cli
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          sudo pip3 install awscli
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@e1e17a757e536f70e52b5a12b2e8d1d1c60e04ef  # v2.0.0
+        with:
+          role-to-assume: "arn:aws:iam::013433889002:role/modernisation-platform-oidc-cicd"
+          role-session-name: githubactionsrolesession
+          aws-region: "eu-west-2"
+
