@@ -30,7 +30,7 @@ jobs:
     steps:
       - name: Check source and destination environments are different
         run: |
-          if [ "${{ github.event.inputs.source_env }}" == "${{ github.event.inputs.destination_env }}" ]; then
+          if [[ "${{ github.event.inputs.source_env }}" == "${{ github.event.inputs.destination_env }}" ]]; then
             echo "Source and destination environments must be different"
             exit 1
           fi
