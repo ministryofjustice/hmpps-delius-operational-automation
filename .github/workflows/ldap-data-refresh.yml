@@ -62,8 +62,8 @@ jobs:
               echo $idx
           }
           
-          source_env_index=index "${{ github.event.inputs.source_env }}" env_list
-          destination_env_index=index "${{ github.event.inputs.destination_env }}" env_list
+          source_env_index=$(index "${{ github.event.inputs.source_env }}" env_list)
+          destination_env_index=$(index "${{ github.event.inputs.destination_env }}" env_list)
           
           if [ "${source_env_index}" -lt "${destination_env_index}" ]; then
             echo "Destination environment must be a higher environment than the source environment"
