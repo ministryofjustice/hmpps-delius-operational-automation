@@ -44,13 +44,26 @@ jobs:
             exit 1
           fi
           
-          list=('dev' 'test' 'preprod' 'prod') 
+          env_list=(dev test preprod prod) 
           
           # Check that the destination environment is not a higher environment than the source environment
-          indexof() { i=-1; for ((j=0;j<${#list[@]};j++)); do [ "${list[$j]}" = "$1" ] && { i=$j; break; } done; echo $i; }
           
-          source_env_index=index_of "${{ github.event.inputs.source_env }}"
-          destination_env_index=index_of "${{ github.event.inputs.destination_env }}"
+          # find the index of the source environment, usage `index $item $list` - see https://stackoverflow.com/a/30772014
+          index()
+          {
+              local word
+              local item
+              local idx
+          
+              word=$1
+              shift
+              item=$(printf '%s\n' "$@" | fgrep -nx "$word")
+              let idx=${item%%:*}-1
+              echo $idx
+          }
+          
+          source_env_index=index "${{ github.event.inputs.source_env }}" env_list
+          destination_env_index=index "${{ github.event.inputs.destination_env }}" env_list
           
           if [ "${source_env_index}" -lt "${destination_env_index}" ]; then
             echo "Destination environment must be a higher environment than the source environment"
