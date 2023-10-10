@@ -73,9 +73,7 @@ jobs:
             echo "Destination environment must be a higher environment than the source environment"
             exit 1
           fi
-          
-          if 
-          
+                    
           echo "Copying from ${source_env} to ${destination_env}"
   destination-pre:
     needs:
