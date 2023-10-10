@@ -139,13 +139,13 @@ jobs:
       - name: Create a temporary EFS resource with AWS Backup recovery point
         id: create-efs-from-backup
         run: |
-          RESTORE_JOB_ID=$(aws backup start-restore-job --recovery-point-arn ${{ steps.output.set-recovery-point-arn.RECOVERY_POINT_ARN }} --metadata file-system-id=xxx newFileSystem=true CreationToken=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'RestoreJobId') >> GITHUB_OUTPUT
+          RESTORE_JOB_ID=$(aws backup start-restore-job --recovery-point-arn ${{ steps.set-recovery-point-arn.outputs.RECOVERY_POINT_ARN }} --metadata file-system-id=xxx newFileSystem=true CreationToken=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'RestoreJobId') >> GITHUB_OUTPUT
           
       - name: Wait for restore to complete
         id: wait-for-restore
         run: |
           while true; do
-            RESTORE_JOB_STATUS=$(aws backup describe-restore-job --restore-job-id ${{ steps.output.create-efs-from-backup.RESTORE_JOB_ID }} --output text --query 'Status')
+            RESTORE_JOB_STATUS=$(aws backup describe-restore-job --restore-job-id ${{ steps.create-efs-from-backup.outputs.RESTORE_JOB_ID }} --output text --query 'Status')
             if [[ "${RESTORE_JOB_STATUS}" == "COMPLETED" ]]; then
               echo "RESTORE_JOB_STATUS=${RESTORE_JOB_STATUS}" >> GITHUB_OUTPUT
               break
@@ -166,7 +166,7 @@ jobs:
       - name: Create datasync location for temp efs
         id: create-datasync-location
         run: |
-          DATASYNC_SOURCE_LOCATION_ARN=$(aws datasync create-location-efs --efs-file-system-arn arn:aws:elasticfilesystem:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:file-system/${{ steps.output.get-temp-efs-id.TEMP_EFS_ID }} --subdirectory / --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> GITHUB_OUTPUT
+          DATASYNC_SOURCE_LOCATION_ARN=$(aws datasync create-location-efs --efs-file-system-arn arn:aws:elasticfilesystem:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:file-system/${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }} --subdirectory / --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> GITHUB_OUTPUT
 
       - name: Create datasync location for destination efs
         id: create-datasync-destination-location
@@ -176,13 +176,13 @@ jobs:
       - name: Create datasync task
         id: create-datasync-task
         run: |
-          DATASYNC_TASK_ARN=$(aws datasync create-task --source-location-arn ${{ steps.output.create-datasync-location.DATASYNC_SOURCE_LOCATION_ARN }} --destination-location-arn ${{ steps.output.create-datasync-destination-location.DATASYNC_DESTINATION_LOCATION_ARN }} --cloud-watch-log-group-arn arn:aws:logs:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:log-group:datasync --name gha-ldap-data-refresh-${{github.run_id }} --output text --query 'TaskArn') >> GITHUB_OUTPUT
+          DATASYNC_TASK_ARN=$(aws datasync create-task --source-location-arn ${{ steps.create-datasync-location.outputs.DATASYNC_SOURCE_LOCATION_ARN }} --destination-location-arn ${{ steps.create-datasync-destination-location.outputs.DATASYNC_DESTINATION_LOCATION_ARN }} --cloud-watch-log-group-arn arn:aws:logs:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:log-group:datasync --name gha-ldap-data-refresh-${{github.run_id }} --output text --query 'TaskArn') >> GITHUB_OUTPUT
 
       - name: Wait for datasync task to complete
         id: wait-for-datasync-task
         run: |
           while true; do
-            DATASYNC_TASK_STATUS=$(aws datasync describe-task --task-arn ${{ steps.output.create-datasync-task.DATASYNC_TASK_ARN }} --output text --query 'Status')
+            DATASYNC_TASK_STATUS=$(aws datasync describe-task --task-arn ${{ steps.create-datasync-task.outputs.DATASYNC_TASK_ARN }} --output text --query 'Status')
             if [[ "${DATASYNC_TASK_STATUS}" == "AVAILABLE" ]]; then
               echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> GITHUB_OUTPUT
               break
