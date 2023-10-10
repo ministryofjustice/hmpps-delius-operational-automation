@@ -45,7 +45,7 @@ jobs:
           fi
           
           # Check that the destination environment is not a higher environment than the source environment
-          indexof() { i=-1; for ((j=0;j<${#list[@]};j++)); do [ "${list[$j]}" = "$1" ] && { i=$j; break; } done; echo $i; }
+          indexof() { i=-1; for ((j=0;j<${#$2[@]};j++)); do [ "${$2[$j]}" = "$1" ] && { i=$j; break; } done; echo $i; }
           
           source_env_index=index_of "${{ github.event.inputs.source_env }}" ('dev' 'test' 'preprod' 'prod')
           destination_env_index=index_of "${{ github.event.inputs.destination_env }}" ('dev' 'test' 'preprod' 'prod')
