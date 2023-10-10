@@ -196,6 +196,7 @@ jobs:
   destination-post:
     needs:
       - source
+      - destination-pre
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.destination_env }}
     steps:
