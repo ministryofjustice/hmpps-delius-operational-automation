@@ -81,6 +81,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.destination_env }}
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@e1e17a757e536f70e52b5a12b2e8d1d1c60e04ef  # v2.0.0
+        with:
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: githubactionsrolesession
+          aws-region: "eu-west-2"
       - name: Scale ECS Service to 0
         id: scale-ecs-service
         run: |
