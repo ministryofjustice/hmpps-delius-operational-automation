@@ -39,7 +39,7 @@ jobs:
           source_env="${{ github.event.inputs.source_env }}"
           destination_env="${{ github.event.inputs.destination_env }}"
           
-          if [ "${source_env}" == "prod" && destination_env != "preprod" ]; then
+          if [[ "${source_env}" == "prod" && destination_env != "preprod" ]]; then
             echo "Cannot copy from prod to ${destination_env}"
             exit 1
           fi
