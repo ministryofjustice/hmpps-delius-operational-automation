@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.destination_env }}
     steps:
-      - name: "Configure AWS Credentials" Action for GitHub Actions
+      - name: "Configure AWS Credentials"
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
@@ -117,7 +117,7 @@ jobs:
           sudo apt-get install -y python3-pip
           sudo pip3 install awscli
 
-      - name: "Configure AWS Credentials" Action for GitHub Actions
+      - name: "Configure AWS Credentials"
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
@@ -210,7 +210,7 @@ jobs:
           sudo apt-get install -y python3-pip
           sudo pip3 install awscli
 
-      - name: "Configure AWS Credentials" Action for GitHub Actions
+      - name: "Configure AWS Credentials"
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
