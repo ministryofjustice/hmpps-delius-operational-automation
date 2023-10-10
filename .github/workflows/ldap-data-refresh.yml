@@ -7,14 +7,17 @@ on:
     inputs:
       source_env:
         description: environment to copy data from [dev|test|preprod|prod]
+        required: true
+        type: choice
         options:
           - dev
           - test
           - preprod
           - prod
-        required: true
       destination_env:
         description: environment to copy data to [dev|test|preprod|prod]
+        required: true
+        type: choice
         options:
           - dev
           - test
