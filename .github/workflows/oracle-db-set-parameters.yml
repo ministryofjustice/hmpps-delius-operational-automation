@@ -24,6 +24,10 @@ on:
           - "misboe_standbydb1"
           - "misdsd_primarydb"
           - "misdsd_standbydb1"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
 
 permissions:
   contents: read
