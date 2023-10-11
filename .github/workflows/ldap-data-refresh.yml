@@ -156,6 +156,10 @@ jobs:
             elif [[ "${RESTORE_JOB_STATUS}" == "ABORTED" ]]; then
               echo "RESTORE_JOB_STATUS=${RESTORE_JOB_STATUS}" >> $GITHUB_OUTPUT
               exit 1
+            elif [[ "${RESTORE_JOB_STATUS}" == "FAILED" ]]; then
+              echo "RESTORE_JOB_STATUS=${RESTORE_JOB_STATUS}" >> $GITHUB_OUTPUT
+              echo "Restore job failed"
+              exit 1
             else
               echo "RESTORE_JOB_STATUS=${RESTORE_JOB_STATUS}"
               sleep 10
