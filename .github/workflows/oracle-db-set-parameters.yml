@@ -39,7 +39,7 @@ jobs:
   # Start deployment container job based on the build delius-ansible-aws image
   deployment:
     name: oracle-db-parameters
-    environment: development
+    environment: delius-core-dev
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
