@@ -143,7 +143,7 @@ jobs:
       - name: Create a temporary EFS resource with AWS Backup recovery point
         id: create-efs-from-backup
         run: |
-          echo RESTORE_JOB_ID=$(aws backup start-restore-job --recovery-point-arn ${{ env.RECOVERY_POINT_ARN }} --metadata file-system-id=${{ env.EFS_FILE_SYSTEM_ID }},newFileSystem=true,CreationToken=gha-ldap-data-refresh-${{github.run_id }},Encrypted=false,PerformanceMode=generalPurpose --resource-type EFS --no-copy-source-tags-to-restored-resource --output text --query 'RestoreJobId') >> $GITHUB_OUTPUT
+          echo RESTORE_JOB_ID=$(aws backup start-restore-job --recovery-point-arn ${{ env.RECOVERY_POINT_ARN }} --iam-role-arn arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd --metadata file-system-id=${{ env.EFS_FILE_SYSTEM_ID }},newFileSystem=true,CreationToken=gha-ldap-data-refresh-${{github.run_id }},Encrypted=false,PerformanceMode=generalPurpose --resource-type EFS --no-copy-source-tags-to-restored-resource --output text --query 'RestoreJobId') >> $GITHUB_OUTPUT
           
       - name: Wait for restore to complete
         id: wait-for-restore
