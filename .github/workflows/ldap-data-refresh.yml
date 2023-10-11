@@ -140,7 +140,7 @@ jobs:
         run: |
             EFS_FILE_SYSTEM_ID=$(aws efs describe-file-systems --creation-token ${{ github.event.inputs.source_env }}-ldap --output text --query 'FileSystems[0].FileSystemId')
             if [[ $? -eq 0 ]]; then
-              echo $EFS_FILE_SYSTEM_ID >> $GITHUB_ENV
+              echo "EFS_FILE_SYSTEM_ID=$EFS_FILE_SYSTEM_ID" >> $GITHUB_ENV
             else
               echo "Failed to get EFS ID"
               exit 1
@@ -151,7 +151,7 @@ jobs:
         run: |
           RESTORE_JOB_ID=$(aws backup start-restore-job --recovery-point-arn ${{ env.RECOVERY_POINT_ARN }} --iam-role-arn arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ldap-data-refresh-role-${{ github.event.inputs.source_env }} --metadata file-system-id=${{ env.EFS_FILE_SYSTEM_ID }},newFileSystem=true,CreationToken=gha-ldap-data-refresh-${{github.run_id }},Encrypted=false,PerformanceMode=generalPurpose --resource-type EFS --no-copy-source-tags-to-restored-resource --output text --query 'RestoreJobId')
           if [[ $? -eq 0 ]]; then
-            echo $RESTORE_JOB_ID >> $GITHUB_OUTPUT
+            echo "$RESTORE_JOB_ID=$RESTORE_JOB_ID" >> $GITHUB_OUTPUT
           else
             echo "Failed to get RESTORE_JOB_ID"
             exit 1
@@ -182,7 +182,7 @@ jobs:
         run: |
           TEMP_EFS_ID=$(aws efs describe-file-systems --creation-token gha-ldap-data-refresh-${{github.run_id }} --output text --query 'FileSystems[0].FileSystemId')
           if [[ $? -eq 0 ]]; then
-            echo $TEMP_EFS_ID >> $GITHUB_OUTPUT
+            echo "TEMP_EFS_ID=$TEMP_EFS_ID" >> $GITHUB_OUTPUT
           else
             echo "Failed to get $TEMP_EFS_ID"
             exit 1
