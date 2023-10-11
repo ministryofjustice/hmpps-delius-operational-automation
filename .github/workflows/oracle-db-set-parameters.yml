@@ -57,7 +57,8 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: ansible/roles/oracle-db-parameters
           path: operations
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          ref: DBA-528-SET-PARAMETERS 
+          #${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
