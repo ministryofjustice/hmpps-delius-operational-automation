@@ -25,12 +25,6 @@ on:
           - "misdsd_primarydb"
           - "misdsd_standbydb1"
 
-  push:
-    branches:
-      - DBA-528-SET-PARAMETERS
-    paths:
-      - .github/workflows/oracle-db-set-parameters.yml
-
 permissions:
   contents: read
   packages: read
@@ -57,8 +51,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: ansible/roles/oracle-db-parameters
           path: operations
-          ref: DBA-528-SET-PARAMETERS 
-          #${{ github.event.inputs.SourceConfigVersion }}
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
@@ -82,5 +75,4 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Start Set Parameters
-        run: $command -i $inventory -e target_host=environment_name_delius_core_development_dev_delius_primarydb
-        #$command -i $inventory -e target_host=environment_name_${{ github.event.inputs.TargetEnvironment }}_${{ github.event.inputs.TargetHost }} 
+        run: $command -i $inventory -e target_host=environment_name_${{ github.event.inputs.TargetEnvironment }}_${{ github.event.inputs.TargetHost }}
