@@ -30,6 +30,7 @@ jobs:
               echo -n '{"TargetEnviroment":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"weekly"}' >> $GITHUB_OUTPUT
             #fi
             echo "]}" >> $GITHUB_OUTPUT
+            cat $GITHUB_OUTPUT
           #fi
   run-workflow-call:
     needs: prepare-workflow-call
