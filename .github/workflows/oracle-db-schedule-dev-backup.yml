@@ -31,17 +31,18 @@ jobs:
             #fi
             echo "]}" >> $GITHUB_OUTPUT
           #fi
+  run-workflow-call:
+    needs: prepare-workflow-call
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
+      fail-fast: true
+    steps:
       - name: Output
-        run: echo $GITHUB_OUTPUT
-  # run-workflow-call:
-  #   needs: prepare-workflow-call
-  #   strategy:
-  #     matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
-  #     fail-fast: true
-  #   uses: 
-  #     ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
-  #   with:
-  #     TargetAccount: ${{ matrix.TargetAccount }}
-  #     TargetHost: ${{ matrix.TargetHost }}
-  #     Period: ${{ matrix.Period }}
-  #   secrets: inherit
+        run: echo ${{ matrix.TargetEnvironment }} ${{ matrix.TargetHost }} ${{ matrix.Period }}
+    # uses: 
+    #   ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
+    # with:
+    #   TargetEnvironment: ${{ matrix.TargetEnvironment }}
+    #   TargetHost: ${{ matrix.TargetHost }}
+    #   Period: ${{ matrix.Period }}
+    # secrets: inherit
