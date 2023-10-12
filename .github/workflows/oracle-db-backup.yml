@@ -125,6 +125,7 @@ jobs:
             TargetHost="{{ github.event.inputs.TargetHost }}"
             TargetEnvironment="{{ github.event.inputs.TargetEnvironment }}"
           elif [[ "${{ github.event_name }}" == "schedule" ]]
+          then
             TargetHost="{{ inputs.TargetHost }}"
             TargetEnvironment="{{ inputs.TargetEnvironment }}"
           else
