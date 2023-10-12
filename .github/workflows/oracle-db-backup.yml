@@ -99,7 +99,7 @@ on:
     branches:
       - DBA-531-BACKUP
     paths:
-      - .github/workflows/oracle-backup.yml
+      - .github/workflows/oracle-db-backup.yml
       - playbooks/**
 
 # Allow permissions on repository and docker image respectively 
