@@ -128,7 +128,7 @@ jobs:
       DeleteDefunct: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.DeleteDefunct || (github.event_name == 'schedule' && inputs.DeleteDefunct || 'no')) }}"
       EnableTrace: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.EnableTrace || 'no' }}"
       VerboseOutput: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
-      RmanTarget: "environment_name_${{ env.TargetEnvironment }}_${{ env.TargetHost }}"
+      RmanTarget: "environment_name_${{ TargetEnvironment }}_${{ TargetHost }}"
     continue-on-error: false
     steps:
 
