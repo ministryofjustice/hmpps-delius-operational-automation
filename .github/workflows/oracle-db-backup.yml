@@ -128,7 +128,6 @@ jobs:
       DeleteDefunct: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.DeleteDefunct || (github.event_name == 'schedule' && inputs.DeleteDefunct || 'no')) }}"
       EnableTrace: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.EnableTrace || 'no' }}"
       VerboseOutput: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
-      RmanTarget: "environment_name_${{ TargetEnvironment }}_${{ TargetHost }}"
     continue-on-error: false
     steps:
 
@@ -163,12 +162,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Start Ansible Backup
-        run: $backup_command -i $inventory -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
+        run: $backup_command -i $inventory -e rman_target="environment_name_${{env.TargetEnvironment}}_${{env.TargetHost}}" -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
 
       - name: Start Ansible Validate And Fix Absent Chunks
-        run: $validate_command -i $inventory -e rman_target=$RmanTarget -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
+        run: $validate_command -i $inventory -e rman_target="environment_name_${{env.TargetEnvironment}}_${{env.TargetHost}}" -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
 
       - name: Start Ansible Delete DBIDs Not In Use
         if: ${{ env.DeleteDefunct == 'yes' }}
-        run: $delete_dbids_command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
+        run: $delete_dbids_command -i $inventory -e rman_target="environment_name_${{env.TargetEnvironment}}_${{env.TargetHost}}" $VerboseOutput
           
