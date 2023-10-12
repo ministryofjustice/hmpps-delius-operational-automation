@@ -36,6 +36,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
       fail-fast: true
+    runs-on: ubuntu-latest
     steps:
       - name: Output
         run: echo ${{ matrix.TargetEnvironment }} ${{ matrix.TargetHost }} ${{ matrix.Period }}
