@@ -27,7 +27,7 @@ jobs:
             # fi
             # if [[ "${cron_time}" == '30 06 * * 1' ]]
             # then
-              echo -n '{"TargetEnviroment":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"weekly"}' >> $GITHUB_OUTPUT
+              echo -n ',{"TargetEnviroment":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"weekly"}' >> $GITHUB_OUTPUT
             #fi
             echo "]}" >> $GITHUB_OUTPUT
             cat $GITHUB_OUTPUT
