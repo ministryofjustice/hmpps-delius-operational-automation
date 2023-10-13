@@ -115,7 +115,7 @@ jobs:
   build_rman_target_name:
     runs-on: ubuntu-latest
     outputs:
-      RmanTarget: ${{ steps.preparermantargetname.outputs.rman_target }}
+      RmanTarget: ${{ steps.preparermantargetname.outputs.RmanTarget }}
       TargetEnvironment: ${{ steps.preparermantargetname.outputs.TargetEnvironment }}
     steps:
       - name: Prepare Rman Target
@@ -141,8 +141,7 @@ jobs:
   deployment:
     name: oracle-backup
     needs: build_rman_target_name
-    environment: delius-core-dev 
-    # ${{needs.build_rman_target_name.outputs.TargetEnvironment}}
+    environment: ${{needs.build_rman_target_name.outputs.TargetEnvironment}}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
