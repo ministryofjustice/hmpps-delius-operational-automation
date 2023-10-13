@@ -1,5 +1,5 @@
 name: "Oracle: Backup"
-run-name: "Oracle: ${GITHUB_EVENT_NAME}_delius_core_dev_delius_primarydb_database_backup"
+run-name: "Oracle: delius_core_dev_delius_primarydb_database_backup"
 on:
   schedule:
     - cron: '30 08 * * 1,2,4,5'
@@ -32,7 +32,9 @@ jobs:
             # fi
             echo "]}" >> $GITHUB_OUTPUT
             echo $GITHUB_OUTPUT
+            cat $GITHUB_OUTPUT
             echo ${{ github.path }}
+            cat ${{ github.path }}
           #fi
   # run-workflow-call:
   #   needs: prepare-workflow-call
