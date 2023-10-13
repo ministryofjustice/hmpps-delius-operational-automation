@@ -116,8 +116,8 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
           then
-            TargetHost="{{ github.event.inputs.TargetHost }}"
-            TargetEnvironment="{{ github.event.inputs.TargetEnvironment }}"
+            TargetHost="${{ github.event.inputs.TargetHost }}"
+            TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
           elif [[ "${{ github.event_name }}" == "schedule" ]]
           then
             TargetHost="{{ inputs.TargetHost }}"
