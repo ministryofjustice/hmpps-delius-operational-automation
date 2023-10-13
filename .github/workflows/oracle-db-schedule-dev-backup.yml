@@ -6,7 +6,7 @@ on:
     - cron: '30 08 * * 3'
   push:
     branches:
-      - DBA-531-BACKUP
+      - DBA-531-BACKUP-SCHEDULE
     paths:
       - .github/workflows/oracle-db-schedule-dev-backup.yml
 jobs:
@@ -31,7 +31,8 @@ jobs:
             #   echo -n '{"TargetEnvironment":"delius_core_dev","TargetHost":"delius_primarydb","Period":"weekly"}' >> $GITHUB_OUTPUT
             # fi
             echo "]}" >> $GITHUB_OUTPUT
-            cat $GITHUB_OUTPUT
+            echo $GITHUB_OUTPUT
+            echo ${{ github.path }}
           #fi
   # run-workflow-call:
   #   needs: prepare-workflow-call
