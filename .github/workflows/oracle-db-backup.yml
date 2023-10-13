@@ -1,5 +1,5 @@
 name: "Oracle: Backup"
-run-name: "Oracle: ${{ (github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.Period, github.event.inputs.TargetHost) || (github.event_name == 'schedule' && format('{0}_{1}_{2}',inputs.TargetEnvironment, inputs.Period, inputs.TargetHost) || 'delius_core_dev_delius_primarydb'))}}_database_backup"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.Period, github.event.inputs.TargetHost) }}_database_backup"
 on:
   workflow_dispatch:
     inputs:
@@ -99,13 +99,6 @@ on:
         type: string
         default: "no"
 
-  push:
-    branches:
-      - DBA-531-BACKUP
-    paths:
-      - .github/workflows/oracle-db-backup.yml
-      - playbooks/**
-
 # Allow permissions on repository and docker image respectively 
 permissions:
   contents: read
@@ -129,9 +122,6 @@ jobs:
           then
             TargetHost="{{ inputs.TargetHost }}"
             TargetEnvironment="{{ inputs.TargetEnvironment }}"
-          else
-            TargetHost="delius_primarydb"
-            TargetEnvironment="delius-core-dev"
           fi;
           RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
@@ -151,9 +141,9 @@ jobs:
       validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
       delete_dbids_command: ansible-playbook operations/playbooks/oracle_backup/delete_dbids_not_in_use.yml
       inventory: inventory/ansible
-      Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period || (github.event_name == 'schedule' && inputs.Period || 'daily'))  }}"
+      Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period || (github.event_name == 'schedule' && inputs.Period ))  }}"
       FixAbsentChunks: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.FixAbsentChunks || 'yes' }}"
-      DeleteDefunct: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.DeleteDefunct || (github.event_name == 'schedule' && inputs.DeleteDefunct || 'no')) }}"
+      DeleteDefunct: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.DeleteDefunct || (github.event_name == 'schedule' && inputs.DeleteDefunct )) }}"
       EnableTrace: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.EnableTrace || 'no' }}"
       VerboseOutput: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
       RmanTarget: "${{needs.build_rman_target_name.outputs.RmanTarget}}"
@@ -167,7 +157,7 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_backup
           path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'DBA-531-BACKUP' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
