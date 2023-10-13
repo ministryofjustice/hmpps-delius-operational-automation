@@ -31,7 +31,7 @@ jobs:
             # fi
             echo "]}" >> $GITHUB_OUTPUT
             cat $GITHUB_OUTPUT
-          fi
+          #fi
   run-workflow-call:
     needs: prepare-workflow-call
     strategy:
