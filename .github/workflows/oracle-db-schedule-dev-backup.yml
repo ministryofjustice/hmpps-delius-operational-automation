@@ -1,5 +1,5 @@
 name: "Oracle: Backup"
-run-name: "Oracle: $GITHUB_OUT_delius_core_dev_delius_primarydb_database_backup"
+run-name: "Oracle: ${GITHUB_EVENT_NAME}_delius_core_dev_delius_primarydb_database_backup"
 on:
   schedule:
     - cron: '30 08 * * 1,2,4,5'
