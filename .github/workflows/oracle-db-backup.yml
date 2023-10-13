@@ -141,7 +141,8 @@ jobs:
   deployment:
     name: oracle-backup
     needs: build_rman_target_name
-    environment: ${{needs.build_rman_target_name.outputs.TargetEnvironment}}
+    environment: delius-core-dev 
+    # ${{needs.build_rman_target_name.outputs.TargetEnvironment}}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
@@ -167,7 +168,7 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_backup
           path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'DBA-531-BACKUP' }}
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
