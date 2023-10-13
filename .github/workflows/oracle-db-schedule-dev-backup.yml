@@ -19,32 +19,28 @@ jobs:
         run: |
           # if [[ "${GITHUB_EVENT_NAME}" == "schedule" ]]
           # then
-              echo -n "parameters_matrix={\"include\":[" >> $GITHUB_OUTPUT
-          #   cron_time="${{github.event.schedule}}"
-          #   if [[ "${cron_time}" == '30 09 * * 1,2,4,5' ]]
-          #   then
-              echo -n '{"TargetEnvironment":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"daily"}' >> $GITHUB_OUTPUT
+            echo -n "parameters_matrix={\"include\":[" >> $GITHUB_OUTPUT
+            # cron_time="${{github.event.schedule}}"
+            # if [[ "${cron_time}" == '30 09 * * 1,2,4,5' ]]
+            # then
+              echo -n '{"TargetEnvironment":"delius_core_dev","TargetHost":"delius_primarydb","Period":"daily"}' >> $GITHUB_OUTPUT
             # fi
             # if [[ "${cron_time}" == '30 06 * * 1' ]]
             # then
-              echo -n ',{"TargetEnviroment":"delius_core_development_dev","TargetHost":"delius_primarydb","Period":"weekly"}' >> $GITHUB_OUTPUT
-            #fi
+            #   echo -n '{"TargetEnvironment":"delius_core_dev","TargetHost":"delius_primarydb","Period":"weekly"}' >> $GITHUB_OUTPUT
+            # fi
             echo "]}" >> $GITHUB_OUTPUT
             cat $GITHUB_OUTPUT
-          #fi
+          fi
   run-workflow-call:
     needs: prepare-workflow-call
     strategy:
       matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
       fail-fast: true
-    runs-on: ubuntu-latest
-    steps:
-      - name: Output
-        run: echo ${{ matrix.TargetEnvironment }} ${{ matrix.TargetHost }} ${{ matrix.Period }}
-    # uses: 
-    #   ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
-    # with:
-    #   TargetEnvironment: ${{ matrix.TargetEnvironment }}
-    #   TargetHost: ${{ matrix.TargetHost }}
-    #   Period: ${{ matrix.Period }}
-    # secrets: inherit
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@DBA-528-BACKUP
+    with:
+      TargetEnvironment: ${{ matrix.TargetEnvironment }}
+      TargetHost: ${{ matrix.TargetHost }}
+      Period: ${{ matrix.Period }}
+    secrets: inherit
