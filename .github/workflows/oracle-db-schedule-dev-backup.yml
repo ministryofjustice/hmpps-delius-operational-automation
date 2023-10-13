@@ -32,7 +32,7 @@ jobs:
             # fi
             echo "]}" >> $GITHUB_OUTPUT
             echo ${{ github.event_path}}
-            cat ${{ github.github.event_path }}
+            cat ${{ github.event_path }}
           #fi
   # run-workflow-call:
   #   needs: prepare-workflow-call
