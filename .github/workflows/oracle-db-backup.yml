@@ -137,75 +137,66 @@ jobs:
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
 
-  Output:
-    name: whatever
-    needs: build_rman_target_name
-    #environment: "${{needs.build_rman_target_name.outputs.TargetEnvironment}}"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Output
-        run: cat "${{needs.build_rman_target_name.outputs.TargetEnvironment}}"
-
   # Start deployment container job based on the build delius-ansible-aws image
-  # deployment:
-  #   name: "oracle-backup"
-  #   needs: build_rman_target_name
-  #   environment: "${{needs.build_rman_target_name.outputs.TargetEnvironment}}"
-  #   runs-on: ubuntu-latest
-  #   container:
-  #     image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
-  #   timeout-minutes: 1440
-  #   env:
-  #     backup_command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
-  #     validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
-  #     delete_dbids_command: ansible-playbook operations/playbooks/oracle_backup/delete_dbids_not_in_use.yml
-  #     inventory: inventory/ansible
-  #     Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period || (github.event_name == 'schedule' && inputs.Period || 'daily'))  }}"
-  #     FixAbsentChunks: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.FixAbsentChunks || 'yes' }}"
-  #     DeleteDefunct: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.DeleteDefunct || (github.event_name == 'schedule' && inputs.DeleteDefunct || 'no')) }}"
-  #     EnableTrace: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.EnableTrace || 'no' }}"
-  #     VerboseOutput: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
-  #     RmanTarget: "${{needs.build_rman_target_name.outputs.RmanTarget}}"
-  #   continue-on-error: false
-  #   steps:
+  deployment:
+    name: oracle-backup
+    needs: build_rman_target_name
+    environment: ${{needs.build_rman_target_name.outputs.TargetEnvironment}}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    timeout-minutes: 1440
+    env:
+      backup_command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
+      validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
+      delete_dbids_command: ansible-playbook operations/playbooks/oracle_backup/delete_dbids_not_in_use.yml
+      inventory: inventory/ansible
+      Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period || (github.event_name == 'schedule' && inputs.Period || 'daily'))  }}"
+      FixAbsentChunks: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.FixAbsentChunks || 'yes' }}"
+      DeleteDefunct: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.DeleteDefunct || (github.event_name == 'schedule' && inputs.DeleteDefunct || 'no')) }}"
+      EnableTrace: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.EnableTrace || 'no' }}"
+      VerboseOutput: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
+      RmanTarget: "${{needs.build_rman_target_name.outputs.RmanTarget}}"
+    continue-on-error: false
+    steps:
 
-  #     - name: Checkout hmpps-delius-operation-automation
-  #       uses: actions/checkout@v4
-  #       with:
-  #         sparse-checkout-cone-mode: false
-  #         sparse-checkout: |
-  #           playbooks/oracle_backup
-  #         path: operations
-  #         ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
-  #         fetch-depth: 0
+      - name: Checkout hmpps-delius-operation-automation
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oracle_backup
+          path: operations
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          fetch-depth: 0
 
-  #     - name: Checkout modernisation-platform-configuration-management
-  #       uses: actions/checkout@v4
-  #       with:
-  #         repository: ministryofjustice/modernisation-platform-configuration-management
-  #         sparse-checkout-cone-mode: false
-  #         sparse-checkout: |
-  #           ansible/hosts
-  #           ansible/group_vars
-  #         path: inventory
-  #         ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
-  #         fetch-depth: 0
+      - name: Checkout modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
+          fetch-depth: 0
 
-  #     - name: Configure AWS Credentials
-  #       id: login-aws
-  #       uses: aws-actions/configure-aws-credentials@v4
-  #       with:
-  #         aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
-  #         aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
-  #         aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-  #     - name: Start Ansible Backup
-  #       run: $backup_command -i $inventory -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
+      - name: Start Ansible Backup
+        run: $backup_command -i $inventory -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
 
-  #     - name: Start Ansible Validate And Fix Absent Chunks
-  #       run: $validate_command -i $inventory -e rman_target=$RmanTarget -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
+      - name: Start Ansible Validate And Fix Absent Chunks
+        run: $validate_command -i $inventory -e rman_target=$RmanTarget -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
 
-  #     - name: Start Ansible Delete DBIDs Not In Use
-  #       if: ${{ env.DeleteDefunct == 'yes' }}
-  #       run: $delete_dbids_command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
+      - name: Start Ansible Delete DBIDs Not In Use
+        if: ${{ env.DeleteDefunct == 'yes' }}
+        run: $delete_dbids_command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
           
