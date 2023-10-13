@@ -31,18 +31,16 @@ jobs:
             #   echo -n '{"TargetEnvironment":"delius_core_dev","TargetHost":"delius_primarydb","Period":"weekly"}' >> $GITHUB_OUTPUT
             # fi
             echo "]}" >> $GITHUB_OUTPUT
-            echo ${{ github.event_path}}
-            cat ${{ github.event_path }}
           #fi
-  # run-workflow-call:
-  #   needs: prepare-workflow-call
-  #   strategy:
-  #     matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
-  #     fail-fast: true
-  #   uses:
-  #     ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@DBA-531-BACKUP
-  #   with:
-  #     TargetEnvironment: ${{ matrix.TargetEnvironment }}
-  #     TargetHost: ${{ matrix.TargetHost }}
-  #     Period: ${{ matrix.Period }}
-  #   secrets: inherit
+  run-workflow-call:
+    needs: prepare-workflow-call
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
+      fail-fast: true
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@DBA-531-BACKUP
+    with:
+      TargetEnvironment: ${{ matrix.TargetEnvironment }}
+      TargetHost: ${{ matrix.TargetHost }}
+      Period: ${{ matrix.Period }}
+    secrets: inherit
