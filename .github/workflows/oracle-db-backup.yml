@@ -115,7 +115,7 @@ jobs:
   build_rman_target_name:
     runs-on: ubuntu-latest
     outputs:
-      rman_target: ${{ steps.preparermantargetname.outputs.rman_target }}
+      RmanTarget: ${{ steps.preparermantargetname.outputs.rman_target }}
       TargetEnvironment: ${{ steps.preparermantargetname.outputs.TargetEnvironment }}
     steps:
       - name: Prepare Rman Target
@@ -133,8 +133,8 @@ jobs:
             TargetHost="delius_primarydb"
             TargetEnvironment="delius-core-dev"
           fi;
-          rman_target="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
-          echo "rman_target=$rman_target" >> $GITHUB_OUTPUT
+          RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
+          echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
 
   # Start deployment container job based on the build delius-ansible-aws image
@@ -156,7 +156,7 @@ jobs:
       DeleteDefunct: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.DeleteDefunct || (github.event_name == 'schedule' && inputs.DeleteDefunct || 'no')) }}"
       EnableTrace: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.EnableTrace || 'no' }}"
       VerboseOutput: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
-      RmanTarget: "${{needs.build_rman_target_name.outputs.rman_target}}"
+      RmanTarget: "${{needs.build_rman_target_name.outputs.RmanTarget}}"
     continue-on-error: false
     steps:
 
