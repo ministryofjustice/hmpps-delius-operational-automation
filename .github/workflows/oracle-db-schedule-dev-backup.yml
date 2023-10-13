@@ -1,5 +1,5 @@
 name: "Oracle: Backup"
-run-name: "Oracle: delius_core_dev_delius_primarydb_database_backup"
+run-name: "Oracle: $GITHUB_OUT_delius_core_dev_delius_primarydb_database_backup"
 on:
   schedule:
     - cron: '30 08 * * 1,2,4,5'
@@ -33,15 +33,15 @@ jobs:
             echo "]}" >> $GITHUB_OUTPUT
             cat $GITHUB_OUTPUT
           #fi
-  run-workflow-call:
-    needs: prepare-workflow-call
-    strategy:
-      matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
-      fail-fast: true
-    uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@DBA-531-BACKUP
-    with:
-      TargetEnvironment: ${{ matrix.TargetEnvironment }}
-      TargetHost: ${{ matrix.TargetHost }}
-      Period: ${{ matrix.Period }}
-    secrets: inherit
+  # run-workflow-call:
+  #   needs: prepare-workflow-call
+  #   strategy:
+  #     matrix: ${{ fromJson(needs.prepare-workflow-call.outputs.parameters_matrix) }}
+  #     fail-fast: true
+  #   uses:
+  #     ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@DBA-531-BACKUP
+  #   with:
+  #     TargetEnvironment: ${{ matrix.TargetEnvironment }}
+  #     TargetHost: ${{ matrix.TargetHost }}
+  #     Period: ${{ matrix.Period }}
+  #   secrets: inherit
