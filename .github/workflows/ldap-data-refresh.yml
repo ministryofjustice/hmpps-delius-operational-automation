@@ -201,7 +201,7 @@ jobs:
            # for each subnet (in ${{ steps.get-ec2-config.outputs.SUBNET_IDS }} as comma separated values), create a mount target
             IFS=',' read -ra SUBNETS <<< "${{ steps.get-ec2-config.outputs.SUBNET_IDS }}"
             for subnet in "${SUBNETS[@]}"; do
-              aws efs create-mount-target --file-system-id ${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }} --subnet-id $subnet --security-group ${{ steps.get-ec2-config.outputs.SECURITY_GROUP_ARN }} --output text --query 'MountTargetId'
+              aws efs create-mount-target --file-system-id ${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }} --subnet-id $subnet --security-group ${{ steps.get-ec2-config.outputs.SECURITY_GROUP_ID }} --output text --query 'MountTargetId'
               if [[ $? -eq 0 ]]; then
                 echo "Mount target created"
               else
