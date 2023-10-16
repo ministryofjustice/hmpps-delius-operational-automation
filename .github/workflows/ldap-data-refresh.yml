@@ -220,6 +220,19 @@ jobs:
                 exit 1
             fi
 
+      - name: Wait for mount points to provision
+        run: |
+            while true; do
+                MOUNT_TARGETS=$(aws efs describe-mount-targets --file-system-id fs-0cea4c41b15a621a1 --output text --query 'MountTargets[].LifeCycleState')
+                if [[ "$(echo "${MOUNT_TARGETS}" | tr -d '\n' | tr -s '[:space:]' ',')" -eq "available,available,available" ]]; then
+                    echo "MOUNT_TARGETS=${MOUNT_TARGETS}" >> $GITHUB_OUTPUT
+                    break
+                else
+                    echo "MOUNT_TARGETS=${MOUNT_TARGETS}"
+                    sleep 10
+                fi
+            done
+
       - name: Create datasync location for temp efs
         id: create-datasync-location
         run: |
