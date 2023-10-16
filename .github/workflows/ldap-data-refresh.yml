@@ -203,7 +203,7 @@ jobs:
       - name: Create datasync location for destination s3 bucket
         id: create-datasync-destination-location
         run: |
-            echo DATASYNC_DESTINATION_LOCATION_ARN=$(aws datasync create-location-s3 --s3-bucket-arn arn:aws:s3:::arn:aws:s3:::${{ github.event.inputs.destination_env }}-ldap-data-refresh-incoming --s3-config BucketAccessRoleArn=arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ldap-data-refresh-role-${{ github.event.inputs.source_env }} --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> $GITHUB_OUTPUT
+            echo DATASYNC_DESTINATION_LOCATION_ARN=$(aws datasync create-location-s3 --s3-bucket-arn arn:aws:s3:::${{ github.event.inputs.destination_env }}-ldap-data-refresh-incoming --s3-config BucketAccessRoleArn=arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ldap-data-refresh-role-${{ github.event.inputs.source_env }} --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> $GITHUB_OUTPUT
 
       - name: Create datasync task
         id: create-datasync-task
