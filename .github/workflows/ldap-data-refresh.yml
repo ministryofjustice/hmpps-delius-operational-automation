@@ -246,24 +246,26 @@ jobs:
       - name: Create datasync task
         id: create-datasync-task
         run: |
-          echo DATASYNC_TASK_ARN=$(aws datasync create-task --source-location-arn ${{ steps.create-datasync-location.outputs.DATASYNC_SOURCE_LOCATION_ARN }} --destination-location-arn ${{ steps.create-datasync-destination-location.outputs.DATASYNC_DESTINATION_LOCATION_ARN }} --name gha-ldap-data-refresh-${{github.run_id }} --output text --query 'TaskArn') >> $GITHUB_OUTPUT
+          DATASYNC_TASK_ARN=$(aws datasync create-task --source-location-arn ${{ steps.create-datasync-location.outputs.DATASYNC_SOURCE_LOCATION_ARN }} --destination-location-arn ${{ steps.create-datasync-destination-location.outputs.DATASYNC_DESTINATION_LOCATION_ARN }} --name gha-ldap-data-refresh-${{github.run_id }} --output text --query 'TaskArn')
+          echo "DATASYNC_TASK_ARN=${DATASYNC_TASK_ARN}" >> $GITHUB_OUTPUT
+            echo DATASYNC_TASK_EXEC_ARN=$(aws datasync start-task-execution --task-arn $DATASYNC_TASK_ARN --output text --query 'TaskExecutionArn') >> $GITHUB_OUTPUT
 
       - name: Wait for datasync task to complete
         id: wait-for-datasync-task
         run: |
-          while true; do
-            echo DATASYNC_TASK_STATUS=$(aws datasync describe-task --task-arn ${{ steps.create-datasync-task.outputs.DATASYNC_TASK_ARN }} --output text --query 'Status')
-            if [[ "${DATASYNC_TASK_STATUS}" == "AVAILABLE" ]]; then
-              echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
-              break
-            elif [[ "${DATASYNC_TASK_STATUS}" == "ERROR" ]]; then
-              echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
-              exit 1
-            else
-              echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}"
-              sleep 10
-            fi
-          done
+            while true; do
+                echo DATASYNC_TASK_STATUS=$(aws datasync describe-task-execution --task-execution-arn ${{ steps.create-datasync-task.outputs.DATASYNC_TASK_EXEC_ARN }} --output text --query 'Status')
+                if [[ "${DATASYNC_TASK_STATUS}" == "SUCCESS" ]]; then
+                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
+                  break
+                elif [[ "${DATASYNC_TASK_STATUS}" == "ERROR" ]]; then
+                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
+                  exit 1
+                else
+                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}"
+                  sleep 10
+                fi
+            done
           echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed. Switching to destination account"
   destination:
     needs:
@@ -305,27 +307,29 @@ jobs:
         run: |
             echo DATASYNC_DESTINATION_LOCATION_ARN=$(aws datasync create-location-efs --ec2-config SubnetArn=${{ steps.get-ec2-config.outputs.SUBNET_ARNS }},SecurityGroupArns=${{ steps.get-ec2-config.outputs.SECURITY_GROUP_ARN }} --efs-filesystem-arn arn:aws:elasticfilesystem:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:file-system/${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }} --subdirectory / --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> $GITHUB_OUTPUT
 
-      - name: Create datasync task
+      - name: Create datasync task and start it
         id: create-datasync-task
         run: |
-          echo DATASYNC_TASK_ARN=$(aws datasync create-task --source-location-arn ${{ steps.create-datasync-source-location.outputs.DATASYNC_SOURCE_LOCATION_ARN }} --destination-location-arn ${{ steps.create-datasync-destination-location.outputs.DATASYNC_DESTINATION_LOCATION_ARN }} --name gha-ldap-data-refresh-${{github.run_id }} --output text --query 'TaskArn') >> $GITHUB_OUTPUT
+          echo DATASYNC_TASK_ARN=$(aws datasync create-task --source-location-arn ${{ steps.create-datasync-source-location.outputs.DATASYNC_SOURCE_LOCATION_ARN }} --destination-location-arn ${{ steps.create-datasync-destination-location.outputs.DATASYNC_DESTINATION_LOCATION_ARN }} --name gha-ldap-data-refresh-${{github.run_id }} --output text --query 'TaskArn') 
+          echo "DATASYNC_TASK_ARN=${DATASYNC_TASK_ARN}" >> $GITHUB_OUTPUT
+          echo DATASYNC_TASK_EXEC_ARN=$(aws datasync start-task-execution --task-arn $DATASYNC_TASK_ARN --output text --query 'TaskExecutionArn') >> $GITHUB_OUTPUT
 
       - name: Wait for datasync task to complete
         id: wait-for-datasync-task
         run: |
-          while true; do
-            echo DATASYNC_TASK_STATUS=$(aws datasync describe-task --task-arn ${{ steps.create-datasync-task.outputs.DATASYNC_TASK_ARN }} --output text --query 'Status')
-            if [[ "${DATASYNC_TASK_STATUS}" == "AVAILABLE" ]]; then
-              echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
-              break
-            elif [[ "${DATASYNC_TASK_STATUS}" == "ERROR" ]]; then
-              echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
-              exit 1
-            else
-              echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}"
-              sleep 10
-            fi
-          done
+            while true; do
+                echo DATASYNC_TASK_STATUS=$(aws datasync describe-task-execution --task-execution-arn ${{ steps.create-datasync-task.outputs.DATASYNC_TASK_EXEC_ARN }} --output text --query 'Status')
+                if [[ "${DATASYNC_TASK_STATUS}" == "SUCCESS" ]]; then
+                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
+                  break
+                elif [[ "${DATASYNC_TASK_STATUS}" == "ERROR" ]]; then
+                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
+                  exit 1
+                else
+                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}"
+                  sleep 10
+                fi
+            done
           echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed."
   destination-post:
     needs:
