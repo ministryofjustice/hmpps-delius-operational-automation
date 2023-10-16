@@ -266,7 +266,7 @@ jobs:
                   sleep 10
                 fi
             done
-          echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed. Switching to destination account"
+            echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed. Switching to destination account"
   destination:
     needs:
       - source
@@ -330,7 +330,7 @@ jobs:
                   sleep 10
                 fi
             done
-          echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed."
+            echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed."
   destination-post:
     needs:
       - destination
