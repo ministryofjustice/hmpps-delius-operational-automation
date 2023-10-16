@@ -1,5 +1,5 @@
 ---
-name: ldap-data-refresh
+name: "LDAP: Data Refresh"
 permissions:
   id-token: write  # This is required for requesting the JWT
 on:
