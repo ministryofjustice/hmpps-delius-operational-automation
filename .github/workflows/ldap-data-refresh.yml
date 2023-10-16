@@ -223,7 +223,7 @@ jobs:
       - name: Wait for mount points to provision
         run: |
             while true; do
-                MOUNT_TARGETS=$(aws efs describe-mount-targets --file-system-id fs-0cea4c41b15a621a1 --output text --query 'MountTargets[].LifeCycleState')
+                MOUNT_TARGETS=$(aws efs describe-mount-targets --file-system-id ${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }} --output text --query 'MountTargets[].LifeCycleState')
                 if [[ "$(echo "${MOUNT_TARGETS}" | tr -d '\n' | tr -s '[:space:]' ',')" -eq "available,available,available" ]]; then
                     echo "MOUNT_TARGETS=${MOUNT_TARGETS}" >> $GITHUB_OUTPUT
                     break
