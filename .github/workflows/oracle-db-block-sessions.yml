@@ -38,12 +38,6 @@ on:
         type: string
         default: "main"
 
-  push:
-    branches:
-      - DBA-531-BLOCK
-    paths:
-      - .github/workflows/oracle-db-block-sessions.yml
-
 # Allow permissions on repository and docker image respectively 
 permissions:
   contents: read
@@ -70,8 +64,7 @@ jobs:
   deployment:
     name: oracle-db-block-sessions
     needs: build_target_name
-    environment: delius-core-dev
-    # ${{needs.build_target_name.outputs.TargetEnv}}
+    environment: ${{needs.build_target_name.outputs.TargetEnv}}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
@@ -90,8 +83,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: playbooks/block_sessions
           path: operations
-          ref: DBA-531-BLOCK
-          #${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion }}
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
@@ -103,8 +95,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: main
-          #${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion }}
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -116,7 +107,4 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Block Sessions
-        run: $command -i $inventory -e target_host=environment_name_delius_core_development_dev_delius_primarydb -e action=unblock
-        #$command -i $inventory -e target_host=$TargetHost -e action=block
-        #${{ github.event.inputs.Action }} 
-          
+        run: $command -i $inventory -e target_host=$TargetHost -e action=${{ github.event.inputs.Action }}
