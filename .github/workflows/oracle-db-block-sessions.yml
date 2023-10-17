@@ -1,5 +1,5 @@
 name: "Oracle: Block Sessions"
-run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetAccount, github.event.inputs.TargetHost) }}_block_sessions"
+run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_block_sessions"
 on:
   workflow_dispatch:
     inputs:
@@ -26,6 +26,7 @@ on:
       Action:
         description: "Select action"
         required: true
+        type: choice
         options:
           - "block"
           - "unblock"
@@ -64,7 +65,7 @@ jobs:
   deployment:
     name: oracle-db-block-sessions
     needs: build_target_name
-    environment: ${{needs.build_target_name.outputs.TargetEnv}}
+    environment: ${{needs.build_target_name.outputs.TargetEnvironment}}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
