@@ -1,5 +1,5 @@
 name: "Oracle: Block Sessions"
-run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_block_sessions"
+run-name: "Oracle: ${{ format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost, github.event.inputs.Action) }}_sessions"
 on:
   workflow_dispatch:
     inputs:
@@ -38,12 +38,6 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
-
-  push:
-    branches:
-      - DBA-531-BLOCK
-    paths:
-      - .github/workflows/oracle-db-block-sessions.yml
 
 # Allow permissions on repository and docker image respectively 
 permissions:
