@@ -70,7 +70,8 @@ jobs:
   deployment:
     name: oracle-db-block-sessions
     needs: build_target_name
-    environment: ${{needs.build_target_name.outputs.TargetEnv}}
+    environment: delius-core-dev
+    # ${{needs.build_target_name.outputs.TargetEnv}}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
@@ -115,6 +116,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Block Sessions
-        run: $command -i $inventory -e target_host=$TargetHost -e action=block
+        run: $command -i $inventory -e target_host=environment_name_delius_core_development_dev_delius_primarydb -e action=block
+        #$command -i $inventory -e target_host=$TargetHost -e action=block
         #${{ github.event.inputs.Action }} 
           
