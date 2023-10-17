@@ -82,14 +82,15 @@ jobs:
     continue-on-error: false
     steps:
 
-      - name: Checkout From hmpps-delius-operation-automation
+      - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
         with:
-          repository: ministryofjustice/ hmpps-delius-operation-automation
+          repository: ministryofjustice/ hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: playbooks/block_sessions
           path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion }}
+          ref: DBA-531-BLOCK
+          # ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
