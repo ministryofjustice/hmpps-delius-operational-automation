@@ -278,7 +278,7 @@ jobs:
       - name: Get first directory listed in s3 bucket
         id: get-directory
         run: |
-            echo DIRECTORY=$(aws s3 ls s3://test-ldap-data-refresh-incoming/ | grep -o 'aws-backup[^/]*' | tr -d '\n') >> $GITHUB_OUTPUT
+            echo DIRECTORY=$(aws s3 ls s3://${{ github.event.inputs.destination_env }}-ldap-data-refresh-incoming/ | sort --reverse | grep -o 'aws-backup[^/]*' | head -n 1 | tr -d '\n') >> $GITHUB_OUTPUT
 
       - name: Check directory
         run: | 
@@ -287,7 +287,7 @@ jobs:
               exit 1
             fi
 
-      - name: Get temp EFS ID
+      - name: Get destination EFS ID
         id: get-dest-efs-id
         run: |
           DEST_EFS_ID=$(aws efs describe-file-systems --creation-token ${{ github.event.inputs.destination_env }}-ldap --output text --query 'FileSystems[0].FileSystemId')
@@ -311,12 +311,12 @@ jobs:
       - name: Create datasync source (s3)
         id: create-datasync-source-location
         run: |
-            echo DATASYNC_SOURCE_LOCATION_ARN=$(aws datasync create-location-s3 --s3-bucket-arn arn:aws:s3:::${{ github.event.inputs.destination_env }}-ldap-data-refresh-incoming --s3-config BucketAccessRoleArn=arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ldap-data-refresh-role-${{ github.event.inputs.github.event.inputs.destination_env }} --subdirectory ${{ steps.get-directory.outputs.DIRECTORY }} --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> $GITHUB_OUTPUT
+            echo DATASYNC_SOURCE_LOCATION_ARN=$(aws datasync create-location-s3 --s3-bucket-arn arn:aws:s3:::${{ github.event.inputs.destination_env }}-ldap-data-refresh-incoming --s3-config BucketAccessRoleArn=arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ldap-data-refresh-role-${{ github.event.inputs.destination_env }} --subdirectory ${{ steps.get-directory.outputs.DIRECTORY }} --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> $GITHUB_OUTPUT
 
       - name: Create datasync destination (efs)
         id: create-datasync-destination-location
         run: |
-            echo DATASYNC_DESTINATION_LOCATION_ARN=$(aws datasync create-location-efs --ec2-config SubnetArn=${{ steps.get-ec2-config.outputs.SUBNET_ARN }},SecurityGroupArns=${{ steps.get-ec2-config.outputs.SECURITY_GROUP_ARN }} --efs-filesystem-arn arn:aws:elasticfilesystem:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:file-system/${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }} --subdirectory / --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> $GITHUB_OUTPUT
+            echo DATASYNC_DESTINATION_LOCATION_ARN=$(aws datasync create-location-efs --ec2-config SubnetArn=${{ steps.get-ec2-config.outputs.SUBNET_ARN }},SecurityGroupArns=${{ steps.get-ec2-config.outputs.SECURITY_GROUP_ARN }} --efs-filesystem-arn arn:aws:elasticfilesystem:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:file-system/${{ steps.get-dest-efs-id.outputs.TEMP_EFS_ID }} --subdirectory / --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> $GITHUB_OUTPUT
 
       - name: Create datasync task and start it
         id: create-datasync-task
