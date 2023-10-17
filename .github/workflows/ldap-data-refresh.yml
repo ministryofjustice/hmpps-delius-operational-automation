@@ -75,10 +75,10 @@ jobs:
           fi
           
           # check that the difference between the two indexes is 1
-            if [ $((destination_env_index - source_env_index)) -ne 1 ]; then
-                echo "Data refresh can only be performed between adjacent environments
-                exit 1
-            fi
+          if [ $((destination_env_index - source_env_index)) -ne 1 ]; then
+              echo "Data refresh can only be performed between adjacent environments"
+              exit 1
+          fi
           
           echo "Copying from ${source_env} to ${destination_env}"
   destination-pre:
