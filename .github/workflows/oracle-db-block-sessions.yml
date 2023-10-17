@@ -71,14 +71,16 @@ jobs:
           echo "TargetHost=$TargetHost" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
   Output:
-    name: Output
     needs: build_target_name
     runs-on: ubuntu-latest
+    env:
+      TargetHost: ${{needs.build_target_name.outputs.TargetHost}}
+      TargetEnvironment: ${{needs.build_target_name.outputs.TargetEnvironment}}
     steps:
       - name: Output
         run: |
-          echo ${{needs.build_target_name.outputs.TargetEnvironment}}
-          echo ${{needs.build_target_name.outputs.TargetHost}}
+          echo $TargetHost
+          echo $TargetEnvironment
   # deployment:
   #   name: oracle-db-block-sessions
   #   needs: build_target_name
