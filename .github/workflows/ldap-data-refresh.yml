@@ -292,7 +292,7 @@ jobs:
         run: |
           DEST_EFS_ID=$(aws efs describe-file-systems --creation-token ${{ github.event.inputs.destination_env }}-ldap --output text --query 'FileSystems[0].FileSystemId')
           if [[ $? -eq 0 ]]; then
-            echo "DEST_EFS_ID=DEST_EFS_ID" >> $GITHUB_OUTPUT
+            echo "DEST_EFS_ID=$DEST_EFS_ID" >> $GITHUB_OUTPUT
           else
             echo "Failed to get DEST_EFS_ID"
             exit 1
