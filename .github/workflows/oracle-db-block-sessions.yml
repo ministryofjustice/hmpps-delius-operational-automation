@@ -71,7 +71,6 @@ jobs:
     name: oracle-db-block-sessions
     needs: build_target_name
     environment: ${{needs.build_target_name.outputs.TargetEnv}}
-    environment: development
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
