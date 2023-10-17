@@ -1,5 +1,5 @@
-name: "Oracle: Autotask"
-run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetAccount, github.event.inputs.TargetHost) }}_block_sessions"
+name: "Oracle: Block Sessions"
+run-name: "Oracle: ${{ format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost, github.event.inputs.Action) }}_sessions"
 on:
   workflow_dispatch:
     inputs:
@@ -26,6 +26,7 @@ on:
       Action:
         description: "Select action"
         required: true
+        type: choice
         options:
           - "block"
           - "unblock"
@@ -48,10 +49,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       TargetHost: ${{ steps.preparetargetname.outputs.TargetHost }}
-      TargetEnvironment: ${{ steps.preparetargetname.outputs.TargetEnvironment }}
     steps:
       - name: Prepare Target Name
-        id: preparetargename
+        id: preparetargetname
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
           then
@@ -60,11 +60,10 @@ jobs:
           fi
           TargetHost="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
           echo "TargetHost=$TargetHost" >> $GITHUB_OUTPUT
-          echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
   deployment:
     name: oracle-db-block-sessions
     needs: build_target_name
-    environment: ${{needs.build_target_name.outputs.TargetEnv}}
+    environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
@@ -83,7 +82,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: playbooks/block_sessions
           path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion }}
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
@@ -95,7 +94,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion }}
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -107,5 +106,4 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Block Sessions
-        run: $command -i $inventory -e target_host=$TargetHost -e action=${{ github.event.inputs.Action }} 
-          
+        run: $command -i $inventory -e target_host=$TargetHost -e action=${{ github.event.inputs.Action }}
