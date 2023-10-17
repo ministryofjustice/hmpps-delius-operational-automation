@@ -1,0 +1,163 @@
+---
+
+- hosts: "{{ target_host }}"
+  gather_facts: false
+  become: true
+  become_user: root
+  become_method: sudo
+
+  vars:
+     localhost_ip: 127.0.0.1
+
+  tasks:
+    
+  - name: Check if inside AWS.
+    uri:
+      url: http://169.254.169.254/latest/meta-data
+      timeout: 20
+    register: aws_uri_check
+    failed_when: false
+
+  - set_fact:
+        is_aws_environment: "{{ aws_uri_check.status == 200 }}"
+
+  - name: Find local ip address of ec2 database server to add as an iptables accept rule
+    command: curl http://169.254.169.254/latest/meta-data/local-ipv4
+    when: is_aws_environment
+    register: ec2_local_ip
+
+  - name: Find local ip address of non-ec2 database server to add as an iptables accept rule
+    command: hostname -i
+    when: not is_aws_environment
+    register: non_ec2_local_ip
+
+  - name: Set IP of local database server
+    set_fact:
+        local_ip: "{{ ec2_local_ip.stdout | default(non_ec2_local_ip.stdout) }}"
+
+  - debug: var=local_ip
+
+  - name: Get database type and database environment
+    set_fact:
+      database_environment: "{{ target_host | replace(target_host.split('_')[-2] + '_' + target_host.split('_')[-1],'') }}"
+      database_type: "{{ target_host.split('_')[-2] }}"
+
+  - name: Get ip address of standby database 1 if high_availability_count >= 1
+    shell: hostname -i
+    delegate_to: "{{ hostvars[groups[database_environment + database_type + '_standbydb1'][0]]['inventory_hostname'] }}"
+    when: high_availability_count[database_type] | int >= 1
+    register: standbydb1_ip
+
+  - debug: var=standbydb1_ip
+
+  - name: Get ip address of standby database 2 if high_availability_count = 2
+    shell: hostname -i
+    delegate_to: "{{ hostvars[groups[database_environment + database_type + '_standbydb2'][0]]['inventory_hostname'] }}"
+    when: high_availability_count[database_type]  | int == 2
+    register: standbydb2_ip
+
+  - debug: var=standbydb2_ip
+
+  # - name: Get ip address of oem server
+  #   shell: getent hosts {{ hostvars[groups['oem_primarydb'][0]]['inventory_hostname'] }} | awk '{print $1}'
+  #   register: oem_ip
+
+  # - debug: var=oem_ip
+
+  - block:
+
+      - name: Accept inbound access on database port 1521
+        iptables:
+          chain: INPUT
+          protocol: tcp
+          source: '{{ item.source }}'
+          destination_port: 1521
+          jump: '{{ item.jump }}'
+          state: present
+        with_items:
+          - { source: "{{ localhost_ip }}", jump: ACCEPT}
+          - { source: "{{ local_ip }}", jump: ACCEPT }
+          # - { source: "{{ oem_ip.stdout }}", jump: ACCEPT }
+          - { source: "{{ standbydb1_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
+          - { source: "{{ standbydb2_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
+
+      - name: Reject inbound access on database port 1521
+        iptables:
+          chain: INPUT
+          protocol: tcp
+          destination_port: 1521
+          jump: 'REJECT'
+          state: present
+
+      - name: Disconnect sessions which are connected to the database
+        script: disconnect_database_sessions.sh
+        become: yes
+        become_user: oracle
+        register: disconnect_sessions
+
+    when: action == "block"
+
+  - block:
+
+    - name: Remove accepted access on database port 1521
+      iptables:
+        chain: INPUT
+        protocol: tcp
+        source: '{{ item.source }}'
+        destination_port: 1521
+        jump: '{{ item.jump }}'
+        state: absent
+      with_items:
+        - { source: "{{ localhost_ip }}", jump: ACCEPT}
+        - { source: "{{ local_ip }}", jump: ACCEPT }
+        #- { source: "{{ oem_ip.stdout }}", jump: ACCEPT }
+        - { source: "{{ standbydb1_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
+        - { source: "{{ standbydb2_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
+
+    - name: Remove rejected access on database port 1521
+      iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 1521
+        jump: 'REJECT'
+        state: absent
+
+    when: action == "unblock"
+
+  - name: Get Multi Threaded Worker Semaphore Main Component Setting
+    script: get_pdt_semaphore.sh
+    register: get_pdt_semaphore
+    become: yes
+    become_user: oracle
+    changed_when: false
+    failed_when: get_pdt_semaphore.rc != 0 and not (ignore_flashback | default(false) | bool)
+
+  - name: Show Semaphore Setting
+    debug:
+        var=get_pdt_semaphore.stdout
+
+  # When Blocking Sessions, we want to also disable Scheduler Jobs as these may cause locking or latching
+  # conflicts with the application deployment.   This can be done using the DELIUS_APP_SCHEMA.PKG_PERF_COLLECTOR package.
+  # This updates the PDT_SEMAPHORE table to set a STOP signal for the master component 
+  # (this is only required if no semaphore record already in place).
+  #
+  # When Unblocking Sessions we can re-enable the master component.   This is only required if a STOP signal
+  # row is already in the PDT_SEMAPHORE table.   Generally this will not be required as the Uplift Scripts remove the
+  # semaphores as part of a successful run (and does not re-enable the Collector job until the end of the Uplift), 
+  # but we include this as a fallback in case the Uplift is not run (or fails prior to semaphore removal).
+  #
+  - name: Toggle Delius Multi Threaded Worker Processes
+    when:    ( action == 'block'   and ( get_pdt_semaphore.stdout | trim ) == 'NOT_STOPPED' )
+          or ( action == 'unblock' and ( get_pdt_semaphore.stdout | trim ) == 'STOP' )
+    block:
+
+    - name: Run Toggle Script
+      script: "toggle_mt_workers.sh {{ action }}"
+      become: yes
+      become_user: oracle
+      register: toggle_mt_workers
+      failed_when: toggle_mt_workers.rc != 0 and not (ignore_flashback | default(false) | bool)
+
+    - name: Show Toggle Output
+      debug:
+        var=toggle_mt_workers.stdout
