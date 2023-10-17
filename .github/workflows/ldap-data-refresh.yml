@@ -47,7 +47,7 @@ jobs:
             exit 1
           fi
           
-          env_list=(dev test preprod prod) 
+          env_list=(dev, test, preprod, prod) 
                    
           # find the index of the source environment, usage `index $item $list` - see https://stackoverflow.com/a/30772014
           index()
