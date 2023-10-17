@@ -116,7 +116,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Block Sessions
-        run: $command -i $inventory -e target_host=environment_name_delius_core_development_dev_delius_primarydb -e action=block
+        run: $command -i $inventory -e target_host=environment_name_delius_core_development_dev_delius_primarydb -e action=unblock
         #$command -i $inventory -e target_host=$TargetHost -e action=block
         #${{ github.event.inputs.Action }} 
           
