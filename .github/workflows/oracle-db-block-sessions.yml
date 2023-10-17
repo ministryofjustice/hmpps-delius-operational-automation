@@ -43,7 +43,7 @@ on:
     branches:
       - DBA-531-BLOCK
     paths:
-      - .github/workflows/oracle-db-block-session.yml
+      - .github/workflows/oracle-db-block-sessions.yml
 
 # Allow permissions on repository and docker image respectively 
 permissions:
