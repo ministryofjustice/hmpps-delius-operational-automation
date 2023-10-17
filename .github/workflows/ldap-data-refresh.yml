@@ -254,7 +254,7 @@ jobs:
         id: wait-for-datasync-task
         run: |
             while true; do
-                echo DATASYNC_TASK_STATUS=$(aws datasync describe-task-execution --task-execution-arn ${{ steps.create-datasync-task.outputs.DATASYNC_TASK_EXEC_ARN }} --output text --query 'Status')
+                DATASYNC_TASK_STATUS=$(aws datasync describe-task-execution --task-execution-arn ${{ steps.create-datasync-task.outputs.DATASYNC_TASK_EXEC_ARN }} --output text --query 'Status')
                 if [[ "${DATASYNC_TASK_STATUS}" == "SUCCESS" ]]; then
                   echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
                   break
@@ -318,7 +318,7 @@ jobs:
         id: wait-for-datasync-task
         run: |
             while true; do
-                echo DATASYNC_TASK_STATUS=$(aws datasync describe-task-execution --task-execution-arn ${{ steps.create-datasync-task.outputs.DATASYNC_TASK_EXEC_ARN }} --output text --query 'Status')
+                DATASYNC_TASK_STATUS=$(aws datasync describe-task-execution --task-execution-arn ${{ steps.create-datasync-task.outputs.DATASYNC_TASK_EXEC_ARN }} --output text --query 'Status')
                 if [[ "${DATASYNC_TASK_STATUS}" == "SUCCESS" ]]; then
                   echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
                   break
