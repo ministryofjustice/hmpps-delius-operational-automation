@@ -49,22 +49,23 @@ jobs:
           
           env_list=(dev, test, preprod, prod) 
                    
-          # find the index of the source environment, usage `index $item $list` - see https://stackoverflow.com/a/30772014
-          index()
-          {
-              local word
-              local item
-              local idx
+          index_of() {
+            local word="$1"
+            shift
+            local idx=-1
           
-              word=$1
-              shift
-              item=$(printf '%s\n' "$@" | fgrep -nx "$word")
-              let idx=${item%%:*}-1
-              echo $idx
+            for ((i=0; i<=$#; i++)); do
+              if [ "${!i}" = "$word" ]; then
+                idx=$i
+                break
+              fi
+            done
+          
+            echo $idx
           }
-          
-          source_env_index=$(index "${{ github.event.inputs.source_env }}" env_list)
-          destination_env_index=$(index "${{ github.event.inputs.destination_env }}" env_list)
+
+          source_env_index=$(index_of "${{ github.event.inputs.source_env }}" "${env_list[@]}")
+          destination_env_index=$(index_of "${{ github.event.inputs.destination_env }}" "${env_list[@]}")
           
           echo "source_env_index=${source_env_index}"
           echo "destination_env_index=${destination_env_index}"
