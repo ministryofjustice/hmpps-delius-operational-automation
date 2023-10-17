@@ -75,7 +75,7 @@ jobs:
           fi
           
           # check that the difference between the two indexes is 1
-            if [ $((source_env_index - destination_env_index)) -ne 1 ]; then
+            if [ $((destination_env_index - source_env_index)) -ne 1 ]; then
                 echo "Data refresh can only be performed between adjacent environments
                 exit 1
             fi
