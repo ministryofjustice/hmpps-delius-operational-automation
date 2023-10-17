@@ -47,7 +47,7 @@ jobs:
             exit 1
           fi
           
-          env_list=(dev, test, preprod, prod) 
+          env_list=("dev" "test" "preprod" "prod") 
                    
           index_of() {
             local word="$1"
