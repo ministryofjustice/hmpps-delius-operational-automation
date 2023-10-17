@@ -85,7 +85,7 @@ jobs:
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
         with:
-          repository: ministryofjustice/ hmpps-delius-operational-automation
+          repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: playbooks/block_sessions
           path: operations
