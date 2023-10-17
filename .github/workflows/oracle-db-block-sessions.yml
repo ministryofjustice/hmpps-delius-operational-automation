@@ -58,7 +58,7 @@ jobs:
       TargetEnvironment: ${{ steps.preparetargetname.outputs.TargetEnvironment }}
     steps:
       - name: Prepare Target Name
-        id: preparetargename
+        id: preparetargetname
         run: |
           TargetHost="delius_primarydb"
           TargetEnvironment="delius-core-dev"
