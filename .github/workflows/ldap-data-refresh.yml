@@ -321,7 +321,7 @@ jobs:
       - name: Create datasync task and start it
         id: create-datasync-task
         run: |
-          echo DATASYNC_TASK_ARN=$(aws datasync create-task --source-location-arn ${{ steps.create-datasync-source-location.outputs.DATASYNC_SOURCE_LOCATION_ARN }} --destination-location-arn ${{ steps.create-datasync-destination-location.outputs.DATASYNC_DESTINATION_LOCATION_ARN }} --name gha-ldap-data-refresh-${{github.run_id }} --output text --query 'TaskArn') 
+          DATASYNC_TASK_ARN=$(aws datasync create-task --source-location-arn ${{ steps.create-datasync-source-location.outputs.DATASYNC_SOURCE_LOCATION_ARN }} --destination-location-arn ${{ steps.create-datasync-destination-location.outputs.DATASYNC_DESTINATION_LOCATION_ARN }} --name gha-ldap-data-refresh-${{github.run_id }} --output text --query 'TaskArn') 
           echo "DATASYNC_TASK_ARN=${DATASYNC_TASK_ARN}" >> $GITHUB_OUTPUT
           echo DATASYNC_TASK_EXEC_ARN=$(aws datasync start-task-execution --task-arn $DATASYNC_TASK_ARN --output text --query 'TaskExecutionArn') >> $GITHUB_OUTPUT
 
