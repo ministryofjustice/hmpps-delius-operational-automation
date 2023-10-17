@@ -102,7 +102,8 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion }}
+          ref: main
+          #${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -114,5 +115,8 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Block Sessions
-        run: $command -i $inventory -e target_host=$TargetHost -e action=${{ github.event.inputs.Action }}
+        run: $command -i $inventory -e target_host=$TargetHost -e action=block 
+
+
+#${{ github.event.inputs.Action }} 
           
