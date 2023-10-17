@@ -1,4 +1,4 @@
-name: "Oracle: Autotask"
+name: "Oracle: Block Sessions"
 run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetAccount, github.event.inputs.TargetHost) }}_block_sessions"
 on:
   workflow_dispatch:
@@ -37,6 +37,12 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
+
+  push:
+    branches:
+      - DBA-531-BLOCK
+    paths:
+      - .github/workflows/oracle-db-block-sessions.yml
 
 # Allow permissions on repository and docker image respectively 
 permissions:
@@ -83,7 +89,8 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: playbooks/block_sessions
           path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion }}
+          ref: DBA-531-BLOCK
+          #${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
@@ -95,7 +102,8 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion }}
+          ref: main
+          #${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -107,5 +115,6 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Block Sessions
-        run: $command -i $inventory -e target_host=$TargetHost -e action=${{ github.event.inputs.Action }} 
+        run: $command -i $inventory -e target_host=$TargetHost -e action=block
+        #${{ github.event.inputs.Action }} 
           
