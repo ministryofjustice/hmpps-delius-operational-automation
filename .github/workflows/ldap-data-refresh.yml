@@ -48,9 +48,7 @@ jobs:
           fi
           
           env_list=(dev test preprod prod) 
-          
-          # Check that the destination environment is not a higher environment than the source environment
-          
+                   
           # find the index of the source environment, usage `index $item $list` - see https://stackoverflow.com/a/30772014
           index()
           {
@@ -67,6 +65,9 @@ jobs:
           
           source_env_index=$(index "${{ github.event.inputs.source_env }}" env_list)
           destination_env_index=$(index "${{ github.event.inputs.destination_env }}" env_list)
+          
+          echo "source_env_index=${source_env_index}"
+          echo "destination_env_index=${destination_env_index}"
           
           if [ "${source_env_index}" -lt "${destination_env_index}" ]; then
             echo "Destination environment must be a higher environment than the source environment"
