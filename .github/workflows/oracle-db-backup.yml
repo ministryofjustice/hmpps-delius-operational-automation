@@ -1,14 +1,19 @@
-run-name: "Oracle: ${{ (github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetAccount, github.event.inputs.Period, github.event.inputs.TargetHost) || (github.event_name == 'schedule' && format('{0}_{1}_{2}',inputs.TargetAccount, inputs.Period, inputs.TargetHost) || 'delius_core_development_dev_delius_primarydb'))}}_database_backup"
+name: "Oracle: Backup"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.Period, github.event.inputs.TargetHost) }}_database_backup"
 on:
   workflow_dispatch:
     inputs:
-      TargetAccount:
-        description: "Target AWS Account [EC2 Tags: <environment-name>_<delius-environment-name>]"
+      TargetEnvironment:
+        description: "Target environment"
         required: true
         type: choice
         options:
-          - "delius_core_development_dev"
-          - "delius_core_development_mis_dev"
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-pre-prod"
+          - "delius-core-prod"
       TargetHost:
         description: "Backup target host"
         required: true
@@ -66,7 +71,7 @@ on:
           - "-vvv"
           - "-vvvv"
       SourceCodeVersion:
-        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
       SourceConfigVersion:
@@ -76,8 +81,8 @@ on:
 
   workflow_call:
     inputs:
-      TargetAccount:
-        description: "Target AWS Account [EC2 Tags: <environment-name>_<delius-environment-name>]"
+      TargetEnvironment:
+        description: "Target environment"
         required: true
         type: string
       TargetHost:
@@ -94,23 +99,39 @@ on:
         type: string
         default: "no"
 
-  push:
-    branches:
-      - DBA-511
-    paths:
-      - .github/workflows/oracle-backup.yml
-      - playbooks/**
-
 # Allow permissions on repository and docker image respectively 
 permissions:
   contents: read
   packages: read
 
 jobs:
+  build_rman_target_name:
+    runs-on: ubuntu-latest
+    outputs:
+      RmanTarget: ${{ steps.preparermantargetname.outputs.RmanTarget }}
+      TargetEnvironment: ${{ steps.preparermantargetname.outputs.TargetEnvironment }}
+    steps:
+      - name: Prepare Rman Target
+        id: preparermantargetname
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
+          then
+            TargetHost="${{ github.event.inputs.TargetHost }}"
+            TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
+          elif [[ "${{ github.event_name }}" == "schedule" ]]
+          then
+            TargetHost="${{ inputs.TargetHost }}"
+            TargetEnvironment="${{ inputs.TargetEnvironment }}"
+          fi;
+          RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
+          echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
+          echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
+
   # Start deployment container job based on the build delius-ansible-aws image
   deployment:
-    name: "oracle-backup"
-    environment: development
+    name: oracle-backup
+    needs: build_rman_target_name
+    environment: ${{needs.build_rman_target_name.outputs.TargetEnvironment}}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
@@ -120,12 +141,12 @@ jobs:
       validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
       delete_dbids_command: ansible-playbook operations/playbooks/oracle_backup/delete_dbids_not_in_use.yml
       inventory: inventory/ansible
-      TargetAccount: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetAccount || (github.event_name == 'schedule' && inputs.TargetAccount || (github.event_name == 'push' && 'delius_core_development_dev'))) }}"
-      TargetHost: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.TargetHost || (github.event_name == 'schedule' && inputs.TargetHost || (github.event_name == 'push' && 'delius_primarydb'))) }}"
-      Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period || (github.event_name == 'schedule' && inputs.Period || (github.event_name == 'push' && 'daily')))  }}"
+      Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period || (github.event_name == 'schedule' && inputs.Period ))  }}"
       FixAbsentChunks: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.FixAbsentChunks || 'yes' }}"
-      DeleteDefunct: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.DeleteDefunct || (github.event_name == 'schedule' && inputs.DeleteDefunct || 'no')) }}"
+      DeleteDefunct: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.DeleteDefunct || (github.event_name == 'schedule' && inputs.DeleteDefunct )) }}"
       EnableTrace: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.EnableTrace || 'no' }}"
+      VerboseOutput: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
+      RmanTarget: "${{needs.build_rman_target_name.outputs.RmanTarget}}"
     continue-on-error: false
     steps:
 
@@ -160,21 +181,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Start Ansible Backup
-        run: |
-          $backup_command -i $inventory \
-          -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }} \
-          -e daily_weekly=$Period \
-          -e enable_trace=$EnableTrace
+        run: $backup_command -i $inventory -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
 
       - name: Start Ansible Validate And Fix Absent Chunks
-        run: |
-          $validate_command -i $inventory \
-          -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }} \
-          -e fix_absent_chunks=$FixAbsentChunks
+        run: $validate_command -i $inventory -e rman_target=$RmanTarget -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
 
       - name: Start Ansible Delete DBIDs Not In Use
         if: ${{ env.DeleteDefunct == 'yes' }}
-        run: |
-          $delete_dbids_command -i $inventory \
-          -e rman_target=environment_name_${{ env.TargetAccount }}_${{ env.TargetHost }}
+        run: $delete_dbids_command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
           

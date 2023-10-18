@@ -1,0 +1,109 @@
+name: "Oracle: Block Sessions"
+run-name: "Oracle: ${{ format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost, github.event.inputs.Action) }}_sessions"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-pre-prod"
+          - "delius-core-prod"
+      TargetHost:
+        description: "Backup target host"
+        required: true
+        type: choice
+        options: 
+          - "delius_primarydb"
+          - "mis_primarydb"
+          - "misboe_primarydb"
+          - "misdsd_primarydb"
+      Action:
+        description: "Select action"
+        required: true
+        type: choice
+        options:
+          - "block"
+          - "unblock"
+      SourceCodeVersion:
+        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+
+# Allow permissions on repository and docker image respectively 
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build_target_name:
+    runs-on: ubuntu-latest
+    outputs:
+      TargetHost: ${{ steps.preparetargetname.outputs.TargetHost }}
+    steps:
+      - name: Prepare Target Name
+        id: preparetargetname
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
+          then
+            TargetHost="${{ github.event.inputs.TargetHost }}"
+            TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
+          fi
+          TargetHost="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
+          echo "TargetHost=$TargetHost" >> $GITHUB_OUTPUT
+  deployment:
+    name: oracle-db-block-sessions
+    needs: build_target_name
+    environment: ${{ github.event.inputs.TargetEnvironment }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    timeout-minutes: 1440
+    env:
+      command: ansible-playbook operations/playbooks/block_sessions/playbook.yml
+      inventory: inventory/ansible
+      TargetHost: ${{needs.build_target_name.outputs.TargetHost}}
+    continue-on-error: false
+    steps:
+
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: playbooks/block_sessions
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Block Sessions
+        run: $command -i $inventory -e target_host=$TargetHost -e action=${{ github.event.inputs.Action }}
