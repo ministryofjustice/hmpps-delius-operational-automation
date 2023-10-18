@@ -50,7 +50,7 @@ jobs:
           - name: Set cluster ARN
             id: set-cluster-arn
             run: |
-                echo "CLUSTER_ARN=delius-core-${{ github.event.inputs.environment }}-cluster" >> $GITHUB_OUTPUT        
+                echo "CLUSTER_ARN=delius-core-${{ github.event.inputs.environment }}-cluster" >> $GITHUB_OUTPUT
           - name: Get security groups and subnet ids
             id: get-ids
             run: |
@@ -59,21 +59,41 @@ jobs:
           - name: Calculate command args
             id: calculate-args
             run: |
-                if [ "${{ github.event.inputs.update_notes }}" == "true" ]; then
-                    echo "UPDATE_NOTES_ARG=--update-notes" >> $GITHUB_OUTPUT
-                else
-                    echo "UPDATE_NOTES_ARG=" >> $GITHUB_OUTPUT
+                
+                # Construct an array for the command to be used
+                command_args=()
+
+                if [ -n "${{ github.event.inputs.roles }}" ]; then
+                  command_args+=("${{ github.event.inputs.roles }}")
                 fi
-                if [ "${{ github.event.inputs.role_filter }}" != "" ]; then
-                    echo "ROLE_FILTER_ARG=--role-filter ${{ github.event.inputs.role_filter }}" >> $GITHUB_OUTPUT
-                else
-                    echo "ROLE_FILTER_ARG=" >> $GITHUB_OUTPUT
+
+                if [ -n "${{ github.event.inputs.user_note }}" ]; then
+                  command_args+=("${{ github.event.inputs.user_note }}")
                 fi
-                if [ "${{ github.event.inputs.user_filter }}" != "" ]; then
-                    echo "USER_FILTER_ARG=--user-filter ${{ github.event.inputs.user_filter }}" >> $GITHUB_OUTPUT
-                else
-                    echo "USER_FILTER_ARG=" >> $GITHUB_OUTPUT
+
+                if [ -n "${{ github.event.inputs.action }}" ]; then
+                  command_args+=("--${{ github.event.inputs.action }}")
                 fi
+
+                if [ "${{ github.event.inputs.update_notes }}" -eq "true"]; then
+                  command_args+=("--update-notes")
+                fi
+
+                if [ -n "${{ github.event.inputs.role_filter }}" ]; then
+                  command_args+=("--role-filter")
+                  command_args+=("${{ github.event.inputs.role_filter }}")
+                fi
+
+                if [ -n "${{ github.event.inputs.user_filter }}" ]; then
+                  command_args+=("--user-filter")
+                  command_args+=("${{ github.event.inputs.user_filter }}")
+                fi
+                
+                comma_separated=$(printf "\"%s\"," "${command_args[@]}")
+
+                command_args_joined="${comma_separated%,}"
+                echo "COMMAND_ARGS=${command_args_joined}" >> "$GITHUB_OUTPUT"
+
           - name: Template task def
             uses: christherama/render-json-template@v1
             id: render
@@ -82,7 +102,7 @@ jobs:
                 json-file-path: ./docker/ldap-automation/task-def.json
                 # Multi-line string containing key/value pairs of JSON property paths and desired property values
                 field-value-pairs: |
-                    $.containerDefinitions[0].command: ["ldap-automation", "update-user-roles", "${{ github.event.inputs.roles }}", "${{ github.event.inputs.user_note }}", "--${{ github.event.inputs.action }}", "${{ steps.calculate-args.outputs.UPDATE_NOTES_ARG }}", "${{ steps.calculate-args.outputs.ROLE_FILTER_ARG }}", "${{ steps.calculate-args.outputs.USER_FILTER_ARG }}"]
+                    $.containerDefinitions[0].command: ["ldap-automation", "update-user-roles", ${{ steps.calculate-args.outputs.COMMAND_ARGS }} ]
 
                     $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task-exec"
                     $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task"
