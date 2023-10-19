@@ -8,8 +8,12 @@ on:
         required: true
         type: choice
         options:
-          - "delius_core_development_dev"
-          - "delius_core_development_mis_dev"
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-pre-prod"
+          - "delius-core-prod"
       TargetHost:
         description: "Database target host"
         required: true
@@ -34,10 +38,18 @@ permissions:
   packages: read
 
 jobs:
-  # Start deployment container job based on the build delius-ansible-aws image
+  build_target_name:
+    runs-on: ubuntu-latest
+    outputs:
+      TargetHost: ${{ steps.preparetargetname.outputs.TargetHost }}
+    steps:
+      - name: Prepare Target Name
+        id: preparetargetname
+        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
   deployment:
     name: oracle-db-parameters
-    environment: delius-core-dev
+    needs: build_target_name
+    environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
@@ -79,4 +91,4 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Start Set Parameters
-        run: $command -i $inventory -e target_host=environment_name_${{ github.event.inputs.TargetEnvironment }}_${{ github.event.inputs.TargetHost }}
+        run: $command -i $inventory -e target_host=${{needs.build_target_name.outputs.TargetHost}}
