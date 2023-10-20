@@ -375,3 +375,43 @@ jobs:
           aws ecs wait services-stable --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --services delius-core-${{ github.event.inputs.destination_env }}-openldap
           echo "ECS Service stable"
           echo "Data refresh complete"
+  cleanup:
+    needs:
+      - destination-post
+    runs-on: ubuntu-latest
+    environment: delius-core-${{ github.event.inputs.destination_env }}
+    steps:
+      - name: Remove EFS access point and mount targets
+        run: |
+
+          # Delete the access point
+          aws efs delete-access-point --access-point-id ${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }} --output text --query 'AccessPointId'
+          if [[ $? -eq 0 ]]; then
+              echo "Access point ${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }} deleted"
+          else
+              echo "Failed to delete access point ${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }}"
+              exit 1
+          fi
+
+          # Delete the mount targets
+          IFS=',' read -ra SUBNETS <<< "${{ steps.get-ec2-config.outputs.SUBNET_IDS }}"
+          for subnet in "${SUBNETS[@]}"; do
+            mount_target_id=$(aws efs describe-mount-targets --file-system-id ${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }} --subnet-id $subnet --query 'MountTargets[0].MountTargetId' --output text)
+            if [ -n "$mount_target_id" ]; then
+              aws efs delete-mount-target --mount-target-id "$mount_target_id" --output text
+              if [[ $? -eq 0 ]]; then
+                echo "Mount target $mount_target_id deleted"
+              else
+                echo "Failed to delete mount target $mount_target_id"
+                exit 1
+              fi
+            fi
+          done
+      - name: Clear up datasync locations
+        run: |
+
+          # for temp EFS
+          aws datasync delete-location --location-arn ${{ steps.create-datasync-location.outputs.DATASYNC_SOURCE_LOCATION_ARN }}
+
+          # for S3
+          aws datasync delete-location --location-arn ${{ steps.create-datasync-destination-location.outputs.DATASYNC_DESTINATION_LOCATION_ARN }}
