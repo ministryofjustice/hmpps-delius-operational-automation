@@ -269,11 +269,11 @@ jobs:
     environment: delius-core-${{ github.event.inputs.destination_env }}
     steps:
       - name: "Configure AWS Credentials"
-          uses: aws-actions/configure-aws-credentials@v4
-          with:
-            role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-            role-session-name: githubactionsrolesession
-            aws-region: "eu-west-2"
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: githubactionsrolesession
+          aws-region: "eu-west-2"
 
       - name: Remove EFS access point and mount targets
         run: |
