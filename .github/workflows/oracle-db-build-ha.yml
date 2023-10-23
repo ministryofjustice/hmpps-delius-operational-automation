@@ -48,6 +48,7 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
+      VerboseOutput:
         description: "Verbose Output level"
         type: choice
         options:
