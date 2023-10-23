@@ -272,10 +272,19 @@ jobs:
         run: |
 
           # echo test
-          echo ${{ needs.source.outputs.TEMP_EFS_ID }}
+          echo ${{ needs.source.outputs.TEMP_EFS_ID }} 
+          FILE_SYSTEM_ID="${{ needs.source.outputs.TEMP_EFS_ID }}"
+          echo "File system ID is $FILE_SYSTEM_ID"
+          ACCESS_POINT_ID=$(aws efs describe-access-points --file-system-id $FILE_SYSTEM_ID | jq -r '.AccessPoints[].AccessPointId')
+
+          # Check if ACCESS_POINT_ID is empty (just testing)
+          if [ -z "$ACCESS_POINT_ID" ]; then
+              echo "Failed to get access point ID"
+              exit 1
+          fi
 
           # Delete the access point
-          aws efs delete-access-point --access-point-id $(aws efs describe-access-points --file-system-id ${{ needs.source.outputs.TEMP_EFS_ID }} | jq -r '.AccessPoints[].AccessPointId') --output text --query 'AccessPointId'
+          aws efs delete-access-point --access-point-id $ACCESS_POINT_ID --output text --query 'AccessPointId'
           if [[ $? -eq 0 ]]; then
               echo "Access point $ACCESS_POINT_ID deleted"
           else
