@@ -394,11 +394,12 @@ jobs:
         run: |
 
           # Delete the access point
-          aws efs delete-access-point --access-point-id ${{ needs.source.outputs.TEMP_EFS_ID }} --output text --query 'AccessPointId'
+          ACCESS_POINT_ID=$(aws efs describe-access-points --file-system-id ${{ needs.source.outputs.TEMP_EFS_ID }} | jq -r '.AccessPoints[].AccessPointId')
+          aws efs delete-access-point --access-point-id $ACCESS_POINT_ID --output text --query 'AccessPointId'
           if [[ $? -eq 0 ]]; then
-              echo "Access point ${{ needs.source.outputs.TEMP_EFS_ID }} deleted"
+              echo "Access point $ACCESS_POINT_ID deleted"
           else
-              echo "Failed to delete access point ${{ needs.source.outputs.TEMP_EFS_ID }}"
+              echo "Failed to delete access point $ACCESS_POINT_ID"
               exit 1
           fi
 
