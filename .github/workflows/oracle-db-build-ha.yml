@@ -111,7 +111,7 @@ jobs:
 
       - name: No Standbydb's Configured
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host  == '' }}
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         with:
           script: core.setFailed('No Standbydb's Configured)
 
