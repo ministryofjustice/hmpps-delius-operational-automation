@@ -275,7 +275,8 @@ jobs:
           echo ${{ needs.source.outputs.TEMP_EFS_ID }} 
           FILE_SYSTEM_ID="${{ needs.source.outputs.TEMP_EFS_ID }}"
           echo "File system ID is $FILE_SYSTEM_ID"
-          ACCESS_POINT_ID=$(aws efs describe-access-points --file-system-id $FILE_SYSTEM_ID | jq -r '.AccessPoints[].AccessPointId')
+          ACCESS_POINT_ID=$(aws efs describe-access-points --file-system-id ${FILE_SYSTEM_ID} | jq -r '.AccessPoints[].AccessPointId')
+          echo "Access point ID is $ACCESS_POINT_ID"
 
           # Check if ACCESS_POINT_ID is empty (just testing)
           if [ -z "$ACCESS_POINT_ID" ]; then
