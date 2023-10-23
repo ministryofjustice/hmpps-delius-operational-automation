@@ -385,6 +385,7 @@ jobs:
           echo "Data refresh complete"
   cleanup:
     needs:
+      - source
       - destination-post
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.destination_env }}
@@ -393,18 +394,18 @@ jobs:
         run: |
 
           # Delete the access point
-          aws efs delete-access-point --access-point-id ${{ needs.cleanup.outputs.TEMP_EFS_ID }} --output text --query 'AccessPointId'
+          aws efs delete-access-point --access-point-id ${{ needs.source.outputs.TEMP_EFS_ID }} --output text --query 'AccessPointId'
           if [[ $? -eq 0 ]]; then
-              echo "Access point ${{ needs.cleanup.outputs.TEMP_EFS_ID }} deleted"
+              echo "Access point ${{ needs.source.outputs.TEMP_EFS_ID }} deleted"
           else
-              echo "Failed to delete access point ${{ needs.cleanup.outputs.TEMP_EFS_ID }}"
+              echo "Failed to delete access point ${{ needs.source.outputs.TEMP_EFS_ID }}"
               exit 1
           fi
 
           # Delete the mount targets
           IFS=',' read -ra SUBNETS <<< "${{ needs.cleanup.outputs.SUBNET_IDS }}"
           for subnet in "${SUBNETS[@]}"; do
-            mount_target_id=$(aws efs describe-mount-targets --file-system-id ${{ needs.cleanup.outputs.TEMP_EFS_ID }} --subnet-id $subnet --query 'MountTargets[0].MountTargetId' --output text)
+            mount_target_id=$(aws efs describe-mount-targets --file-system-id ${{ needs.source.outputs.TEMP_EFS_ID }} --subnet-id $subnet --query 'MountTargets[0].MountTargetId' --output text)
             if [ -n "$mount_target_id" ]; then
               aws efs delete-mount-target --mount-target-id "$mount_target_id" --output text
               if [[ $? -eq 0 ]]; then
@@ -419,11 +420,11 @@ jobs:
       - name: Remove temporary EFS
         run: |
 
-          aws efs delete-file-system --file-system-id ${{ needs.cleanup.outputs.TEMP_EFS_ID }} 
+          aws efs delete-file-system --file-system-id ${{ needs.source.outputs.TEMP_EFS_ID }} 
           if [[ $? -eq 0 ]]; then
-            echo "File system ${{ needs.cleanup.outputs.TEMP_EFS_ID }}  deleted"
+            echo "File system ${{ needs.source.outputs.TEMP_EFS_ID }}  deleted"
           else
-            echo "Failed to delete file system ${{ needs.cleanup.outputs.TEMP_EFS_ID }}"
+            echo "Failed to delete file system ${{ needs.source.outputs.TEMP_EFS_ID }}"
             exit 1
           fi
 
