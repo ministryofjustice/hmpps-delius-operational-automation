@@ -83,7 +83,6 @@ jobs:
           #          fi
           
           echo "Copying from ${source_env} to ${destination_env}"
-
   destination-pre:
     needs:
         - pre-checks
@@ -236,132 +235,12 @@ jobs:
                     sleep 10
                 fi
             done
-
-      - name: Create datasync location for temp efs
-        id: create-datasync-location
-        run: |
-          echo DATASYNC_SOURCE_LOCATION_ARN=$(aws datasync create-location-efs --ec2-config SubnetArn=${{ steps.get-ec2-config.outputs.SUBNET_ARN }},SecurityGroupArns=${{ steps.get-ec2-config.outputs.SECURITY_GROUP_ARN }} --efs-filesystem-arn arn:aws:elasticfilesystem:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:file-system/${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }} --subdirectory / --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> $GITHUB_OUTPUT
-
-      - name: Create datasync location for destination s3 bucket
-        id: create-datasync-destination-location
-        run: |
-            echo DATASYNC_DESTINATION_LOCATION_ARN=$(aws datasync create-location-s3 --s3-bucket-arn arn:aws:s3:::${{ github.event.inputs.destination_env }}-ldap-data-refresh-incoming --s3-config BucketAccessRoleArn=arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ldap-data-refresh-role-${{ github.event.inputs.source_env }} --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> $GITHUB_OUTPUT
-
-      - name: Create datasync task
-        id: create-datasync-task
-        run: |
-          DATASYNC_TASK_ARN=$(aws datasync create-task --source-location-arn ${{ steps.create-datasync-location.outputs.DATASYNC_SOURCE_LOCATION_ARN }} --destination-location-arn ${{ steps.create-datasync-destination-location.outputs.DATASYNC_DESTINATION_LOCATION_ARN }} --name gha-ldap-data-refresh-${{github.run_id }} --output text --query 'TaskArn')
-          echo "DATASYNC_TASK_ARN=${DATASYNC_TASK_ARN}" >> $GITHUB_OUTPUT
-          echo DATASYNC_TASK_EXEC_ARN=$(aws datasync start-task-execution --task-arn $DATASYNC_TASK_ARN --output text --query 'TaskExecutionArn') >> $GITHUB_OUTPUT
-
-      - name: Wait for datasync task to complete
-        id: wait-for-datasync-task
-        run: |
-            while true; do
-                DATASYNC_TASK_STATUS=$(aws datasync describe-task-execution --task-execution-arn ${{ steps.create-datasync-task.outputs.DATASYNC_TASK_EXEC_ARN }} --output text --query 'Status')
-                if [[ "${DATASYNC_TASK_STATUS}" == "SUCCESS" ]]; then
-                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
-                  break
-                elif [[ "${DATASYNC_TASK_STATUS}" == "ERROR" ]]; then
-                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
-                  exit 1
-                else
-                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}"
-                  sleep 10
-                fi
-            done
-            echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed. Switching to destination account"
     outputs:
       TEMP_EFS_ID: ${{ steps.get-temp-efs-id.outputs.TEMP_EFS_ID }}
       SUBNET_IDS: ${{ steps.get-ec2-config.outputs.SUBNET_IDS }}
-      DATASYNC_SOURCE_LOCATION_ARN: ${{ steps.create-datasync-location.outputs.DATASYNC_SOURCE_LOCATION_ARN }}
-      DATASYNC_DESTINATION_LOCATION_ARN: ${{ steps.create-datasync-destination-location.outputs.DATASYNC_DESTINATION_LOCATION_ARN }}
 
 
-  destination:
-    needs:
-      - source
-      - destination-pre
-    runs-on: ubuntu-latest
-    environment: delius-core-${{ github.event.inputs.destination_env }}
-    steps:
-      - name: "Configure AWS Credentials"
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-          role-session-name: githubactionsrolesession
-          aws-region: "eu-west-2"
-
-      - name: Get first directory listed in s3 bucket
-        id: get-directory
-        run: |
-            echo DIRECTORY=$(aws s3 ls s3://${{ github.event.inputs.destination_env }}-ldap-data-refresh-incoming/ | sort --reverse | grep -o 'aws-backup[^/]*' | head -n 1 | tr -d '\n') >> $GITHUB_OUTPUT
-
-      - name: Check directory
-        run: | 
-            if [[ "${{ steps.get-directory.outputs.DIRECTORY }}" == "" ]]; then
-              echo "No directory found in s3 bucket"
-              exit 1
-            fi
-
-      - name: Get destination EFS ID
-        id: get-dest-efs-id
-        run: |
-          DEST_EFS_ID=$(aws efs describe-file-systems --creation-token ${{ github.event.inputs.destination_env }}-ldap --output text --query 'FileSystems[0].FileSystemId')
-          if [[ $? -eq 0 ]]; then
-            echo "DEST_EFS_ID=$DEST_EFS_ID" >> $GITHUB_OUTPUT
-          else
-            echo "Failed to get DEST_EFS_ID"
-            exit 1
-          fi
-
-      - name: Get EFS EC2 config
-        id: get-ec2-config
-        run: |
-          echo SUBNET_ARNS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-private-eu-west-2*" --query "Subnets[].SubnetArn" --output json |  jq -r '. | @csv') >> $GITHUB_OUTPUT
-          echo SUBNET_ARN=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-private-eu-west-2*" --query "Subnets [0].SubnetArn" --output text) >> $GITHUB_OUTPUT
-          echo SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-private-eu-west-2*" --query "Subnets[].SubnetId" --output json |  jq -r '. | @csv') >> $GITHUB_OUTPUT
-          echo SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ldap-efs-${{ github.event.inputs.destination_env }}" --query "SecurityGroups[].GroupId" --output text) >> $GITHUB_OUTPUT
-          SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ldap-efs-${{ github.event.inputs.destination_env }}" --query "SecurityGroups[].GroupId" --output text)
-          echo SECURITY_GROUP_ARN="arn:aws:ec2:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:security-group/${SECURITY_GROUP_ID}" >> $GITHUB_OUTPUT
-
-      - name: Create datasync source (s3)
-        id: create-datasync-source-location
-        run: |
-            echo DATASYNC_SOURCE_LOCATION_ARN=$(aws datasync create-location-s3 --s3-bucket-arn arn:aws:s3:::${{ github.event.inputs.destination_env }}-ldap-data-refresh-incoming --s3-config BucketAccessRoleArn=arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ldap-data-refresh-role-${{ github.event.inputs.destination_env }} --subdirectory ${{ steps.get-directory.outputs.DIRECTORY }} --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> $GITHUB_OUTPUT
-
-      - name: Create datasync destination (efs)
-        id: create-datasync-destination-location
-        run: |
-            echo DATASYNC_DESTINATION_LOCATION_ARN=$(aws datasync create-location-efs --ec2-config SubnetArn=${{ steps.get-ec2-config.outputs.SUBNET_ARN }},SecurityGroupArns=${{ steps.get-ec2-config.outputs.SECURITY_GROUP_ARN }} --efs-filesystem-arn arn:aws:elasticfilesystem:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:file-system/${{ steps.get-dest-efs-id.outputs.DEST_EFS_ID }} --subdirectory / --tags Key=Name,Value=gha-ldap-data-refresh-${{github.run_id }} --output text --query 'LocationArn') >> $GITHUB_OUTPUT
-
-      - name: Create datasync task and start it
-        id: create-datasync-task
-        run: |
-          DATASYNC_TASK_ARN=$(aws datasync create-task --source-location-arn ${{ steps.create-datasync-source-location.outputs.DATASYNC_SOURCE_LOCATION_ARN }} --destination-location-arn ${{ steps.create-datasync-destination-location.outputs.DATASYNC_DESTINATION_LOCATION_ARN }} --name gha-ldap-data-refresh-${{github.run_id }} --output text --query 'TaskArn') 
-          echo "DATASYNC_TASK_ARN=${DATASYNC_TASK_ARN}" >> $GITHUB_OUTPUT
-          echo DATASYNC_TASK_EXEC_ARN=$(aws datasync start-task-execution --task-arn $DATASYNC_TASK_ARN --output text --query 'TaskExecutionArn') >> $GITHUB_OUTPUT
-
-      - name: Wait for datasync task to complete
-        id: wait-for-datasync-task
-        run: |
-            while true; do
-                DATASYNC_TASK_STATUS=$(aws datasync describe-task-execution --task-execution-arn ${{ steps.create-datasync-task.outputs.DATASYNC_TASK_EXEC_ARN }} --output text --query 'Status')
-                if [[ "${DATASYNC_TASK_STATUS}" == "SUCCESS" ]]; then
-                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
-                  break
-                elif [[ "${DATASYNC_TASK_STATUS}" == "ERROR" ]]; then
-                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}" >> $GITHUB_OUTPUT
-                  exit 1
-                else
-                  echo "DATASYNC_TASK_STATUS=${DATASYNC_TASK_STATUS}"
-                  sleep 10
-                fi
-            done
-            echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed."
-  destination-post:
-    needs:
-      - destination
+  scale-up:
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.destination_env }}
     steps:
@@ -386,12 +265,14 @@ jobs:
   cleanup:
     needs:
       - source
-      - destination-post
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.destination_env }}
     steps:
       - name: Remove EFS access point and mount targets
         run: |
+
+          # echo test
+          echo ${{ needs.source.outputs.TEMP_EFS_ID }}
 
           # Delete the access point
           aws efs delete-access-point --access-point-id \
