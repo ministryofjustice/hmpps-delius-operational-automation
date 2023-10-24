@@ -95,8 +95,8 @@ jobs:
       - name: Check Standbydb's Configured In Ansible Inventory
         id: standbydbsconfigured
         run: |
-          standbydb1Host="${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb1/'"
-          standbydb2Host="${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb2/'"
+          standbydb1Host="$(echo ${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')"
+          standbydb2Host="$(echo ${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')"
           ls -l $inventory/group_vars/${{ standbydb1Host }}.yml > /dev/null 2>&1
           if [[ $? -eq 0 ]]
           then
