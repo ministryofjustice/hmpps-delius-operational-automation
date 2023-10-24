@@ -97,21 +97,21 @@ jobs:
         run: |
           standbydb1Host=$(echo ${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')
           standbydb2Host=$(echo ${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')
-          ls -l $inventory/group_vars/${{ standbydb1Host }}.yml > /dev/null 2>&1
+          ls -l $inventory/group_vars/${standbydb1Host}.yml > /dev/null 2>&1
           if [[ $? -eq 0 ]]
           then
-            echo "standbydb1Host=${ standbydb1Host }"  >> $GITHUB_OUTPUT
+            echo "standbydb1Host=${standbydb1Host}"  >> $GITHUB_OUTPUT
             echo "high_availability_count=1" >> $GITHUB_OUTPUT
           fi
-          ls -l $inventory/group_vars/${{ standbydb2Host }}.yml > /dev/null 2>&1
+          ls -l $inventory/group_vars/${standbydb2Host}.yml > /dev/null 2>&1
           if [[ $? -eq 0 ]]
           then
-            echo "standbydb2Host=${ standbydb2Host }" >> $GITHUB_OUTPUT
+            echo "standbydb2Host=${standbydb2Host}" >> $GITHUB_OUTPUT
             echo "high_availability_count=2" >> $GITHUB_OUTPUT
           fi
 
       - name: No Standbydb's Configured
-        if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host  == '' }}
+        if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host == '' }}
         uses: actions/github-script@v3
         with:
           script: core.setFailed('No Standbydb's Configured)
