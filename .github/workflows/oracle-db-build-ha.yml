@@ -116,6 +116,9 @@ jobs:
         with:
           script: core.setFailed('No Standbydb's Configured)
 
+      - name: Install yq
+        run: sudo apt-get update && apt install -y yq
+
       - name: Check Fast Start Fail Over Ansible Variable
         id: getfsfomode
         working-directory: ${{ env.inventory }}
