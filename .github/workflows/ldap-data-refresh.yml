@@ -319,8 +319,9 @@ jobs:
           echo "entering loop..."
           while [[ -n $CHECK ]]; do
             echo "check not empty"
+            echo "CHECK: $CHECK"
             CHECK=$(aws efs describe-mount-targets --file-system-id $FILE_SYSTEM_ID --query 'MountTargets[*].MountTargetId' --output text)
-            if [[ -n $CHECK]]; then
+            if [[ -n $CHECK ]]; then
               sleep 5
             fi
           done
