@@ -147,9 +147,9 @@ jobs:
           echo "$command -i $inventory"
           # -e primary=${{ steps.prepareprimaryname.outputs.primaryHost }} \
           # -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
-          # -e method=${{ githib.event.inputs.Procedure }} \
+          # -e method=${{ github.event.inputs.Procedure }} \
           # -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           # -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
           # -e standby_number=1 \
-          # -e primary_source_type=${{ githib.event.inputs.PrimarySourceType }}"
+          # -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}"
           
