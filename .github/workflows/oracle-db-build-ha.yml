@@ -95,66 +95,61 @@ jobs:
       - name: Check Standbydb's Configured In Ansible Inventory
         id: standbydbsconfigured
         run: |
-          echo ${{ env.inventory }}
-          pwd
-          ls -l
-          ls -l ${{ env.inventory }}
+          standbydb1Host=$(echo ${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')
+          standbydb2Host=$(echo ${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')
+          ls -l $inventory/group_vars/${standbydb1Host}.yml > /dev/null 2>&1
+          if [[ $? -eq 0 ]]
+          then
+            echo "standbydb1Host=${standbydb1Host}"  >> $GITHUB_OUTPUT
+            echo "high_availability_count=1" >> $GITHUB_OUTPUT
+          fi
+          ls -l $inventory/group_vars/${standbydb2Host}.yml > /dev/null 2>&1
+          if [[ $? -eq 0 ]]
+          then
+            echo "standbydb2Host=${standbydb2Host}" >> $GITHUB_OUTPUT
+            echo "high_availability_count=2" >> $GITHUB_OUTPUT
+          fi
 
-      #     standbydb1Host=$(echo ${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')
-      #     standbydb2Host=$(echo ${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')
-      #     ls -l $inventory/group_vars/${standbydb1Host}.yml > /dev/null 2>&1
-      #     if [[ $? -eq 0 ]]
-      #     then
-      #       echo "standbydb1Host=${standbydb1Host}"  >> $GITHUB_OUTPUT
-      #       echo "high_availability_count=1" >> $GITHUB_OUTPUT
-      #     fi
-      #     ls -l $inventory/group_vars/${standbydb2Host}.yml > /dev/null 2>&1
-      #     if [[ $? -eq 0 ]]
-      #     then
-      #       echo "standbydb2Host=${standbydb2Host}" >> $GITHUB_OUTPUT
-      #       echo "high_availability_count=2" >> $GITHUB_OUTPUT
-      #     fi
+      - name: No Standbydb's Configured
+        if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host == '' }}
+        uses: actions/github-script@v3
+        with:
+          script: core.setFailed('No Standbydb's Configured)
 
-      # - name: No Standbydb's Configured
-      #   if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host == '' }}
-      #   uses: actions/github-script@v3
-      #   with:
-      #     script: core.setFailed('No Standbydb's Configured)
+      - name: Check Fast Start Fail Over Ansible Variable
+        id: getfsfomode
+        working-directory: ${{ env.inventory }}
+        run: |
+          fsfo_mode=$(ansible-inventory --host ${{ steps.prepareprimaryname.outputs.primaryHost }} --vars | yq '.fsfo_mode')
+          [ "$fsfo_mode" == "null" ] && echo "fsfo_mode=disabled" >> $GITHUB_OUTPUT || echo "fsfo_mode=$fsfo_mode" >> $GITHUB_OUTPUT
 
-      # - name: Check Fast Start Fail Over Ansible Variable
-      #   id: getfsfomode
-      #   working-directory: ${{ env.inventory }}
-      #   run: |
-      #     fsfo_mode=$(ansible-inventory --host ${{ steps.prepareprimaryname.outputs.primaryHost }} --vars | yq '.fsfo_mode')
-      #     [ "$fsfo_mode" == "null" ] && echo "fsfo_mode=disabled" >> $GITHUB_OUTPUT || echo "fsfo_mode=$fsfo_mode" >> $GITHUB_OUTPUT
+      - name: Checkout From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: playbooks/oracle_ha
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
 
-      # - name: Checkout From modernisation-platform-configuration-management
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: ministryofjustice/modernisation-platform-configuration-management
-      #     sparse-checkout-cone-mode: false
-      #     sparse-checkout: playbooks/oracle_ha
-      #     path: operations
-      #     ref: ${{ github.event.inputs.SourceCodeVersion }}
-      #     fetch-depth: 0
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      # - name: Configure AWS Credentials
-      #   id: login-aws
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
-      #     aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
-      #     aws-region: ${{ secrets.AWS_REGION }}
-
-      # - name: Build High Availability Standby 1 Database
-      #   if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
-      #   run: |
-      #     echo "$command -i $inventory"
-      #     # -e primary=${{ steps.prepareprimaryname.outputs.primaryHost }} \
-      #     # -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
-      #     # -e method=${{ github.event.inputs.Procedure }} \
-      #     # -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
-      #     # -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
-      #     # -e standby_number=1 \
-      #     # -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}"
+      - name: Build High Availability Standby 1 Database
+        if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
+        run: |
+          echo "$command -i $inventory"
+          # -e primary=${{ steps.prepareprimaryname.outputs.primaryHost }} \
+          # -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
+          # -e method=${{ github.event.inputs.Procedure }} \
+          # -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
+          # -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
+          # -e standby_number=1 \
+          # -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}"
           
