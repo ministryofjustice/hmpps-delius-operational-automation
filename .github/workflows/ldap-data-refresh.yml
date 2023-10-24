@@ -301,7 +301,7 @@ jobs:
           fi
 
           # Delete the mount targets
-          IFS=',' read -ra SUBNETS <<< "${{ needs.cleanup.outputs.SUBNET_IDS }}"
+          IFS=',' read -ra SUBNETS <<< "${{ needs.source.outputs.SUBNET_IDS }}"
           for subnet in "${SUBNETS[@]}"; do
             mount_target_id=$(aws efs describe-mount-targets --file-system-id ${{ needs.source.outputs.TEMP_EFS_ID }} --subnet-id $subnet --query 'MountTargets[0].MountTargetId' --output text)
             if [ -n "$mount_target_id" ]; then
@@ -330,7 +330,7 @@ jobs:
         run: |
 
           # for temp EFS
-          aws datasync delete-location --location-arn ${{ needs.cleanup.outputs.DATASYNC_SOURCE_LOCATION_ARN }}
+          aws datasync delete-location --location-arn ${{ needs.source.outputs.DATASYNC_SOURCE_LOCATION_ARN }}
 
           # for S3
-          aws datasync delete-location --location-arn ${{ needs.cleanup.outputs.DATASYNC_DESTINATION_LOCATION_ARN }}
+          aws datasync delete-location --location-arn ${{ needs.source.outputs.DATASYNC_DESTINATION_LOCATION_ARN }}
