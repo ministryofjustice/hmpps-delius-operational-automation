@@ -1,0 +1,181 @@
+name: "Oracle: Build HA"
+run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_build_ha"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetHost:
+        description: "Delius database target host"
+        type: string
+        default: "delius_primarydb"
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-pre-prod"
+          - "delius-core-prod"
+      DeployAudit:
+        description: "Deploy Database Audit Management?"
+        type: choice
+        default: "no"
+        options:
+          - "yes"
+          - "no"
+      DeployDavfs:
+        description: "Configure davfs for CFO?"
+        type: choice
+        default: "no"
+        options:
+          - "yes"
+          - "no"
+      DeployCfo:
+        description: "Deploy CFO Daily Extract?"
+        type: choice
+        default: "no"
+        options: 
+          - "yes"
+          - "no"
+      DeployUsers:
+        description: "Create Delius database users? (Read-Only, Read-Write, DBA)"
+        type: choice
+        default: "no"
+        choice: 
+          - "yes"
+          - "no"
+      DeployAlfrescoWallet:
+        description: "Deploy Alfresco Wallet?"
+        type: choice
+        default: "no"
+        choice: 
+          - "yes"
+          - "no"
+      DeployGdpr: 
+        description: "Create Delius gdpr_pool database user?"
+        type: choice
+        default: "no"
+        choice: 
+          - "yes"
+          - "no"
+      DeployLogStashContactSearch:
+        description: "Create Delius contact_search_pool database user?"
+        type: choice
+        default: "no"
+        choice: 
+          - "yes"
+          - "no"
+      DeployPerformanceTestUsers:
+        description: "Create large set of users for performance testing?"
+        type: choice
+        default: "no"
+        choice:
+          - "yes"
+          - "no"
+      DeployMMSApi:
+        description: "Create Delius mms_pool database user?"
+        type: choice
+        default: "no"
+        choice:
+          - yes"
+          - "no"
+      DeployAuditedInteraction:
+        description: "Create Delius Audited Interaction Data Consolidation schema?"
+        type: choice
+        default: "no"
+        choice:
+          - "yes"
+          - "no"
+      DeployAuditStubUsers:
+        description: "Create Delius Audited Interaction Stub Users (Applciation Users with Access to Production Data on Non-Production Environments)?"
+        type: choice
+        default: "no"
+        choice:
+          - "yes"
+          - "no"
+      DeployPlanManagement:
+        description: "Create Job to purge aged SQL based on dynamically sampled statistics?"
+        type: choice
+        default: "no"
+        choice:
+          - "yes"
+          - "no"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+
+env:
+  command: operations/playbooks/delius-artefacts-playbook.yml"
+  inventory: inventory/ansible
+
+# Allow permissions on repository and docker image respectively 
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deployment:
+    environment: ${{ github.event.inputs.TargetEnvironment }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    timeout-minutes: 1440
+    continue-on-error: false
+    steps:
+
+      - name: Prepare Delius Primary And All Inventory Name
+        id: prepareinventorynames
+        run: |
+          hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}"
+          echo "hosts=${hosts}" >> $GITHUB_OUTPUT
+          echo "allHost=$(echo ${hosts} | sed 's/${{ github.event.inputs.TargetHost }}/all/')" >> $GITHUB_OUTPUT
+
+      - name: Checkout Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Checkout From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: playbooks
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Run Delius Artefacts Playbook
+          echo "$command -i $inventory \
+          -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
+          -e hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
+          -e deploy_audit=${{ github.event.inputs.DeployAudit }} \
+          -e deploy_davfs=${{ github.event.inputs.DeployDavfs }} \
+          -e deploy_cfo=${{ github.event.inputs.DeployCfo }} \
+          -e deploy_users=${{ github.event.inputs.DeployUsers }} \
+          -e deploy_alfresco_wallet=${{ github.event.inputs.DeployAlfrescoWallet }} \
+          -e deploy_gdpr=${{ github.event.inputs.DeployGdpr }} \
+          -e deploy_performance_test_users=${{ github.event.inputs.DeployPerformanceTestUsers }} \
+          -e deploy_mms=${{ github.event.inputs.DeployMMSApi }} \
+          -e deploy_audited_interaction=${{ github.event.inputs.DeployAuditedInteraction }} \
+          -e deploy_audit_stub_users=${{ github.event.inputs.DeployAuditStubUsers }} \
+          -e deploy_plan_management=${{ github.event.inputs.DeployPlanManagement }}"
+          
