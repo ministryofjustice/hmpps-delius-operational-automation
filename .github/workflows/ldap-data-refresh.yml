@@ -315,11 +315,14 @@ jobs:
 
           # Wait for mount targets to be deleted
           echo "checking mount targets exist..."
-          CHECK=$(aws efs describe-mount-targets --file-system-id $FILE_SYSTEM_ID --query 'MountTargets[*].MountTargetId' --output text)
+          CHECK="this var will be used to check the status of the deletion"
           echo "entering loop..."
           while [[ -n $CHECK ]]; do
             echo "check not empty"
-            sleep 10
+            CHECK=$(aws efs describe-mount-targets --file-system-id $FILE_SYSTEM_ID --query 'MountTargets[*].MountTargetId' --output text)
+            if [[ -n $CHECK]]; then
+              sleep 5
+            fi
           done
 
       - name: Remove temporary EFS
