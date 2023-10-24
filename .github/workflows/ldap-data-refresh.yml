@@ -313,6 +313,12 @@ jobs:
               fi
           done
 
+          # Wait for mount targets to be deleted
+          CHECK=$(aws efs describe-mount-targets --file-system-id fs-0d3f68e344aa70c2f --profile delius-core-development --query 'MountTargets[*].MountTargetId' --output text)
+          while [[ -n $CHECK ]]; do
+            sleep 1
+          done
+
       - name: Remove temporary EFS
         run: |
 
