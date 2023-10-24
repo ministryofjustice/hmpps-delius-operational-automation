@@ -303,6 +303,8 @@ jobs:
           # Delete the mount targets
           IFS=',' read -ra SUBNETS <<< "${{ needs.source.outputs.SUBNET_IDS }}"
           for subnet in "${SUBNETS[@]}"; do
+            echo "subnet is $subnet"
+            echo "file system is $FILE_SYSTEM_ID"
             mount_target_id=$(aws efs describe-mount-targets --file-system-id $FILE_SYSTEM_ID --subnet-id $subnets --query 'MountTargets[0].MountTargetId' --output text)
             if [ -n "$mount_target_id" ]; then
               aws efs delete-mount-target --mount-target-id "$mount_target_id" --output text
