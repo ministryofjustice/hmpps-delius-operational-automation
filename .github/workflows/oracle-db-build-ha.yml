@@ -77,10 +77,11 @@ jobs:
     continue-on-error: false
     steps:
 
-      - name: Prepare Primary Inventory Name
-        id: prepareprimaryname
+      - name: Prepare Primary And All Inventory Name
+        id: prepareinventorynames
         run: |
           echo "primaryHost=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
+          echo "allHost=$(echo ${primaryHost} | sed 's/${{ github.event.inputs.TargetHost }}/all')" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -97,8 +98,8 @@ jobs:
       - name: Check Standbydb's Configured In Ansible Inventory
         id: standbydbsconfigured
         run: |
-          standbydb1Host=$(echo ${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')
-          standbydb2Host=$(echo ${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')
+          standbydb1Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')
+          standbydb2Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')
           ls -l $inventory/group_vars/${standbydb1Host}.yml > /dev/null 2>&1
           if [[ $? -eq 0 ]]
           then
@@ -150,14 +151,15 @@ jobs:
         id: getfsfomode
         working-directory: ${{ env.inventory }}
         run: |
-          fsfo_mode=$(yq '.fsfo_mode' group_vars/${{ steps.prepareprimaryname.outputs.primaryHost }}.yml)
+          fsfo_mode=$(yq '.fsfo_mode' group_vars/${{ steps.prepareinventorynames.outputs.primaryHost }}.yml)
           [ "$fsfo_mode" == "null" ] && echo 'fsfo_mode="disabled"' >> $GITHUB_OUTPUT || echo "fsfo_mode=$fsfo_mode" >> $GITHUB_OUTPUT
 
       - name: Build High Availability Standby 1 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
           echo "$command -i $inventory \
-          -e primary=${{ steps.prepareprimaryname.outputs.primaryHost }} \
+          -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
+          -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
           -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
           -e method=${{ github.event.inputs.Procedure }} \
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
