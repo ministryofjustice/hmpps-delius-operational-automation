@@ -27,10 +27,10 @@ on:
         description: "Build HA using Backup of Primary or Activate Database Duplication from Primary"
         required: true
         type: choice
-        default: "active duplicate"
+        default: "active"
         options:
           - "backup"
-          - "active duplicate"
+          - "active"
       Procedure:
         description: "Build HA and Run Post Steps; or Run Post Steps Only (All Options run FSFO Setup when configured)"
         required: true
