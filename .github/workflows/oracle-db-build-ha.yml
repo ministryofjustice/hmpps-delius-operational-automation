@@ -117,12 +117,6 @@ jobs:
             echo "high_availability_count=2" >> $GITHUB_OUTPUT
           fi
 
-      # - name: No Standbydb's Configured
-      #   if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host == '' }}
-      #   uses: actions/github-script@v3
-      #   with:
-      #     script: core.setFailed('No Standbydb's Configured)
-
       - name: Install yq
         uses: dcarbone/install-yq-action@v1.1.1
         with:
