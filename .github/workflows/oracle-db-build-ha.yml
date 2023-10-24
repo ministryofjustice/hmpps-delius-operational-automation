@@ -98,7 +98,7 @@ jobs:
           standbydb1Host="${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb1/'"
           standbydb2Host="${{ steps.prepareprimaryname.outputs.primaryHost }} | sed 's/primarydb/standbydb2/'"
           ls -l $inventory/group_vars/${{ standbydb1Host }}.yml > /dev/null 2>&1
-          if [[ $? -eq 0 ]]]
+          if [[ $? -eq 0 ]]
           then
             echo "standbydb1Host=${ standbydb1Host }"  >> $GITHUB_OUTPUT
             echo "high_availability_count=1" >> $GITHUB_OUTPUT
@@ -144,12 +144,12 @@ jobs:
       - name: Build High Availability Standby 1 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
-          echo "$command -i $inventory \
-          -e primary=${{ steps.prepareprimaryname.outputs.primaryHost }} \
-          -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
-          -e method=${{ githib.event.inputs.Procedure }} \
-          -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
-          -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
-          -e standby_number=1 \
-          -e primary_source_type=${{ githib.event.inputs.PrimarySourceType }}"
+          echo "$command -i $inventory"
+          # -e primary=${{ steps.prepareprimaryname.outputs.primaryHost }} \
+          # -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
+          # -e method=${{ githib.event.inputs.Procedure }} \
+          # -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
+          # -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
+          # -e standby_number=1 \
+          # -e primary_source_type=${{ githib.event.inputs.PrimarySourceType }}"
           
