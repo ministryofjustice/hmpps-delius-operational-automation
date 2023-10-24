@@ -301,20 +301,16 @@ jobs:
           fi
 
           # Delete the mount targets
-          IFS=',' read -ra SUBNETS <<< "${{ needs.source.outputs.SUBNET_IDS }}"
-          for subnet in "${SUBNETS[@]}"; do
-            echo "subnet is $subnet"
-            echo "file system is $FILE_SYSTEM_ID"
-            mount_target_id=$(aws efs describe-mount-targets --file-system-id $FILE_SYSTEM_ID --subnet-id $subnets --query 'MountTargets[0].MountTargetId' --output text)
-            if [ -n "$mount_target_id" ]; then
-              aws efs delete-mount-target --mount-target-id "$mount_target_id" --output text
+          MOUNT_TARGET_IDS=$(aws efs describe-mount-targets --file-system-id $FILE_SYSTEM_ID --query 'MountTargets[*].MountTargetId' --output text)
+
+          for MOUNT_TARGET_ID in $MOUNT_TARGET_IDS; do
+              aws efs delete-mount-target --mount-target-id $MOUNT_TARGET_ID
               if [[ $? -eq 0 ]]; then
-                echo "Mount target $mount_target_id deleted"
+                echo "Mount target $MOUNT_TARGET_ID deleted"
               else
-                echo "Failed to delete mount target $mount_target_id"
+                echo "Failed to delete mount target $MOUNT_TARGET_ID"
                 exit 1
               fi
-            fi
           done
 
       - name: Remove temporary EFS
