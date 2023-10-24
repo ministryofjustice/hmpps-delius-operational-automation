@@ -27,10 +27,10 @@ on:
         description: "Build HA using Backup of Primary or Activate Database Duplication from Primary"
         required: true
         type: choice
-        default: "active duplicate"
+        default: "active"
         options:
           - "backup"
-          - "active duplicate"
+          - "active"
       Procedure:
         description: "Build HA and Run Post Steps; or Run Post Steps Only (All Options run FSFO Setup when configured)"
         required: true
@@ -48,6 +48,7 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
+      VerboseOutput:
         description: "Verbose Output level"
         type: choice
         options:
@@ -68,16 +69,20 @@ permissions:
 
 jobs:
   deployment:
+    environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     continue-on-error: false
     steps:
-      - name: Prepare Primary Inventory Name
-        id: prepareprimaryname
+
+      - name: Prepare Primary And All Inventory Name
+        id: prepareinventorynames
         run: |
-          echo "primaryHost=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
+          primaryHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}"
+          echo "primaryHost=${primaryHost}" >> $GITHUB_OUTPUT
+          echo "allHost=$(echo ${primaryHost} | sed 's/${{ github.event.inputs.TargetHost }}/all/')" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -94,33 +99,30 @@ jobs:
       - name: Check Standbydb's Configured In Ansible Inventory
         id: standbydbsconfigured
         run: |
-          standbydb1Host="${{ steps.prepareprimaryname.outputs.primaryHost |  sed 's/primarydb/standbydb1/'"
-          standbydb2Host="${{ steps.prepareprimaryname.outputs.primaryHost |  sed 's/primarydb/standbydb2/'"
-          ls -l $inventory/group_vars/${{ standbydb1Host }}.yml > /dev/null 2>&1
-          if [[ $? -eq 0 ]]]
-          then
-            echo "standbydb1Host=${ standbydb1Host }"  >> $GITHUB_OUTPUT
-            echo "high_availability_count=1" >> $GITHUB_OUTPUT
-          fi
-          ls -l $inventory/group_vars/${{ standbydb2Host }}.yml > /dev/null 2>&1
+          standbydb1Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')
+          standbydb2Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')
+          ls -l $inventory/group_vars/${standbydb1Host}.yml > /dev/null 2>&1
           if [[ $? -eq 0 ]]
           then
-            echo "standbydb2Host=${ standbydb2Host }" >> $GITHUB_OUTPUT
+            echo "standbydb1Host=${standbydb1Host}"  >> $GITHUB_OUTPUT
+            echo "high_availability_count=1" >> $GITHUB_OUTPUT
+          else
+            echo "No standbydb's configured"
+            exit 1
+          fi
+          ls -l $inventory/group_vars/${standbydb2Host}.yml > /dev/null 2>&1
+          if [[ $? -eq 0 ]]
+          then
+            echo "standbydb2Host=${standbydb2Host}" >> $GITHUB_OUTPUT
             echo "high_availability_count=2" >> $GITHUB_OUTPUT
           fi
 
-      - name: No Standbydb's Configured
-        if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host  == '' }}
-        uses: actions/github-script@v3
+      - name: Install yq
+        uses: dcarbone/install-yq-action@v1.1.1
         with:
-          script: core.setFailed('No Standbydb's Configured)
-
-      - name: Check Fast Start Fail Over Ansible Variable
-        id: getfsfomode
-        working-directory: $inventory
-        run: |
-          fsfo_mode=$(ansible-inventory --host ${{ steps.prepareprimaryname.outputs.primaryHost }} --vars | yq '.fsfo_mode')
-          [ "$fsfo_mode" == "null" ] && echo "fsfo_mode=disabled" >> $GITHUB_OUTPUT || echo "fsfo_mode=$fsfo_mode" >> $GITHUB_OUTPUT
+          download-compressed: true
+          version: "v4.35.1"
+          force: true
 
       - name: Checkout From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -140,15 +142,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Check Fast Start Fail Over Ansible Variable
+        id: getfsfomode
+        working-directory: ${{ env.inventory }}
+        run: |
+          fsfo_mode=$(yq '.fsfo_mode' group_vars/${{ steps.prepareinventorynames.outputs.primaryHost }}.yml)
+          [ "$fsfo_mode" == "null" ] && echo 'fsfo_mode="disabled"' >> $GITHUB_OUTPUT || echo "fsfo_mode=$fsfo_mode" >> $GITHUB_OUTPUT
+
       - name: Build High Availability Standby 1 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
           echo "$command -i $inventory \
-          -e primary=${{ steps.prepareprimaryname.outputs.primaryHost }} \
+          -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
+          -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
           -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
-          -e method=${{ githib.event.inputs.Procedure }} \
+          -e method=${{ github.event.inputs.Procedure }} \
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
           -e standby_number=1 \
-          -e primary_source_type=${{ githib.event.inputs.PrimarySourceType }}"
+          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}"
           
