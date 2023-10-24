@@ -1,5 +1,5 @@
-name: "Oracle: Build HA"
-run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_build_ha"
+name: "Oracle: Delius Artefacts"
+run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_delius_artefacts"
 on:
   workflow_dispatch:
     inputs:
