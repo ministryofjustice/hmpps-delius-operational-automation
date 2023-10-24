@@ -69,6 +69,7 @@ permissions:
 
 jobs:
   deployment:
+    environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
@@ -147,7 +148,7 @@ jobs:
         run: |
           fsfo_mode=$(ansible-inventory --host ${{ steps.prepareprimaryname.outputs.primaryHost }} --vars | yq '.fsfo_mode')
           [ "$fsfo_mode" == "null" ] && echo "fsfo_mode=disabled" >> $GITHUB_OUTPUT || echo "fsfo_mode=$fsfo_mode" >> $GITHUB_OUTPUT
-          
+
       - name: Build High Availability Standby 1 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
