@@ -47,11 +47,10 @@
     - name: Deploy Performance Test Users
       include_tasks: delius_perf_test_users/playbook.yml
       vars:
-        creator_user_id: 4
-        template_user_id: 1500055516
+        creator_user_id: 1501499501
+        template_user_id: 1500993784
       when: deploy_performance_test_users | default('no') == "yes"
-      # creator_user_id 1501499501
-      # template_user_id: 1500993784
+
     - name: Deploy MMS User
       include_tasks: deploy_mms/playbook.yml
       when: deploy_mms | default('no') == "yes"
