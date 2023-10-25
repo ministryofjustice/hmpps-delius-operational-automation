@@ -1,0 +1,416 @@
+---
+
+# The following username suffixes are used:
+#
+# _DBA:   Database Administrator
+# _RW:    Read/Write User
+# _RO:    Read-Only User
+# _SRO:   Standby Database-Only Read-Only User  (Login on Primary Disallowed)
+#
+# Note:  Historically, only read-only users were stored in the .readonly_users.creds file.
+#        This file is now used for recording password hashes for all of the above types of user,
+#        not just the read-only ones.
+#
+
+  - name: Create delius read only role
+    shell: |
+        . ~/.bash_profile
+
+        sqlplus -s / as sysdba << EOF
+          whenever sqlerror exit failure
+          set pages 100 head off lines 200 feed off
+
+          define ROROLE=DELIUS_READ_ONLY_ROLE
+          set serverout on
+
+          declare
+
+            cursor c1 is
+              select owner,
+                (case
+                  when iot_type ='IOT_OVERFLOW' 
+                  then
+                    iot_name
+                  else
+                    table_name 
+                end) nam
+              from dba_tables
+              where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO')
+              union all
+              select owner,
+                    view_name nam
+              from dba_views
+              where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO')
+              minus
+              select owner,table_name         -- Exclude existing privileges
+              from   dba_tab_privs
+              where  privilege = 'SELECT'
+              and    grantee   = '&&ROROLE';
+
+            cursor c2 is
+              select owner,
+                object_name
+              from dba_objects
+              where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO')
+              and object_type in ('PACKAGE','PROCEDURE','FUNCTION')
+              minus
+              select owner,table_name         -- Exclude existing privileges
+              from   dba_tab_privs
+              where  privilege = 'DEBUG'
+              and    grantee   = '&&ROROLE';
+
+            v_role      dba_roles.role%type:='&&ROROLE';
+            l_command   VARCHAR2(4000);
+
+            cursor c3 is
+              select null
+              from dba_roles
+              where role = v_role;
+            
+            r3    c3%rowtype;
+
+          begin
+
+            open c3;
+            fetch c3 into r3;
+            if c3%notfound then
+              execute immediate 'create role '||v_role;
+            end if;
+            close c3;
+
+            l_command := 'grant create session, exempt access policy to '||v_role;
+            DBMS_OUTPUT.put_line(l_command);
+            EXECUTE IMMEDIATE l_command;
+
+            for r1 in c1
+            loop
+              l_command := 'grant select on '||r1.owner||'.'||r1.nam||' to '||v_role;
+              DBMS_OUTPUT.put_line(l_command);
+              EXECUTE IMMEDIATE l_command;
+              DBMS_SESSION.sleep(0.5);  -- Avoid monopolising the library cache
+            end loop;
+
+            for r2 in c2
+            loop
+              l_command := 'grant debug on '||r2.owner||'.'||r2.object_name||' to '||v_role;
+              DBMS_OUTPUT.put_line(l_command);
+              EXECUTE IMMEDIATE l_command;
+              DBMS_SESSION.sleep(0.5);  -- Avoid monopolising the library cache
+            end loop;
+
+          end;
+          /
+        EOF
+    when: delius_users is defined and (action_type == "create" or action_type == "all")
+    changed_when: plsql.stdout is search('.*grant debug.*') or plsql.stdout is search('.*grant select.*')
+    register: plsql
+    failed_when: plsql.rc != 0
+    vars:
+          ansible_aws_ssm_timeout: 1800  
+          # Initial creation may take a long time due to many grants
+
+  # ASH Reporting is Only Available with DIAGNOSTIC Pack
+  - name: Set Up ASH Reporting Objects
+    when: delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
+    block:
+  
+      - name: Get Management Packs
+        script: get_management_packs.sh
+        register: get_management_packs
+        changed_when: false
+
+      - name: Set Diagnostics Pack
+        set_fact: 
+           diagnostic_pack: true
+        when: get_management_packs.stdout is search('.*DIAGNOSTIC.*')
+
+      - name: Create ASH Reporting Role
+        script: create_ash_reporting_role.sh
+        when: diagnostic_pack | default(false)
+
+      # We Create a wrapper to the AWR Functionality which only allows running
+      # the ASH HTML report.  Do not open up all AWR functionality to users.
+      - name: Create ASH Reporting Wrapper
+        script: create_ash_wrapper.sh
+        when: diagnostic_pack | default(false)
+
+  - name: Create temporary tablespace
+    shell:
+      cmd: |
+        . ~/.bash_profile
+        ORACLE_SID={{ database_primary_sid }}
+        ORAENV_ASK=NO
+        . oraenv > /dev/null
+        sqlplus -s / as sysdba << EOF
+          whenever sqlerror exit failure
+          set pages 100 head off lines 200 feed off
+          declare
+
+            v_count NUMBER(1);
+
+          begin
+
+            select count(*)
+            into v_count
+            from dba_tablespaces
+            where tablespace_name = 'TEMP_RO';
+
+            if v_count = 0
+            then
+              execute immediate 'create temporary tablespace temp_ro';
+            end if;
+            
+          exception
+          when others then
+            raise;
+          end;
+          /
+        EOF
+    when: delius_users is defined and (action_type == "create" or action_type == "all")
+    changed_when: false
+    register: plsql
+    failed_when: plsql.rc != 0
+
+  - name: Create delius users
+    shell: 
+      cmd: |
+        . ~/.bash_profile
+        sqlplus -s / as sysdba << EOF
+          whenever sqlerror exit failure
+          set pages 100 head off lines 200 feed off serveroutput on
+          declare
+
+            cursor c1 is
+              select username,
+                     temporary_tablespace
+              from dba_users
+              where lower(username) = '{{ item.key }}';
+
+            r1 c1%rowtype;
+            v_role dba_roles.role%type:='DELIUS_READ_ONLY_ROLE';
+
+          begin
+
+            open c1;
+            fetch c1 into r1;
+            if c1%notfound 
+            then
+              -- Ensure new users are created with random unknown password which must be reset to allow access
+              -- Allow DBA Users to use the default temporary tablespace for the database.  Read-Only users should 
+              -- use the specific Read Only Users' temp tablespaces.
+              execute immediate 'create user {{ item.key }}'||
+                                ' identified by p{{ lookup('password','/dev/null chars=ascii_lowercase,digits length=20') }}'||
+                                ' default tablespace users '||
+                                CASE WHEN '{{ item.key }}' NOT LIKE '%_dba' THEN 'temporary tablespace temp_ro' END||
+                                ' password expire';
+              dbms_output.put_line('User {{ item.key }} created');
+            else  
+              if r1.temporary_tablespace != 'TEMP_RO' and r1.username NOT LIKE '%_dba'
+              then
+                execute immediate 'alter user {{ item.key }} temporary tablespace temp_ro';
+              end if; 
+              dbms_output.put_line('User {{ item.key }} already exists');
+            end if;
+            close c1;
+            -- Only grant read only role to read only users
+            if substr('{{ item.key }}',-3) = '_ro' or substr('{{ item.key }}',-4) = '_sro'
+            then
+              execute immediate 'grant '||v_role||' to {{ item.key }}';
+              dbms_output.put_line('Role granted to user {{ item.key }}');
+            elsif substr('{{ item.key }}',-3) = '_rw'
+            then
+              execute immediate 'grant create session to {{ item.key }}';
+              execute immediate 'grant exempt access policy to {{ item.key }}';
+              dbms_output.put_line('Grant exempt access policy user {{ item.key }}');
+            elsif substr('{{ item.key }}',-4) = '_dba'
+            then
+               execute immediate 'grant dba to {{ item.key }}';
+               dbms_output.put_line('Granted DBA to user {{ item.key }}');
+            end if;
+            -- Grant user access to ASH reports if enabled for that user and Diagnostics pack exists
+            if  '{{ 'ASH_REPORT_ENABLED' if (item.value.ash_report | default(false)) else '' }}' = 'ASH_REPORT_ENABLED'
+            and '{{ 'DIAGNOSTIC' if (diagnostic_pack | default(false)) else '' }}' = 'DIAGNOSTIC'
+            then
+               execute immediate 'grant execute on delius_user_support.ash_report_wrapper to {{ item.key }}';
+               execute immediate 'create or replace synonym {{ item.key }}.dbms_workload_repository for delius_user_support.ash_report_wrapper';
+               execute immediate 'grant delius_ash_role to {{ item.key }}';
+               dbms_output.put_line('Configured {{ item.key }} to run ASH reports');
+            end if;          
+          exception
+          when others then
+            raise;
+          end;
+          /
+
+          audit create session by {{ item.key }};
+        EOF
+    when: delius_users is defined and ( action_type=="create" or action_type == "all")
+    with_dict: "{{ delius_users }}"
+    register: plsql
+    changed_when: false
+    failed_when: plsql.rc != 0
+
+  - name: User creation output
+    debug:
+      msg: "{{ item.stdout_lines }}" 
+    loop: "{{ plsql.results }}"
+    loop_control: 
+      label: "{{ item.item.key }}"
+    when: delius_users is defined and ( action_type=="create" or action_type == "all")
+
+  # Create a trigger to set the default schema as DELIUS_APP_SCHEMA for Read-Only users.
+  - name: Logon Trigger Created for _RO Users
+    script: create_ro_logon_trigger.sh
+    loop:
+        "{{ ( delius_users | default({}) ).keys() }}"
+    environment:
+        RO_USER: "{{ item }}"
+    when:  
+      - item | lower is search('.*_ro$')
+      - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
+
+  # Create a trigger to prevent Standby Database Only Read-Only Users logging into the Primary database.
+  - name: Logon Trigger Created for _SRO Users
+    script: create_sro_logon_trigger.sh
+    loop:
+        "{{ ( delius_users | default({}) ).keys() }}"
+    environment:
+        STANDBY_RO_USER: "{{ item }}"
+    when:  
+      - item | lower is search('.*_sro$')
+      - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
+         
+  # Delius users below are only created requiring read write privileges on certain Delius tables. 
+  # These type of database users are scarce.
+  # Object privileges granted are not generic and vary on a user by user basis.
+  # User custom sql files have been created containing the granted object privileges required.
+  # The custom sql files MUST reside in the files directory with file format of grant_<database user name>_user.sql
+  # where the <database user name> is the key defined in the delius_users dictionary
+  
+  - name: Grant privileges to Delius read write users
+    block:
+
+      - name: Copy required sql files for grant privileges for Delius read write users
+        copy: 
+          src: "grant_{{ item.key }}_user.sql"
+          dest: "/tmp"
+        with_dict: "{{ delius_users }}"
+        when: (item.key[-3:]=="_rw")
+
+      - name: Execute the grant sql files on the target
+        shell: 
+          cmd: |
+            . ~/.bash_profile;
+              sqlplus -s / as sysdba << EOF
+              spool /tmp/grant_{{ item.key }}_user.lst
+              @/tmp/grant_{{ item.key }}_user.sql
+              spool off
+            EOF
+        with_dict: "{{ delius_users }}"
+        when: (item.key[-3:]=="_rw")
+
+      - name: Gather any errors of the execution by checking spool files
+        shell: grep "^GRANT.*$" /tmp/grant_{{ item.key }}_user.lst | cat
+        with_dict: "{{ delius_users }}"
+        when: (item.key[-3:]=="_rw")
+        changed_when: false
+        register: output
+
+      - name: Output any errors during granting privileges
+        debug: 
+          msg: "{{ item.stdout_lines }}"
+        with_items: "{{ output.results }}"
+        loop_control:
+          label: "Failed grants for {{ item.item.key }}..."
+        when: (item.item.key[-3:]=="_rw") and (item.stdout_lines | length > 0)
+
+    when: (delius_users is defined) and ( action_type=="create" or action_type == "all")
+
+  - name: Restore delius user passwords
+    shell: 
+      cmd: |
+        export PATH=$PATH:/usr/local/bin; 
+        ORACLE_SID={{ database_primary_sid }}
+        ORAENV_ASK=NO
+        . oraenv > /dev/null;
+        # Field 2 is the password type (S->11g T->12c) and Field 3 is the password hash value (only the highest version hash is stored)
+        PASSWORD=$(grep {{ item.key }} /home/oracle/admin/rman_scripts/.readonly_users.creds | cut -d':' -f2,3-)
+        if [[ -z "${PASSWORD}" ]]
+        then
+          echo "No password to restore for {{ item.key }}"
+          exit 0
+        fi
+        sqlplus -s / as sysdba << EOF
+          whenever sqlerror exit failure
+          set pages 100 head off lines 1000 feed off serveroutput on termout off
+          alter user {{ item.key }} identified by values '${PASSWORD}';
+          exit
+        EOF
+        echo "Password restored for {{ item.key }}"
+    with_dict: "{{ delius_users }}"
+    when: delius_users is defined and (action_type=="restore" or action_type == "all")
+    changed_when: false
+    register: plsql
+
+  - name: User passwords output
+    debug:
+      msg: "{{ item.stdout }}" 
+    loop: "{{ plsql.results }}"
+    loop_control: 
+      label: "{{ item.item.key }}"
+    when: delius_users is defined and (action_type=="restore" or action_type == "all")
+
+  - name: Place read only users in variable if read only users defined
+    set_fact:
+      readonly_users: "{{ lookup('dict', delius_users) | json_query('[*].key') | join(\"','\") | regex_replace('^|$',\"'\") | upper}}"
+    when: delius_users is defined and action_type=="store"
+
+  - name: Store database user passwords
+    shell: 
+      cmd: |
+        . ~/.bash_profile
+        DB_STATUS=$( srvctl status database -d ${ORACLE_SID} -verbose | awk '{print $NF}' )
+        DATETIME=$(date +"%Y%m%d%H%M%S")
+        if [ "${DB_STATUS}" == "Open." ]
+        then
+          sqlplus -s / as sysdba << EOF
+            whenever sqlerror exit failure
+            set pages 100 head off lines 200 feed off trimspool on newp none
+            -- Existing passwords may be in 11g format (prefix S:) or 12c format (prefix T:)
+            -- We only store the higher valued format for reapplying to a user
+            spool /home/oracle/admin/rman_scripts/.readonly_users.creds
+            SELECT
+                lower(name)
+                || ':'
+                ||
+                CASE
+                    WHEN REGEXP_LIKE ( spare4,
+                                      '^.*T:([A-F0-9]+);?.*$' ) THEN
+                            regexp_replace(spare4, '^.*(T:[A-F0-9]+);?.*$', '\1')
+                    ELSE
+                        regexp_replace(spare4, '^.*(S:[A-F0-9]+);?.*$', '\1')
+                END
+                || ';'||password
+            FROM
+                sys.user$
+            WHERE name IN ({{ readonly_users }});
+            spool off
+        EOF
+        # Take a copy just in case duplicate process fails
+        cp -p /home/oracle/admin/rman_scripts/.readonly_users.creds /home/oracle/admin/rman_scripts/.readonly_users.creds.${DATETIME}
+        fi
+
+    changed_when: false
+    when: delius_users is defined and action_type=="store"
+    register: sql_result
+    failed_when: sql_result.rc != 0
+
+  - name: Storing following users 
+    debug:
+      msg: "{{ item | regex_replace('^(.+):(.+):(.+)$','\\1') }}" 
+    loop: "{{ sql_result.stdout_lines }}"
+    loop_control: 
+      label: "Storing ..."
+    when: delius_users is defined and action_type=="store"
+    
+  
