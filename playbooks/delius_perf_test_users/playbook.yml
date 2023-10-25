@@ -1,0 +1,7 @@
+---
+- name: Create Delius Performance Test Users
+  script: create_perf_test_users.sh "{{ database_primary_sid }}" "{{ template_user_id }}" "{{ creator_user_id }}"
+  register: create_perf_test_users
+
+- name: Show Output of Performance Test User Creation
+  debug: var=create_perf_test_users.stdout_lines
