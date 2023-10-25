@@ -18,28 +18,28 @@ on:
         description: "Create Delius database users? (Read-Only, Read-Write, DBA)"
         type: choice
         default: "no"
-        choice: 
+        options: 
           - "yes"
           - "no"
       DeployPerformanceTestUsers:
         description: "Create large set of users for performance testing?"
         type: choice
         default: "no"
-        choice:
+        options:
           - "yes"
           - "no"
       DeployAuditStubUsers:
         description: "Create Delius Audited Interaction Stub Users (Applciation Users with Access to Production Data on Non-Production Environments)?"
         type: choice
         default: "no"
-        choice:
+        options:
           - "yes"
           - "no"
       DeployPlanManagement:
         description: "Create Job to purge aged SQL based on dynamically sampled statistics?"
         type: choice
         default: "no"
-        choice:
+        options:
           - "yes"
           - "no"
       SourceConfigVersion:
