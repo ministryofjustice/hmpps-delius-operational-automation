@@ -1,5 +1,5 @@
 name: "Oracle: Delius Operational Artefacts"
-run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment) }}_delius_operational_artefacts"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}_delius_operational_artefacts"
 on:
   workflow_dispatch:
     inputs:
