@@ -1,5 +1,5 @@
 name: "Oracle: Delius Operational Artefacts"
-run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_delius_operational_artefacts"
+run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment) }}_delius_operational_artefacts"
 on:
   workflow_dispatch:
     inputs:
@@ -92,7 +92,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: playbooks
           path: operations
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
