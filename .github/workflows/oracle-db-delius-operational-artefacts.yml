@@ -42,13 +42,17 @@ on:
         options:
           - "yes"
           - "no"
+      SourceCodeVersion:
+        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
       SourceConfigVersion:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
 
 env:
-  command: operations/playbooks/delius-artefacts-playbook.yml"
+  command: ansible-playbook operations/playbooks/delius-artefacts-playbook.yml
   inventory: inventory/ansible
 
 # Allow permissions on repository and docker image respectively 
@@ -85,14 +89,14 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
-      - name: Checkout From modernisation-platform-configuration-management
+      - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
         with:
-          repository: ministryofjustice/modernisation-platform-configuration-management
+          repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: playbooks
           path: operations
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -105,10 +109,10 @@ jobs:
 
       - name: Run Delius Artefacts Playbook
         run: |
-          echo "$command -i $inventory \
+          $command -i $inventory \
           -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
           -e hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
           -e deploy_users=${{ github.event.inputs.DeployUsers }} \
           -e deploy_performance_test_users=${{ github.event.inputs.DeployPerformanceTestUsers }} \
           -e deploy_audit_stub_users=${{ github.event.inputs.DeployAuditStubUsers }} \
-          -e deploy_plan_management=${{ github.event.inputs.DeployPlanManagement }}"
+          -e deploy_plan_management=${{ github.event.inputs.DeployPlanManagement }}

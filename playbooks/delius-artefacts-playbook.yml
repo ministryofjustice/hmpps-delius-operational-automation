@@ -1,0 +1,79 @@
+---
+- name: Deploy Delius Artefacts
+  hosts: "{{ hosts }}"
+  become: yes
+  become_user: oracle
+  become_method: sudo
+  gather_facts: false
+
+  tasks:
+    - name: Deploy Audit Management
+      include_tasks: audit_management/playbook.yml
+      when: deploy_audit | default('no') == "yes"
+
+    - block:
+        - name: Deploy Davfs
+          include_tasks: configure_davfs2/playbook.yml
+          when: deploy_davfs | default('no') == "yes"
+
+      become: yes
+      become_user: root
+
+    - name: Deploy Cfo
+      include_tasks: cfo_extract/playbook.yml
+      when: deploy_cfo | default('no') == "yes"
+
+    - name: Deploy Users
+      include_tasks: delius_users/playbook.yml
+      vars:
+        action_type: "{{ act | default('create') }}"
+      when: deploy_users | default('no') == "yes"
+
+    - name: Deploy Alfresco Wallet
+      include_role:
+        name: "{{ playbook_dir }}/alfresco_wallet/alfresco_wallet"
+      vars:
+        certificate_dict: {}
+      when: deploy_alfresco_wallet | default('no') == "yes"
+
+    - name: Deploy Gdpr
+      include_tasks: delius_gdpr/playbook.yml
+      when: deploy_gdpr | default('no') == "yes"
+
+    - name: Deploy Logstash Contact Search
+      include_tasks: logstash_contact_search/playbook.yml
+      when: deploy_log_stash_contact_search | default('no') == "yes"
+
+    - name: Deploy Performance Test Users
+      include_tasks: delius_perf_test_users/playbook.yml
+      vars:
+        creator_user_id: 1501499501
+        template_user_id: 1500993784
+      when: deploy_performance_test_users | default('no') == "yes"
+
+    - name: Deploy MMS User
+      include_tasks: deploy_mms/playbook.yml
+      when: deploy_mms | default('no') == "yes"
+
+    - name: Deploy Audited Interaction Data Consolidation Schema
+      include_role:
+        name: "{{ playbook_dir }}/delius_audited_interaction/delius_audited_interaction"
+      when: deploy_audited_interaction | default('no') == "yes"
+
+    # Audited Interaction Stub Users updates the USERS_ table with application users who
+    # have access to production data only on non-production environments.   These Stub Users
+    # are only required in the production database so that they may be referenced by
+    # propagated audit data from these non-production environments.
+    # (i.e. This option normally only required in Production)
+    - name: Deploy Audited Interaction Stub Users
+      include_tasks: audit_stub_users/playbook.yml
+      when: deploy_audit_stub_users | default('no') == "yes"
+
+    # The SQL Plan Management purges cached SQL which is based on dynamically sampled
+    # statistics if it has been in the shared pool for too long.   Such SQL is by
+    # nature on new tables which are likely to be initially volatile and require
+    # regular re-parsing until they have reached a stable size.
+    - name: Deploy Oracle SQL Plan Management Job
+      include_role:
+        name: "{{ playbook_dir }}/oracle_plan_management/install_plan_management_job"
+      when: deploy_plan_management | default('no') == "yes"
