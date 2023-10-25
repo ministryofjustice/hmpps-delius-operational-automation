@@ -104,6 +104,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Run Delius Artefacts Playbook
+        run: |
           echo "$command -i $inventory \
           -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
           -e hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
