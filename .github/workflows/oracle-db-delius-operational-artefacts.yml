@@ -105,10 +105,10 @@ jobs:
 
       - name: Run Delius Artefacts Playbook
         run: |
-          echo "$command -i $inventory \
+          $command -i $inventory \
           -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
           -e hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
           -e deploy_users=${{ github.event.inputs.DeployUsers }} \
           -e deploy_performance_test_users=${{ github.event.inputs.DeployPerformanceTestUsers }} \
           -e deploy_audit_stub_users=${{ github.event.inputs.DeployAuditStubUsers }} \
-          -e deploy_plan_management=${{ github.event.inputs.DeployPlanManagement }}"
+          -e deploy_plan_management=${{ github.event.inputs.DeployPlanManagement }}
