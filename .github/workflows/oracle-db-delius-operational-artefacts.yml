@@ -110,6 +110,7 @@ jobs:
         with:
           app-id: ${{ secrets.HMPPS_BOT_APP_ID }}
           private-key: ${{ secrets.HMPPS_BOT_PRIVATE_KEY }}
+          repositories: hmpps-delius-audit-stub-accounts
 
       - name: Checkout From hmpps-delius-audit-stub-accounts
         if: ${{ github.event.inputs.DeployAuditStubUsers == 'yes' }}
