@@ -51,7 +51,7 @@
           delegate_to: localhost
           become: no
 
-        - shell: ls ~/.ansible/roles/hmpps-delius-audit-stub-accounts
+        - shell: cat ~/.ansible/roles/hmpps-delius-audit-stub-accounts/vars/main.yml
           delegate_to: localhost
           register: output
           become: no
@@ -60,7 +60,10 @@
 
   - name: Read Audit Stub Users Variable
     include_role:
-         name: ${GITHUB_WORKSPACE}/stub/audit_stub_accounts
+      name: ${GITHUB_WORKSPACE}/stub/audit_stub_accounts
+    apply:
+      delegate_to: localhost
+    become: no
     #hmpps-delius-audit-stub-accounts
 
   - debug: var=audit_stub_users
