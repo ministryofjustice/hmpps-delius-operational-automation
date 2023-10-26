@@ -54,6 +54,7 @@
         - shell: ls ~/.ansible/roles/hmpps-delius-audit-stub-accounts
           delegate_to: localhost
           register: output
+          become: no
 
         - debug: var=output
 
