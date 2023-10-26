@@ -103,12 +103,20 @@ jobs:
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
+      - name: Generate Token For Access To hmpps-delius-audit-stub-accounts
+        if: ${{ github.event.inputs.DeployAuditStubUsers == 'yes' }}
+        uses: actions/create-github-app-token@v1
+        id: generate_token
+        with:
+          app-id: ${{ secrets.HMPPS_BOT_APP_ID }}
+          private-key: ${{ secrets.HMPPS_BOT_PRIVATE_KEY }}
+
       - name: Checkout From hmpps-delius-audit-stub-accounts
         if: ${{ github.event.inputs.DeployAuditStubUsers == 'yes' }}
         uses: actions/checkout@v4
         with:
           repository: ministryofjustice/hmpps-delius-audit-stub-accounts
-          token: ${{ secrets.DELIUS_GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
           sparse-checkout-cone-mode: false
           sparse-checkout: audit_stub_accounts
           path: stub
