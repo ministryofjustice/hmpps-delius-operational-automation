@@ -60,7 +60,8 @@
 
   - name: Read Audit Stub Users Variable
     include_role:
-         name: hmpps-delius-audit-stub-accounts
+         name: ${GITHUB_WORKSPACE}/stub/audit_stub_accounts
+    #hmpps-delius-audit-stub-accounts
 
   - debug: var=audit_stub_users
   - meta: end_play
