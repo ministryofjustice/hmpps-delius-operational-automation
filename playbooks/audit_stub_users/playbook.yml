@@ -33,7 +33,7 @@
 
   # If GITHUB_WORKSPACE is set then this is an Github Actions job and we need
   # to create a symlink to the downloaded Repository so it may be used as a Role.
-  # Otherwise this is not an Github Actions  job and the repository should already be available
+  # Otherwise this is not an Github Actions job and the repository should already be available
   # locally within the Roles path.
   - name: Create Local Symlink to Audit Stub Accounts Repository
     when: GITHUB_WORKSPACE_audit_stub_accounts.stdout | length > 1
@@ -51,9 +51,18 @@
           delegate_to: localhost
           become: no
 
+        - shell: ls ~/.ansible/roles/hmpps-delius-audit-stub-accounts
+          delegate_to: localhost
+          register: output
+
+        - debug: var=output
+
   - name: Read Audit Stub Users Variable
     include_role:
          name: hmpps-delius-audit-stub-accounts
+
+  - debug: var=audit_stub_users
+  - meta: end_play
       
   - name: Define Location for Temporary Working Files
     set_fact:
