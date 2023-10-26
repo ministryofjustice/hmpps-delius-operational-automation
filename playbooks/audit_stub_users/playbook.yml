@@ -61,8 +61,8 @@
   - name: Read Audit Stub Users Variable
     include_role:
       name: ${GITHUB_WORKSPACE}/stub/audit_stub_accounts
-    apply:
-      delegate_to: localhost
+      apply:
+        delegate_to: localhost
     become: no
     #hmpps-delius-audit-stub-accounts
 
