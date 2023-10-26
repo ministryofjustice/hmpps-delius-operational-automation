@@ -51,6 +51,7 @@ on:
         type: string
         default: "main"
 
+
 env:
   command: ansible-playbook operations/playbooks/delius-artefacts-playbook.yml
   inventory: inventory/ansible
@@ -97,6 +98,17 @@ jobs:
           sparse-checkout: playbooks
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout From hmpps-delius-audit-stub-accounts
+        if: ${{ github.event.inputs.DeployAuditStubUsers == 'yes' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-audit-stub-accounts
+          token: ${{ secrets.DELIUS_GITHUB_TOKEN }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: audit_stub_accounts
+          path: stub
           fetch-depth: 0
 
       - name: Configure AWS Credentials
