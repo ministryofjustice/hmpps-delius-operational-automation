@@ -1,0 +1,86 @@
+---
+#  Some users do not have access to the production Delius application but do have access to the production data
+#  through other production-like environments.   In order to support auditing of the activities of these users
+#  they must be added as "stub" records into the production database to which audited interaction records may
+#  be linked.   As they do not have a corresponding LDAP entry this does not provide login permissions for the
+#  production application.
+#
+#  The variable containing Audit Stub Users CANNOT be kept in an inventory file (which would be the usual case
+#  for data) because it contains information which cannot be made publically available.   Therefore this data
+#  is kept in a separate role within its own repository which may be included here.    
+#
+#  The repository is called hmpps-delius-audit-stub-accounts
+#
+#  If running from an AWS Codebuild job then this repository will have been downloaded as a Secondary Source
+#  (This supplies the necessary GitHub security token to fetch the private repository).
+#
+#  Otherwise, if run outside of AWS, then the repository must be placed on the Ansible Roles path.
+#
+
+  # We need to initialize the variable in order to retain values set up in the role
+  - name: Initialize Audit Stub Users
+    set_fact:
+        audit_stub_users: {}
+
+  # Github Actions will have set the GITHUB_WORKSPACE environment variable if this
+  # repository has been downloaded. If we are not running inside Github Actions and have set the location of
+  # the repository manually then this variable will not have been set.
+  - name: Check if Audit Stub Accounts Repository has been downloaded
+    shell: echo ${GITHUB_WORKSPACE}/stub/audit_stub_accounts
+    register: GITHUB_WORKSPACE_audit_stub_accounts
+    delegate_to: localhost
+    become: no
+
+  # If GITHUB_WORKSPACE is set then this is an Github Actions job and we need
+  # to create a symlink to the downloaded Repository so it may be used as a Role.
+  # Otherwise this is not an Github Actions  job and the repository should already be available
+  # locally within the Roles path.
+  - name: Create Local Symlink to Audit Stub Accounts Repository
+    when: GITHUB_WORKSPACE_audit_stub_accounts.stdout | length > 1
+    block:
+
+        - name: Create Local Roles Directory
+          file:
+              path: ~/.ansible/roles
+              state: directory
+          delegate_to: localhost
+          become: no
+
+        - name: Link  Audit Stub Accounts Repository
+          shell: ln -s ${GITHUB_WORKSPACE}/stub/audit_stub_accounts ~/.ansible/roles/hmpps-delius-audit-stub-accounts
+          delegate_to: localhost
+          become: no
+
+  - name: Read Audit Stub Users Variable
+    include_role:
+         name: hmpps-delius-audit-stub-accounts
+      
+  - name: Define Location for Temporary Working Files
+    set_fact:
+         upload_directory: /tmp/audit_stub_users
+  
+  - name: Create Temporary Audit Stub Directory
+    file:
+       path: "{{ upload_directory }}"
+       state: directory
+       mode: '0700'
+
+  # The Stub Users are defined in YAML but must be converted to JSON as Oracle JSON
+  # functions are used to load the data (the Ansible to_nice_json filter is used for this)
+  - name: Write Stub Data to Database Host
+    copy:
+       dest: "{{ upload_directory }}/audit_stub_users.json"
+       content: "{{ audit_stub_users | to_nice_json(indent=3) }}"
+       mode: '0600'
+
+  - name: Create Audit Stub Users
+    script: create_audit_stub_users.sh "{{ upload_directory }}" audit_stub_users.json
+    register: create_audit_stub_users
+
+  - debug:
+       var: create_audit_stub_users
+
+  - name: Remove the Downloaded File
+    file:
+       path: "{{ upload_directory }}"
+       state: absent
