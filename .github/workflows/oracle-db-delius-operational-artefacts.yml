@@ -50,7 +50,10 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
-
+      SourceAuditStubAccountsVersion:
+        description: "Source version for the hmpps-delius-audit-stub-accounts repository. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
 
 env:
   command: ansible-playbook operations/playbooks/delius-artefacts-playbook.yml
@@ -109,6 +112,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: audit_stub_accounts
           path: stub
+          ref: ${{ github.event.inputs.SourceAuditStubAccountsVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
