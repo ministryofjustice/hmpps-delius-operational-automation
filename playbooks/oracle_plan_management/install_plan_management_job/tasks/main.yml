@@ -1,5 +1,4 @@
 ---
-
 # When new tables do not have optimizer statistics gathered, any SQL against these tables will be
 # optimized using dynamic sampling.   Since these are new tables, the data shape will be volatile.
 # Therefore we do not wish to use cached SQL plans based on dynamically sampled values for a long period of
@@ -11,4 +10,3 @@
 
 - name: Install Plan Management Job
   script: install_plan_management_job.sh
-  
