@@ -360,6 +360,8 @@ jobs:
                 fi
             done
             echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed."
+    output:
+      DIRECTORY: ${{ steps.get-directory.outputs.DIRECTORY }}
   destination-post:
     needs:
       - destination
@@ -387,6 +389,7 @@ jobs:
   cleanup:
     needs:
       - source
+      - destination
       - destination-post
     runs-on: ubuntu-latest
     environment: delius-core-${{ github.event.inputs.destination_env }}
@@ -401,18 +404,10 @@ jobs:
       - name: Remove EFS access point and mount targets
         run: |
 
-          # echo test
-          echo ${{ needs.source.outputs.TEMP_EFS_ID }} 
           FILE_SYSTEM_ID="${{ needs.source.outputs.TEMP_EFS_ID }}"
           echo "File system ID is $FILE_SYSTEM_ID"
           ACCESS_POINT_ID=$(aws efs describe-access-points --file-system-id ${FILE_SYSTEM_ID} | jq -r '.AccessPoints[].AccessPointId')
           echo "Access point ID is $ACCESS_POINT_ID"
-
-          # Check if ACCESS_POINT_ID is empty (just testing)
-          if [ -z "$ACCESS_POINT_ID" ]; then
-              echo "Failed to get access point ID"
-              exit 1
-          fi
 
           # Delete the access point
           aws efs delete-access-point --access-point-id $ACCESS_POINT_ID --output text --query 'AccessPointId'
@@ -471,3 +466,8 @@ jobs:
 
           # delete location for S3
           aws datasync delete-location --location-arn ${{ needs.source.outputs.DATASYNC_DESTINATION_LOCATION_ARN }}
+
+      - name: Remove S3 directory
+        run: |
+
+          aws s3 rm s3://${{ github.event.inputs.destination_env }}-ldap-data-refresh-incoming/${{ needs.destination.outputs.DIRECTORY }} --recursive
