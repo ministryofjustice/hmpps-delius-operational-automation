@@ -130,6 +130,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Run Delius Artefacts Playbook
+        run: |
           export ANSIBLE_CONFIG=$ansible_config
           echo "$command -i $inventory \
           -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
