@@ -54,12 +54,6 @@
   - name: Read Audit Stub Users Variable
     include_role:
       name: hmpps-delius-audit-stub-accounts
-      # apply:
-      #   delegate_to: localhost
-      #   become: no
-
-  - debug: var=audit_stub_users
-  - meta: end_play
       
   - name: Define Location for Temporary Working Files
     set_fact:
