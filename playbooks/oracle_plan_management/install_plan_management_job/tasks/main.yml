@@ -1,0 +1,12 @@
+---
+# When new tables do not have optimizer statistics gathered, any SQL against these tables will be
+# optimized using dynamic sampling.   Since these are new tables, the data shape will be volatile.
+# Therefore we do not wish to use cached SQL plans based on dynamically sampled values for a long period of
+# time before re-sampling.   Therefore we periodically detect and purge these SQLs.   This
+# playbook installs a DBMS_SCHEDULER job to run this purge.
+
+# Note that lower environments are unlikely to find any plans to purge as they are restarted on
+# a daily basis.
+
+- name: Install Plan Management Job
+  script: install_plan_management_job.sh

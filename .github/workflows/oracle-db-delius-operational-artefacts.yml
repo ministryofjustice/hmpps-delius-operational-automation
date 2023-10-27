@@ -50,8 +50,13 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
+      SourceAuditStubAccountsVersion:
+        description: "Source version for the hmpps-delius-audit-stub-accounts repository. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
 
 env:
+  ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/playbooks/delius-artefacts-playbook.yml
   inventory: inventory/ansible
 
@@ -99,6 +104,27 @@ jobs:
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
+      - name: Generate Token For Access To hmpps-delius-audit-stub-accounts
+        if: ${{ github.event.inputs.DeployAuditStubUsers == 'yes' }}
+        uses: actions/create-github-app-token@v1
+        id: generate_token
+        with:
+          app-id: ${{ secrets.HMPPS_BOT_APP_ID }}
+          private-key: ${{ secrets.HMPPS_BOT_PRIVATE_KEY }}
+          repositories: hmpps-delius-audit-stub-accounts
+
+      - name: Checkout From hmpps-delius-audit-stub-accounts
+        if: ${{ github.event.inputs.DeployAuditStubUsers == 'yes' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-audit-stub-accounts
+          token: ${{ steps.generate_token.outputs.token }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: audit_stub_accounts
+          path: stub
+          ref: ${{ github.event.inputs.SourceAuditStubAccountsVersion }}
+          fetch-depth: 0
+
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
@@ -109,6 +135,7 @@ jobs:
 
       - name: Run Delius Artefacts Playbook
         run: |
+          export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
           -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
           -e hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
