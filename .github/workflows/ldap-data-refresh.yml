@@ -360,8 +360,9 @@ jobs:
                 fi
             done
             echo "Datasync task from ${{ github.event.inputs.source_env }} to ${{ github.event.inputs.destination_env }} completed."
-    output:
+    outputs:
       DIRECTORY: ${{ steps.get-directory.outputs.DIRECTORY }}
+
   destination-post:
     needs:
       - destination
