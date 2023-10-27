@@ -1,0 +1,24 @@
+---
+
+# Default Audit Definitions if Not Specified in Environment Configs
+default_audit_options:  
+       StatementOptions: [ "ALTER ANY PROCEDURE","ALTER ANY TABLE","ALTER DATABASE",
+                           "ALTER PROFILE","ALTER SYSTEM","ALTER USER","BECOME USER",
+                           "CREATE ANY JOB","CREATE ANY LIBRARY","CREATE ANY PROCEDURE",
+                           "CREATE ANY TABLE","CREATE EXTERNAL JOB",
+                           "CREATE PUBLIC DATABASE LINK","CREATE PROCEDURE","CREATE USER",
+                           "DATABASE LINK","DIRECTORY","DROP ANY PROCEDURE",
+                           "DROP ANY TABLE","DROP PROFILE","DROP USER",
+                           "GRANT ANY OBJECT PRIVILEGE","GRANT ANY PRIVILEGE",
+                           "GRANT ANY ROLE","PLUGGABLE DATABASE","PROFILE",
+                           "PUBLIC SYNONYM","ROLE","SYSTEM AUDIT","SYSTEM GRANT" ]
+       PrivilegeOptions: [ "ALTER ANY PROCEDURE","ALTER ANY TABLE","ALTER DATABASE",
+                           "ALTER PROFILE","ALTER SYSTEM","ALTER USER","AUDIT SYSTEM",
+                           "BECOME USER","CREATE ANY JOB","CREATE ANY LIBRARY",
+                           "CREATE ANY PROCEDURE","CREATE ANY TABLE","CREATE EXTERNAL JOB",
+                           "CREATE PUBLIC DATABASE LINK","CREATE PROCEDURE","CREATE USER",
+                           "DROP ANY PROCEDURE","DROP ANY TABLE","DROP PROFILE",
+                           "DROP USER","GRANT ANY OBJECT PRIVILEGE","GRANT ANY PRIVILEGE",
+                           "GRANT ANY ROLE" ]
+       NoAuditSessions: [ "CONTACT_SEARCH_POOL" ]
+                           
