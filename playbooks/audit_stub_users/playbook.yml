@@ -51,19 +51,12 @@
           delegate_to: localhost
           become: no
 
-        - shell: cat ${GITHUB_WORKSPACE}/stub/audit_stub_accounts/vars/main.yml
-          delegate_to: localhost
-          become: no
-          register: out
-
-        - debug: var=out
-
   - name: Read Audit Stub Users Variable
     include_role:
-      name: ${GITHUB_WORKSPACE}/stub/audit_stub_accounts
-      apply:
-        delegate_to: localhost
-        become: no
+      name: hmpps-delius-audit-stub-accounts
+      # apply:
+      #   delegate_to: localhost
+      #   become: no
 
   - debug: var=audit_stub_users
   - meta: end_play
