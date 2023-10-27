@@ -1,7 +1,7 @@
 ---
 
   - name: Get gdpr_pool password from ssm
-    shell: aws ssm get-parameters --region ${REGION} --with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/gdpr_pool_password | jq -r '.Parameters[].Value'
+    shell: aws ssm get-parameters --region {{ region }} --with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/gdpr_pool_password | jq -r '.Parameters[].Value'
     register: gdpr_pool_password
     changed_when: false
     no_log: true
