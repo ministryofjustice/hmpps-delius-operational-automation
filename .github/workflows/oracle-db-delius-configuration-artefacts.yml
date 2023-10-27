@@ -74,7 +74,7 @@ on:
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
-  command: operations/playbooks/delius-artefacts-playbook.yml"
+  command: ansible-playbook operations/playbooks/delius-artefacts-playbook.yml"
   inventory: inventory/ansible
 
 # Allow permissions on repository and docker image respectively 
