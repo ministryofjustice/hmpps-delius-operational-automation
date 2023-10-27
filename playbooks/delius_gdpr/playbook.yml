@@ -1,0 +1,113 @@
+---
+
+  - name: Get gdpr_pool password from ssm
+    shell: aws ssm get-parameters --region ${REGION} --with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/gdpr_pool_password | jq -r '.Parameters[].Value'
+    register: gdpr_pool_password
+    changed_when: false
+    no_log: true
+
+  - name: Create gdpr_pool delius user
+    shell: 
+      cmd: |
+        . ~/.bash_profile
+        ORACLE_SID={{ database_primary_sid }}
+        ORAENV_ASK=NO
+        . oraenv > /dev/null;
+        sqlplus -s / as sysdba << EOF
+          WHENEVER SQLERROR EXIT FAILURE
+          SET PAGES 100 HEAD OFF LINES 200 FEED OFF SERVEROUTPUT ON
+
+          DECLARE
+
+            CURSOR c1 IS
+              SELECT username
+              FROM dba_users
+              WHERE username = 'GDPR_POOL';
+
+            r1 c1%ROWTYPE;
+
+          BEGIN
+
+            OPEN c1;
+            FETCH c1 INTO r1;
+            IF c1%NOTFOUND 
+            THEN
+              EXECUTE IMMEDIATE 'create user gdpr_pool identified by "{{ gdpr_pool_password.stdout}}"'; 
+              EXECUTE IMMEDIATE 'grant create session to gdpr_pool';
+              EXECUTE IMMEDIATE 'grant l_delius_complete_access to gdpr_pool';              
+              dbms_output.put_line('User gdpr_pool created');
+            ELSE   
+              dbms_output.put_line('User gdpr_pool already exists');
+            END IF;
+            CLOSE c1;           
+          END;
+          /
+
+          AUDIT CREATE SESSION BY gdpr_pool;
+        EOF
+    register: create_user_plsql
+    changed_when: false
+    failed_when: create_user_plsql.rc != 0
+
+  - name: User gdpr_pol creation output
+    debug:
+      msg: "{{ create_user_plsql.stdout}}" 
+
+  - name: Create gdpr_pool trigger
+    shell: 
+      cmd: |
+        . ~/.bash_profile
+        ORACLE_SID={{ database_primary_sid }}
+        ORAENV_ASK=NO
+        . oraenv > /dev/null;
+        sqlplus -s / as sysdba << EOF
+          WHENEVER SQLERROR EXIT FAILURE
+          SET PAGES 100 HEAD OFF LINES 200 FEED OFF SERVEROUTPUT ON
+          
+          CREATE OR REPLACE TRIGGER DELIUS_APP_SCHEMA.T_GDPR_LOGON AFTER LOGON ON gdpr_pool.schema
+          DECLARE
+              --
+              CURSOR cs IS
+                SELECT
+                  SYS_CONTEXT('USERENV', 'CURRENT_USER') AS current_user,
+                  SYS_CONTEXT('USERENV', 'HOST') AS client_machine,
+                  SYS_CONTEXT('USERENV', 'IP_ADDRESS') AS client_ip_address,
+                  SYS_CONTEXT('USERENV', 'MODULE') AS client_prog,
+                  SYS_CONTEXT('USERENV', 'OS_USER') AS client_os_user
+              FROM dual;
+              --
+              l_rec cs%ROWTYPE;
+              --
+          BEGIN
+              --
+              OPEN cs;
+              FETCH cs INTO l_rec;
+              CLOSE cs;
+              --
+              IF NOT ( l_rec.client_os_user IN ( 'root', 'bcladmin' ) AND 
+                      l_rec.client_prog IN ( 'JDBC Thin Client', 'SQL Developer' ))
+              THEN
+                  RAISE_APPLICATION_ERROR(-20000,'Denied!  You are not allowed to logon from host ' || l_rec.client_prog || ' using '|| l_rec.client_os_user);
+              END IF;
+              --
+              EXECUTE IMMEDIATE 'ALTER SESSION SET current_schema=DELIUS_APP_SCHEMA';
+              --
+              PKG_VPD_CTX.set_client_identifier(userName => 'GDPR_USER');
+              --
+          END;
+          /
+        EOF
+        if [ $? -ne 0 ]
+        then
+          echo "Error creating logon trigger"
+        else
+          echo "Logon trigger created"
+        fi
+    register: trigger_plsql
+    changed_when: false
+    failed_when: trigger_plsql.rc != 0
+
+  - name: Trigger creation output
+    debug:
+      msg: "{{ trigger_plsql.stdout }}" 
+
