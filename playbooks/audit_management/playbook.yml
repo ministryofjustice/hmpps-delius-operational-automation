@@ -1,0 +1,63 @@
+---
+- include_vars: main.yml
+
+- debug:
+    msg: "{{ default_audit_options |  to_nice_json }}"
+
+- name: Enable Database Auditing Options
+  script: |
+    set_audit_options.sh '{{ audit_options | default(default_audit_options) |  to_nice_json }}'
+  register: setauditoptions
+
+- name: Report Setting Audit Options
+  debug: var=setauditoptions.stdout_lines
+
+- name: Check if Audit Archive Table HIST_AUD$ Exists
+  shell: |
+    . ~/.bash_profile
+    sqlplus -s / as sysdba <<EOF
+      set echo off feed off head off 
+      select table_name
+      from dba_tables
+      where table_name = 'HIST_AUD$'
+      and owner = 'SYS';
+    EOF
+  register: hist_aud_table
+  changed_when: false
+  ignore_errors: yes
+
+- name: Only Create Audit Archive Job if HIST_AUD$ exists
+  block:
+    - name: Copy required sql files over
+      copy:
+        src: "{{ item }}"
+        dest: "/tmp"
+        owner: oracle
+        group: oinstall
+      with_items:
+        - delius_audit_management.sql
+        - delius_audit_archive.sql
+
+    - name: Compile and schedule package as sys user
+      block:
+        - name: Compile audit package
+          shell: |
+            . ~/.bash_profile
+            sqlplus -s / as sysdba <<EOF
+            @/tmp/delius_audit_management.sql
+            EOF
+          register: sql_result
+          changed_when: false
+          failed_when: "'Package body created.' not in sql_result.stdout_lines"
+
+        - name: Schedule package
+          shell: |
+            . ~/.bash_profile
+            sqlplus -s / as sysdba <<EOF
+            @/tmp/delius_audit_archive.sql
+            EOF
+          register: sql_result
+          changed_when: false
+          failed_when: "'Audit Management' not in sql_result.stdout"
+
+  when: "'HIST_AUD$' in hist_aud_table.stdout"

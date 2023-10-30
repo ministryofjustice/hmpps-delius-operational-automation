@@ -40,10 +40,6 @@
       include_tasks: delius_gdpr/playbook.yml
       when: deploy_gdpr | default('no') == "yes"
 
-    - name: Deploy Logstash Contact Search
-      include_tasks: logstash_contact_search/playbook.yml
-      when: deploy_log_stash_contact_search | default('no') == "yes"
-
     - name: Deploy Performance Test Users
       include_tasks: delius_perf_test_users/playbook.yml
       vars:
