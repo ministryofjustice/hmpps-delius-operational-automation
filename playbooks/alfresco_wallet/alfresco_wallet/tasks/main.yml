@@ -1,315 +1,313 @@
 ---
-      # - name: Check location of spg.tfvar when run from CodeBuild
-      #   local_action: stat path="{{ inventory_dir }}/../{{ environment_name }}/sub-projects/spg.tfvars"
-      #   become: no
-      #   register: spg_tfvars_location_1
+# - name: Check location of spg.tfvar when run from CodeBuild
+#   local_action: stat path="{{ inventory_dir }}/../{{ environment_name }}/sub-projects/spg.tfvars"
+#   become: no
+#   register: spg_tfvars_location_1
 
-      # - name: Get the Alfresco URL from the Terraform File (CodeBuild)
-      #   set_fact: 
-      #      spg_document_rest_service_public_url: "{{ lookup('file', '{{ spg_tfvars_location_1.stat.path }}') | regex_search('.*SPG_DOCUMENT_REST_SERVICE_PUBLIC_URL.*') | regex_replace('.*=(.*)','\\1') | replace('\"','') }}"
-      #   when: spg_tfvars_location_1.stat.exists
+# - name: Get the Alfresco URL from the Terraform File (CodeBuild)
+#   set_fact:
+#      spg_document_rest_service_public_url: "{{ lookup('file', '{{ spg_tfvars_location_1.stat.path }}') | regex_search('.*SPG_DOCUMENT_REST_SERVICE_PUBLIC_URL.*') | regex_replace('.*=(.*)','\\1') | replace('\"','') }}"
+#   when: spg_tfvars_location_1.stat.exists
 
-      # - name: Check location of spg.tfvar when ansible run directly from command line
-      #   local_action: stat path="{{ inventory_dir }}/../sub-projects/spg.tfvars"
-      #   become: no
-      #   register: spg_tfvars_location_2
+# - name: Check location of spg.tfvar when ansible run directly from command line
+#   local_action: stat path="{{ inventory_dir }}/../sub-projects/spg.tfvars"
+#   become: no
+#   register: spg_tfvars_location_2
 
-      # - name: Get the Alfresco URL from the Terraform File (Command Line)
-      #   set_fact: 
-      #      spg_document_rest_service_public_url: "{{ lookup('file', '{{ spg_tfvars_location_2.stat.path }}') | regex_search('.*SPG_DOCUMENT_REST_SERVICE_PUBLIC_URL.*') | regex_replace('.*=(.*)','\\1') | replace('\"','') }}"
-      #   when: spg_tfvars_location_2.stat.exists
+# - name: Get the Alfresco URL from the Terraform File (Command Line)
+#   set_fact:
+#      spg_document_rest_service_public_url: "{{ lookup('file', '{{ spg_tfvars_location_2.stat.path }}') | regex_search('.*SPG_DOCUMENT_REST_SERVICE_PUBLIC_URL.*') | regex_replace('.*=(.*)','\\1') | replace('\"','') }}"
+#   when: spg_tfvars_location_2.stat.exists
 
-      - name: Get Alfresco Host
-        set_fact:
-            alfresco_host: "{{ spg_document_rest_service_public_url | default('NOT CONFIGURED') | regex_replace('https://(.*?)/.*$','\\1') }}"
+- name: Get Alfresco Host
+  set_fact:
+    alfresco_host: "{{ spg_document_rest_service_public_url | default('NOT CONFIGURED') | regex_replace('https://(.*?)/.*$','\\1') }}"
 
-      - name: Check that we can connect to the Alfresco server from the host
-        uri:
-           url: "https://{{ alfresco_host }}/alfresco"
-        register: check_alfresco_url
-        ignore_errors: true
+- name: Check that we can connect to the Alfresco server from the host
+  uri:
+    url: "https://{{ alfresco_host }}/alfresco"
+  register: check_alfresco_url
+  ignore_errors: true
 
-        # We only run the wallet setup if an Alfresco URL has been configured in the Terraform and the address resolves
-      - name: Setup Alfresco Wallet
-        when: 
-           - alfresco_host != 'NOT CONFIGURED'
-           - not check_alfresco_url.failed
-        block:
+  # We only run the wallet setup if an Alfresco URL has been configured in the Terraform and the address resolves
+- name: Setup Alfresco Wallet
+  when:
+    - alfresco_host != 'NOT CONFIGURED'
+    - not check_alfresco_url.failed
+  block:
+    - name: Get Alfresco URL Currently Configured
+      script: get_alfresco_url.sh
+      register: getalfrescourl
+      changed_when: false
 
-            - name: Get Alfresco URL Currently Configured
-              script: get_alfresco_url.sh 
-              register: getalfrescourl
-              changed_when: false
+    - name: Set Alfresco URL Specific for this environment
+      script: set_alfresco_url.sh
+      environment:
+        ALFRESCO_URL: "{{ spg_document_rest_service_public_url }}"
+      when: spg_document_rest_service_public_url !=  ( getalfrescourl.stdout | default('NOT CONFIGURED') )
 
-            - name: Set Alfresco URL Specific for this environment
-              script: set_alfresco_url.sh
-              environment:
-                  ALFRESCO_URL: "{{ spg_document_rest_service_public_url }}"  
-              when: spg_document_rest_service_public_url !=  ( getalfrescourl.stdout | default('NOT CONFIGURED') )
+    - name: Create Access Control Entry for the Alfresco Host
+      script: create_host_ace.sh
+      environment:
+        ALFRESCO_HOST: "{{ alfresco_host }}"
 
-            - name: Create Access Control Entry for the Alfresco Host
-              script: create_host_ace.sh
-              environment:
-                  ALFRESCO_HOST: "{{ alfresco_host }}"  
+    - name: Get Previous Alfresco Host
+      set_fact:
+        prev_alfresco_host: "{{ getalfrescourl.stdout_lines[0] | default('NOT CONFIGURED') | regex_replace('https://(.*?)/.*$','\\1') }}"
 
-            - name: Get Previous Alfresco Host
-              set_fact:
-                 prev_alfresco_host: "{{ getalfrescourl.stdout_lines[0] | default('NOT CONFIGURED') | regex_replace('https://(.*?)/.*$','\\1') }}"
+    - name: Remove Access Control Entries for the Previous Alfresco Host
+      script: remove_host_ace.sh
+      environment:
+        PREV_ALFRESCO_HOST: "{{ prev_alfresco_host }}"
+      when:
+        - prev_alfresco_host != 'NOT CONFIGURED'
+        - prev_alfresco_host != alfresco_host
 
-            - name: Remove Access Control Entries for the Previous Alfresco Host
-              script: remove_host_ace.sh
-              environment:
-                  PREV_ALFRESCO_HOST: "{{ prev_alfresco_host }}"  
-              when:
-                  - prev_alfresco_host != 'NOT CONFIGURED'
-                  - prev_alfresco_host != alfresco_host
+      # We use the OpenSSL Client to get the SSL certificates from the Alfresco server.
+      # This will create a file on the target called /tmp/alf_certs.txt but we do not consider this
+      # a configuration change as it is only a temporary file for fetching information so we
+      # set changed_when to be false.
+    - name: Fetch Alfresco SSL Certificates
+      shell: |
+        echo Q | openssl s_client -connect {{ alfresco_host }}:443 -tls1_2 -showcerts > /tmp/alf_certs.txt
+      changed_when: false
 
-              # We use the OpenSSL Client to get the SSL certificates from the Alfresco server.
-              # This will create a file on the target called /tmp/alf_certs.txt but we do not consider this
-              # a configuration change as it is only a temporary file for fetching information so we
-              # set changed_when to be false.
-            - name: Fetch Alfresco SSL Certificates
-              shell: |
-                  echo Q | openssl s_client -connect {{ alfresco_host }}:443 -tls1_2 -showcerts > /tmp/alf_certs.txt
-              changed_when: false
-                  
-              # We remove any pre-existing certificate files on the target; assuming the job
-              # completed successfully last time these should not exist but we want to be certain
-              # to avoid uploading old out-of-date certificates into the wallet.
-            - name: Get List of Any Pre-Existing Individual Certificate Files
-              find:
-                paths: /tmp
-                patterns: alf.[0-9][0-9].crt
-              register: files_to_delete
+      # We remove any pre-existing certificate files on the target; assuming the job
+      # completed successfully last time these should not exist but we want to be certain
+      # to avoid uploading old out-of-date certificates into the wallet.
+    - name: Get List of Any Pre-Existing Individual Certificate Files
+      find:
+        paths: /tmp
+        patterns: alf.[0-9][0-9].crt
+      register: files_to_delete
 
-            - name: Remove Any Pre-Existing Individual Cerificate Files
-              file:
-                path: "{{ item.path }}"
-                state: absent
-              with_items: "{{ files_to_delete.files }}"
+    - name: Remove Any Pre-Existing Individual Cerificate Files
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ files_to_delete.files }}"
 
-              # The Open SSL Client will fetch all certificates into a large aggregate file.  There will
-              # be several certificates here for each link in the authentication chain.  We want to break
-              # these out into individual certificate files.   Similar to the above this is merely fetching
-              # information and does not constitute a change to the target configuration so we set
-              # changed_when to be false.  
-            - name: Split Certificate Output into Individual Certificate Files
-              shell: |
-                  awk 'BEGIN{INFLAG=0}
-                  /-----BEGIN CERTIFICATE-----/{INFLAG=1}
-                  {if(INFLAG==1){print $0}}
-                  /-----END CERTIFICATE-----/{INFLAG=0}' /tmp/alf_certs.txt | csplit --prefix='/tmp/alf.' --suffix-format='%02d.crt' --elide-empty-files  - "/-----END CERTIFICATE-----/+1" {*}
-              changed_when: false
+      # The Open SSL Client will fetch all certificates into a large aggregate file.  There will
+      # be several certificates here for each link in the authentication chain.  We want to break
+      # these out into individual certificate files.   Similar to the above this is merely fetching
+      # information and does not constitute a change to the target configuration so we set
+      # changed_when to be false.
+    - name: Split Certificate Output into Individual Certificate Files
+      shell: |
+        awk 'BEGIN{INFLAG=0}
+        /-----BEGIN CERTIFICATE-----/{INFLAG=1}
+        {if(INFLAG==1){print $0}}
+        /-----END CERTIFICATE-----/{INFLAG=0}' /tmp/alf_certs.txt | csplit --prefix='/tmp/alf.' --suffix-format='%02d.crt' --elide-empty-files  - "/-----END CERTIFICATE-----/+1" {*}
+      changed_when: false
 
-            - name: Get Oracle Base
-              shell: |
-                . ~/.bash_profile
-                echo $ORACLE_BASE
-              register: oracle_base_result
-              changed_when: false  
+    - name: Get Oracle Base
+      shell: |
+        . ~/.bash_profile
+        echo $ORACLE_BASE
+      register: oracle_base_result
+      changed_when: false
 
-            - name: Set Oracle Base
-              set_fact: 
-                oracle_base: "{{ oracle_base_result.stdout }}"
+    - name: Set Oracle Base
+      set_fact:
+        oracle_base: "{{ oracle_base_result.stdout }}"
 
-            - name: Define Location for Oracle Wallet
-              set_fact:
-                wallet_dir: "{{ oracle_base }}/wallets/alfresco_wallet"
-             
-            - name: Create Wallet Directory
-              file: 
-                path: "{{ wallet_dir }}"
-                state: directory
-                              
-            - name: Define Working Directory for Recreating Oracle Wallet
-              set_fact:
-                wallet_working_dir: "{{ wallet_dir }}_work"
+    - name: Define Location for Oracle Wallet
+      set_fact:
+        wallet_dir: "{{ oracle_base }}/wallets/alfresco_wallet"
 
-            - name: Get Alfresco Wallet Location currently in SPG_CONTROL
-              script: get_alfresco_wallet_location.sh
-              register: get_alfresco_wallet_location
-              changed_when: false
+    - name: Create Wallet Directory
+      file:
+        path: "{{ wallet_dir }}"
+        state: directory
 
-            - debug:
-                 msg: "Changing Wallet Location from {{ get_alfresco_wallet_location.stdout }} to {{ wallet_dir }}"
-              when:  ( get_alfresco_wallet_location.stdout | trim ) != ( wallet_dir | trim )
+    - name: Define Working Directory for Recreating Oracle Wallet
+      set_fact:
+        wallet_working_dir: "{{ wallet_dir }}_work"
 
-            - name: Set Alfresco Wallet Location to Intended Value
-              script: set_alfresco_wallet_location.sh
-              environment:
-                  ALFRESCO_WALLET_LOCATION: "{{ wallet_dir }}"  
-              when:  ( get_alfresco_wallet_location.stdout | trim ) != ( wallet_dir | trim )
+    - name: Get Alfresco Wallet Location currently in SPG_CONTROL
+      script: get_alfresco_wallet_location.sh
+      register: get_alfresco_wallet_location
+      changed_when: false
 
-            # We will use the System Password as the Wallet Password
-            - name: Get system password from SSM
-              shell: . ~/.bash_profile && aws ssm get-parameter --name /{{ environment_name }}/{{ project_name}}/delius-database/db/oradb_system_password --region {{ region }} --output text --with-decryption --query Parameter.Value
-              register: oradb_system_password
-              no_log: true
-              changed_when: false        
+    - debug:
+        msg: "Changing Wallet Location from {{ get_alfresco_wallet_location.stdout }} to {{ wallet_dir }}"
+      when: ( get_alfresco_wallet_location.stdout | trim ) != ( wallet_dir | trim )
 
-            - name: Set System Password
-              set_fact:
-                  system_pwd: "{{ oradb_system_password.stdout }}"
-              no_log: true
+    - name: Set Alfresco Wallet Location to Intended Value
+      script: set_alfresco_wallet_location.sh
+      environment:
+        ALFRESCO_WALLET_LOCATION: "{{ wallet_dir }}"
+      when: ( get_alfresco_wallet_location.stdout | trim ) != ( wallet_dir | trim )
 
-            - name: Create Wallet if it does not already exist
-              shell: |
-                    . ~/.bash_profile
-                    orapki wallet create -wallet {{ wallet_dir }} -pwd {{ system_pwd }} -auto_login
-              args:
-                creates: "{{ wallet_dir }}/cwallet.sso"
-              register: orapki_out
-              no_log: true
-        
-            - name: Check Existing Wallet Password is Correct
-              include_tasks: check-password.yml
+    # We will use the System Password as the Wallet Password
+    - name: Get system password from SSM
+      shell: . ~/.bash_profile && aws ssm get-parameter --name /{{ environment_name }}/{{ project_name}}/delius-database/db/oradb_system_password --region {{ region }} --output text --with-decryption --query Parameter.Value
+      register: oradb_system_password
+      no_log: true
+      changed_when: false
 
-            # If the password is not correct then we will need to build a brand new wallet
-            # to replace the existing one.  As this is an auto-login wallet then it may still
-            # be in use even if the password is incorrect.   Therefore we build it out-of-line
-            # in a different directory and swap it in, to avoid a small outage of recreating
-            # it in place
-            - name: Prepare Out-of-Line Working Directory to Rebuild the Wallet
-              when: not password_correct
-              block:
+    - name: Set System Password
+      set_fact:
+        system_pwd: "{{ oradb_system_password.stdout }}"
+      no_log: true
 
-                - name: Ensure Working Directory is Empty by Deleting It
-                  file:
-                     path: "{{ wallet_working_dir }}"
-                     state: absent
+    - name: Create Wallet if it does not already exist
+      shell: |
+        . ~/.bash_profile
+        orapki wallet create -wallet {{ wallet_dir }} -pwd {{ system_pwd }} -auto_login
+      args:
+        creates: "{{ wallet_dir }}/cwallet.sso"
+      register: orapki_out
+      no_log: true
 
-                - name: Create Working Directory for Replacing Wallet
-                  file:
-                     path: "{{ wallet_working_dir }}"
-                     state: directory
+    - name: Check Existing Wallet Password is Correct
+      include_tasks: check-password.yml
 
-                - name: Create Replacement Wallet
-                  shell: |
-                        . ~/.bash_profile
-                        orapki wallet create -wallet {{ wallet_working_dir }} -pwd {{ system_pwd }} -auto_login
-                  no_log: true
-            
-            # If the wallet password is correct then we can manage it in place,
-            # so we set the wallet build directory to be the current wallet directory.
-            # Otherwise we set the wallet build directory to be the working directory,
-            # so we can manage it out-of-line without disruption to the current wallet.
-            - name: Decide Which Wallet to Manage
-              set_fact:
-                 wallet_build_dir: "{{ wallet_dir if (password_correct) else wallet_working_dir }}"
+    # If the password is not correct then we will need to build a brand new wallet
+    # to replace the existing one.  As this is an auto-login wallet then it may still
+    # be in use even if the password is incorrect.   Therefore we build it out-of-line
+    # in a different directory and swap it in, to avoid a small outage of recreating
+    # it in place
+    - name: Prepare Out-of-Line Working Directory to Rebuild the Wallet
+      when: not password_correct
+      block:
+        - name: Ensure Working Directory is Empty by Deleting It
+          file:
+            path: "{{ wallet_working_dir }}"
+            state: absent
 
-            # When adding the SSL Certificate Chain to the Wallet we must exclude
-            # the leaf certificate (HTTPS Server).  See MOS Note 2287905.1
-            # This will always be the first certificate returned so we can simply
-            # exclude alf.00.crt
-            - name: Get List of Certificate Files
-              find:
-                paths: /tmp
-                patterns: alf.[0-9][0-9].crt
-                excludes: alf.00.crt
-                file_type: file
-                recurse: no
-              register: certificate_files
+        - name: Create Working Directory for Replacing Wallet
+          file:
+            path: "{{ wallet_working_dir }}"
+            state: directory
 
-            - name: Add Supplementary Certificate Attributes with Default Values
-              set_fact:
-                  tmp_certificate: >
-                            {{ 
-                              {item.path:
-                                  {'filename':item.path,
-                                    'md5sum':''}
-                                } 
-                            }}
-              with_items: "{{ certificate_files.files }}"
-              register: tmp_certificates
+        - name: Create Replacement Wallet
+          shell: |
+            . ~/.bash_profile
+            orapki wallet create -wallet {{ wallet_working_dir }} -pwd {{ system_pwd }} -auto_login
+          no_log: true
 
-            - name: Create Dictionary of Certificates Available to be Loaded into Wallet
-              set_fact:
-                  certificate_dict: "{{ certificate_dict | combine(item) }}"
-              with_items: "{{ tmp_certificates.results | map(attribute='ansible_facts.tmp_certificate') | list }}"
+    # If the wallet password is correct then we can manage it in place,
+    # so we set the wallet build directory to be the current wallet directory.
+    # Otherwise we set the wallet build directory to be the working directory,
+    # so we can manage it out-of-line without disruption to the current wallet.
+    - name: Decide Which Wallet to Manage
+      set_fact:
+        wallet_build_dir: "{{ wallet_dir if (password_correct) else wallet_working_dir }}"
 
-            - name: Calculate Checksums for all Certificates Available to be Loaded
-              include_tasks: get-checksum.yml
-              vars:
-                certificate_filename: "{{ item.key }}"
-              with_dict: "{{ certificate_dict }}"
+    # When adding the SSL Certificate Chain to the Wallet we must exclude
+    # the leaf certificate (HTTPS Server).  See MOS Note 2287905.1
+    # This will always be the first certificate returned so we can simply
+    # exclude alf.00.crt
+    - name: Get List of Certificate Files
+      find:
+        paths: /tmp
+        patterns: alf.[0-9][0-9].crt
+        excludes: alf.00.crt
+        file_type: file
+        recurse: no
+      register: certificate_files
 
-              # We want to avoid loading certificates that are already in the wallet
-            - name: Get List of Trusted Certificate DNs Already in the Wallet
-              shell: |
-                    . ~/.bash_profile
-                    orapki wallet display -wallet {{ wallet_build_dir }} | awk -F: 'BEGIN{TRUSTED=0}
-                    /Trusted Certificates/{TRUSTED=1}
-                    /Subject/{if(TRUSTED==1){print $2}}' | sed 's/^\s*//'
-              register: certificate_dn
-              changed_when: false
+    - name: Add Supplementary Certificate Attributes with Default Values
+      set_fact:
+        tmp_certificate: >
+          {{ 
+            {item.path:
+                {'filename':item.path,
+                  'md5sum':''}
+              } 
+          }}
+      with_items: "{{ certificate_files.files }}"
+      register: tmp_certificates
 
-              # In order to determine which of the available certificates need to be loaded 
-              # (i.e. do not already exist in the wallet) we will compare their checksums so
-              # these need to be calculated for all certificates alredy in the wallet.
-              # Note that this does not constitute a system configuration change so we set
-              # changed_when to be false even though it creates an intermediate export file
-            - name: Generate Checksums for Certificates Already in the Wallet
-              shell: |
-                  . ~/.bash_profile
-                    orapki wallet export -wallet {{ wallet_build_dir }} -dn "{{ item }}" -cert /tmp/cert.out 1>/dev/null; echo $(cat /tmp/cert.out) | sed 's/\s*//g' | md5sum
-              register: certificate_dn_cksum
-              with_items: "{{ certificate_dn.stdout_lines }}"
-              changed_when: false
+    - name: Create Dictionary of Certificates Available to be Loaded into Wallet
+      set_fact:
+        certificate_dict: "{{ certificate_dict | combine(item) }}"
+      with_items: "{{ tmp_certificates.results | map(attribute='ansible_facts.tmp_certificate') | list }}"
 
-            - name: Initialize List of Installed Certificate Checksums
-              set_fact:
-                  installed_certificate_cksum: []
+    - name: Calculate Checksums for all Certificates Available to be Loaded
+      include_tasks: get-checksum.yml
+      vars:
+        certificate_filename: "{{ item.key }}"
+      with_dict: "{{ certificate_dict }}"
 
-            - name: Populate List of Installed Certificate Checksums
-              set_fact:
-                  installed_certificate_cksum: "{{ installed_certificate_cksum + [item.stdout] }}"
-              with_items: "{{ certificate_dn_cksum.results }}"
+      # We want to avoid loading certificates that are already in the wallet
+    - name: Get List of Trusted Certificate DNs Already in the Wallet
+      shell: |
+        . ~/.bash_profile
+        orapki wallet display -wallet {{ wallet_build_dir }} | awk -F: 'BEGIN{TRUSTED=0}
+        /Trusted Certificates/{TRUSTED=1}
+        /Subject/{if(TRUSTED==1){print $2}}' | sed 's/^\s*//'
+      register: certificate_dn
+      changed_when: false
 
-            - name: Add Absent Certificates into the Wallet
-              shell: |
-                  . ~/.bash_profile
-                  orapki wallet add -wallet {{ wallet_build_dir }} -trusted_cert -cert {{ item.value.filename }} -pwd {{ system_pwd }}
-              with_dict: "{{ certificate_dict }}"
-              when: item.value.md5sum not in installed_certificate_cksum
-        
-            - name: Swap in Newly Built Wallet if Existing Wallet Password was Incorrect
-              copy:
-                 src: "{{ wallet_working_dir }}/{{ item }}"
-                 dest: "{{ wallet_dir }}/{{ item }}"
-                 remote_src: true
-              when: not password_correct
-              loop:
-                  - cwallet.sso
-                  - ewallet.p12
+      # In order to determine which of the available certificates need to be loaded
+      # (i.e. do not already exist in the wallet) we will compare their checksums so
+      # these need to be calculated for all certificates alredy in the wallet.
+      # Note that this does not constitute a system configuration change so we set
+      # changed_when to be false even though it creates an intermediate export file
+    - name: Generate Checksums for Certificates Already in the Wallet
+      shell: |
+        . ~/.bash_profile
+          orapki wallet export -wallet {{ wallet_build_dir }} -dn "{{ item }}" -cert /tmp/cert.out 1>/dev/null; echo $(cat /tmp/cert.out) | sed 's/\s*//g' | md5sum
+      register: certificate_dn_cksum
+      with_items: "{{ certificate_dn.stdout_lines }}"
+      changed_when: false
 
-              # Tidy up temporary certificate files from the file system
-              # As this is a simple tidy up we do not consider it a configuratioin change.
-            - name: Get List of Individual Certificate Files
-              find:
-                paths: /tmp
-                patterns: alf.[0-9][0-9].crt
-              register: files_to_delete
-              changed_when: false
+    - name: Initialize List of Installed Certificate Checksums
+      set_fact:
+        installed_certificate_cksum: []
 
-            - name: Remove Any Individual Certificate Files
-              file:
-                path: "{{ item.path }}"
-                state: absent
-              with_items: "{{ files_to_delete.files }}"
-              changed_when: false
+    - name: Populate List of Installed Certificate Checksums
+      set_fact:
+        installed_certificate_cksum: "{{ installed_certificate_cksum + [item.stdout] }}"
+      with_items: "{{ certificate_dn_cksum.results }}"
 
-            - name: Remove Aggregate Certificate File
-              file:
-                path: /tmp/alf_certs.txt
-                state: absent
-              changed_when: false
+    - name: Add Absent Certificates into the Wallet
+      shell: |
+        . ~/.bash_profile
+        orapki wallet add -wallet {{ wallet_build_dir }} -trusted_cert -cert {{ item.value.filename }} -pwd {{ system_pwd }}
+      with_dict: "{{ certificate_dict }}"
+      when: item.value.md5sum not in installed_certificate_cksum
 
-            - name: Remove Working Directory if Used
-              file:
-                  path: "{{ wallet_working_dir }}"
-                  state: absent
-              when: not password_correct
+    - name: Swap in Newly Built Wallet if Existing Wallet Password was Incorrect
+      copy:
+        src: "{{ wallet_working_dir }}/{{ item }}"
+        dest: "{{ wallet_dir }}/{{ item }}"
+        remote_src: true
+      when: not password_correct
+      loop:
+        - cwallet.sso
+        - ewallet.p12
 
-            - name: Poll Alfresco from Database to Check Connectivity
-              script: test_connectivity.sh
-              changed_when: false
+      # Tidy up temporary certificate files from the file system
+      # As this is a simple tidy up we do not consider it a configuratioin change.
+    - name: Get List of Individual Certificate Files
+      find:
+        paths: /tmp
+        patterns: alf.[0-9][0-9].crt
+      register: files_to_delete
+      changed_when: false
+
+    - name: Remove Any Individual Certificate Files
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ files_to_delete.files }}"
+      changed_when: false
+
+    - name: Remove Aggregate Certificate File
+      file:
+        path: /tmp/alf_certs.txt
+        state: absent
+      changed_when: false
+
+    - name: Remove Working Directory if Used
+      file:
+        path: "{{ wallet_working_dir }}"
+        state: absent
+      when: not password_correct
+
+    - name: Poll Alfresco from Database to Check Connectivity
+      script: test_connectivity.sh
+      changed_when: false
