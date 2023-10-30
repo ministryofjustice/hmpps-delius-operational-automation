@@ -1,13 +1,12 @@
 ---
-
 - include_vars: main.yml
 
-- debug: 
+- debug:
     msg: "{{ default_audit_options |  to_nice_json }}"
 
 - name: Enable Database Auditing Options
   script: |
-          set_audit_options.sh '{{ audit_options | default(default_audit_options) |  to_nice_json }}'
+    set_audit_options.sh '{{ audit_options | default(default_audit_options) |  to_nice_json }}'
   register: setauditoptions
 
 - name: Report Setting Audit Options
@@ -29,21 +28,19 @@
 
 - name: Only Create Audit Archive Job if HIST_AUD$ exists
   block:
-
-    - name: Copy required sql files over 
-      copy: 
+    - name: Copy required sql files over
+      copy:
         src: "{{ item }}"
         dest: "/tmp"
         owner: oracle
         group: oinstall
       with_items:
-        - delius_audit_management.sql 
+        - delius_audit_management.sql
         - delius_audit_archive.sql
 
     - name: Compile and schedule package as sys user
       block:
-
-        - name: Compile audit package 
+        - name: Compile audit package
           shell: |
             . ~/.bash_profile
             sqlplus -s / as sysdba <<EOF
