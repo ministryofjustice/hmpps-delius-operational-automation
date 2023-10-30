@@ -54,7 +54,7 @@ on:
         type: choice
         default: "no"
         options:
-          - yes"
+          - "yes"
           - "no"
       DeployAuditedInteraction:
         description: "Create Delius Audited Interaction Data Consolidation schema?"
