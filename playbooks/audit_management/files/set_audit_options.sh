@@ -29,7 +29,15 @@ BEGIN
           FROM (
           SELECT -- Statement Auditing
                CASE WHEN dsao.audit_option IS NULL THEN 'AUDIT '||js.option_name
-                    WHEN js.option_name IS NULL AND dsao.audit_option != 'CREATE SESSION' THEN 'NOAUDIT '||dsao.audit_option
+                    WHEN js.option_name IS NULL AND dsao.audit_option != 'CREATE SESSION'
+                    THEN
+                       'NOAUDIT '||dsao.audit_option||
+                       CASE WHEN dsao.user_name IS NOT NULL
+                       THEN
+                          ' BY '||dsao.user_name
+                       ELSE
+                          NULL
+                       END
                     ELSE NULL
                     END statement_command
           FROM json_audit CROSS JOIN JSON_TABLE(data, '\$.StatementOptions[*]' COLUMNS (option_name VARCHAR2(100) PATH '\$')) js
@@ -38,7 +46,15 @@ BEGIN
           UNION
           SELECT -- Privilege Auditing
                CASE WHEN dpao.privilege IS NULL THEN 'AUDIT '||jp.option_name
-                    WHEN jp.option_name IS NULL AND dpao.privilege != 'CREATE SESSION' THEN 'NOAUDIT '||dpao.privilege
+                    WHEN jp.option_name IS NULL AND dpao.privilege != 'CREATE SESSION'
+                    THEN
+                       'NOAUDIT '||dpao.privilege||
+                       CASE WHEN dpao.user_name IS NOT NULL
+                       THEN
+                          ' BY '||dpao.user_name
+                       ELSE
+                          NULL
+                       END
                     ELSE NULL
                     END
           FROM json_audit CROSS JOIN JSON_TABLE(data, '\$.PrivilegeOptions[*]' COLUMNS (option_name VARCHAR2(100) PATH '\$')) jp
