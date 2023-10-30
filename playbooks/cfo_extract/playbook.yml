@@ -1,0 +1,76 @@
+---
+
+  - name: Get mount points
+    setup: 
+       filter: ansible_mounts
+
+  - name: Extract CFO mount point from CFO database directory
+    set_fact:
+        cfo_mount_point: "{{ cfo_database_directory | default('UNDEFINED') | regex_replace('(^.*cfo)\/.*$','\\1') }}"
+ 
+  - name: Check CFO Mount Point is a FUSE Mounted Filesystem
+    set_fact:
+         cfo_filesystem_exists: "{{ ansible_mounts | selectattr('mount','equalto',cfo_mount_point) | selectattr('fstype','equalto','fuse') | list | count > 0 }}"
+
+  - name: Schedule daily cfo extract only if cfo database artefacts exist
+    block: 
+
+      - name: Copy required sql file over 
+        copy: 
+          src: "delius_schedule_cfo_extract.sql"
+          dest: "/tmp"
+          owner: oracle
+          group: oinstall
+
+      - name: Schedule package as sys user
+        shell: |
+          . ~/.bash_profile
+          sqlplus -s / as sysdba <<EOF
+          @/tmp/delius_schedule_cfo_extract.sql {{ cfo_database_directory }}
+          exit
+          EOF
+        register: sql_result
+        changed_when: false
+        become: yes
+        become_user: oracle
+        become_method: sudo
+        failed_when: "'CFO Daily Differential Extract' not in sql_result.stdout"
+
+    when: cfo_database_directory is defined
+
+  # We do the following outside of the above block in case the job already exists on a database that has been cloned
+  # and so cfo_database_directory is undefined
+  - name: Disable the Job if the Target File System does not exist
+    shell: |
+        . ~/.bash_profile
+        sqlplus -s / as sysdba <<EOF
+        WHENEVER SQLERROR EXIT FAILURE;
+        SET SERVEROUT ON
+        SET FEEDBACK OFF
+
+        DECLARE
+           l_job_exists   INTEGER;
+        BEGIN
+ 
+           SELECT COUNT(*)
+           INTO   l_job_exists
+           FROM   dba_scheduler_jobs
+           WHERE  owner='DELIUS_CFO'
+           AND    job_name='DAILY_CFO_DIFFERENTIAL_EXTRACT'
+           AND    enabled='TRUE';
+        
+           IF l_job_exists > 0
+           THEN
+              DBMS_SCHEDULER.disable('DELIUS_CFO.DAILY_CFO_DIFFERENTIAL_EXTRACT');
+              DBMS_OUTPUT.put_line('Job Disabled');
+           END IF;
+        END;
+        /
+        exit
+        EOF
+    become: yes
+    become_user: oracle
+    become_method: sudo
+    when: not cfo_filesystem_exists
+    register: disable_job
+    changed_when: "'Job Disabled' in disable_job.stdout"
