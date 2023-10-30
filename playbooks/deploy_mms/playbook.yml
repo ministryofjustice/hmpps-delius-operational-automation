@@ -1,13 +1,12 @@
 ---
-  
 - name: Get mms_pool password from ssm
   shell: . ~/.bash_profile && aws ssm get-parameters --region {{ region }} --with-decryption  --name /{{ environment_name }}/{{ project_name }}/delius-database/db/mms_pool_password | jq -r '.Parameters[].Value'
-  register: mms_password 
+  register: mms_password
   changed_when: false
   no_log: true
 
 - name: Create mms_pool database user
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       ORACLE_SID={{ database_primary_sid }}
@@ -46,10 +45,10 @@
 
 - name: User creation output
   debug:
-    msg: "{{ create_user_plsql.stdout}}" 
+    msg: "{{ create_user_plsql.stdout}}"
 
 - name: Create mms_pool trigger
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       ORACLE_SID={{ database_primary_sid }}
@@ -73,5 +72,4 @@
 
 - name: Trigger creation output
   debug:
-    msg: "{{ trigger_plsql.stdout }}" 
-
+    msg: "{{ trigger_plsql.stdout }}"
