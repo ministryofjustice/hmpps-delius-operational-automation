@@ -6,6 +6,9 @@
     changed_when: false
     no_log: true
 
+  - debug: var=gdpr_pool_password
+  - meta: end_play
+
   - name: Create gdpr_pool delius user
     shell: 
       cmd: |
