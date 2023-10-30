@@ -405,6 +405,9 @@ jobs:
       - name: Remove EFS access point and mount targets
         run: |
 
+          # set variable for checking job failure
+          echo "CLEAN_UP_EXIT_CODE=0" >> $GITHUB_ENV
+
           FILE_SYSTEM_ID="${{ needs.source.outputs.TEMP_EFS_ID }}"
           echo "File system ID is $FILE_SYSTEM_ID"
           ACCESS_POINT_ID=$(aws efs describe-access-points --file-system-id ${FILE_SYSTEM_ID} | jq -r '.AccessPoints[].AccessPointId')
@@ -416,7 +419,8 @@ jobs:
               echo "Access point $ACCESS_POINT_ID deleted"
           else
               echo "Failed to delete access point $ACCESS_POINT_ID"
-              exit 1
+              increment_exit_code=$((CLEAN_UP_EXIT_CODE + 1))
+              echo "CLEAN_UP_EXIT_CODE=$increment_exit_code" >> $GITHUB_ENV
           fi
 
           # Delete the mount targets
@@ -428,7 +432,8 @@ jobs:
                 echo "Mount target $MOUNT_TARGET_ID deleted"
               else
                 echo "Failed to delete mount target $MOUNT_TARGET_ID"
-                exit 1
+                increment_exit_code=$((CLEAN_UP_EXIT_CODE + 1))
+                echo "CLEAN_UP_EXIT_CODE=$increment_exit_code" >> $GITHUB_ENV
               fi
           done
 
@@ -444,6 +449,7 @@ jobs:
               sleep 5
             fi
           done
+        continue-on-error: true
 
       - name: Remove temporary EFS
         run: |
@@ -453,8 +459,10 @@ jobs:
             echo "File system ${{ needs.source.outputs.TEMP_EFS_ID }}  deleted"
           else
             echo "Failed to delete file system ${{ needs.source.outputs.TEMP_EFS_ID }}"
-            exit 1
+            increment_exit_code=$((CLEAN_UP_EXIT_CODE + 1))
+            echo "CLEAN_UP_EXIT_CODE=$increment_exit_code" >> $GITHUB_ENV
           fi
+        continue-on-error: true
 
       - name: Clear up datasync task & locations
         run: |
@@ -465,6 +473,7 @@ jobs:
           aws datasync delete-location --location-arn ${{ needs.source.outputs.DATASYNC_SOURCE_LOCATION_ARN }}
           # delete location for S3
           aws datasync delete-location --location-arn ${{ needs.source.outputs.DATASYNC_DESTINATION_LOCATION_ARN }}
+        continue-on-error: true
 
       - name: Remove S3 directory
         run: |
@@ -474,6 +483,16 @@ jobs:
             echo "S3 directory ${{ needs.destination.outputs.DIRECTORY }} removed"
           else
             echo "Failed to delete S3 directory ${{ needs.destination.outputs.DIRECTORY }}"
-            exit 1
+            increment_exit_code=$((CLEAN_UP_EXIT_CODE + 1))
+            echo "CLEAN_UP_EXIT_CODE=$increment_exit_code" >> $GITHUB_ENV
           fi
-          
+        continue-on-error: true
+
+      - name: Set overall cleanup job status
+        run: |
+          if [ "$CLEAN_UP_EXIT_CODE" -eq 0 ]; then
+            echo "All steps completed successfully"
+          else
+            echo "At least one step failed, marking the job as failed"
+            exit 1
+          fi          
