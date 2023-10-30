@@ -1,0 +1,256 @@
+---
+- name: Oracle Validate Backup
+  hosts: '{{ rman_target | default("localhost", true) }}'
+  gather_facts: yes
+  become: yes
+  become_user: oracle
+  become_method: sudo
+
+  # RMAN backup validation is ideally run from one of the standby hosts to reduce load impact on users, but
+  # in the lower environments the standby host may not exist so we pass in which host to use to run the validation from
+  # as this will vary between environments
+
+  tasks:
+
+  - name: Establish SSM Name
+    set_fact:
+      ssmname: "/{{ environment_name }}/{{ project_name }}/oracle-db-operation/rman/rman_password"
+
+  - name: Get RMAN Catalog Password
+    shell: aws ssm get-parameters --region {{ region }} --with-decryption --name {{ ssmname }} | jq -r '.Parameters[].Value'
+    register: rman_password
+    changed_when: false
+    no_log: true
+
+  - name: Change rman target group name if not ending with delius_primarydb
+    set_fact:
+      delius_primarydb: "{{ rman_target | replace (rman_target.split('_')[-2] + '_' + rman_target.split('_')[-1], 'delius_primarydb')}}"
+    when: rman_target is not search ('delius_primarydb')
+
+  # As we do not have a tnsnames.ora file on the standby we pick up the tnsnames definition for the catalog from the primary
+  - name: Get RMAN Catalog TNS Alias from Primary (TNSNAMES file not in place on Standby)
+    script: get_catalog_connection.sh {{ hostvars[groups['delius_primarydb'][0]]['database_primary_sid'] }} {{ catalog }}
+    delegate_to: "{{ groups['delius_primarydb'][0] }}"
+    when: catalog is defined
+    register: rman_tnsnames       
+
+  - name: Set RMAN Catalog Connection
+    set_fact:
+      connect_to_catalog: "{{ 'rman19c/' + rman_password.stdout + '@' + catalog if (catalog is defined) else 'NOCATALOG' }}"
+    no_log: true
+
+  - name: Get DBID
+    script: run_rman_command.sh "{{ database_standby_sid | default(database_primary_sid) }}" "{{ connect_to_catalog }}" exit
+    register: getdbid
+    changed_when: false
+
+  - name: Set DBID
+    set_fact:
+      dbid: "{{ getdbid.stdout_lines | select('search','^.*\\(DBID=\\d+(, not open)?\\)$') | first | regex_replace('^.*\\(DBID=(\\d+)(, not open)?\\)$', '\\1')  }}"
+
+  - name: Show DBID
+    debug: var=dbid
+    
+  # Retreive the end SCN if restore datetime specified
+  - block:
+
+      - name: Get End SCN 
+        script: get_scn_restore_datetime.sh {{ database_standby_sid | default(database_primary_sid) }} "{{ restore_datetime }}" 
+        register: getscn
+        changed_when: false
+        failed_when: getscn.rc != 0
+
+      - name: Set End SCN
+        set_fact:
+          end_scn: "{{ getscn.stdout_lines[0] }}"
+
+      - name: Show End SCN
+        debug: var=end_scn
+
+    when: restore_datetime | default() | length > 0
+
+  - block:
+
+      - name: Resync catalog on primary just in case any database structure changes have occurred
+        script: run_resync_catalog.sh "{{ connect_to_catalog }}"
+        delegate_to: "{{ ansible_play_hosts[0] | regex_replace('-db-\\d{1}','-db-1') }}"
+        changed_when: false
+        register: resync_catalog
+
+      - name: Report Resync Catalog Output
+        debug: var=resync_catalog.stdout_lines
+
+      - name: Fail if Error Messages in Resync Catalog Output
+        assert:
+          that:
+            - resync_catalog.stdout is not search('ORA-') 
+            - resync_catalog.stdout is not search('ERROR MESSAGE STACK FOLLOWS')
+
+    when: rman_target | regex_search('^.*standby.*$') and catalog is defined
+
+
+  # First we run a backup preview.   This will identify two important SCN numbers: 
+  # (1) the lowest SCN required to start recovery.
+  # (2) the SCN required to clear fuzziness in the datafiles.
+  - name: Run Backup Preview
+    script: run_backup_preview.sh {{ database_standby_sid | default(database_primary_sid) }}  "{{ connect_to_catalog }}" "{{ end_scn | default() }}" 
+    register: backup_preview
+    changed_when: false
+    vars:
+      ansible_aws_ssm_timeout: 300
+
+  - name: Show Preview Output
+    debug: var=backup_preview.stdout_lines
+
+  - name: Fail if Error Messages in Preview Output
+    assert:
+      that:
+        - backup_preview.stdout is not search('ORA-') 
+        - backup_preview.stdout is not search('ERROR MESSAGE STACK FOLLOWS')
+
+  # Restore Validate only validates Level 0 backups so we need to extract the Backup Set Numbers from the Preview to Validate Incrementals Separately
+  - name: Get the Incremental Backup Set IDs
+    set_fact:
+        incremental_backup_sets: "{{ ( incremental_backup_sets | default([]) ) + [ item.split()[0] ] }}"
+    loop: "{{ backup_preview.stdout_lines | select('match','\\d+\\s+Incr 1\\s+[.\\w]+\\s+SBT_TAPE\\s+\\d{2}:\\d{2}:\\d{2}\\s+\\d{2}-\\w{3}-\\d{2}.*') | list }}"
+
+  - name: Create Validation Command for Incremental Backups
+    set_fact:
+      validate_incremental_command: "validate backupset {{ incremental_backup_sets | join(',') }};"
+    when: incremental_backup_sets is defined
+
+  - name: Create Validation Command for Incremental Backups
+    set_fact:
+      validate_incremental_command: "# No Incrementals to Validate"
+    when: incremental_backup_sets is undefined  
+
+  # Extract these 2 important SCNs from the Preview
+  - name: Get the Media Recovery Start SCN 
+    set_fact:
+        media_recovery_start_scn: "{{ backup_preview.stdout_lines | select('match','.*Media recovery start SCN is .*') | list | first | regex_replace('^Media recovery start SCN is (\\d+)$','\\1') }}"
+
+  - name: Get the Media Recovery Clear Fuzziness SCN 
+    set_fact:
+        media_recovery_fuzziness_scn: "{{ backup_preview.stdout_lines | select('match','.*Recovery must be done beyond SCN .*') | list | first | regex_replace('^Recovery must be done beyond SCN (\\d+) to clear datafile fuzziness$','\\1') }}"
+
+  - name: Get Start Date for Current Database Incarnation for Current DBID
+    script: get_rman_incarnation_start_date.sh {{ database_standby_sid | default(database_primary_sid) }} "{{ connect_to_catalog }}" "{{ dbid }}"
+    register: incarnation_start
+    changed_when: false    
+
+  - name: Set Start of Incarnation Date
+    set_fact:
+      incarnation_start_date: "{{ incarnation_start.stdout_lines[0] }}"
+
+  - name: Report Incarnation Start Date
+    debug: 
+        msg: "Only archivelog backups created after {{ incarnation_start_date }} belong to the current incarnation"
+
+  # We are only interested in backups of archivelogs from the recovery start SCN as these are the only ones
+  # required to perform recovery of the database
+  - name: Get Listing of Archivelog Backups
+    script: run_list_archivelog_backup.sh {{ database_standby_sid | default(database_primary_sid) }} {{ media_recovery_start_scn }} "{{ connect_to_catalog }}" "{{ end_scn | default() }}"
+    register: archivelog_backup_list
+    changed_when: false
+
+  # Restore Validate only validates Level 0 backups so we need to extract the Backup Set Numbers from the Preview to Validate Archivelogs Separately
+  - name: Get the Archivelog Backup Set IDs
+    set_fact:
+        archivelog_backup_sets: "{{ ( archivelog_backup_sets | default([]) ) + [ item.split()[0] ] }}"
+    loop: "{{ archivelog_backup_list.stdout_lines | select('match','\\d+\\s+[.\\w]+\\s+SBT_TAPE\\s+\\d{2}:\\d{2}:\\d{2}\\s+\\d{2}-\\w{3}-\\d{4} \\d{2}:\\d{2}:\\d{2}.*') | list }}"
+    
+  # Some of the archivelogs will be included in incremental backup sets.  We do not need to validate these twice so remove the duplicates.
+  - name: Ignore Archivelog Backup Set IDs Already Being Validated for Incremental Backups
+    set_fact:
+        archivelog_backup_sets: "{{ archivelog_backup_sets | difference(incremental_backup_sets) }}"
+    when: archivelog_backup_sets is defined and incremental_backup_sets is defined
+
+  - name: Create Validation Command for Archivelog Backups
+    set_fact:
+      validate_archivelog_command: "validate backupset {{ archivelog_backup_sets | join(',') }};"
+    when: archivelog_backup_sets is defined
+
+  - name: Create Validation Command for Archivelog Backups
+    set_fact:
+      validate_archivelog_command: "# No Archivelog Backups to Validate"
+    when: archivelog_backup_sets is undefined  
+
+  # It is (rarely) possible that we have no archive logs to validate if we have just completed an archive log only backup
+  # so initalise empty dictionary for use even if no archive logs detected in the output
+  - name: Initialise Dictionary of Information About Archive Log Sequence Numbers to Validate
+    set_fact:
+        arc_sequences: {}
+
+  # Only include archive logs where the "Low Time" is later than the start of the current database incarnation
+  - name: Fetch All Archivelog Sequence Numbers into Dictionary
+    set_fact:
+        arc_sequences: "{{ arc_sequences | combine({item.split()[1]: {'low_scn': item.split()[2], 'high_scn': item.split()[5] }}) }}"
+    loop: "{{ archivelog_backup_list.stdout_lines | select('match','\\s*\\d+\\s+\\d+\\s+\\d+\\s+\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\s+\\d+\\s+\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}') | list }}"
+    when:  (( ( item.split()[3] + ' ' + item.split()[4] ) | to_datetime) - ( incarnation_start_date | to_datetime)).total_seconds() >= 0 
+
+  - name: Create List of Highest SCNs in Each Archivelog Backed Up
+    set_fact:
+        high_scns: "{{ high_scns | default([]) + [ item.value.high_scn ] }}"
+    with_dict: "{{ arc_sequences }}"
+
+  - name: Find Highest SCN Overall in All Backed up Archivelogs
+    set_fact:
+            highest_scn: "{{ high_scns | max }}"
+
+  # Depending on when this is run not all archivelogs may be backed up, so only check we have backups sufficient to clear fuzziness
+  - name: Check Highest SCN Backed Up is High Enough to Clear Datafile Fuzziness 
+    assert:
+        that: highest_scn >= media_recovery_fuzziness_scn
+      
+  - name: Get List of Archive Sequence Numbers
+    set_fact:
+        sequence_numbers: "{{ sequence_numbers | default([]) + [ item.key | int ] }}"
+    with_dict: "{{ arc_sequences }}"
+
+  - name: Derive Information About Sequence Numbers to Detect any Gaps
+    set_fact:
+            highest_seq: "{{ sequence_numbers | max | int }}"
+            lowest_seq: "{{ sequence_numbers | min | int }}"
+            expected_num_arc: "{{ ( sequence_numbers | max | int ) - ( sequence_numbers | min | int ) + 1 }}"
+            actual_num_arc: "{{ sequence_numbers | length }}"
+
+  - name: Check No Gaps in Archive Log Backups
+    assert:
+            that: expected_num_arc == actual_num_arc
+
+  # We want to use multiple tape channels for validation as otherwise it will be too slow.
+  # However we do not want to permanently overwrite the tape device configuration so record the current setting.
+  - name: Get Existing SBT_TAPE device configuration
+    script: get_sbt_parallelism.sh {{ database_standby_sid | default(database_primary_sid)  }}
+    register: existing_sbt_parallelism
+    changed_when: false
+
+  - name: Allow Half CPUs for Validation Work (Remainder to Continue Managed Recovery on Standby or Work on Primary)
+    set_fact: 
+        parallelism: "{{ (0.5 * ansible_processor_vcpus) | int }}"
+
+  - name: Copy rman backup validation bash script
+    copy:
+      src: "{{ playbook_dir }}/files/run_backup_validation.sh"
+      dest: "/tmp/run_backup_validation.sh"
+      mode: 0744
+
+  - name: Run Database and Archivelog Backup Validation
+    shell: |
+      . ~/.bash_profile; /tmp/run_backup_validation.sh {{ database_standby_sid | default(database_primary_sid) }} {{ media_recovery_start_scn }}  {{ parallelism }} "{{ validate_incremental_command }}" "{{ validate_archivelog_command }}" "{{ connect_to_catalog }}" "{{ end_scn | default() }}" 
+    async: 21600
+    poll: 300
+    register: backup_validation
+
+  - name: Report Validation Output
+    debug: var=backup_validation.stdout_lines
+
+  - name: Fail if Error Messages in RMAN Validation Output
+    assert:
+      that:
+        - backup_validation.stdout is not search('ORA-') 
+        - backup_validation.stdout is not search('ERROR MESSAGE STACK FOLLOWS')
+
+  # Reset Tape Device Parallelism to Original Value
+  - name: Reset SBT_TAPE device configuration
+    script: set_sbt_parallelism.sh {{ database_standby_sid | default(database_primary_sid) }} "{{ existing_sbt_parallelism.stdout_lines[0] }}"
