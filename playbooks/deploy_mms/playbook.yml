@@ -1,7 +1,7 @@
 ---
   
 - name: Get mms_pool password from ssm
-  shell:. ~/.bash_profile && aws ssm get-parameters --region {{ region }} --with-decryption  --name /{{ environment_name }}/{{ project_name }}/delius-database/db/mms_pool_password | jq -r '.Parameters[].Value'
+  shell: . ~/.bash_profile && aws ssm get-parameters --region {{ region }} --with-decryption  --name /{{ environment_name }}/{{ project_name }}/delius-database/db/mms_pool_password | jq -r '.Parameters[].Value'
   register: mms_password 
   changed_when: false
   no_log: true
