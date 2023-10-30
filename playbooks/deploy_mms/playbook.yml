@@ -1,0 +1,77 @@
+---
+  
+- name: Get mms_pool password from ssm
+  shell:. ~/.bash_profile && aws ssm get-parameters --region {{ region }} --with-decryption  --name /{{ environment_name }}/{{ project_name }}/delius-database/db/mms_pool_password | jq -r '.Parameters[].Value'
+  register: mms_password 
+  changed_when: false
+  no_log: true
+
+- name: Create mms_pool database user
+  shell: 
+    cmd: |
+      . ~/.bash_profile
+      ORACLE_SID={{ database_primary_sid }}
+      ORAENV_ASK=NO
+      . oraenv > /dev/null;
+      sqlplus -s / as sysdba << EOF
+        WHENEVER SQLERROR EXIT FAILURE
+        SET PAGES 100 HEAD OFF LINES 200 FEED OFF SERVEROUTPUT ON
+
+        DECLARE
+
+          l_username_exists  INTEGER;
+
+        BEGIN
+
+          SELECT COUNT(*)
+          INTO l_username_exists
+          FROM dba_users
+          WHERE username = 'MMS_POOL';
+
+          IF l_username_exists = 0
+          THEN
+            EXECUTE IMMEDIATE 'CREATE USER mms_pool IDENTIFIED BY "{{ mms_password.stdout}}" DEFAULT TABLESPACE users'; 
+            EXECUTE IMMEDIATE 'GRANT CREATE SESSION, l_delius_complete_access TO mms_pool';          
+            DBMS_OUTPUT.put_line('User mms_pool created');
+          ELSE   
+            DBMS_OUTPUT.put_line('User mms_pool already exists');
+          END IF;
+        
+        END;
+        /
+      EOF
+  register: create_user_plsql
+  changed_when: false
+  failed_when: create_user_plsql.rc != 0
+
+- name: User creation output
+  debug:
+    msg: "{{ create_user_plsql.stdout}}" 
+
+- name: Create mms_pool trigger
+  shell: 
+    cmd: |
+      . ~/.bash_profile
+      ORACLE_SID={{ database_primary_sid }}
+      ORAENV_ASK=NO
+      . oraenv > /dev/null;
+      sqlplus -s / as sysdba << EOF
+        WHENEVER SQLERROR EXIT FAILURE
+        SET PAGES 100 HEAD OFF LINES 200 FEED OFF SERVEROUTPUT ON
+
+        CREATE OR REPLACE TRIGGER delius_app_schema.t_mms_logon
+        AFTER LOGON ON mms_pool.schema
+        BEGIN
+          EXECUTE IMMEDIATE 'ALTER SESSION SET current_schema=DELIUS_APP_SCHEMA';
+          PKG_VPD_CTX.set_client_identifier(userName => 'NationalUser');
+        END;
+        /
+        EXEC DBMS_OUTPUT.put_line('Logon trigger created.');
+      EOF
+  register: trigger_plsql
+  changed_when: false
+
+- name: Trigger creation output
+  debug:
+    msg: "{{ trigger_plsql.stdout }}" 
+
