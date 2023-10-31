@@ -73,7 +73,7 @@ permissions:
 
 jobs:
   check_inputs:
-  if: ${{ github.event_name == "workflow_dispatch" && github.event.inputs.RestoreDatetime != '' }}
+    if: ${{ github.event_name == "workflow_dispatch" && github.event.inputs.RestoreDatetime != '' }}
     runs-on: ubuntu-latest
     steps:
 
