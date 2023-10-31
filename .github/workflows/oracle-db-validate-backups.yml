@@ -177,9 +177,9 @@ jobs:
         working-directory: ${{ env.inventory }}
         id: randomizetargethost
         run: |
-          databaseType=$(echo ${RmanTarget} | sed 's/^.*_Random \(.*\) Standby$/\1/' | tr '[:upper:]' '[:lower:]')
+          databasetype=$(echo ${RmanTarget} | sed 's/^.*_Random \(.*\) Standby$/\1/' | tr '[:upper:]' '[:lower:]')
           prefix=$(echo ${RmanTarget} | sed 's/^\(.*\)_Random \(.*\) Standby$/\1/' |  tr '[:upper:]' '[:lower:]')
-          high_availability_count=$(yq '.high_availability_count.${databaseType}' group_vars/${prefix}_all.yml)
+          high_availability_count=$(yq --arg databasetype "${databasetype}" '.high_availability_count[$databasetype]' group_vars/${prefix}_all.yml)
           [[ ${high_availability_count} -gt 0 ]] && RmanTarget="${prefix}_${type}_standby_$(($RANDOM % ${high_availability_count} + 1 ))"
 
       - name: Configure AWS Credentials
