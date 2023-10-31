@@ -112,7 +112,7 @@ jobs:
                   exit 1
               fi
           }
-          echo `isDateInvalid '${{ github.event.inputs.RestoreDatetime }}'`
+          isDateInvalid '${{ github.event.inputs.RestoreDatetime }}'
 
       - name: Prepare Rman Target Name
         id: preparermantargetname
