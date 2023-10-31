@@ -106,7 +106,6 @@ jobs:
               if [[ "${DATE}" =~ ^((${DATE_1}|${DATE_2}|${DATE_3}|${DATE_4}) ${TIMEFORMAT})$ ]]
               then
                   echo "Restore Datetime ${DATE} valid"
-                  exit 1
               else
                   echo "Restore Datetime ${DATE} invalid!"
                   exit 1
