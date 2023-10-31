@@ -103,6 +103,8 @@ jobs:
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
+    env:
+      RmanTarget: ${{needs.build_rman_target_name.outputs.RmanTarget}}
     continue-on-error: false
     steps:
 
