@@ -72,12 +72,16 @@ permissions:
   packages: read
 
 jobs:
-  check_inputs:
-    if: ${{ (github.event_name == 'workflow_dispatch') && (github.event.inputs.RestoreDatetime != '') }}
+  build_rman_target_name:
     runs-on: ubuntu-latest
+    outputs:
+      RmanTarget: ${{ steps.preparermantargetname.outputs.RmanTarget }}
+      TargetEnvironment: ${{ steps.preparermantargetname.outputs.TargetEnvironment }}
+    continue-on-error: false
     steps:
 
       - name: Check Restore DateTime Input
+        if: ${{ (github.event_name == 'workflow_dispatch') && (github.event.inputs.RestoreDatetime != '') }}
         run: |
           isDateInvalid()
           {
@@ -109,13 +113,6 @@ jobs:
               fi
           }
           echo `isDateInvalid '${{ github.event.inputs.RestoreDatetime }}'`
-
-  build_rman_target_name:
-    runs-on: ubuntu-latest
-    outputs:
-      RmanTarget: ${{ steps.preparermantargetname.outputs.RmanTarget }}
-      TargetEnvironment: ${{ steps.preparermantargetname.outputs.TargetEnvironment }}
-    steps:
 
       - name: Prepare Rman Target Name
         id: preparermantargetname
