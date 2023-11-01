@@ -154,8 +154,8 @@ jobs:
         run: |
           targets=""
           prefix="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
-          databasetype=${1}
           build_targets() {
+            databasetype=${1}
             high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
             [ $high_availability_count -le 2 ] && targets+="${prefix}_${databasetype}_primarydb,"
             [ $high_availability_count -eq 1 ] && targets+="${prefix}_${databasetype}_standbydb1,"
@@ -165,7 +165,7 @@ jobs:
           [ "${{ github.event.inputs.IncludeMIS }}" == "yes" ] && build_targets mis
           [ "${{ github.event.inputs.IncludeBOE }}" == "yes" ] && build_targets misboe
           [ "${{ github.event.inputs.IncludeDSD }}" == "yes" ] && build_targets misdsd
-          echo "targets=targets" >>  $GITHUB_OUTPUT
+          echo "targets=$targets" >>  $GITHUB_OUTPUT
 
       - name: Check Parameters
         run: |
