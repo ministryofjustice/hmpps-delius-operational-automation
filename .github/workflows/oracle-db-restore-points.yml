@@ -89,7 +89,7 @@ jobs:
     steps:
 
       - name: Check Restore DateTime Input
-        if: ${{ github.event.inputs.RestoreDateTime != '') }}
+        if: ${{ github.event.inputs.RestoreDateTime != '' }}
         run: |
           isDateInvalid()
           {
