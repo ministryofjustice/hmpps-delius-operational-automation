@@ -153,7 +153,7 @@ jobs:
         id: definetargets
         run: |
           targets=""
-          prefix="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
+          prefix="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
           build_targets() {
             databasetype=${1}
             high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
