@@ -168,7 +168,7 @@ jobs:
           [ "${{ github.event.inputs.IncludeBOE }}" == "yes" ] && build_targets misboe
           [ "${{ github.event.inputs.IncludeDSD }}" == "yes" ] && build_targets misdsd
           echo "targets=$targets"
-          echo "targets=$targets" >> $GITHUB_OUTPUT
+          echo "targets='$targets'" >> $GITHUB_OUTPUT
 
       - name: Check Parameters
         if: ${{ github.event.inputs.RestorePointName != '' &&  github.event.inputs.RestoreDateTime != '' &&  github.event.inputs.RequiredAction != 'Create Restore Point' }}
@@ -186,7 +186,7 @@ jobs:
 
       - name: Start Ansible Validate Backup
         run: |
-          echo "${{ steps.definetargets.output.targets }}"
+          echo ${{ steps.definetargets.output.targets }} ${{ github.event.inputs.RequiredAction }}
           # export ANSIBLE_CONFIG=$ansible_config
           # $command -i $inventory \
           # -e target_dbs="${{ steps.definetargets.output.targets }}" \
