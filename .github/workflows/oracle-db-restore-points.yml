@@ -162,13 +162,13 @@ jobs:
             [ $high_availability_count -le 2 ] && targets+="${prefix}_${databasetype}_primarydb,"
             [ $high_availability_count -eq 1 ] && targets+="${prefix}_${databasetype}_standbydb1,"
             [ $high_availability_count -eq 2 ] && targets+="${prefix}_${databasetype}_standbydb1,${prefix}_${databasetype}_standbydb2,"
+            echo $targets
           }
           [ "${{ github.event.inputs.IncludeDelius }}" == "yes" ] && build_targets delius
           [ "${{ github.event.inputs.IncludeMIS }}" == "yes" ] && build_targets mis
           [ "${{ github.event.inputs.IncludeBOE }}" == "yes" ] && build_targets misboe
           [ "${{ github.event.inputs.IncludeDSD }}" == "yes" ] && build_targets misdsd
-          echo "targets=$targets" 
-          # >> $GITHUB_OUTPUT
+          echo "targets=$targets" >> $GITHUB_OUTPUT
 
       - name: Check Parameters
         run: |
