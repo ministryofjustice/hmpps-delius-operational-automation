@@ -194,5 +194,4 @@ jobs:
       - name: Start Ansible Validate Backup
         run: |
           [[ ! -z ${{ steps.randomizetargethost.outputs.RmanTarget }} ]] && RmanTarget="${{ steps.randomizetargethost.outputs.RmanTarget }}"
-          echo $RmanTarget
-          #$command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
+          $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
