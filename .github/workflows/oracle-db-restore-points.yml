@@ -79,7 +79,6 @@ permissions:
 jobs:          
   deployment:
     name: oracle-restore-points
-    needs: build_rman_target_name
     environment: ${{ github.event.inputs.TargetEnvironment}}
     runs-on: ubuntu-latest
     # container:
