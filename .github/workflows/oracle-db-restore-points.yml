@@ -161,6 +161,7 @@ jobs:
             [ $high_availability_count -le 2 ] && targets+="${prefix}_${databasetype}_primarydb,"
             [ $high_availability_count -eq 1 ] && targets+="${prefix}_${databasetype}_standbydb1,"
             [ $high_availability_count -eq 2 ] && targets+="${prefix}_${databasetype}_standbydb1,${prefix}_${databasetype}_standbydb2,"
+            echo
           }
           [ "${{ github.event.inputs.IncludeDelius }}" == "yes" ] && build_targets delius
           [ "${{ github.event.inputs.IncludeMIS }}" == "yes" ] && build_targets mis
