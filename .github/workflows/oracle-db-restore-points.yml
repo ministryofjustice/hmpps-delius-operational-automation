@@ -186,10 +186,10 @@ jobs:
 
       - name: Start Ansible Validate Backup
         run: |
-          echo ${{ steps.definetargets.output.targets }} ${{ github.event.inputs.RequiredAction }}
+          echo ${{ steps.definetargets.outputs.targets }}
           # export ANSIBLE_CONFIG=$ansible_config
           # $command -i $inventory \
-          # -e target_dbs="${{ steps.definetargets.output.targets }}" \
+          # -e target_dbs="${{ steps.definetargets.outputs.targets }}" \
           # -e required_action="${{ github.event.inputs.RequiredAction }}" \
           # -e restore_point_name="${{ github.event.inputs.RestorePointName }}" \
           # -e restore_date_time="${{ github.event.inputs.RestoreDateTime }}" 
