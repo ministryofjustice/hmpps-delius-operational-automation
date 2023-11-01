@@ -170,12 +170,10 @@ jobs:
           echo "targets=$targets" >> $GITHUB_OUTPUT
 
       - name: Check Parameters
+        if: ${{ github.event.inputs.RestorePointName != '' &&  github.event.inputs.RestoreDateTime != '' &&  github.event.inputs.RequiredAction != 'Create Restore Point' }}
         run: |
-          if [[ ${{ github.event.inputs.RestorePointName }} != '' && ${{ github.event.inputs.RestoreDateTime }} != '' && "${{ github.event.inputs.RequiredAction }}" != 'Create Restore Point' ]]
-          then:
-            echo "Only Create Restore Point action allowed with both RestoreDateTime and RestorePointName"
-            exit 1
-          fi
+          echo "Only Create Restore Point action allowed with both RestoreDateTime and RestorePointName"
+          exit 1
 
       - name: Configure AWS Credentials
         id: login-aws
