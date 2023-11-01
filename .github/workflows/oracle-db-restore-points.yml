@@ -153,7 +153,6 @@ jobs:
         id: definetargets
         working-directory: ${{ env.inventory }}
         run: |
-          set -x
           targets=""
           prefix="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
           build_targets() {
@@ -162,7 +161,6 @@ jobs:
             [ $high_availability_count -le 2 ] && targets+="${prefix}_${databasetype}_primarydb,"
             [ $high_availability_count -eq 1 ] && targets+="${prefix}_${databasetype}_standbydb1,"
             [ $high_availability_count -eq 2 ] && targets+="${prefix}_${databasetype}_standbydb1,${prefix}_${databasetype}_standbydb2,"
-            echo $targets
           }
           [ "${{ github.event.inputs.IncludeDelius }}" == "yes" ] && build_targets delius
           [ "${{ github.event.inputs.IncludeMIS }}" == "yes" ] && build_targets mis
@@ -172,7 +170,7 @@ jobs:
 
       - name: Check Parameters
         run: |
-          if [[ ! -z ${{ github.event.inputs.RestorePointName }} && ! -z ${{ github.event.inputs.RestoreDateTime }} && "${{ github.event.inputs.RequiredAction }}" != 'Create Restore Point' ]]
+          if [[ ${{ github.event.inputs.RestorePointName }} != '' && ${{ github.event.inputs.RestoreDateTime }} != '' && "${{ github.event.inputs.RequiredAction }}" != 'Create Restore Point' ]]
           then:
             echo "Only Create Restore Point action allowed with both RestoreDateTime and RestorePointName"
             exit 1
