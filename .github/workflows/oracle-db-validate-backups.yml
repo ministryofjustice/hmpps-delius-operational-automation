@@ -139,7 +139,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     env:
-      RmanTarget: ${{needs.build_rman_target_name.outputs.RmanTarget}}
+      RmanTarget: ${{ needs.build_rman_target_name.outputs.RmanTarget }}
     continue-on-error: false
     steps:
 
@@ -181,6 +181,7 @@ jobs:
           prefix=$(echo ${RmanTarget} | sed 's/^\(.*\)_Random \(.*\) Standby$/\1/' |  tr '[:upper:]' '[:lower:]')
           high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
           [[ ${high_availability_count} -gt 0 ]] && RmanTarget="${prefix}_${databasetype}_standbydb$(($RANDOM % ${high_availability_count} + 1 ))"
+          echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
         id: login-aws
@@ -192,5 +193,6 @@ jobs:
 
       - name: Start Ansible Validate Backup
         run: |
+          [[ ! -z ${{ steps.randomizetargethost.outputs.RmanTarget }} ]] && RmanTarget="${{ steps.randomizetargethost.outputs.RmanTarget }}"
           echo $RmanTarget
-          # $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
+          #$command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
