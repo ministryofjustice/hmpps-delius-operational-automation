@@ -167,6 +167,7 @@ jobs:
           [ "${{ github.event.inputs.IncludeMIS }}" == "yes" ] && build_targets mis
           [ "${{ github.event.inputs.IncludeBOE }}" == "yes" ] && build_targets misboe
           [ "${{ github.event.inputs.IncludeDSD }}" == "yes" ] && build_targets misdsd
+          echo "targets=$targets"
           echo "targets=$targets" >> $GITHUB_OUTPUT
 
       - name: Check Parameters
