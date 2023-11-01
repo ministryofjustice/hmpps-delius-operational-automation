@@ -28,6 +28,7 @@ on:
           - "misboe_standbydb1"
           - "misdsd_standbydb1"
           - "delius_standbydb2"
+          - "Random Delius Standby"
       RestoreDatetime:
         description: "Validate backup until restore datetime [DD-MM-YYYY HH24:MI:SS]"
         type: string
@@ -138,7 +139,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     env:
-      RmanTarget: ${{needs.build_rman_target_name.outputs.RmanTarget}}
+      RmanTarget: ${{ needs.build_rman_target_name.outputs.RmanTarget }}
     continue-on-error: false
     steps:
 
@@ -164,6 +165,24 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
           fetch-depth: 0
 
+      - name: Install yq
+        uses: dcarbone/install-yq-action@v1.1.1
+        with:
+          download-compressed: true
+          version: "v4.35.1"
+          force: true
+
+      - name: Randomize TargetHost If Specified
+        if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')  && contains( env.RmanTarget,'Random') }}
+        working-directory: ${{ env.inventory }}
+        id: randomizetargethost
+        run: |
+          databasetype=$(echo ${RmanTarget} | sed 's/^.*_Random \(.*\) Standby$/\1/' | tr '[:upper:]' '[:lower:]')
+          prefix=$(echo ${RmanTarget} | sed 's/^\(.*\)_Random \(.*\) Standby$/\1/' |  tr '[:upper:]' '[:lower:]')
+          high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
+          [[ ${high_availability_count} -gt 0 ]] && RmanTarget="${prefix}_${databasetype}_standbydb$(($RANDOM % ${high_availability_count} + 1 ))"
+          echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
+
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
@@ -173,5 +192,6 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Start Ansible Validate Backup
-        run: $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
-          
+        run: |
+          [[ ! -z ${{ steps.randomizetargethost.outputs.RmanTarget }} ]] && RmanTarget="${{ steps.randomizetargethost.outputs.RmanTarget }}"
+          $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
