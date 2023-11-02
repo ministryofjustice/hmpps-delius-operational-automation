@@ -197,7 +197,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Start Ansible Validate Backup
+      - name: Start Ansible Restore Points
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
