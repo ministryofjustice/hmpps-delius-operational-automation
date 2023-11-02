@@ -8,6 +8,10 @@
 
   tasks:
 
+    - debug: var=required_action
+    - debug: var=restore_point_name
+    - meta: end_play
+
     - name: Validate Restore Point Name
       script:  validate_restore_point_name.sh
       environment:
