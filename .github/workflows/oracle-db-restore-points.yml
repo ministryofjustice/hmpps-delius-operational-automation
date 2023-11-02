@@ -139,6 +139,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/oracle_restore_points
+            playbooks/block_sessions
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
