@@ -1,5 +1,5 @@
 name: "Oracle: Restore Points"
-run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}_restore_points"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-restore-points"
 on:
   workflow_dispatch:
     inputs:
