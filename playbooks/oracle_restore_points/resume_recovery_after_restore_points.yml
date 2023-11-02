@@ -1,0 +1,43 @@
+- name: Resume Recovery
+  script: resume_recovery.sh
+
+# Note that when we flashback the standby databases they will be at an earlier SCN than the
+# primary and must therefore recover through the subsequent resetlogs on primary.   Therefore
+# there may be a short period when the standby and primary databases are on different
+# incarnations.   This can result in seeing an ORA-16700 error within Dataguard Broker.
+# Therefore we poll for the configuration status a few times before accepting that an error
+# has occurred as it may be cleared by recovery action.
+# ORA-16820 (Observer not observing) may be ignored as this will be resolved later if required.
+- name: Check for Errors in Data Guard Configuration
+  shell: |
+    . ~/.bash_profile
+    dgmgrl / "show database $ORACLE_SID" | egrep "ORA-|^Database -" | grep -v ORA-16820
+  register: dgmgrl
+  until: not dgmgrl.stdout is search('ORA-')
+  retries: 12
+  delay: 10
+  changed_when: false
+
+# For databases using Active Data Guard, these need to be restarted to enable read only mode.
+# (Note: this must take place here, after primary flash back, and not immediately after the standby flashback
+# as that would cause recovery to automatically start using redo from the old incarnation)
+- name: Bounce the Standby to enable Read Only
+  shell: |
+      . ~/.bash_profile
+      ( srvctl config database -d ${ORACLE_SID} | grep "Start options:" | grep "read only" ) && ( srvctl stop database -d ${ORACLE_SID} ) ||  ( echo "Stop Not Required" )
+      ( srvctl config database -d ${ORACLE_SID} | grep "Start options:" | grep "read only" ) && ( srvctl start database -d ${ORACLE_SID} ) || ( echo "Start Not Required" )
+  register: srvctl
+  changed_when: "srvctl.stdout is search('Start options: read only')"
+
+# Check the Apply Lag on the Standby DBs.  It may take a little while to catch up
+# for poll the lag several times before reporting an error.  We expect the lag to normally
+# be zero shortly after a flashback.
+- name: Check for Apply Lag
+  shell: |
+    . ~/.bash_profile
+    dgmgrl / "show database $ORACLE_SID"  | egrep "^Database - | Apply Lag:" | paste - -
+  register: applylag
+  until: applylag.stdout is regex("Apply Lag:\s+0 seconds")
+  retries: 12
+  delay: 10
+  changed_when: false
