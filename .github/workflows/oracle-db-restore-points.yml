@@ -87,6 +87,18 @@ jobs:
     continue-on-error: false
     steps:
 
+      - name: Output Input Parameters
+        run: |
+          echo "IncludeDelius: ${{ github.event.inputs.IncludeDelius }}\n\
+          IncludeMIS: ${{ github.event.inputs.IncludeMIS }}\n\
+          IncludeBOE: ${{ github.event.inputs.IncludeBOE }}\n\
+          IncludeDSD: ${{ github.event.inputs.IncludeDSD }}\n\
+          RequiredAction: ${{ github.event.inputs.RequiredAction }}\n\
+          RestorePointName: ${{ github.event.inputs.RestorePointName }}\n\
+          RestoreDateTime: ${{ github.event.inputs.RestoreDateTime }}\n\
+          SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
+          SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
+
       - name: Check Restore DateTime Input
         if: ${{ github.event.inputs.RestoreDateTime != '' }}
         run: |
