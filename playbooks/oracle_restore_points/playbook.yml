@@ -115,8 +115,6 @@
     - database_primary_sid | regex_search('STGMIS')
     - not ( skip_mis_dfi_export | default('false') | bool )
 
-
-
 - name: Manage restore points
   hosts: '{{ target_dbs | default("localhost", true) }}'
   gather_facts: no
@@ -140,7 +138,6 @@
       when: (required_action == "Create Restore Point") or (required_action == "Drop Restore Point") or (required_action == "Flashback to Restore Point")
 
       block:
-      when: catalog is defined
 
         - name: Establish SSM Name
           set_fact:
@@ -162,6 +159,8 @@
           script: check_database_registered.sh {{ database_primary_unique }} {{ connect_to_catalog }}
           register: database_registered
           changed_when: false
+      
+      when: catalog is defined
 
     - name: Get Database Role
       script: get_database_role.sh
