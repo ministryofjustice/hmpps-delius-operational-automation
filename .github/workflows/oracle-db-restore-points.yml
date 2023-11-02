@@ -81,8 +81,8 @@ jobs:
     name: oracle-restore-points
     environment: ${{ github.event.inputs.TargetEnvironment}}
     runs-on: ubuntu-latest
-    # container:
-    #   image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     continue-on-error: false
     steps:
