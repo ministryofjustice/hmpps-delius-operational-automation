@@ -205,6 +205,6 @@ jobs:
           $command -i $inventory \
           -e target_dbs="${{ steps.definetargets.outputs.targets }}" \
           -e required_action="${{ github.event.inputs.RequiredAction }}" \
-          -e restore_point_name="${{ github.event.inputs.RestorePointName }}" \
+          -e "restore_point_name=${{ github.event.inputs.RestorePointName }}" \
           -e restore_date_time="${{ github.event.inputs.RestoreDateTime }}"
           
