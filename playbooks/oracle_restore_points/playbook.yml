@@ -10,6 +10,11 @@
 
     - debug: var=required_action
     - debug: var=restore_point_name
+    - debug:
+        msg: "{{ group_names | regex_search('delius_primarydb') }}"
+      when: 
+        - group_names | regex_search('delius_primarydb') 
+        - database_primary_sid is defined
     - meta: end_play
 
     - name: Validate Restore Point Name
