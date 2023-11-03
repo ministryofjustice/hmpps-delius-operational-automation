@@ -30,6 +30,7 @@ on:
 permissions:
   contents: read
   packages: read
+  id-token: write # This is required for requesting the JWT
 
 jobs:
   # Start deployment container job based on the build delius-ansible-aws image
@@ -37,8 +38,8 @@ jobs:
     name: Test automation task
     environment: development # hard-coded this while spiking this out
     runs-on: ubuntu-22.04
-    # container:
-    #   image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
 
     steps:
       - name: Checkout Code
