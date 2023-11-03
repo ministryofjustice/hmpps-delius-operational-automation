@@ -105,6 +105,7 @@ on:
 permissions:
   contents: read
   packages: read
+  id-token: write  # This is required for requesting the JWT
 
 jobs:
   build_rman_target_name:
