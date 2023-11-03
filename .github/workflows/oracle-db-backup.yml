@@ -101,7 +101,7 @@ on:
         type: string
         default: "no"
 
-# Allow permissions on repository and docker image respectively 
+# Allow permissions on repository and docker image and OIDC token
 permissions:
   contents: read
   packages: read
