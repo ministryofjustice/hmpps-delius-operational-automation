@@ -1,4 +1,6 @@
 name: "Oracle: Backup"
+permissions:
+  id-token: write  # This is required for requesting the JWT
 run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.Period, github.event.inputs.TargetHost) }}_database_backup"
 on:
   workflow_dispatch:
