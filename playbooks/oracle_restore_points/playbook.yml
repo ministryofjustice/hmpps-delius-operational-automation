@@ -8,13 +8,6 @@
 
   tasks:
 
-    - debug: var=required_action
-    - debug: var=restore_point_name
-    - debug:
-        msg: "{{ group_names }}"
-      when: 
-        - database_primary_sid is defined
-
     - name: Validate Restore Point Name
       script:  validate_restore_point_name.sh
       environment:
@@ -95,7 +88,7 @@
 - name: Block connections to Delius primary database
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: "{{ hostvars[inventory_hostname].group_names[1] | replace(hostvars[inventory_hostname].group_names[1].split('_')[-1],'primarydb') }}"
+    target_host: "{{ group_names | select('search', '.*delius_primarydb') | first  }}"
     database: {'delius': {'high_availability_count': 0}}
     action: block
   when: 
