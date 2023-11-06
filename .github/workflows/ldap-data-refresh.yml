@@ -152,7 +152,7 @@ jobs:
       - name: Create a temporary EFS resource with AWS Backup recovery point
         id: create-efs-from-backup
         run: |
-          RESTORE_JOB_ID=$(aws backup start-restore-job --recovery-point-arn ${{ env.RECOVERY_POINT_ARN }} --iam-role-arn arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ldap-data-refresh-role-${{ github.event.inputs.source_env }} --metadata file-system-id=arn:aws:kms:eu-west-2:374269020027:key/90121e65-c5fa-43a9-8075-6f3410d2a025,newFileSystem=true,CreationToken=gha-ldap-data-refresh-${{github.run_id }},Encrypted=true,KmsKeyId=${{ secrets.KMS_GENERAL_HMPPS_KEY_ID }},PerformanceMode=generalPurpose --resource-type EFS --no-copy-source-tags-to-restored-resource --output text --query 'RestoreJobId')
+          RESTORE_JOB_ID=$(aws backup start-restore-job --recovery-point-arn ${{ env.RECOVERY_POINT_ARN }} --iam-role-arn arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ldap-data-refresh-role-${{ github.event.inputs.source_env }} --metadata file-system-id=${{ env.EFS_FILE_SYSTEM_ID }},newFileSystem=true,CreationToken=gha-ldap-data-refresh-${{github.run_id }},Encrypted=true,KmsKeyId=arn:aws:kms:eu-west-2:374269020027:key/90121e65-c5fa-43a9-8075-6f3410d2a025,PerformanceMode=generalPurpose --resource-type EFS --no-copy-source-tags-to-restored-resource --output text --query 'RestoreJobId')
           if [[ $? -eq 0 ]]; then
             echo "RESTORE_JOB_ID=$RESTORE_JOB_ID" >> $GITHUB_OUTPUT
           else
