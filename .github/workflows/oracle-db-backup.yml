@@ -99,10 +99,11 @@ on:
         type: string
         default: "no"
 
-# Allow permissions on repository and docker image respectively 
+# Allow permissions on repository and docker image and OIDC token
 permissions:
   contents: read
   packages: read
+  id-token: write  # This is required for requesting the JWT
 
 jobs:
   build_rman_target_name:
@@ -176,9 +177,9 @@ jobs:
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.CICD_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.CICD_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
 
       - name: Start Ansible Backup
         run: $backup_command -i $inventory -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
