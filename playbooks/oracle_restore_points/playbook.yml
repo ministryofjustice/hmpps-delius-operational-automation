@@ -292,8 +292,8 @@
           script: nokeep_backup_of_archivelog_sequences.sh
           when: 
             - database_primary_sid is defined
-            - ( rman_password.stdout | length ) > 2
-            - database_registered.stdout_lines[0] | int > 0
+             - ( rman_password.stdout is defined and rman_password.stdout | length > 2) or (rman_password is not defined )
+             - ( database_registered.stdout_lines is defined and database_registered.stdout_lines[0] | int > 0) or (database_registered is not defined )
           environment:
               RESTORE_POINT_NAME: "{{ restore_point_name | upper }}"  
               CATALOG_CONNECTION: "{{ connect_to_catalog }}"     

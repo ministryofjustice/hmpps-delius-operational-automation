@@ -4,9 +4,11 @@
 #
 . ~/.bash_profile
 
+[[ ! -z "$CATALOG_CONNECT " ]] && CONNECT_CATALOG="connect catalog ${CATALOG_CONNECTION}"
+
 rman target / <<EORMAN
 
-connect catalog ${CATALOG_CONNECTION}
+$CONNECT_CATALOG
 
 change backup tag='RP_${RESTORE_POINT_NAME}' nokeep;
 
