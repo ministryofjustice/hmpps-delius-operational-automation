@@ -13,10 +13,12 @@ SET FEEDBACK OFF
 SET HEADING OFF
 SET PAGES 0
 
- ALTER SYSTEM SWITCH LOGFILE;
+ALTER SYSTEM SWITCH LOGFILE;
  /
  /
  /
+ /
+ EXEC DBMS_SESSION.SLEEP(30);
 
  SELECT MIN(al.sequence#)||','||MAX(al.sequence#)
     FROM v\$archived_log al,
