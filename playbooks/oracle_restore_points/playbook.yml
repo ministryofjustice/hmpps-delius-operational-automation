@@ -130,6 +130,10 @@
          - (restore_point_name | default('') | length ) == 0
          - (required_action == "Create Restore Point") or (required_action == "Drop Restore Point") or (required_action == "Flashback to Restore Point")
 
+    - name: Default connect_to_catalog
+      set_fact:
+        connect_to_catalog: ""
+
     # Get the RMAN Catalog details if creating a restore point to ensure
     # we backup any archive logs which will be needed.  (Or to unkeep the backup if dropping the restore point)
     # (A Guaranteed Restore Point does NOT guarantee that archivelogs will be retained, so we need to ensure
@@ -268,8 +272,8 @@
         - name: Backup Any Archivelogs Needed for Flashing Back
           when:
              - database_primary_sid is defined
-             - ( rman_password.stdout | length ) > 2
-             - database_registered.stdout_lines[0] | int > 0
+             - ( rman_password is defined and rman_password.stdout | length ) > 2) or (rman_password is not defined )
+             - ( database_registered is definned database_registered.stdout_lines[0] | int > 0) or (database_registered is not defined )
           include: backup_archivelogs_for_restore_point.yml
 
     # Snapshot Standby databases will not have the same set of restore points as other databases so
