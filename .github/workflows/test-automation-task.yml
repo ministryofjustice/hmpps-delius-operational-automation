@@ -30,7 +30,7 @@ on:
 permissions:
   contents: read
   packages: read
-  id-token: write # This is required for requesting the JWT
+  id-token: write
 
 jobs:
   # Start deployment container job based on the build delius-ansible-aws image

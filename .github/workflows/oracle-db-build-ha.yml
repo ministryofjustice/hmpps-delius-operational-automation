@@ -66,6 +66,7 @@ env:
 permissions:
   contents: read
   packages: read
+  id-token: write
 
 jobs:
   deployment:
