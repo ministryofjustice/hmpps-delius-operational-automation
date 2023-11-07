@@ -88,7 +88,7 @@
 - name: Block connections to Delius primary database
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: "{{ group_names | select('search', '.*delius_primarydb') | first  }}"
+    target_host: "{{ target_dbs.split(',') | select('search', '.*delius_primarydb') | first  }}"
     database: {'delius': {'high_availability_count': 0}}
     action: block
   when: 
@@ -320,7 +320,7 @@
 - name: Unblock connections to Delius primary database
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: "{{ hostvars[inventory_hostname].group_names[1] | replace(hostvars[inventory_hostname].group_names[1].split('_')[-1],'primarydb') }}"
+    target_host: "{{ target_dbs.split(',') | select('search', '.*delius_primarydb') | first }}"
     database: {'delius': {'high_availability_count': 0}}
     action: unblock
     ignore_flashback: true
