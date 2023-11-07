@@ -1,5 +1,4 @@
 ---
-
 # Even with Guaranteed Restore Points Oracle will not necessarily preserve the archive logs required to flashback.
 # These may have been written to a backup which has since expired making the guaranteed restore point unusable.
 #
@@ -10,14 +9,14 @@
   script: get_required_archivelog_sequences.sh
   register: getrequiredarchivelogsequences
   environment:
-        RESTORE_POINT_NAME: "{{ uplift_restore_point_name | default(restore_point_name) }}"
+    RESTORE_POINT_NAME: "{{ uplift_restore_point_name | default(restore_point_name) }}"
   changed_when: false
 
 - name: Backup Archivelogs Required Indefinitely
   script: backup_required_archivelog_sequences.sh {{ getrequiredarchivelogsequences.stdout.split(',')[0] }} {{ getrequiredarchivelogsequences.stdout.split(',')[1] }}
   when: getrequiredarchivelogsequences.stdout_lines[-1] != ','
   environment:
-        RESTORE_POINT_NAME: "{{ uplift_restore_point_name | default(restore_point_name) }}"
-        CATALOG_CONNECTION: "{{ connect_to_catalog }}"
+    RESTORE_POINT_NAME: "{{ uplift_restore_point_name | default(restore_point_name) }}"
+    CATALOG_CONNECTION: "{{ connect_to_catalog }}"
   vars:
-     ansible_aws_ssm_timeout: 900
+    ansible_aws_ssm_timeout: 900

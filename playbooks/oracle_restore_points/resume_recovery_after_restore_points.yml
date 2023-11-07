@@ -23,9 +23,9 @@
 # as that would cause recovery to automatically start using redo from the old incarnation)
 - name: Bounce the Standby to enable Read Only
   shell: |
-      . ~/.bash_profile
-      ( srvctl config database -d ${ORACLE_SID} | grep "Start options:" | grep "read only" ) && ( srvctl stop database -d ${ORACLE_SID} ) ||  ( echo "Stop Not Required" )
-      ( srvctl config database -d ${ORACLE_SID} | grep "Start options:" | grep "read only" ) && ( srvctl start database -d ${ORACLE_SID} ) || ( echo "Start Not Required" )
+    . ~/.bash_profile
+    ( srvctl config database -d ${ORACLE_SID} | grep "Start options:" | grep "read only" ) && ( srvctl stop database -d ${ORACLE_SID} ) ||  ( echo "Stop Not Required" )
+    ( srvctl config database -d ${ORACLE_SID} | grep "Start options:" | grep "read only" ) && ( srvctl start database -d ${ORACLE_SID} ) || ( echo "Start Not Required" )
   register: srvctl
   changed_when: "srvctl.stdout is search('Start options: read only')"
 
