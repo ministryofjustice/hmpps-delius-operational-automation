@@ -43,6 +43,7 @@ on:
 permissions:
   contents: read
   packages: read
+  id-token: write
 
 jobs:
   build_target_name:
