@@ -1,0 +1,475 @@
+- name: Perform Input Validations
+  hosts: '{{ target_dbs | default("localhost", true) }}'
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  serial: 1
+  any_errors_fatal: true
+
+  tasks:
+    - name: Validate Restore Point Name
+      script: validate_restore_point_name.sh
+      environment:
+        RESTORE_POINT_NAME: "{{ restore_point_name }}"
+      when:
+        - required_action == "Create Restore Point"
+        - (restore_point_name | default() | length > 0)
+
+    # Normally flashback is suppored restore point name. We now allow flashback support for restore date time.
+    # If create restore point action is chosen and restore date time specified as well as restore point name,
+    # ensure flashback logs are available for all targets, otherwise do not process further
+
+    - name: Check flashback logs are available
+      when:
+        - required_action == "Create Restore Point"
+        - (restore_date_time | default() | length > 0)
+        - (restore_point_name | default() | length > 0)
+      block:
+        - name: Check restore date time format
+          fail:
+            msg: Time format should be DD-MM-YYYY-HH24-MI-SS
+          when: restore_date_time is not regex('^\\d{2}-\\d{2}-\\d{4}-\\d{2}-\\d{2}-\\d{2}$')
+          run_once: yes
+
+        - name: Check Oldest Flashback Datetime
+          script: check_flashback_logs.sh
+          environment:
+            RESTORE_DATE_TIME: "{{ restore_date_time }}"
+
+# Prevent FSFO Observer from performing a failover whilst the primary database is down for flashback
+# by temporarily disabling FSFO if it is configured.   It will be re-enabled after flashback completes.
+- name: Disable FSFO for Flashback
+  hosts: "{{ target_dbs }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+    # Only required if we are flashing back (i.e. not required to create or drop restore points).
+    # Only need to run once per database system so use the primary host.
+    - name: Disable FSFO
+      when:
+        - required_action == "Flashback to Restore Point"
+        - database_primary_sid is defined
+      block:
+        - name: Get Fast-Start Failover Status
+          shell: |
+            . ~/.bash_profile
+            dgmgrl -silent / "show configuration;" | awk -F: '/Fast-Start Failover/{print $2}'
+          register: get_fast_start_failover
+          changed_when: false
+
+        - name: Disble Fast-Start Failover
+          shell: |
+            . ~/.bash_profile
+            dgmgrl -silent / "disable fast_start failover"
+          when:
+            - ( get_fast_start_failover.stdout | trim ) not in ['','Disabled']
+
+# Allow OEM jobs to run during the flashback so we can pick up Audited Interaction Data for archival if required
+# - name: Start Blackout for Flashback
+#   import_playbook: ../oem-blackout/playbook.yml
+#   when: required_action == "Flashback to Restore Point"
+#   vars:
+#       target: "{{ target_dbs }}"
+#       blackout: "Flashback_to_{{ restore_point_name }}"
+#       object_type: all
+#       action: start
+#       allow_jobs: true
+
+# Ensure all connections to Delius Primary are blocked and removed
+# prior to a Flashback
+- name: Block connections to Delius primary database
+  import_playbook: ../block_sessions/playbook.yml
+  vars:
+    target_host: "{{ target_dbs.split(',') | select('search', '.*delius_primarydb') | first  }}"
+    database: { "delius": { "high_availability_count": 0 } }
+    action: block
+  when:
+    - required_action == "Flashback to Restore Point"
+    - target_dbs | regex_search('delius_')
+    - database_primary_sid is defined
+
+# Propagate remaining Audited Interaction Data from the database prior to flashback
+# if an audited_interaction_repo has been defined within this environment
+# - name: Archive Remaining Audited Interaction Data
+#   import_playbook: ../delius_audited_interaction/delius_audited_interaction_run.yml
+#   when:
+#     - required_action == "Flashback to Restore Point"
+#     - target_dbs | regex_search('delius_')
+#     - database_primary_sid is defined
+#     - audited_interaction_repo is defined
+
+- name: Export dfi schemas only for STGMIS
+  import_playbook: dfi-schemas.yml action="export"
+  when:
+    - required_action == "Flashback to Restore Point"
+    - target_dbs | regex_search('mis_')
+    - database_primary_sid is defined
+    - database_primary_sid | regex_search('STGMIS')
+    - not ( skip_mis_dfi_export | default('false') | bool )
+
+- name: Manage restore points
+  hosts: '{{ target_dbs | default("localhost", true) }}'
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+    - name: Check Restore Point Name
+      fail:
+        msg: "Restore point name must be supplied"
+      when:
+        - (restore_point_name | default('') | length ) == 0
+        - (required_action == "Create Restore Point") or (required_action == "Drop Restore Point") or (required_action == "Flashback to Restore Point")
+
+    - name: Default connect_to_catalog
+      set_fact:
+        connect_to_catalog: ""
+
+    # Get the RMAN Catalog details if creating a restore point to ensure
+    # we backup any archive logs which will be needed.  (Or to unkeep the backup if dropping the restore point)
+    # (A Guaranteed Restore Point does NOT guarantee that archivelogs will be retained, so we need to ensure
+    # that they are not in backups which are expired prior to the GRP being used for flashback).
+    - name: Get RMAN Catalog Connection Details
+      when:
+        - (required_action == "Create Restore Point") or (required_action == "Drop Restore Point") or (required_action == "Flashback to Restore Point")
+        - catalog is defined
+
+      block:
+        - name: Establish SSM Name
+          set_fact:
+            ssmname: "/{{ environment_name }}/{{ project_name }}/oracle-db-operation/rman/rman_password"
+
+        - name: Get RMAN Catalog Password
+          shell: aws ssm get-parameters --region {{ region }} --with-decryption --name {{ ssmname }} | jq -r '.Parameters[].Value'
+          register: rman_password
+          changed_when: false
+          no_log: true
+
+        - name: Set RMAN Connect String
+          set_fact:
+            connect_to_catalog: "rman19c/{{ rman_password.stdout }}@{{ catalog }}"
+          no_log: true
+
+        - name: Check primary database registered in rman catalog database
+          when: database_primary_sid is defined
+          script: check_database_registered.sh {{ database_primary_unique }} {{ connect_to_catalog }}
+          register: database_registered
+          changed_when: false
+
+    - name: Get Database Role
+      script: get_database_role.sh
+      register: getdatabaserole
+      changed_when: false
+
+    - name: Set Database Role
+      set_fact:
+        database_role: "{{ getdatabaserole.stdout_lines[-1] }}"
+
+    # Do not attempt to create restore points on snapshot standby database.   These are normally used to support
+    # Read Only access, so data will be expected to have diverged from the primary database.
+    - name: Create Restore Point
+      when:
+        - required_action == "Create Restore Point"
+        - database_role != 'SNAPSHOT STANDBY'
+      block:
+        # To prevent naming conflicts, restore points generated for Uplifts
+        # will have the date stamp appended on creation.
+        # (We do not append it for dropping or flashing back as we want
+        #  to explicitly name the existing restore point for these actions).
+        # Note that we need to delegate out this fact to the other hosts otherwise
+        # each may end up with a slightly different version of the timestamp.
+        - name: Get Local Time
+          setup:
+            filter: ansible_date_time
+          run_once: yes
+
+        - name: Expand Name for Uplift Restore Points
+          set_fact:
+            uplift_restore_point_name: "UPLIFT_{{ ansible_date_time.iso8601_basic_short }}"
+          when: restore_point_name == "UPLIFT"
+
+        - block:
+            - name: Get SCN for Restore Date Time
+              script: get_scn_for_date_time.sh
+              environment:
+                RESTORE_DATE_TIME: "{{ restore_date_time }}"
+              register: getscn
+
+            - name: Store SCN
+              set_fact:
+                scn: "{{ getscn.stdout }}"
+
+          when: (restore_date_time | default() | length > 0) and database_primary_sid is defined
+
+        - name: Get environment name and application name
+          set_fact:
+            environment_name: "{{ hostvars[inventory_hostname].group_names[1] | replace(hostvars[inventory_hostname].group_names[1].split('_')[-2] + '_' + hostvars[inventory_hostname].group_names[1].split('_')[-1],'') }}"
+            application_name: "{{ hostvars[inventory_hostname].group_names[1].split('_')[-2] }}"
+
+        - name: Create Oracle Standby Restore Points
+          script: create_standby_restore_points.sh
+          when: database_standby_sid is defined
+          environment:
+            RESTORE_POINT_NAME: "{{ uplift_restore_point_name | default(restore_point_name) | upper }}"
+            SCN: "{{ hostvars[groups[environment_name + application_name + '_primarydb'][0]]['scn'] | default('0') }}"
+
+        - name: Create Oracle Primary Restore Points
+          script: create_primary_restore_points.sh
+          when: database_primary_sid is defined
+          environment:
+            RESTORE_POINT_NAME: "{{ uplift_restore_point_name | default(restore_point_name) | upper }}"
+            RESTORE_DATE_TIME: "{{ restore_date_time | default('') }}"
+
+        # From 19c Oracle will automatically propagate primary restore points to the
+        # standby.   This is not desirable behaviour for us because:
+        # (1) These are not Preserved restore points, so there is a risk we could lose them.
+        # (2) Flashback with ADG does not work directly with these restore points
+        #     and can leave the ADG database orphaned unless these are remediated.
+        # Therefore we do not wish to use the automatically replicated restore points so
+        # we immediately drop them as soon as they have been created.
+
+        # There may be a slight lag between the restore point being created on the primary and it appearing
+        # on the standby so we need to poll for its creation. Restore points created on standby based on date time or
+        # SCN can be ignored. This is because non guarantee flashback database restore point is not propagated
+        # from the primary if the same restore point name is already created on all the standbys
+        - name: Wait for Replicated Restore Point to Propogate from Primary to Standby
+          script: get_replicated_restore_point.sh
+          register: getreplicated
+          until: getreplicated.stdout is search('.*YES.*')
+          when:
+            - database_standby_sid is defined
+            - (restore_date_time | default() | length) == 0
+          retries: 10
+          delay: 10
+          changed_when: false
+          environment:
+            RESTORE_POINT_NAME: "{{ ( uplift_restore_point_name | default(restore_point_name) | upper ) + '_PRIMARY' }}"
+
+        # Once the restore point has propagated to the standby then drop it
+        #
+        - name: Drop Replicated Restore Points
+          script: drop_restore_points.sh
+          when:
+            - database_standby_sid is defined
+            - (restore_date_time | default() | length) == 0
+            - getreplicated is defined and getreplicated.stdout is search('.*YES.*')
+          environment:
+            RESTORE_POINT_NAME: "{{ ( uplift_restore_point_name | default(restore_point_name) | upper ) + '_PRIMARY' }}"
+
+        - name: Backup Any Archivelogs Needed for Flashing Back
+          when:
+            - database_primary_sid is defined
+            - ( rman_password.stdout is defined and rman_password.stdout | length > 2) or (rman_password is not defined )
+            - ( database_registered.stdout_lines is defined and database_registered.stdout_lines[0] | int > 0) or (database_registered is not defined )
+          include: backup_archivelogs_for_restore_point.yml
+
+    # Snapshot Standby databases will not have the same set of restore points as other databases so
+    # ignore when dropping restore points.
+    - name: Drop Restore Point
+      when:
+        - required_action == "Drop Restore Point"
+        - database_role != 'SNAPSHOT STANDBY'
+      block:
+        - name: Drop Oracle Restore Points
+          script: drop_restore_points.sh
+          environment:
+            RESTORE_POINT_NAME: "{{ restore_point_name | upper }}"
+
+        - name: Nokeep Archivelog Backups Associated with this Restore Point
+          script: nokeep_backup_of_archivelog_sequences.sh
+          when:
+            - database_primary_sid is defined
+              - ( rman_password.stdout is defined and rman_password.stdout | length > 2) or (rman_password is not defined )
+              - ( database_registered.stdout_lines is defined and database_registered.stdout_lines[0] | int > 0) or (database_registered is not defined )
+          environment:
+            RESTORE_POINT_NAME: "{{ restore_point_name | upper }}"
+            CATALOG_CONNECTION: "{{ connect_to_catalog }}"
+
+    # Do not attempt to flashback Snapshot Standby databases - these should instead be converted
+    # back to physical standby databases
+    - name: Flashback to Restore Point
+      when:
+        - required_action == "Flashback to Restore Point"
+        - database_role != 'SNAPSHOT STANDBY'
+      block:
+        - name: Check Restore Point Availability for Flashback
+          script: check_available_restore_points.sh
+          environment:
+            RESTORE_POINT_NAME: "{{ restore_point_name | upper }}"
+
+        - name: Flashback Standby DBs to Restore Point
+          include_tasks: flashback_standby_restore_points.yml
+          when: database_standby_sid is defined
+
+        - name: Flashback Primary DBs to Restore Point
+          include_tasks: flashback_primary_restore_points.yml
+          when: database_primary_sid is defined
+
+# If a Flashback occurred we need to unblock the connections to Delius Primary on completion
+- name: Unblock connections to Delius primary database
+  import_playbook: ../block_sessions/playbook.yml
+  vars:
+    target_host: "{{ target_dbs.split(',') | select('search', '.*delius_primarydb') | first }}"
+    database: { "delius": { "high_availability_count": 0 } }
+    action: unblock
+    ignore_flashback: true
+  when:
+    - required_action == "Flashback to Restore Point"
+    - target_dbs | regex_search('delius_')
+    - database_primary_sid is defined
+
+# Now We Can Resume Recovery of Standby Databases if a Flashback Occurred
+- name: Resume Standby Recovery
+  hosts: "{{ target_dbs  }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+    - name: Resume Standby Recovery Following Flashback
+      when: required_action == "Flashback to Restore Point"
+      block:
+        - name: Resume Standby Recovery
+          include_tasks: resume_recovery_after_restore_points.yml
+          when: database_standby_sid is defined
+
+        # Occassionally flashing back recreates replicated restore points
+        # that we had previously dropped.   These should be removed as they
+        # may cause problems down the line.
+        # Once the restore point has propagated to the standby then drop it -
+        # Note that this behaviour does not always appear consistent, and replicated
+        # restore points are not always created during flashback, so do not raise an
+        # error if they do not appear.
+        - name: Wait for Replicated Restore Point to Propogate from Primary to Standby
+          script: get_replicated_restore_point.sh
+          register: getreplicated
+          until: getreplicated.stdout is search('.*YES.*')
+          when: database_standby_sid is defined
+          retries: 10
+          delay: 10
+          ignore_errors: yes
+          changed_when: false
+          environment:
+            RESTORE_POINT_NAME: "{{ ( uplift_restore_point_name | default(restore_point_name) | upper ) + '_PRIMARY' }}"
+
+        - name: Drop Replicated Restore Points
+          script: drop_restore_points.sh
+          when:
+            - database_standby_sid is defined
+            - getreplicated.stdout is search('.*YES.*')
+          environment:
+            RESTORE_POINT_NAME: "{{ ( uplift_restore_point_name | default(restore_point_name) | upper ) + '_PRIMARY' }}"
+
+        # Even after Dataguard Broker is reporting a successful status
+        # it takes a few moments for Cloud Control to reflect this, so
+        # we pause for a couple of minutes before removing the blackout
+        # to avoid transient dataguard incidents being raised.
+        - name: Wait for Cloud Control DG Status to Stabilise
+          wait_for:
+            timeout: 120
+
+# If this an AWS Environment then we will run password rotation - check if this is the case
+- name: Set Inside AWS for Password Rotation
+  hosts: "{{ target_dbs  }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+    - name: Check if inside AWS.
+      uri:
+        url: http://169.254.169.254/latest/meta-data
+        timeout: 20
+      register: aws_uri_check
+      failed_when: false
+      run_once: true
+
+    - set_fact:
+        is_aws_environment: "{{ aws_uri_check.status == 200 }}"
+      run_once: true
+
+# If we have run a flashback then it is possible that password changes have been reverted and will be
+# out of Sync with those in SSM Parameter store and OEM.  Rotate the passwords again to sync everything up.
+# (This step is skipped if not in AWS since there will be no password store)
+# - name: Rotate Database Passwords
+#   import_playbook: ../oracle_password_rotation/password_rotation.yml
+#   vars:
+#       rotate_database_passwords: true
+#       rotate_groups: "{{ target_dbs }}"
+#   when:
+#     - required_action == "Flashback to Restore Point"
+#     - is_aws_environment | default(false)
+
+# This step is NOT required for AWS databases as it will have already been performed by the Password
+# Rotation.   (Password Rotation is not run on non-AWS Databases)
+- name: Enable FSFO for Non AWS Databases
+  hosts: "{{ target_dbs }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+    - name: Restart FSFO Non AWS
+      when:
+        - required_action == "Flashback to Restore Point"
+        - not ( is_aws_environment | default(false) )
+      block:
+        - name: Get Database Type
+          set_fact:
+            database_type: "{{ group_names | select('match','.*_standbydb\\d+') | list | first | regex_replace('^(.*)_standbydb\\d+', '\\1') }}"
+
+        - name: Show Database Type
+          debug:
+            msg: "database_type: {{ database_type }}    database: {{ database }}      fsfo_mode: {{ hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') }}       group_names: {{ group_names }}"
+
+        # Re-Enable FSFO from Associated Primary
+        # (Only run from First Standby for each Database Type to avoid competing startups)
+        - name: Re-enable FSFO
+          include_role:
+            name: hmpps-delius-oracledb-ha
+            tasks_from: enable-fsfo.yml
+          vars:
+            delegation_host: "{{ hostvars[groups[database_type + '_primarydb'][0]]['inventory_hostname'] }}"
+            primary_hostname: "{{ hostvars[groups[database_type + '_primarydb'][0]]['inventory_hostname'] }}"
+            fsfo_mode: "{{ hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') }}"
+            high_availability_count: "{{ database[database_type]['high_availability_count'] }}"
+          when:
+            - database[database_type]['high_availability_count'] | int > 0
+            - hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
+            - group_names | select('match','.*_standbydb1') | length > 0
+
+- name: Import dfi schemas only for STGMIS
+  import_playbook: dfi-schemas.yml action="import"
+  when:
+    - required_action == "Flashback to Restore Point"
+    - target_dbs | regex_search('mis_')
+    - database_primary_sid is defined
+    - database_primary_sid | regex_search('STGMIS')
+
+# - name: Stop Blackout for Flashback
+#   import_playbook: ../oem-blackout/playbook.yml
+#   when: required_action == "Flashback to Restore Point"
+#   vars:
+#       target: "{{ target_dbs }}"
+#       blackout: "Flashback_to_{{ restore_point_name }}"
+#       object_type: all
+#       action: stop
+
+# Always Run the Restore Point Report at the End
+- name: Report restore points
+  hosts: '{{ target_dbs | default("localhost", true) }}'
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+    - name: Generate Report of Oracle Restore Points
+      script: report_restore_points.sh
+      register: reportrestorepoints
+      changed_when: false
+
+    - name: Display Report of Oracle Restore Points
+      debug:
+        msg: "Restore Points:  {{ reportrestorepoints.stdout_lines }}"

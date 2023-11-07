@@ -1,5 +1,5 @@
 name: "Oracle: Restore Points"
-run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}_restore_points"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-restore-points"
 on:
   workflow_dispatch:
     inputs:
@@ -71,7 +71,7 @@ env:
   command: ansible-playbook operations/playbooks/oracle_restore_points/playbook.yml
   inventory: inventory/ansible
 
-# Allow permissions on repository and docker image respectively 
+# Allow permissions on repository and docker image and OIDC token
 permissions:
   contents: read
   packages: read
@@ -80,17 +80,29 @@ permissions:
 jobs:          
   deployment:
     name: oracle-restore-points
-    needs: build_rman_target_name
     environment: ${{ github.event.inputs.TargetEnvironment}}
     runs-on: ubuntu-latest
-    # container:
-    #   image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     continue-on-error: false
     steps:
 
+      - name: Output Input Parameters
+        shell: bash
+        run: |
+          echo -e "IncludeDelius: ${{ github.event.inputs.IncludeDelius }}\n\
+          IncludeMIS: ${{ github.event.inputs.IncludeMIS }}\n\
+          IncludeBOE: ${{ github.event.inputs.IncludeBOE }}\n\
+          IncludeDSD: ${{ github.event.inputs.IncludeDSD }}\n\
+          RequiredAction: ${{ github.event.inputs.RequiredAction }}\n\
+          RestorePointName: ${{ github.event.inputs.RestorePointName }}\n\
+          RestoreDateTime: ${{ github.event.inputs.RestoreDateTime }}\n\
+          SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
+          SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
+
       - name: Check Restore DateTime Input
-        if: ${{ github.event.inputs.RestoreDateTime != '') }}
+        if: ${{ github.event.inputs.RestoreDateTime != '' }}
         run: |
           isDateInvalid()
           {
@@ -128,6 +140,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/oracle_restore_points
+            playbooks/block_sessions
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
@@ -153,29 +166,31 @@ jobs:
 
       - name: Define Targets
         id: definetargets
+        working-directory: ${{ env.inventory }}
         run: |
+          set -x
           targets=""
-          prefix="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
-          databasetype=${1}
+          prefix="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
           build_targets() {
+            databasetype=${1}
             high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
-            [ $high_availability_count -le 2 ] && targets+="${prefix}_${databasetype}_primarydb,"
-            [ $high_availability_count -eq 1 ] && targets+="${prefix}_${databasetype}_standbydb1,"
-            [ $high_availability_count -eq 2 ] && targets+="${prefix}_${databasetype}_standbydb1,${prefix}_${databasetype}_standbydb2,"
+            [ $high_availability_count -le 2 ] && targets="${targets}${prefix}_${databasetype}_primarydb,"
+            [ $high_availability_count -eq 1 ] && targets="${targets}${prefix}_${databasetype}_standbydb1,"
+            [ $high_availability_count -eq 2 ] && targets="${targets}${prefix}_${databasetype}_standbydb1,${prefix}_${databasetype}_standbydb2,"
+            echo
           }
           [ "${{ github.event.inputs.IncludeDelius }}" == "yes" ] && build_targets delius
           [ "${{ github.event.inputs.IncludeMIS }}" == "yes" ] && build_targets mis
           [ "${{ github.event.inputs.IncludeBOE }}" == "yes" ] && build_targets misboe
           [ "${{ github.event.inputs.IncludeDSD }}" == "yes" ] && build_targets misdsd
-          echo "targets=targets" >>  $GITHUB_OUTPUT
+          echo "targets=$targets"
+          echo "targets=$targets" >> $GITHUB_OUTPUT
 
       - name: Check Parameters
+        if: ${{ github.event.inputs.RestorePointName != '' &&  github.event.inputs.RestoreDateTime != '' &&  github.event.inputs.RequiredAction != 'Create Restore Point' }}
         run: |
-          if [[ ! -z ${{ github.event.inputs.RestorePointName }} && ! -z ${{ github.event.inputs.RestoreDateTime }} && "${{ github.event.inputs.RequiredAction }}" != 'Create Restore Point' ]]
-          then:
-            echo "Only Create Restore Point action allowed with both RestoreDateTime and RestorePointName"
-            exit 1
-          fi
+          echo "Only Create Restore Point action allowed with both RestoreDateTime and RestorePointName"
+          exit 1
 
       - name: Configure AWS Credentials
         id: login-aws
@@ -185,12 +200,13 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Start Ansible Validate Backup
-        run: 
+      - name: Start Ansible Restore Points
+        shell: bash
+        run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
-          -e target_dbs="${{ steps.definetargets.output.targets }}" \
-          -e required_action="${{ github.event.inputs.RequiredAction }}" \
-          -e restore_point_name="${{ github.event.inputs.RestorePointName }}" \
-          -e restore_date_time="${{ github.event.inputs.RestoreDateTime }}" 
+          -e target_dbs=${{ steps.definetargets.outputs.targets }} \
+          -e "required_action='${{ github.event.inputs.RequiredAction }}'" \
+          -e restore_point_name=${{ github.event.inputs.RestorePointName }} \
+          -e restore_date_time=${{ github.event.inputs.RestoreDateTime }}
           

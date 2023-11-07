@@ -1,0 +1,37 @@
+- name: Mount the Primary Databases
+  shell: |
+    . ~/.bash_profile
+    # Stop database if open
+    OPEN=$(srvctl status database -d ${ORACLE_SID} -v | grep -c "Open" | cat )
+    if [[ $OPEN -eq 1 ]]; then srvctl stop database -d  ${ORACLE_SID} -o IMMEDIATE; fi
+    # Mount database if not mounted
+    MOUNTED=$(srvctl status database -d  ${ORACLE_SID} -v | grep -c "Mounted" | cat )
+    if [[ $MOUNTED -eq 0 ]]; then srvctl start database -d  ${ORACLE_SID} -o MOUNT; fi
+
+# Must Copy the Flashback Script to run it Asynchronously (cannot use script module with async)
+#
+# Flashback on Primary uses rman to recover, this is so that if an archivelog is not available then
+# rman will automatically recover the file from backup
+#
+- name: Copy Flashback Script
+  copy:
+    src: flashback_database_rman.sh
+    dest: /tmp/flashback_database_rman.sh
+    mode: u+rx
+
+- name: Flashback the Primary Database using rman
+  shell: /tmp/flashback_database_rman.sh
+  environment:
+    RESTORE_POINT_NAME: "{{ restore_point_name }}"
+    CATALOG_CONNECTION: "{{ connect_to_catalog }}"
+  vars:
+    ansible_aws_ssm_timeout: 14400
+  async: 14400
+  poll: 30
+  register: rman_output
+
+- name: debug rman output
+  debug: var=rman_output
+
+- name: Open the Primary Database
+  script: open_primary_database.sh

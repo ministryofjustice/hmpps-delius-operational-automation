@@ -1,0 +1,18 @@
+- name: Cancel Recovery
+  script: cancel_recovery.sh
+
+# Must Copy the Flashback Script to run it Asynchronously (cannot use script module with async)
+- name: Copy Flashback Script
+  copy:
+    src: flashback_database.sh
+    dest: /tmp/flashback_database.sh
+    mode: u+rx
+
+- name: Flashback the Standby Database
+  shell: /tmp/flashback_database.sh
+  environment:
+    RESTORE_POINT_NAME: "{{ restore_point_name }}"
+  vars:
+    ansible_aws_ssm_timeout: 14400
+  async: 14400
+  poll: 30
