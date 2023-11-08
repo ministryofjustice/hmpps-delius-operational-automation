@@ -430,7 +430,7 @@
           - (audited_interaction_repo is defined) or (database_primary_sid in repo_dbs)
 
 # Restart Monitoring regardless of success of password rotation
-  always:
+  #always:
 
       # - name: Re-Enable Monitoring
       #   when: not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
