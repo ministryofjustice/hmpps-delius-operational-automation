@@ -1,0 +1,19 @@
+- name: Read Common Terraform HCL File
+  set_fact:
+      hcl: "{{ lookup('file','../../../../../hmpps-env-configs/common/common.tfvars') | replace('\n',' ') }}"
+    
+- name: Get All AWS Account IDs from Terraform HCL File
+  set_fact:
+      aws_account_id_strings: "{{ hcl | regex_replace('.*aws_account_ids = \\{(.*?)\\}.*','\\1') | regex_replace('\\\"\\s+',',') | regex_replace('\\\"','') }}"
+      eng_dev_id: "{{ hcl | regex_replace('.*(aws_engineering_account_ids = \\{.*?\\}).*','\\1') | regex_replace('.*non-prod\\s+=\\s+\\\"(\\d+)\\\".*','\\1') }}"
+      eng_prod_id: "{{ hcl | regex_replace('.*(aws_engineering_account_ids = \\{.*?\\}).*','\\1') | regex_replace('.*\\s+prod\\s+=\\s+\\\"(\\d+)\\\".*','\\1') }}"
+
+- name: Create AWS Account IDs
+  set_fact:
+    aws_account_ids: "{{ aws_account_ids | default({}) | combine({item.split('=')[0] | trim: item.split('=')[1] | trim}) }}"
+  loop: "{{ aws_account_id_strings.split(',') | list }}" 
+  when: item is search('=')
+
+- name: Add Engineering Accounts
+  set_fact:
+    aws_account_ids: "{{ aws_account_ids | combine({'hmpps-engineering-dev': eng_dev_id}) | combine({'hmpps-engineering-prod': eng_prod_id}) }}"
