@@ -30,11 +30,11 @@
         when: detect_missing_wallet.stdout is search('.*ORA-12578.*')
 
 # - name: Process HCL File to Get Account IDs
-#   include: read_hcl.yml
+#   include_tasks: read_hcl.yml
 #   run_once: true
 
 # - name: Setup AWS Role to Use with Appropriate SSM and RDS Privileges
-#   include: ../ansible_controller/prepare_ansible_controller.yml
+#   include_tasks: ../ansible_controller/prepare_ansible_controller.yml
 #   run_once: true
 #   become: no
 
@@ -113,7 +113,7 @@
 
       # Do not specify database login credentials as will login as SYS on primary
       - name: Set Profile for DBSNMP on Primary
-        include: set_dbsnmp_profile.yml
+        include_tasks: set_dbsnmp_profile.yml
         vars:
           db_name: ""
           login_user: ""
@@ -127,7 +127,7 @@
       # This profile allows for a high number of failures before locking - this provides time for the DBA
       # to become aware of the situation before the account gets locked out.
       - name: Set Profile for SYS on Primary
-        include: set_sys_profile.yml
+        include_tasks: set_sys_profile.yml
         vars:
           db_name: ""
           login_user: ""
@@ -157,7 +157,7 @@
 
       # Handle SYS on its own first to minimize the amount of time FSFO needs to be disabled
       - name: Set Password for SYS
-        include: rotate_system_passwords.yml
+        include_tasks: rotate_system_passwords.yml
         vars:
           db_type: "{{ database_type }}"
           db_username: "{{ username }}"
@@ -188,11 +188,11 @@
         set_fact:
             original_system_password: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ application }}/db/oradb_system_password',region=region ) }}"
         when:  
-          - database_type.split('_')['-1'] == 'delius' # and not environment_name is search('engineering'))
+          - database_type == 'delius' # and not environment_name is search('engineering'))
                #or (database_type == 'oem' and environment_name is search('engineering')))
           
       - name: Set Password for SYSTEM
-        include: rotate_system_passwords.yml
+        include_tasks: rotate_system_passwords.yml
         vars:
           db_type: "{{ database_type }}"
           db_username: "system"
@@ -210,7 +210,7 @@
                
       # Change DELIUS_APP_SCRIPTS password for Delius
       - name: Set Password for DELIUS_APP_SCRIPTS
-        include: rotate_application_passwords.yml
+        include_tasks: rotate_application_passwords.yml
         vars:
           db_type: "{{ database_type }}"
           db_username: "delius_app_scripts"
@@ -241,7 +241,7 @@
             register: alfresco_wallet
 
           - name: Update Alfresco Wallet Password
-            include: rotate_wallet_password.yml
+            include_tasks: rotate_wallet_password.yml
             when: alfresco_wallet.stat.exists
             vars:
               before_password: "{{ original_system_password }}"
@@ -281,7 +281,7 @@
       #       changed_when: false
 
       #     - name: Update Audit Wallet Password
-      #       include: rotate_wallet_password.yml
+      #       include_tasks: rotate_wallet_password.yml
       #       when: audit_wallet.stat.exists
       #       vars:
       #         before_password: "{{ original_system_password }}"
@@ -292,7 +292,7 @@
       #         role_tasks_from: "configure_controller.yml"
 
       - name: Set Passwords for DBSNMP
-        include: rotate_system_passwords.yml
+        include_tasks: rotate_system_passwords.yml
         vars:
           db_type: "{{ database_type }}"
           db_username: "dbsnmp"
@@ -337,7 +337,7 @@
           # logon failures between updating the database password and updating the Audit
           # wallet on the OEM host
           - name: Set Profile for DELIUS_AUDIT_POOL on Primary
-            include: set_delius_audit_pool_profile.yml
+            include_tasks: set_delius_audit_pool_profile.yml
             vars:
               db_name: ""
               login_user: ""
@@ -347,7 +347,7 @@
           # We rotate the DELIUS_AUDIT_POOL password if this is a client database (audited_interaction_repo is defined)
           # or a repository database (specified as the audited_interaction_repo parameter for at least one environment)
           - name: Set Passwords for Delius Audit Pool User if Audit Preservation Configured
-            include: rotate_system_passwords.yml
+            include_tasks: rotate_system_passwords.yml
             vars:
               db_type: "delius"
               db_username: "delius_audit_pool"
@@ -367,7 +367,7 @@
       # password on primary only and then apply to all instances.
       # (Do not attempt to change password for engineering hosts unless we are an engineering environment)
       - name: Generate ASMSNMP Passwords
-        include: generate_asm_password.yml
+        include_tasks: generate_asm_password.yml
         vars:
           db_type: "{{ database_type }}"
         when: 
@@ -375,13 +375,13 @@
           #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
       - name: Generate ASMSNMP Passwords
-        include: rotate_asm_passwords.yml
+        include_tasks: rotate_asm_passwords.yml
         vars:
           db_type: "{{ database_type }}"
         #when: not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
       - name: Rotate Oracle Password
-        include: rotate_oracle_password.yml
+        include_tasks: rotate_oracle_password.yml
         #when: not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
       # - name: Get the Engineering environment that the Oracle agent uploads to
@@ -392,7 +392,7 @@
       #   when: inventory_hostname is search('\\.engineering-')
 
       # - name: Update OEM Targets
-      #   include: update_oem_targets.yml
+      #   include_tasks: update_oem_targets.yml
       #   run_once: true
       #   delegate_to: localhost
       #   become: no
@@ -402,7 +402,7 @@
       #  are changed more than once per hour since any interim passwords cannot be used).
       # We only unlock passwords which have recently become locked.
       - name: Unlock Accounts for SYS, SYSTEM, DBSNMP  
-        include: unlock_system_passwords.yml
+        include_tasks: unlock_system_passwords.yml
         vars:
           db_username: "{{ username }}"
           db_name: ""
@@ -417,7 +417,7 @@
           #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
       - name: Unlock Accounts DELIUS_AUDIT_POOL if in use  
-        include: unlock_system_passwords.yml
+        include_tasks: unlock_system_passwords.yml
         vars:
           db_username: "delius_audit_pool"
           db_name: ""
