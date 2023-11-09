@@ -226,7 +226,7 @@
 
           - name: Find Ansible Config Files Specifying the Audited Interaction Repo
             find:
-              paths: "{{ ansible_inventory_sources | select('search','.*/hmpps-env-configs/.*') | first | regex_replace('(.*)/hmpps-env-configs/.*','\\1/hmpps-env-configs/')  }}"
+              paths: "inventory/ansible/group_vars"
               contains: audited_interaction_repo
               recurse: true
             register: audited_interaction_repos
