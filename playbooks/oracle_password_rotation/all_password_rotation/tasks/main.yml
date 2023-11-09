@@ -115,11 +115,11 @@
           tasks_from: set-fsfo-mode.yml
         when: 
           - database_primary_sid is defined
-          - hostvars[groups[database_evironment + '_primarydb'][0]]['fsfo_mode'] | default('disabled') != 'disabled'
+          - hostvars[groups[database_environment + '_primarydb'][0]]['fsfo_mode'] | default('disabled') != 'disabled'
         vars:
             fsfo_mode: disabled
-            standby1: "{{ database_evironment + '_standbydb1' if (database_evironment + '_standbydb1' in groups) else '' }}"
-            standby2: "{{ database_evironment + '_standbydb2' if (database_evironment + '_standbydb2' in groups) else '' }}"
+            standby1: "{{ database_environment + '_standbydb1' if (database_environment + '_standbydb1' in groups) else '' }}"
+            standby2: "{{ database_environment + '_standbydb2' if (database_environment + '_standbydb2' in groups) else '' }}"
 
       # Handle SYS on its own first to minimize the amount of time FSFO needs to be disabled
       - name: Set Password for SYS
