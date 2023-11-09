@@ -1,5 +1,4 @@
 - name: Clean Up Broken or Missing Data Guard Wallets
-  #when: not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
   block:
 
       - name: Set up oracle database home
@@ -29,32 +28,12 @@
           marker: "# {mark} ANSIBLE MANAGED BLOCK ADD DATA GUARD WALLET"
         when: detect_missing_wallet.stdout is search('.*ORA-12578.*')
 
-# - name: Process HCL File to Get Account IDs
-#   include_tasks: read_hcl.yml
-#   run_once: true
-
-# - name: Setup AWS Role to Use with Appropriate SSM and RDS Privileges
-#   include_tasks: ../ansible_controller/prepare_ansible_controller.yml
-#   run_once: true
-#   become: no
-
-# Create symlink so that we may use the oem-blackout directory as a role
-# - name: Link to OEM-Blackout in current repo as a role
-#   file:
-#      dest: ~/.ansible/roles/oem-blackout
-#      src: "{{ playbook_dir }}/../oem-blackout"
-#      state: link
-#   run_once: true
-#   delegate_to: localhost
-#   become: no
-
 # Allow up to 2 hours for the password rotation to complete.  We can re-enable the monitoring before
 # that once the job completes, but this provides a hard-stop to ensure monitoring resumes even if the
 # job has failed or is not progressing at a reasonable speed.
 
 # Disable OEM Native Monitoring to avoid noise due to agent / broker connection failures during password changes
 # - name: Disable Monitoring
-  #when: not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
   # block: 
 
   #     - name: Start database monitoring blackout
@@ -95,21 +74,11 @@
 
 - name: Set Application (Delius)
   set_fact:
-      application: "{{ datbase_type + '-database' }}"
-  #when: not environment_name is search('engineering')
-
-# - name: Set Application (Engineering)
-#   set_fact:
-#       application: "engineering/{{ database_type }}-database"        
-#   when: environment_name is search('engineering')
+      application: "{{ database_type + '-database' }}"
 
 #  The rest of this play is in a block so we can re-enable monitoring even if it fails
 - name: Rotate Passwords
   block:
-
-      # When run in AWS the hosts file for the engineering hosts will always be included in the inventory regardless
-      # of the environment where it is run.   Therefore we must explicitly exclude engineering hosts unless
-      # the engineering environment has been explicitly selected.
 
       # Do not specify database login credentials as will login as SYS on primary
       - name: Set Profile for DBSNMP on Primary
@@ -120,7 +89,6 @@
           login_pwd: ""
         when: 
           - database_primary_sid is defined
-          #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
       # We require a special profile for SYS which prevents it getting locked out if an invalid password
       # is used as we must always be able to connect to the SYS account.
@@ -134,7 +102,6 @@
           login_pwd: ""
         when: 
           - database_primary_sid is defined
-          #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
       # Database passwords only need to be set on the primary
       # (Do not attempt to change password for engineering hosts unless we are an engineering environment)
@@ -148,7 +115,6 @@
           tasks_from: set-fsfo-mode.yml
         when: 
           - database_primary_sid is defined
-          #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
           - hostvars[groups[database_evironment + '_primarydb'][0]]['fsfo_mode'] | default('disabled') != 'disabled'
         vars:
             fsfo_mode: disabled
@@ -175,7 +141,6 @@
           tasks_from: set-fsfo-mode.yml
         when: 
           - database_primary_sid is defined
-          #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
           - hostvars[groups[database_environment + '_primarydb'][0]]['fsfo_mode'] | default('disabled') != 'disabled'
         vars:
             fsfo_mode: "{{ hostvars[groups[database_environment + '_primarydb'][0]]['fsfo_mode'] }}"
@@ -188,8 +153,7 @@
         set_fact:
             original_system_password: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ application }}/db/oradb_system_password',region=region ) }}"
         when:  
-          - database_type == 'delius' # and not environment_name is search('engineering'))
-               #or (database_type == 'oem' and environment_name is search('engineering')))
+          - database_type == 'delius'
           
       - name: Set Password for SYSTEM
         include_tasks: rotate_system_passwords.yml
@@ -198,7 +162,6 @@
           db_username: "system"
         when: 
           - database_primary_sid is defined
-          #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
       
       # New Password will be overwritten by change of DELIUS_APP_SCRIPTS password, so record it in a variable
       - name: Remember New Delius SYSTEM Password
@@ -206,7 +169,6 @@
            new_system_password: "{{ new_password }}"
         when: 
           - database_primary_sid is defined
-          #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
                
       # Change DELIUS_APP_SCRIPTS password for Delius
       - name: Set Password for DELIUS_APP_SCRIPTS
@@ -216,7 +178,6 @@
           db_username: "delius_app_scripts"
         when:
           - database_primary_sid is defined
-          #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
           - database_type == 'delius'
 
       # Update Alfresco Wallet Password for Delius databases (it uses the Delius database SYSTEM password)
@@ -249,48 +210,6 @@
               path_to_wallet: "{{ wallet_dir }}"
               recreate_wallet_code_location: "{{ playbook_dir }}/../alfresco_wallet/alfresco_wallet"
 
-      # # Update Audit Wallet Password for Engineering databases (it uses the Engineering database SYSTEM password)
-      # - name: Update Audit Wallet Password
-      #   when: environment_name is search('engineering')
-      #   block:
-
-      #     - name: Get the Audit Wallet Location
-      #       shell: |
-      #             . ~/.bash_profile
-      #             echo "$HOME/admin/delius_audited_interaction/oracle/audit_wallet"
-      #       register: get_wallet_location
-      #       changed_when: false
-
-      #     - name: Set the Audit Wallet Location
-      #       set_fact:
-      #         wallet_dir: "{{ get_wallet_location.stdout }}"
-
-      #     - name: Check if Audit Wallet Exists
-      #       stat:
-      #         path: "{{ wallet_dir }}"
-      #       register: audit_wallet
-
-      #     # The name of the repository database is found in the tnsnames file in the
-      #     # directory immediately above the wallet
-      #     - name: Get Name of Audit Repository Database
-      #       shell: |
-      #            . ~/.bash_profile
-      #            grep AUDITED_INTERACTION_REPO {{ wallet_dir }}/../tnsnames.ora | sed -E 's/.*SERVICE_NAME=(.*)_TAF.*/\1/'
-      #       register: get_audit_repo
-      #       when: audit_wallet.stat.exists
-      #       changed_when: false
-
-      #     - name: Update Audit Wallet Password
-      #       include_tasks: rotate_wallet_password.yml
-      #       when: audit_wallet.stat.exists
-      #       vars:
-      #         before_password: "{{ original_system_password }}"
-      #         after_password: "{{ new_system_password }}"
-      #         path_to_wallet: "{{ wallet_dir }}"
-      #         repo_db: "{{ get_audit_repo.stdout }}"
-      #         recreate_wallet_code_location: "{{ playbook_dir }}/../../../../engineering/operations/playbooks/delius_audited_interaction"
-      #         role_tasks_from: "configure_controller.yml"
-
       - name: Set Passwords for DBSNMP
         include_tasks: rotate_system_passwords.yml
         vars:
@@ -298,13 +217,11 @@
           db_username: "dbsnmp"
         when: 
           - database_primary_sid is defined
-          #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
       - name: Rotate Password for DELIUS_AUDIT_POOL on Client and Repository Databases
         when: 
           - database_primary_sid is defined
           - database_type | default('') == 'delius'
-          #- not inventory_hostname is search('.engineering-')
         block:
 
           - name: Find Ansible Config Files Specifying the Audited Interaction Repo
@@ -372,30 +289,14 @@
           db_type: "{{ database_type }}"
         when: 
           - database_primary_sid is defined
-          #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
       - name: Generate ASMSNMP Passwords
         include_tasks: rotate_asm_passwords.yml
         vars:
           db_type: "{{ database_type }}"
-        #when: not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
       - name: Rotate Oracle Password
         include_tasks: rotate_oracle_password.yml
-        #when: not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
-
-      # - name: Get the Engineering environment that the Oracle agent uploads to
-      #   set_fact: 
-      #     get_oem_env: "{{ inventory_hostname | regex_replace('^.*\\.(engineering-\\w*)\\..*$','\\1') }}"
-      #   register: get_oem_env
-      #   run_once: true
-      #   when: inventory_hostname is search('\\.engineering-')
-
-      # - name: Update OEM Targets
-      #   include_tasks: update_oem_targets.yml
-      #   run_once: true
-      #   delegate_to: localhost
-      #   become: no
 
       # Unlock database accounts in case they have become locked whilst waiting for OEM target password updates.
       # (This should not happen due to Gradual Database Password Rollover but it can happen if the passwords
@@ -414,7 +315,6 @@
             loop_var: username
         when: 
           - database_primary_sid is defined
-          #- not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
       - name: Unlock Accounts DELIUS_AUDIT_POOL if in use  
         include_tasks: unlock_system_passwords.yml
@@ -433,7 +333,6 @@
   #always:
 
       # - name: Re-Enable Monitoring
-      #   when: not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
       #   block: 
 
       #       # Re-Enable OEM Native Monitoring
