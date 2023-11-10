@@ -226,7 +226,7 @@
 
           - name: Find Ansible Config Files Specifying the Audited Interaction Repo
             find:
-              paths: "inventory/ansible/group_vars"
+              paths: /
               contains: audited_interaction_repo
               recurse: true
             register: audited_interaction_repos
