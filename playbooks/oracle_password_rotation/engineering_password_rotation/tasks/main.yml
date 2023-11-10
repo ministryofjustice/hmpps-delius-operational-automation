@@ -1,5 +1,5 @@
 - name: Process HCL File to Get Account IDs
-  include: ../../all_password_rotation/tasks/read_hcl.yml
+  include_tasks: ../../all_password_rotation/tasks/read_hcl.yml
   run_once: true
 
 - name: Check if AWS Client exists on Ansible Controller
@@ -18,13 +18,13 @@
 
 # Audit Wallet does not exist in Engineering Accounts - skip those
 - name: Ensure Audit Wallet Target Passwords are in Sync with SSM
-  include: set_audited_interaction_wallet_passwords.yml
+  include_tasks: set_audited_interaction_wallet_passwords.yml
   when: 
      - sync_audit_wallet_password | default(true) | bool
      - not target_environment_name is search('engineering')
 
 - name: Rotate RMAN Password
-  include: rotate_rman_password.yml
+  include_clude: rotate_rman_password.yml
   when: rotate_rman_password | default(false) | bool
 
 - name: Rotate OEM and Agent Registration Passwords
@@ -53,12 +53,12 @@
         become_user: oracle
 
       - name: Rotate OEM Passwords
-        include: rotate_oem_passwords.yml
+        include_tasks: rotate_oem_passwords.yml
 
       # If we are rotating the OEM passwords then we should also rotate the Agent Registration Passwords
       - name: Rotate Agent Registration Password
-        include: rotate_agent_registration_password.yml
+        include_tasks: rotate_agent_registration_password.yml
 
 - name: Ensure OEM Target Passwords are in Sync with SSM
-  include: sync_monitoring_passwords.yml
+  include_tasks: sync_monitoring_passwords.yml
   when: sync_monitoring_passwords | default(false) | bool
