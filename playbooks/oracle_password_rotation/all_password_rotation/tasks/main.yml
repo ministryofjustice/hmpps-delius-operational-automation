@@ -226,7 +226,7 @@
 
           - name: Find Ansible Config Files Specifying the Audited Interaction Repo
             find:
-              paths: ${GITHUB_WORKFLOW}/inventory/ansible
+              paths: ${GITHUB_WORKSPACE}/inventory/ansible
               contains: audited_interaction_repo
               recurse: true
             register: audited_interaction_repos
