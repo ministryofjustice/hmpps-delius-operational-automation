@@ -1,22 +1,14 @@
 name: "Oracle: scheduled_delius_core_dev_delius_primarydb_database_backup"
 run-name: "Oracle: ???-backup"
 on:
-#   schedule:
-#     - cron: '30 08 * * 1,2,4,5'
-#     - cron: '30 08 * * 3'
-  workflow_dispatch:
-    inputs:
-      TargetEnvironment:
-        description: "Target environment"
-        required: true
-        type: choice
-        options:
-          - "delius-core-dev"
-          - "delius-core-test"
-          - "delius-core-training"
-          - "delius-core-stage"
-          - "delius-core-pre-prod"
-          - "delius-core-prod"
+  schedule:
+    - cron: '30 08 * * 1,2,4,5'
+    - cron: '30 08 * * 3'
+  push:
+    branches:
+      - DBA-531-BACKUP-SCHEDULE
+    paths:
+      - .github/workflows/oracle-db-schedule-delius-dev-backup.yml
 jobs:
   prepare-parameters:
     runs-on: ubuntu-latest
