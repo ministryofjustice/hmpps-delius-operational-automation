@@ -111,7 +111,7 @@
       # Prevent Failover due to problems with password changes by disabling FSFO during password rotation
       - name: Disable Fast Start Failover
         include_role:
-          name: ../oracle_ha/build_ha
+          name: ${GITHUB_WORKSPACE)/operations/playbooks/oracle_ha/build_ha
           tasks_from: set-fsfo-mode.yml
         when: 
           - database_primary_sid is defined
