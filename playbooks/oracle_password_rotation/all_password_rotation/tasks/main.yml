@@ -1,32 +1,31 @@
 - name: Clean Up Broken or Missing Data Guard Wallets
   block:
+    - name: Set up oracle database home
+      shell: |
+        . ~/.bash_profile
+        echo $ORACLE_HOME
+      register: get_oracle_home
+      changed_when: false
+      vars:
+        ansible_aws_ssm_timeout: 60
 
-      - name: Set up oracle database home
-        shell: |
-                . ~/.bash_profile
-                echo $ORACLE_HOME
-        register: get_oracle_home
-        changed_when: false
-        vars:
-           ansible_aws_ssm_timeout: 60
+    - name: Detect Missing Data Guard Wallet
+      shell: |
+        . ~/.bash_profile
+        dgmgrl  -silent / "exit"
+      register: detect_missing_wallet
+      ignore_errors: true
+      changed_when: false
 
-      - name: Detect Missing Data Guard Wallet
-        shell: |
-              . ~/.bash_profile
-              dgmgrl  -silent / "exit"
-        register: detect_missing_wallet
-        ignore_errors: true
-        changed_when: false
-
-      # If there is a problem with the Data Guard wallet we will need to create it, but first 
-      # need to ensure that the existing SQL Net configuration is no longer trying
-      # to use it, otherwise we will be unable to use OS Authentication to connect to the DB 
-      - name: Remove Pre-existing Data Guard Wallet Configuration
-        blockinfile:
-          state: absent
-          path: '{{ get_oracle_home.stdout }}/network/admin/sqlnet.ora'  
-          marker: "# {mark} ANSIBLE MANAGED BLOCK ADD DATA GUARD WALLET"
-        when: detect_missing_wallet.stdout is search('.*ORA-12578.*')
+    # If there is a problem with the Data Guard wallet we will need to create it, but first
+    # need to ensure that the existing SQL Net configuration is no longer trying
+    # to use it, otherwise we will be unable to use OS Authentication to connect to the DB
+    - name: Remove Pre-existing Data Guard Wallet Configuration
+      blockinfile:
+        state: absent
+        path: "{{ get_oracle_home.stdout }}/network/admin/sqlnet.ora"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK ADD DATA GUARD WALLET"
+      when: detect_missing_wallet.stdout is search('.*ORA-12578.*')
 
 # Allow up to 2 hours for the password rotation to complete.  We can re-enable the monitoring before
 # that once the job completes, but this provides a hard-stop to ensure monitoring resumes even if the
@@ -34,31 +33,31 @@
 
 # Disable OEM Native Monitoring to avoid noise due to agent / broker connection failures during password changes
 # - name: Disable Monitoring
-  # block: 
+# block:
 
-  #     - name: Start database monitoring blackout
-  #       include_role:
-  #          name: oem-blackout
-  #          tasks_from: ../oem_blackout.yml 
-  #       vars:
-  #           target: "{{ inventory_hostname }}"  
-  #           action: "start" 
-  #           object_type: "all" 
-  #           blackout: "PASSWORD_ROTATION_{{ environment_name }}" 
-  #           duration: "" 
-  #           allow_jobs: false
+#     - name: Start database monitoring blackout
+#       include_role:
+#          name: oem-blackout
+#          tasks_from: ../oem_blackout.yml
+#       vars:
+#           target: "{{ inventory_hostname }}"
+#           action: "start"
+#           object_type: "all"
+#           blackout: "PASSWORD_ROTATION_{{ environment_name }}"
+#           duration: ""
+#           allow_jobs: false
 
-  #     # Disable OEM Script-Based Monitoring to avoid noise due to agent / broker connection failures during password changes
-  #     - name: Temporarily Exclude Target Hosts from Monitoring During Password Changes
-  #       include_role: 
-  #          name: oem-blackout
-  #          tasks_from: script_exclusion.yml 
-  #       vars:
-  #           action: "start"
-  #           blackout: "PASSWORD_ROTATION_{{ environment_name }}" 
-  #           engineering_role: "{{ assumed_engineering_role }}"
-  #           engineering_env: "{{ bastion_inventory.stdout }}"
-  #           duration: 7200
+#     # Disable OEM Script-Based Monitoring to avoid noise due to agent / broker connection failures during password changes
+#     - name: Temporarily Exclude Target Hosts from Monitoring During Password Changes
+#       include_role:
+#          name: oem-blackout
+#          tasks_from: script_exclusion.yml
+#       vars:
+#           action: "start"
+#           blackout: "PASSWORD_ROTATION_{{ environment_name }}"
+#           engineering_role: "{{ assumed_engineering_role }}"
+#           engineering_env: "{{ bastion_inventory.stdout }}"
+#           duration: 7200
 
 - name: Get Primary Database Type And Environment
   set_fact:
@@ -74,7 +73,7 @@
 
 - name: Set Application (Delius)
   set_fact:
-      application: "{{ database_type + '-database' }}"
+    application: "{{ database_type + '-database' }}"
 
 #  The rest of this play is in a block so we can re-enable monitoring even if it fails
 - name: Rotate Passwords
@@ -330,34 +329,34 @@
           - (audited_interaction_repo is defined) or (database_primary_sid in repo_dbs)
 
 # Restart Monitoring regardless of success of password rotation
-  #always:
+#always:
 
-      # - name: Re-Enable Monitoring
-      #   block: 
+# - name: Re-Enable Monitoring
+#   block:
 
-      #       # Re-Enable OEM Native Monitoring
-      #       - name: Stop database monitoring blackout
-      #         include_role: 
-      #            name: oem-blackout
-      #            tasks_from: ../oem_blackout.yml 
-      #         vars:
-      #             target: "{{ inventory_hostname }}"  
-      #             action: "stop" 
-      #             object_type: "all" 
-      #             blackout: "PASSWORD_ROTATION_{{ environment_name }}" 
+#       # Re-Enable OEM Native Monitoring
+#       - name: Stop database monitoring blackout
+#         include_role:
+#            name: oem-blackout
+#            tasks_from: ../oem_blackout.yml
+#         vars:
+#             target: "{{ inventory_hostname }}"
+#             action: "stop"
+#             object_type: "all"
+#             blackout: "PASSWORD_ROTATION_{{ environment_name }}"
 
-      #       # Re-Enable OEM Script-Based Monitoring
-      #       # We supply the script path here to allow the script_exclusion.yml file
-      #       # to find another script which it calls within the same directory.   
-      #       # Ideally this would be done using roles instead of supplying a script path,
-      #       # but that would require significant changes to existing code.
-      #       - name: Un-Exclude Target Hosts from Monitoring During Password Changes
-      #         include_role: 
-      #           name: oem-blackout
-      #           tasks_from: script_exclusion.yml 
-      #         vars:
-      #             action: "stop"
-      #             blackout: "PASSWORD_ROTATION_{{ environment_name }}"
-      #             engineering_role: "{{ assumed_engineering_role }}"
-      #             engineering_env: "{{ bastion_inventory.stdout }}"
-      #             #exclusion_expiry: "{{ exclude_timeout }}"
+#       # Re-Enable OEM Script-Based Monitoring
+#       # We supply the script path here to allow the script_exclusion.yml file
+#       # to find another script which it calls within the same directory.
+#       # Ideally this would be done using roles instead of supplying a script path,
+#       # but that would require significant changes to existing code.
+#       - name: Un-Exclude Target Hosts from Monitoring During Password Changes
+#         include_role:
+#           name: oem-blackout
+#           tasks_from: script_exclusion.yml
+#         vars:
+#             action: "stop"
+#             blackout: "PASSWORD_ROTATION_{{ environment_name }}"
+#             engineering_role: "{{ assumed_engineering_role }}"
+#             engineering_env: "{{ bastion_inventory.stdout }}"
+#             #exclusion_expiry: "{{ exclude_timeout }}"
