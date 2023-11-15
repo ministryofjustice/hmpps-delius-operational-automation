@@ -1,0 +1,218 @@
+---
+
+# tasks file for hmpps-delius-oracledb-ha
+
+- name: (main) Intialize variables
+  set_fact:
+    update_ssm_parameter_restore: false
+    post_restore: false
+    fsfo_setup: false
+    password_rotation: false
+
+- name: (main/set-primary-config) Handle if using tag InventoryHost as the inventory hostname
+  set_fact:
+    standby1: "{{ primary  | regex_replace('(.*)_primarydb$','\\1_standbydb1') }}"
+    standby2: "{{ primary  | regex_replace('(.*)_primarydb$','\\1_standbydb2') }}"
+  tags: var
+
+- name: (main) Set fact to decide whether to update ssm parameter post rman duplicate
+  set_fact:
+    update_ssm_parameter_restore: true
+  when:  (ssm_option is defined and ssm_option | length > 0) and (method is defined and method == "build")
+
+- name: (main) Set fact to only carry out tasks post rman rman duplicate
+  set_fact:
+    post_restore: true
+  when:  method is defined and method == "post"
+
+- name: (main) Set fact to only carry out FSFO Setup
+  set_fact:
+    fsfo_setup: true
+  when:  method is defined and method == "fsfo setup"
+
+- name: (main) Set fact to only carry out steps needed for password rotation
+  set_fact:
+    password_rotation: true
+  when:  method is defined and method == "password rotation"
+
+- name: (main/set-primary-config) Gather facts with dns filter
+  setup:
+    filter: ansible_dns
+  tags: var
+
+- name: (main/set-primary-config) Handle if using tag InventoryHost as the inventory hostname
+  set_fact:
+    primary_host_tns: "{{ primary_host | regex_replace('([^\\.]*).*$' ,'\\1') | regex_replace('^(.+)-((delius|mis|misboe|misdsd)-db-(1|2|3))$','\\2') }}.{{ simple_environment_name }}.{{ project_name }}.{{ ansible_dns.search[0] }}"
+    standby_host1_tns: "{{ hostvars[groups[ standby1 ][0]]['inventory_hostname']  | regex_replace('([^\\.]*).*$' ,'\\1') | regex_replace('^(.+)-((delius|mis|misboe|misdsd)-db-(1|2|3))$','\\2') }}.{{ simple_environment_name }}.{{ project_name }}.{{ ansible_dns.search[0] }}"
+  tags: var
+
+# The second standby database is optional
+- name: (main/set-primary-config) Handle if using tag InventoryHost as the inventory hostname
+  set_fact:
+      standby_host2_tns: "{{ hostvars[groups[ standby2 ][0]]['inventory_hostname']  | regex_replace('([^\\.]*).*$' ,'\\1') | regex_replace('^(.+)-((delius|mis|misboe|misdsd)-db-(1|2|3))$','\\2') }}.{{ simple_environment_name }}.{{ project_name }}.{{ ansible_dns.search[0] }}"
+  when: high_availability_count | int > 1
+  tags: var
+
+# The following variable is not required if we are only running FSFO Setup or Password Rotation (system-wide configuration - not specific to one standby database)
+- name: (main/set-primary-config) Handle if using tag InventoryHost as the inventory hostname
+  set_fact:
+    standby_host_tns: "{{ standby_host | regex_replace('([^\\.]*).*$' ,'\\1') | regex_replace('^(.+)-((delius|mis|misboe|misdsd)-db-(1|2|3))$','\\2') }}.{{ simple_environment_name }}.{{ project_name }}.{{ ansible_dns.search[0] }}"
+  when: 
+     - not fsfo_setup
+     - not password_rotation
+  tags: var
+
+- name: (main) Set up oracle specific variables
+  block:
+    - name: (main) Set up oracle grid home
+      register: grid_home
+      shell: "grep +ASM /etc/oratab | cut -d: -f2"
+      changed_when: false
+      vars:
+         ansible_aws_ssm_timeout: 60
+      
+    - name: (main) Set up oracle database home
+      register: oracle_home
+      shell: "grep {{ database_primary_sid_name}} /etc/oratab | cut -d: -f2"
+      run_once: True
+      changed_when: false
+      vars:
+         ansible_aws_ssm_timeout: 60
+
+    - set_fact:
+        oracle_database_oracle_home: "{{ oracle_home.stdout }}"
+        oracle_grid_oracle_home: "{{ grid_home.stdout }}"
+  tags: var
+
+# Provided we are not running FSFO Set-Up or Password Rotation, run all of the following block
+# to build the HA
+- block:
+
+      - block:
+          - name: (main) Only carry out ha tasks if high availability configured
+            debug:
+              msg: "No high availability database to be configured...exiting"
+          - meta: end_play
+        run_once: True
+        when: high_availability_count is defined and high_availability_count==0
+        tags: var
+
+      - name: (main) Load in our vars
+        include_vars:
+          file: main.yml
+        no_log: true
+        tags: always
+
+      - name: (main) Check if inside AWS.
+        uri:
+          url: http://169.254.169.254/latest/meta-data
+          timeout: 20
+        register: aws_uri_check
+        failed_when: false
+
+      - set_fact:
+          is_aws_environment: "{{ aws_uri_check.status == 200 }}"
+
+      - name: (main) Get our ec2 instance facts
+        ec2_metadata_facts:
+        when: is_aws_environment|bool
+        no_log: true
+
+      - name: (main) Get the Dependencies Bucket ARN from Primary
+        shell: . /etc/environment; echo $DEPENDENCIES_BUCKET_ARN
+        register: dependencies_bucket_arn
+        changed_when: false
+        delegate_to: "{{ groups[primary][0] }}"
+        when: inventory_hostname in groups[ standby ]
+        tags: stand
+
+      - name: (main) Update the Dependency Bucket ARN in Standby Environment File
+        lineinfile:
+          path: /etc/environment
+          regexp: 'export DEPENDENCIES_BUCKET_ARN=".*"'
+          line: export DEPENDENCIES_BUCKET_ARN="{{ dependencies_bucket_arn.stdout }}"
+        when: inventory_hostname in groups[ standby ]
+        tags: stand  
+
+      - name: (main) Set standby configuration parameters
+        include: set-standby-config.yml
+        when: inventory_hostname in groups[ standby ]
+        tags: stand
+
+      - name: (main) Setup primary
+        block:
+          - name: (main) Configuration parameters
+            include: set-primary-config.yml
+          - name: (main) Database parameters
+            include: set-primary-params.yml
+        when: inventory_hostname in groups[ primary ]
+        tags: prim
+
+      - name: (main) Restore primary to standby
+        include: restore-primary-to-standby.yml
+        tags: restore
+
+  when: 
+     - not post_restore
+     - not fsfo_setup
+     - not password_rotation
+
+- block:
+
+    # Force to start up in read only mode if ADG is specified in hmpps-env-configs.
+    - name: Enable Read-Only
+      become: yes
+      become_user: "{{ rdbms_service_user.name }}"
+      when: 
+         - inventory_hostname in groups[ standby ]
+         - active_data_guard | default(false)
+      block:
+
+        - name: (main) Configure database to read only if standby is Active Data Guard
+          shell: |
+                . ~/.bash_profile
+                srvctl modify database -d {{ database_standby_sid }} -startoption "read only"
+
+        # If in read-only mode we must bounce the database using srvctl for this to take effect.
+        # (The duplicate script uses sqlplus to stop/start the database so we need to use
+        #  srvctl to restart to bring the GI configuration into sync)
+        - name: (main) Shutdown if standby is Active Data Guard
+          shell: |
+                . ~/.bash_profile
+                srvctl stop database -d {{ database_standby_sid }}
+                
+        - name: (main) Startup if standby is Active Data Guard
+          shell: |
+                . ~/.bash_profile
+                srvctl start database -d {{ database_standby_sid }}
+
+    - name: (main) Configure Oracle data guard broker
+      include: set-primary-dgbroker.yml
+      when: inventory_hostname in groups[ primary ]
+
+    - name: (main) Setup taf service name
+      include: set-taf-service.yml
+
+  when: 
+     - not fsfo_setup
+     - not password_rotation
+     - not update_ssm_parameter_restore
+
+- block:
+
+    - name: (main) Remove FSFO
+      include: unset-fsfo.yml
+      when: ( fsfo_mode | default('disabled')) == 'disabled'
+      become: true
+      become_user: "{{ rdbms_service_user.name }}"
+      tags: fsfo
+
+    - name: (main) Configure FSFO
+      include: set-fsfo.yml
+      when: ( hostvars[groups[ primary ][0]]['fsfo_mode']   | default('disabled')) != 'disabled'
+      become: true
+      become_user: "{{ rdbms_service_user.name }}"
+      tags: fsfo
+
+  when: 
+    - not update_ssm_parameter_restore

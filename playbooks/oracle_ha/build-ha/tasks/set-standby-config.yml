@@ -1,0 +1,128 @@
+- name: (main/set-standby-config) Setup standby oratab
+  lineinfile: 
+    dest: /etc/oratab
+    line: "{{ database_standby_sid }}:{{ oracle_database_oracle_home }}:N"
+    owner: "{{ rdbms_service_user.name }}"
+
+- name: (main/set-standby-config) Setup standby tnsnames 
+  blockinfile:
+    create: yes
+    path: '{{ oracle_database_oracle_home }}/network/admin/tnsnames.ora'  
+    block: |
+
+      {{ database_primary_unique_name }} =
+      (DESCRIPTION =
+        (ADDRESS = (PROTOCOL = TCP)(HOST = {{ primary_host_tns }})(PORT = 1521))
+          (CONNECT_DATA =
+            (SERVER = DEDICATED) 
+            (SERVICE_NAME = {{ database_primary_unique_name }})
+          )
+        )
+
+      {{ database_standby_unique_name }} =
+      (DESCRIPTION =
+        (ADDRESS = (PROTOCOL = TCP)(HOST = {{ standby_host_tns }})(PORT = 1521))
+          (CONNECT_DATA = 
+            (SERVER = DEDICATED) 
+            (SERVICE_NAME = {{ database_standby_unique_name }})
+          )
+        )
+
+    owner: "{{ rdbms_service_user.name }}"
+    group: "{{ rdbms_service_user.group }}"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK ADD {{ database_standby_unique_name }} DATABASE"
+
+# The next two tasks ensure the TNSNames file also contains entries for the *other* standby database
+# in the case of a 2-standby configuration
+- name: Add Other Standby to TNSNames File
+  when: high_availability_count | int == 2
+  block:
+
+      - name: (main/set-standby-config) Add standby tnsnames for optional 2nd standby
+        blockinfile:
+          create: yes
+          path: '{{ oracle_database_oracle_home }}/network/admin/tnsnames.ora'  
+          block: |
+
+            {{ hostvars[groups[ standby2 ][0]]['database_standby_unique'] }} =
+            (DESCRIPTION =
+              (ADDRESS = (PROTOCOL = TCP)(HOST = {{ standby_host2_tns }})(PORT = 1521))
+                (CONNECT_DATA = 
+                  (SERVER = DEDICATED) 
+                  (SERVICE_NAME = {{ hostvars[groups[ standby2 ][0]]['database_standby_unique'] }})
+                )
+              )
+
+          owner: "{{ rdbms_service_user.name }}"
+          group: "{{ rdbms_service_user.group }}"
+          marker: "# {mark} ANSIBLE MANAGED BLOCK ADD {{ hostvars[groups[ standby2 ][0]]['database_standby_unique'] }} DATABASE"
+        when: standby_number | int == 1 
+
+      - name: (main/set-standby-config) Add standby tnsnames for 1st standby
+        blockinfile:
+          create: yes
+          path: '{{ oracle_database_oracle_home }}/network/admin/tnsnames.ora'  
+          block: |
+
+            {{ hostvars[groups[ standby1 ][0]]['database_standby_unique'] }} =
+            (DESCRIPTION =
+              (ADDRESS = (PROTOCOL = TCP)(HOST = {{ standby_host1_tns }})(PORT = 1521))
+                (CONNECT_DATA = 
+                  (SERVER = DEDICATED) 
+                  (SERVICE_NAME = {{ hostvars[groups[ standby1 ][0]]['database_standby_unique'] }})
+                )
+              )
+
+          owner: "{{ rdbms_service_user.name }}"
+          group: "{{ rdbms_service_user.group }}"
+          marker: "# {mark} ANSIBLE MANAGED BLOCK ADD {{ hostvars[groups[ standby1 ][0]]['database_standby_unique'] }} DATABASE"
+        when: standby_number | int == 2
+
+- name: (main/set-standby-config) Setup standby listener 
+  blockinfile: 
+    path: '{{ oracle_grid_oracle_home }}/network/admin/listener.ora'
+    block: |
+
+        SID_LIST_LISTENER=
+        (SID_LIST =
+          (SID_DESC =
+            (GLOBAL_DBNAME = {{ database_standby_unique_name }})
+            (ORACLE_HOME = {{ oracle_database_oracle_home }})
+            (SID_NAME = {{ database_standby_sid }})
+          )
+          (SID_DESC=
+            (GLOBAL_DBNAME = {{ database_standby_unique_name }}_DGMGRL)
+            (ORACLE_HOME = {{ oracle_database_oracle_home }})
+            (SID_NAME = {{ database_standby_sid }})
+          )
+        )
+    marker: "# {mark} ANSIBLE MANAGED BLOCK ADD STANDBY SERVICE NAMES"
+    owner: "{{ rdbms_service_user.name }}"
+  register: standby_listener
+
+- name: (main/set-standby-config) Stop/Start standby listener
+  shell: "export PATH=/usr/sbin:/usr/local/bin:$PATH; export ORAENV_ASK=NO; export ORACLE_SID=+ASM; . oraenv; srvctl stop listener -l LISTENER; srvctl start listener -l LISTENER"
+  become: true
+  become_user: "{{ rdbms_service_user.name }}"
+  register: listener_result
+  failed_when: listener_result.rc !=0
+  when: standby_listener.changed
+
+- name: (main/set-standby-config) Get the compatible value from primary
+  script: get_primary_compatible.sh
+  register: get_primary_compatible
+  changed_when: false
+  delegate_to: "{{ groups[primary][0] }}"
+  become: true
+  become_user: "{{ rdbms_service_user.name }}"
+
+- name: (main/set-standby-config) Setup standby initial parameter file
+  copy: 
+    dest: "{{ oracle_database_oracle_home }}/dbs/init{{ database_standby_sid}}.ora_predg"
+    content: |
+      db_name={{ database_global_database_name }}
+      db_unique_name={{ database_standby_unique_name }}
+      instance_name={{ database_standby_sid }}
+      compatible='{{ get_primary_compatible.stdout_lines[0] }}'
+    owner: "{{ rdbms_service_user.name }}"
+    group: "{{ rdbms_service_user.group }}"
