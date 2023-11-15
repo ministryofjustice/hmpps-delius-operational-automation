@@ -149,7 +149,7 @@
     # for rotating the password in the Alfresco or Audit wallets.
     - name: Remember Existing SYSTEM Password
       set_fact:
-        original_system_password: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ application }}/db/oradb_system_password',region=region ) }}"
+        original_system_password: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/{{ application }}/db/oradb_system_password',region=region ) }}"
       when:
         - database_type == 'delius'
 
