@@ -123,11 +123,11 @@ jobs:
             exit 1
           elif [[ ${high_availability_count} -eq 1 ]]
           then
-            echo "standbydb1Host=${standbydb1Host}"  >> $GITHUB_OUTPUT
+            echo "standbydb1Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')"  >> $GITHUB_OUTPUT
             echo "high_availability_count=1" >> $GITHUB_OUTPUT
           elif [[ ${high_availability_count} -eq 2 ]]
           then
-            echo "standbydb2Host=${standbydb2Host}" >> $GITHUB_OUTPUT
+            echo "standbydb2Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')" >> $GITHUB_OUTPUT
             echo "high_availability_count=2" >> $GITHUB_OUTPUT
           fi
           echo $standbydb1Host
