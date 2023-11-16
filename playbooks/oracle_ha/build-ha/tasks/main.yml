@@ -4,7 +4,6 @@
 
 - name: (main) Intialize variables
   set_fact:
-    update_ssm_parameter_restore: false
     post_restore: false
     fsfo_setup: false
     password_rotation: false
@@ -15,12 +14,7 @@
     standby2: "{{ primary  | regex_replace('(.*)_primarydb$','\\1_standbydb2') }}"
   tags: var
 
-- name: (main) Set fact to decide whether to update ssm parameter post rman duplicate
-  set_fact:
-    update_ssm_parameter_restore: true
-  when:  (ssm_option is defined and ssm_option | length > 0) and (method is defined and method == "build")
-
-- name: (main) Set fact to only carry out tasks post rman rman duplicate
+- name: (main) Set fact to only carry out tasks post rman duplicate
   set_fact:
     post_restore: true
   when:  method is defined and method == "post"
@@ -35,28 +29,22 @@
     password_rotation: true
   when:  method is defined and method == "password rotation"
 
-- name: (main/set-primary-config) Gather facts with dns filter
-  setup:
-    filter: ansible_dns
-  tags: var
-
-- name: (main/set-primary-config) Handle if using tag InventoryHost as the inventory hostname
+- name: (main/set-primary-config) Handle FQDN For Primary and Standby Host 1 TNS Purposes
   set_fact:
-    primary_host_tns: "{{ primary_host | regex_replace('([^\\.]*).*$' ,'\\1') | regex_replace('^(.+)-((delius|mis|misboe|misdsd)-db-(1|2|3))$','\\2') }}.{{ simple_environment_name }}.{{ project_name }}.{{ ansible_dns.search[0] }}"
-    standby_host1_tns: "{{ hostvars[groups[ standby1 ][0]]['inventory_hostname']  | regex_replace('([^\\.]*).*$' ,'\\1') | regex_replace('^(.+)-((delius|mis|misboe|misdsd)-db-(1|2|3))$','\\2') }}.{{ simple_environment_name }}.{{ project_name }}.{{ ansible_dns.search[0] }}"
+    primary_host_tns: "{{ primary_host | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
+    standby_host1_tns: "{{ hostvars[groups[ standby1 ][0]]['inventory_hostname'] | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
   tags: var
 
 # The second standby database is optional
-- name: (main/set-primary-config) Handle if using tag InventoryHost as the inventory hostname
+- name: (main/set-primary-config) Handle FQDN For Standby Host 2 TNS Purpose
   set_fact:
-      standby_host2_tns: "{{ hostvars[groups[ standby2 ][0]]['inventory_hostname']  | regex_replace('([^\\.]*).*$' ,'\\1') | regex_replace('^(.+)-((delius|mis|misboe|misdsd)-db-(1|2|3))$','\\2') }}.{{ simple_environment_name }}.{{ project_name }}.{{ ansible_dns.search[0] }}"
-  when: high_availability_count | int > 1
+      standby_host2_tns: "{{ hostvars[groups[ standby2 ][0]]['inventory_hostname'] | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
   tags: var
 
 # The following variable is not required if we are only running FSFO Setup or Password Rotation (system-wide configuration - not specific to one standby database)
-- name: (main/set-primary-config) Handle if using tag InventoryHost as the inventory hostname
+- name: (main/set-primary-config) Handle FQDN For Any Standby Host TNS Purpose
   set_fact:
-    standby_host_tns: "{{ standby_host | regex_replace('([^\\.]*).*$' ,'\\1') | regex_replace('^(.+)-((delius|mis|misboe|misdsd)-db-(1|2|3))$','\\2') }}.{{ simple_environment_name }}.{{ project_name }}.{{ ansible_dns.search[0] }}"
+    standby_host_tns: "{{ standby_host | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
   when: 
      - not fsfo_setup
      - not password_rotation
@@ -117,22 +105,6 @@
         ec2_metadata_facts:
         when: is_aws_environment|bool
         no_log: true
-
-      - name: (main) Get the Dependencies Bucket ARN from Primary
-        shell: . /etc/environment; echo $DEPENDENCIES_BUCKET_ARN
-        register: dependencies_bucket_arn
-        changed_when: false
-        delegate_to: "{{ groups[primary][0] }}"
-        when: inventory_hostname in groups[ standby ]
-        tags: stand
-
-      - name: (main) Update the Dependency Bucket ARN in Standby Environment File
-        lineinfile:
-          path: /etc/environment
-          regexp: 'export DEPENDENCIES_BUCKET_ARN=".*"'
-          line: export DEPENDENCIES_BUCKET_ARN="{{ dependencies_bucket_arn.stdout }}"
-        when: inventory_hostname in groups[ standby ]
-        tags: stand  
 
       - name: (main) Set standby configuration parameters
         include: set-standby-config.yml
