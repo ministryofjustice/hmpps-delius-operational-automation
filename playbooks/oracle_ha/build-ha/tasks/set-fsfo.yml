@@ -205,13 +205,13 @@
   block:
 
       - name: Set FSFO Mode
-        include: set-fsfo-mode.yml
+        include_tasks: set-fsfo-mode.yml
         vars:
            delegation_host: "{{ groups[ primary ][0] }}"
 
       # The currently preferred active target is the first FastStartFailoverTarget on the primary
       - name: Set Active Target 
-        include: set-fsfo-active-target.yml
+        include_tasks: set-fsfo-active-target.yml
         vars:
            delegation_host: "{{ groups[ primary ][0] }}"
            preferred_active_target: "{{ hostvars[groups[ primary ][0]]['fsfo_targets'].split(',')[0] | lower | trim }}"

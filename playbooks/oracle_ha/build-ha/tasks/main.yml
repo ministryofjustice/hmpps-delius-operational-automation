@@ -107,21 +107,21 @@
         no_log: true
 
       - name: (main) Set standby configuration parameters
-        include: set-standby-config.yml
+        include_tasks: set-standby-config.yml
         when: inventory_hostname in groups[ standby ]
         tags: stand
 
       - name: (main) Setup primary
         block:
           - name: (main) Configuration parameters
-            include: set-primary-config.yml
+            include_tasks: set-primary-config.yml
           - name: (main) Database parameters
-            include: set-primary-params.yml
+            include_tasks: set-primary-params.yml
         when: inventory_hostname in groups[ primary ]
         tags: prim
 
       - name: (main) Restore primary to standby
-        include: restore-primary-to-standby.yml
+        include_tasks: restore-primary-to-standby.yml
         tags: restore
 
   when: 
@@ -159,11 +159,11 @@
                 srvctl start database -d {{ database_standby_sid }}
 
     - name: (main) Configure Oracle data guard broker
-      include: set-primary-dgbroker.yml
+      include_tasks: set-primary-dgbroker.yml
       when: inventory_hostname in groups[ primary ]
 
     - name: (main) Setup taf service name
-      include: set-taf-service.yml
+      include_tasks: set-taf-service.yml
 
   when: 
      - not fsfo_setup
@@ -173,14 +173,14 @@
 - block:
 
     - name: (main) Remove FSFO
-      include: unset-fsfo.yml
+      include_tasks: unset-fsfo.yml
       when: ( fsfo_mode | default('disabled')) == 'disabled'
       become: true
       become_user: "{{ rdbms_service_user.name }}"
       tags: fsfo
 
     - name: (main) Configure FSFO
-      include: set-fsfo.yml
+      include_tasks: set-fsfo.yml
       when: ( hostvars[groups[ primary ][0]]['fsfo_mode']   | default('disabled')) != 'disabled'
       become: true
       become_user: "{{ rdbms_service_user.name }}"
