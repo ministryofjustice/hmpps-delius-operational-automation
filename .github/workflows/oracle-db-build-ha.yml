@@ -118,17 +118,10 @@ jobs:
             echo "high_availability_count=2" >> $GITHUB_OUTPUT
           fi
 
-      - name: Install yq
-        uses: dcarbone/install-yq-action@v1.1.1
-        with:
-          download-compressed: true
-          version: "v4.35.1"
-          force: true
-
-      - name: Checkout From modernisation-platform-configuration-management
+      - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
         with:
-          repository: ministryofjustice/modernisation-platform-configuration-management
+          repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: playbooks/oracle_ha
           path: operations
@@ -143,6 +136,13 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
+      - name: Install yq
+        uses: dcarbone/install-yq-action@v1.1.1
+        with:
+          download-compressed: true
+          version: "v4.35.1"
+          force: true
+          
       - name: Check Fast Start Fail Over Ansible Variable
         id: getfsfomode
         working-directory: ${{ env.inventory }}
