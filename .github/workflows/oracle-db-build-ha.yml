@@ -78,12 +78,18 @@ jobs:
     continue-on-error: false
     steps:
 
+      - name: Output Input Parameters
+        shell: bash
+        run: |
+          echo -e "PrimarySourceType: ${{ github.event.inputs.PrimarySourceType }}\n\
+          SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
+          SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
+
       - name: Prepare Primary And All Inventory Name
         id: prepareinventorynames
         run: |
           primaryHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}"
           echo "primaryHost=${primaryHost}" >> $GITHUB_OUTPUT
-          echo "allHost=$(echo ${primaryHost} | sed 's/${{ github.event.inputs.TargetHost }}/all/')" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -97,22 +103,29 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
+      - name: Install yq
+        uses: dcarbone/install-yq-action@v1.1.1
+        with:
+          download-compressed: true
+          version: "v4.35.1"
+          force: true
+
       - name: Check Standbydb's Configured In Ansible Inventory
         id: standbydbsconfigured
+        working-directory: ${{ env.inventory }}
         run: |
-          standbydb1Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')
-          standbydb2Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')
-          ls -l $inventory/group_vars/${standbydb1Host}.yml > /dev/null 2>&1
-          if [[ $? -eq 0 ]]
+          database_environment="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
+          database_type=$(echo ${{ github.event.inputs.TargetHost }} | cut -d_ -f1)
+          high_availability_count=$(yq .high_availability_count.${database_type} group_vars/${database_environment}_all.yml)
+          if [[ ${high_availability_count} -eq 0 ]]
+          then
+            echo "No standbydb's configured"
+            exit 1
+          elif [[ ${high_availability_count} -eq 1 ]]
           then
             echo "standbydb1Host=${standbydb1Host}"  >> $GITHUB_OUTPUT
             echo "high_availability_count=1" >> $GITHUB_OUTPUT
-          else
-            echo "No standbydb's configured"
-            exit 1
-          fi
-          ls -l $inventory/group_vars/${standbydb2Host}.yml > /dev/null 2>&1
-          if [[ $? -eq 0 ]]
+          elif [[ ${high_availability_count} -eq 2 ]]
           then
             echo "standbydb2Host=${standbydb2Host}" >> $GITHUB_OUTPUT
             echo "high_availability_count=2" >> $GITHUB_OUTPUT
@@ -136,13 +149,6 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Install yq
-        uses: dcarbone/install-yq-action@v1.1.1
-        with:
-          download-compressed: true
-          version: "v4.35.1"
-          force: true
-          
       - name: Check Fast Start Fail Over Ansible Variable
         id: getfsfomode
         working-directory: ${{ env.inventory }}
@@ -154,7 +160,7 @@ jobs:
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
           echo "$command -i $inventory \
-          -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
+          # -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
           -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
           -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
           -e method=${{ github.event.inputs.Procedure }} \
