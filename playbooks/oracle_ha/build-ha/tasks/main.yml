@@ -169,23 +169,25 @@
   when: 
      - not fsfo_setup
      - not password_rotation
-     - not update_ssm_parameter_restore
 
-- block:
+- name: Remove Or Configure FSO Depending On fsfo Mode
+  tags: fsfo
+  block:
 
     - name: (main) Remove FSFO
-      include_tasks: unset-fsfo.yml
+      include_tasks:
+        file: unset-fsfo.yml
+        apply:
+          tags: fsfo
+          become: true
+          become_user: "{{ rdbms_service_user.name }}"
       when: ( fsfo_mode | default('disabled')) == 'disabled'
-      become: true
-      become_user: "{{ rdbms_service_user.name }}"
-      tags: fsfo
 
     - name: (main) Configure FSFO
-      include_tasks: set-fsfo.yml
+      include_tasks:
+        file: set-fsfo.yml
+        apply:
+          tags: fsfo
+          become: true
+          become_user: "{{ rdbms_service_user.name }}"
       when: ( hostvars[groups[ primary ][0]]['fsfo_mode']   | default('disabled')) != 'disabled'
-      become: true
-      become_user: "{{ rdbms_service_user.name }}"
-      tags: fsfo
-
-  when: 
-    - not update_ssm_parameter_restore
