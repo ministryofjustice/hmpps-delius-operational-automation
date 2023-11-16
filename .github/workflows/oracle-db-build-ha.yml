@@ -130,7 +130,9 @@ jobs:
             echo "standbydb2Host=${standbydb2Host}" >> $GITHUB_OUTPUT
             echo "high_availability_count=2" >> $GITHUB_OUTPUT
           fi
-
+          echo $standbydb1Host
+          echo $standbydb2Host
+          echo $high_availability_count
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
         with:
