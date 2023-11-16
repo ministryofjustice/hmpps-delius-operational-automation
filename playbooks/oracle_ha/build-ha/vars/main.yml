@@ -2,6 +2,7 @@
 ---
 
 # Setup variables 
+dns: "hmpps-development.modernisation-platform.internal"
 standby_host: "{{ hostvars[groups[standby][0]]['inventory_hostname'] }}"
 primary_host: "{{ hostvars[groups[primary][0]]['inventory_hostname'] }}"
 database_standby_unique_name: "{{ hostvars[groups[standby][0]]['database_standby_unique'] }}"
