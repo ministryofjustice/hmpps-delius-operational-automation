@@ -159,13 +159,13 @@ jobs:
       - name: Build High Availability Standby 1 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
-          echo "$command -i $inventory \
-          # -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
+          $command -i $inventory \
           -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
           -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
           -e method=${{ github.event.inputs.Procedure }} \
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
           -e standby_number=1 \
-          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}"
+          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}
+          # -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
           
