@@ -8,7 +8,7 @@
     fsfo_setup: false
     password_rotation: false
 
-- name: (main/set-primary-config) Handle if using tag InventoryHost as the inventory hostname
+- name: (main/set-primary-config) Set Variables To Be Used For Standby Configuration 
   set_fact:
     standby1: "{{ primary  | regex_replace('(.*)_primarydb$','\\1_standbydb1') }}"
     standby2: "{{ primary  | regex_replace('(.*)_primarydb$','\\1_standbydb2') }}"
@@ -38,7 +38,8 @@
 # The second standby database is optional
 - name: (main/set-primary-config) Handle FQDN For Standby Host 2 TNS Purpose
   set_fact:
-      standby_host2_tns: "{{ hostvars[groups[ standby2 ][0]]['inventory_hostname'] | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
+    standby_host2_tns: "{{ hostvars[groups[ standby2 ][0]]['inventory_hostname'] | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
+  when: high_availability_count | int > 1
   tags: var
 
 # The following variable is not required if we are only running FSFO Setup or Password Rotation (system-wide configuration - not specific to one standby database)
