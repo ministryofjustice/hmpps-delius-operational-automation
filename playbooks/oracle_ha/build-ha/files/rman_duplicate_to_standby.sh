@@ -67,11 +67,14 @@ EOF
 lookup_rman_catalog_password() {
 
  info "Looking up passwords to in aws ssm parameter to restore by sourcing /etc/environment"
-  . /etc/environment
 
-  PRODUCT=`echo $HMPPS_ROLE`
-  SSMNAME="/${HMPPS_ENVIRONMENT}/${APPLICATION}/oracle-db-operation/rman/rman_password"
-  RMANPASS=`aws ssm get-parameters --region ${REGION} --with-decryption --name ${SSMNAME} | jq -r '.Parameters[].Value'`
+  INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+  APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
+  DELIUS_ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment-name"  --query "Tags[].Value" --output text)
+  PRODUCT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=database"  --query "Tags[].Value" --output text | cut -d_ -f1)
+  SSMNAME="/${APPLICATION}-${DELIUS_ENVIRONMENT_NAME}/delius/oracle-db-operation/rman/rman_password"
+  RMANPASS=$(aws ssm get-parameters --with-decryption --name ${SSMNAME} --query Parameters[].Value --output text)
+
   [ -z ${RMANPASS} ] && echo  "Password for RMAN catalog in aws parameter store ${SSMNAME} does not exist"
 
 }
@@ -80,11 +83,14 @@ lookup_rman_catalog_password() {
 lookup_db_sys_password() {
 
  info "Looking up passwords to in aws ssm parameter to restore by sourcing /etc/environment"
-  . /etc/environment
 
-  PRODUCT=`echo $HMPPS_ROLE`
-  SSMNAME="/${HMPPS_ENVIRONMENT}/${APPLICATION}/${PRODUCT}-database/db/oradb_sys_password"
-  SYSPASS=`aws ssm get-parameters --region ${REGION} --with-decryption --name ${SSMNAME} | jq -r '.Parameters[].Value'`
+  INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+  APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
+  DELIUS_ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment-name"  --query "Tags[].Value" --output text)
+  PRODUCT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=database"  --query "Tags[].Value" --output text | cut -d_ -f1)
+  SSMNAME="/${APPLICATION}-${DELIUS_ENVIRONMENT_NAME}/delius/${PRODUCT}-database/db/oradb_sys_password"
+  SYSPASS=$(aws ssm get-parameters --with-decryption --name $SSMNAME --query Parameters[].Value --output text)
+
   [ -z ${SYSPASS} ] && echo  "Password for sys in aws parameter store ${SSMNAME} does not exist"
 
 }
@@ -395,7 +401,7 @@ EOF
       asmcmd rm -rf +${VG}/${STANDBYDB}
       [ $? -ne 0 ] && error "Removing directory ${STANDBYDB} in ${VG}"
     else
-      info "No ${STANDBYDB}directory in ${VG} to delete"
+      info "No ${STANDBYDB} directory in ${VG} to delete"
     fi
   done
   # From 18c we must have the second level ASM directories in place before restoring SPFILE
