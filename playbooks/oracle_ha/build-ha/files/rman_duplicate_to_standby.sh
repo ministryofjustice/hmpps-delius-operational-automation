@@ -368,6 +368,7 @@ EOF
 copy_password_file () {
 
 set_ora_env ${STANDBYDB}
+DATABASE_ORACLE_HOME=${ORACLE_HOME}
 
 PRIMARY_HOSTNAME=$(tnsping ${PRIMARYDB} | awk -F '[(] *HOST *= *' 'NF>1{print substr($2, 1, match($2, / *[)]/) - 1)}')
 
@@ -378,6 +379,17 @@ lookup_db_sys_password
 asmcmd <<EOASMCMD
 pwcopy --dbuniquename ${STANDBYDB} sys/${SYSPASS}@${PRIMARY_HOSTNAME}.+ASM:+DATA/${PRIMARYDB}/orapw${PRIMARYDB} +DATA/${STANDBYDB}/orapw${STANDBYDB} -f
 EOASMCMD
+
+# We can presume if there is no standby database in crs, it's the first time the standby database is being created
+# Therefore copy the password file from asm to $ORACLE_HOME/dbs
+ srvctl status database -d ${STANDBYDB} > /dev/null
+ if [ $? -ne 0 ]
+ then
+   asmcmd <<EOASMCMD
+   pwcopy +DATA/${STANDBYDB}/orapw${STANDBYDB} ${DATABASE_ORACLE_HOME}/dbs/orapw${STANDBYDB}
+EOASMCMD
+ fi
+
 }
 
 
