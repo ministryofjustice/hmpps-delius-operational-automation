@@ -222,7 +222,7 @@ rman_duplicate_to_standby () {
   lookup_db_sys_password
   if [[ "${USE_BACKUP}" != "TRUE" ]]
   then
-     rman target sys/${SYSPASS}@${PRIMARYDB} auxiliary / cmdfile $RMANCMDFILE log $RMANLOGFILE << EOF
+     rman target sys/${SYSPASS}@${PRIMARYDB} auxiliary sys/${SYSPASS}@${STANDBYDB} cmdfile $RMANCMDFILE log $RMANLOGFILE << EOF
 EOF
   else
      # If we are duplicating from a backup then we need to connect to the RMAN catalog to get the backup manifest
