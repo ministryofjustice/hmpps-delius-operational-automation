@@ -52,7 +52,8 @@
     - name: (main/restore-primary-to-standby) Configure database to use ASM password file
       shell: |
              . ~/.bash_profile
-             srvctl modify database -d {{ database_standby_sid }} -pwfile +DATA/{{ database_standby_sid }}/orapw{{ database_standby_sid }}
+             srvctl status database -d {{ database_standby_sid }} > /dev/null 2>&1
+             [ $? -eq 0 ] && srvctl modify database -d {{ database_standby_sid }} -pwfile +DATA/{{ database_standby_sid }}/orapw{{ database_standby_sid }} || echo
       become: true
       become_user: "{{ rdbms_service_user.name }}"
 
