@@ -66,7 +66,7 @@ EOF
 
 lookup_rman_catalog_password() {
 
- info "Looking up passwords to in aws ssm parameter to restore by sourcing /etc/environment"
+ info "Looking up rman catalog password in aws ssm parameter"
 
   INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
   APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
@@ -82,7 +82,7 @@ lookup_rman_catalog_password() {
 
 lookup_db_sys_password() {
 
- info "Looking up passwords to in aws ssm parameter to restore by sourcing /etc/environment"
+ info "Looking up sys password in aws ssm parameter"
 
   INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
   APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
@@ -222,7 +222,7 @@ rman_duplicate_to_standby () {
   lookup_db_sys_password
   if [[ "${USE_BACKUP}" != "TRUE" ]]
   then
-     rman target sys/${SYSPASS}@${PRIMARYDB} auxiliary sys/${SYSPASS}@${STANDBYDB} cmdfile $RMANCMDFILE log $RMANLOGFILE << EOF
+     rman target sys/${SYSPASS}@${PRIMARYDB} auxiliary / cmdfile $RMANCMDFILE log $RMANLOGFILE << EOF
 EOF
   else
      # If we are duplicating from a backup then we need to connect to the RMAN catalog to get the backup manifest
@@ -576,14 +576,6 @@ then
 
   # Remove orphaned archivelogs left by previous incarnation
   remove_orphaned_archive
-fi
-
-info "Update ssm duplicate parameter if specified"
-if [ "${SSM_PARAMETER}" != "UNSPECIFIED" ]
-then  
-  . /etc/environment
-  aws ssm put-parameter --region ${REGION} --value "CompletedHA" --name "${SSM_PARAMETER}" --overwrite --type String
-  [ $? -ne 0 ] && error "Updating ssm duplicate parameter"
 fi
 
 info "End"
