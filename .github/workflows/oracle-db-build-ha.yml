@@ -59,6 +59,7 @@ on:
           - "-vvvv"
 
 env:
+  ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/playbooks/oracle_ha/build-ha.yml
   inventory: inventory/ansible
 
@@ -161,6 +162,7 @@ jobs:
       - name: Build High Availability Standby 1 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
+          export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
           -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
           -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
