@@ -393,14 +393,14 @@
 # If we have run a flashback then it is possible that password changes have been reverted and will be
 # out of Sync with those in SSM Parameter store and OEM.  Rotate the passwords again to sync everything up.
 # (This step is skipped if not in AWS since there will be no password store)
-# - name: Rotate Database Passwords
-#   import_playbook: ../oracle_password_rotation/password_rotation.yml
-#   vars:
-#       rotate_database_passwords: true
-#       rotate_groups: "{{ target_dbs }}"
-#   when:
-#     - required_action == "Flashback to Restore Point"
-#     - is_aws_environment | default(false)
+- name: Rotate Database Passwords
+  import_playbook: ../oracle_password_rotation/password_rotation.yml
+  vars:
+      rotate_database_passwords: true
+      rotate_groups: "{{ target_dbs }}"
+  when:
+    - required_action == "Flashback to Restore Point"
+    - is_aws_environment | default(false)
 
 # This step is NOT required for AWS databases as it will have already been performed by the Password
 # Rotation.   (Password Rotation is not run on non-AWS Databases)
