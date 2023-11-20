@@ -1,0 +1,13 @@
+---
+
+# Check if Statspack is to be installed (non diagnostics licence and not already installed)
+- name: Get if Statspack is to be Installed
+  script:  check_install_required.sh
+  register: check_install_required
+  changed_when: false
+
+- name: Install Statspack
+  include_tasks: run_spcreate.yml
+  when: check_install_required.stdout_lines[0] | default('NO') == 'YES'
+
+
