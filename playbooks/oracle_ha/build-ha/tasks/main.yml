@@ -1,0 +1,188 @@
+---
+# tasks file for hmpps-delius-oracledb-ha
+
+- name: (main) Intialize variables
+  set_fact:
+    post_restore: false
+    fsfo_setup: false
+    password_rotation: false
+
+- name: (main/set-primary-config) Set Variables To Be Used For Standby Configuration
+  set_fact:
+    standby1: "{{ primary  | regex_replace('(.*)_primarydb$','\\1_standbydb1') }}"
+    standby2: "{{ primary  | regex_replace('(.*)_primarydb$','\\1_standbydb2') }}"
+  tags: var
+
+- name: (main) Set fact to only carry out tasks post rman duplicate
+  set_fact:
+    post_restore: true
+  when: method is defined and method == "post"
+
+- name: (main) Set fact to only carry out FSFO Setup
+  set_fact:
+    fsfo_setup: true
+  when: method is defined and method == "fsfo setup"
+
+- name: (main) Set fact to only carry out steps needed for password rotation
+  set_fact:
+    password_rotation: true
+  when: method is defined and method == "password rotation"
+
+- name: (main/set-primary-config) Handle FQDN For Primary and Standby Host 1 TNS Purposes
+  set_fact:
+    primary_host_tns: "{{ primary_host | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
+    standby_host1_tns: "{{ hostvars[groups[ standby1 ][0]]['inventory_hostname'] | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
+  tags: var
+
+# The second standby database is optional
+- name: (main/set-primary-config) Handle FQDN For Standby Host 2 TNS Purpose
+  set_fact:
+    standby_host2_tns: "{{ hostvars[groups[ standby2 ][0]]['inventory_hostname'] | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
+  when: high_availability_count | int > 1
+  tags: var
+
+# The following variable is not required if we are only running FSFO Setup or Password Rotation (system-wide configuration - not specific to one standby database)
+- name: (main/set-primary-config) Handle FQDN For Any Standby Host TNS Purpose
+  set_fact:
+    standby_host_tns: "{{ standby_host | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
+  when:
+    - not fsfo_setup
+    - not password_rotation
+  tags: var
+
+- name: (main) Set up oracle specific variables
+  block:
+    - name: (main) Set up oracle grid home
+      register: grid_home
+      shell: "grep +ASM /etc/oratab | cut -d: -f2"
+      changed_when: false
+      vars:
+        ansible_aws_ssm_timeout: 60
+
+    - name: (main) Set up oracle database home
+      register: oracle_home
+      shell: "grep {{ database_primary_sid_name}} /etc/oratab | cut -d: -f2"
+      run_once: True
+      changed_when: false
+      vars:
+        ansible_aws_ssm_timeout: 60
+
+    - set_fact:
+        oracle_database_oracle_home: "{{ oracle_home.stdout }}"
+        oracle_grid_oracle_home: "{{ grid_home.stdout }}"
+  tags: var
+
+# Provided we are not running FSFO Set-Up or Password Rotation, run all of the following block
+# to build the HA
+- block:
+    - block:
+        - name: (main) Only carry out ha tasks if high availability configured
+          debug:
+            msg: "No high availability database to be configured...exiting"
+        - meta: end_play
+      run_once: True
+      when: high_availability_count is defined and high_availability_count==0
+      tags: var
+
+    - name: (main) Load in our vars
+      include_vars:
+        file: main.yml
+      no_log: true
+      tags: always
+
+    - name: (main) Check if inside AWS.
+      uri:
+        url: http://169.254.169.254/latest/meta-data
+        timeout: 20
+      register: aws_uri_check
+      failed_when: false
+
+    - set_fact:
+        is_aws_environment: "{{ aws_uri_check.status == 200 }}"
+
+    - name: (main) Get our ec2 instance facts
+      ec2_metadata_facts:
+      when: is_aws_environment|bool
+      no_log: true
+
+    - name: (main) Set standby configuration parameters
+      include_tasks: set-standby-config.yml
+      when: inventory_hostname in groups[ standby ]
+      tags: stand
+
+    - name: (main) Setup primary
+      block:
+        - name: (main) Configuration parameters
+          include_tasks: set-primary-config.yml
+        - name: (main) Database parameters
+          include_tasks: set-primary-params.yml
+      when: inventory_hostname in groups[ primary ]
+      tags: prim
+
+    - name: (main) Restore primary to standby
+      include_tasks: restore-primary-to-standby.yml
+      tags: restore
+
+  when:
+    - not post_restore
+    - not fsfo_setup
+    - not password_rotation
+
+- block:
+    - name: (main) Configure Oracle data guard broker
+      include_tasks: set-primary-dgbroker.yml
+      when: inventory_hostname in groups[ primary ]
+
+    - name: (main) Setup taf service name
+      include_tasks: set-taf-service.yml
+
+    # Force to start up in read only mode if ADG is specified in hmpps-env-configs.
+    - name: Enable Read-Only
+      become: yes
+      become_user: "{{ rdbms_service_user.name }}"
+      when:
+        - inventory_hostname in groups[ standby ]
+        - active_data_guard | default(false)
+      block:
+        - name: (main) Configure database to read only if standby is Active Data Guard
+          shell: |
+            . ~/.bash_profile
+            srvctl modify database -d {{ database_standby_sid }} -startoption "read only"
+
+        # If in read-only mode we must bounce the database using srvctl for this to take effect.
+        # (The duplicate script uses sqlplus to stop/start the database so we need to use
+        #  srvctl to restart to bring the GI configuration into sync)
+        - name: (main) Shutdown if standby is Active Data Guard
+          shell: |
+            . ~/.bash_profile
+            srvctl stop database -d {{ database_standby_sid }}
+
+        - name: (main) Startup if standby is Active Data Guard
+          shell: |
+            . ~/.bash_profile
+            srvctl start database -d {{ database_standby_sid }}
+
+  when:
+    - not fsfo_setup
+    - not password_rotation
+
+- name: Remove Or Configure FSO Depending On fsfo Mode
+  tags: fsfo
+  block:
+    - name: (main) Remove FSFO
+      include_tasks:
+        file: unset-fsfo.yml
+        apply:
+          tags: fsfo
+          become: true
+          become_user: "{{ rdbms_service_user.name }}"
+      when: ( fsfo_mode | default('disabled')) == 'disabled'
+
+    - name: (main) Configure FSFO
+      include_tasks:
+        file: set-fsfo.yml
+        apply:
+          tags: fsfo
+          become: true
+          become_user: "{{ rdbms_service_user.name }}"
+      when: ( hostvars[groups[ primary ][0]]['fsfo_mode']   | default('disabled')) != 'disabled'

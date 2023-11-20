@@ -1,0 +1,23 @@
+- name: Set FSFO Mode
+  include_tasks: set-fsfo-mode.yml
+  vars:
+    standby1: "{{ database_type + '_standbydb1' }}"
+    standby2: "{{ database_type + '_standbydb2' }}"
+
+# During outage of databases during flashback it is possible that the Active Target may have changed.
+# The following tasks ensure it is reset to its expected target.
+- name: Initialize Databases Currently in Configuration and FSFO Targets
+  set_fact:
+    databases_in_configuration: []
+    fsfo_targets: ""
+
+- name: Determine FSFO Targets on Primary
+  include_tasks: determine-fsfo-targets.yml
+  vars:
+    standby1_hostname: "{{ hostvars[groups[database_type + '_standbydb1'][0]]['inventory_hostname'] }}"
+    standby2_hostname: "{{ hostvars[(groups[database_type + '_standbydb2']|default([]))[0]|default({})]['inventory_hostname'] | default('') }}"
+
+- name: Set Active Target to First Failover Target
+  include_tasks: set-fsfo-active-target.yml
+  vars:
+    preferred_active_target: "{{ fsfo_targets.split(',')[0] | lower | trim }}"

@@ -1,0 +1,25 @@
+---
+# Setup variables
+dns: "hmpps-development.modernisation-platform.internal"
+standby_host: "{{ hostvars[groups[standby][0]]['inventory_hostname'] }}"
+primary_host: "{{ hostvars[groups[primary][0]]['inventory_hostname'] }}"
+database_standby_unique_name: "{{ hostvars[groups[standby][0]]['database_standby_unique'] }}"
+database_standby_sid_name: "{{ hostvars[groups[standby][0]]['database_standby_sid'] }}"
+database_global_database_name: "{{ hostvars[groups[primary][0]]['database_global_database'] }}"
+database_taf_service_name: "{{ hostvars[groups[primary][0]]['database_taf_service'] }}"
+database_primary_unique_name: "{{ hostvars[groups[primary][0]]['database_primary_unique'] }}"
+database_primary_sid_name: "{{ hostvars[groups[primary][0]]['database_primary_sid'] }}"
+
+rdbms_service_user:
+  name: oracle
+  group: oinstall
+
+# Define conditions on which we wish to failover
+target_fsfo_health_conditions: ["Corrupted Controlfile", "Corrupted Dictionary", "Stuck Archiver", "Datafile Write Errors", "Inaccessible Logfile"]
+
+# During AWS Start/Stop we occassionally have disconnections about around 60-70 seconds during DB re-start.
+# 120 seconds provides sufficent overhead for these to automatically resolve and prevent false failover.
+target_fsfo_threshold: 120
+
+# Define the polling interval to the primary (seconds)
+target_fsfo_observer_reconnect: 60

@@ -59,6 +59,7 @@ on:
           - "-vvvv"
 
 env:
+  ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/playbooks/oracle_ha/build-ha.yml
   inventory: inventory/ansible
 
@@ -78,12 +79,18 @@ jobs:
     continue-on-error: false
     steps:
 
+      - name: Output Input Parameters
+        shell: bash
+        run: |
+          echo -e "PrimarySourceType: ${{ github.event.inputs.PrimarySourceType }}\n\
+          SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
+          SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
+
       - name: Prepare Primary And All Inventory Name
         id: prepareinventorynames
         run: |
           primaryHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}"
           echo "primaryHost=${primaryHost}" >> $GITHUB_OUTPUT
-          echo "allHost=$(echo ${primaryHost} | sed 's/${{ github.event.inputs.TargetHost }}/all/')" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -97,27 +104,6 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
-      - name: Check Standbydb's Configured In Ansible Inventory
-        id: standbydbsconfigured
-        run: |
-          standbydb1Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')
-          standbydb2Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')
-          ls -l $inventory/group_vars/${standbydb1Host}.yml > /dev/null 2>&1
-          if [[ $? -eq 0 ]]
-          then
-            echo "standbydb1Host=${standbydb1Host}"  >> $GITHUB_OUTPUT
-            echo "high_availability_count=1" >> $GITHUB_OUTPUT
-          else
-            echo "No standbydb's configured"
-            exit 1
-          fi
-          ls -l $inventory/group_vars/${standbydb2Host}.yml > /dev/null 2>&1
-          if [[ $? -eq 0 ]]
-          then
-            echo "standbydb2Host=${standbydb2Host}" >> $GITHUB_OUTPUT
-            echo "high_availability_count=2" >> $GITHUB_OUTPUT
-          fi
-
       - name: Install yq
         uses: dcarbone/install-yq-action@v1.1.1
         with:
@@ -125,10 +111,33 @@ jobs:
           version: "v4.35.1"
           force: true
 
-      - name: Checkout From modernisation-platform-configuration-management
+      - name: Check Standbydb's Configured In Ansible Inventory
+        id: standbydbsconfigured
+        working-directory: ${{ env.inventory }}
+        run: |
+          database_environment="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
+          database_type=$(echo ${{ github.event.inputs.TargetHost }} | cut -d_ -f1)
+          high_availability_count=$(yq .high_availability_count.${database_type} group_vars/${database_environment}_all.yml)
+          if [[ ${high_availability_count} -eq 0 ]]
+          then
+            echo "No standbydb's configured"
+            exit 1
+          elif [[ ${high_availability_count} -eq 1 ]]
+          then
+            echo "standbydb1Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')"  >> $GITHUB_OUTPUT
+            echo "high_availability_count=1" >> $GITHUB_OUTPUT
+          elif [[ ${high_availability_count} -eq 2 ]]
+          then
+            echo "standbydb2Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')" >> $GITHUB_OUTPUT
+            echo "high_availability_count=2" >> $GITHUB_OUTPUT
+          fi
+          echo $standbydb1Host
+          echo $standbydb2Host
+          echo $high_availability_count
+      - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
         with:
-          repository: ministryofjustice/modernisation-platform-configuration-management
+          repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: playbooks/oracle_ha
           path: operations
@@ -153,13 +162,14 @@ jobs:
       - name: Build High Availability Standby 1 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
-          echo "$command -i $inventory \
-          -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
+          export ANSIBLE_CONFIG=$ansible_config
+          $command -i $inventory \
           -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
           -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
           -e method=${{ github.event.inputs.Procedure }} \
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
           -e standby_number=1 \
-          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}"
+          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}
+          # -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
           
