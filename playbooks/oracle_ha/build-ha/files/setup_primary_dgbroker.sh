@@ -66,12 +66,15 @@ EOF
 
 lookup_db_sys_password() {
 
- info "Looking up passwords to in aws ssm parameter to restore by sourcing /etc/environment"
-  . /etc/environment
+ info "Looking up sys password in aws ssm parameter"
 
-  PRODUCT=`echo $HMPPS_ROLE`
-  SSMNAME="/${HMPPS_ENVIRONMENT}/${APPLICATION}/${PRODUCT}-database/db/oradb_sys_password"
-  SYSPASS=`aws ssm get-parameters --region ${REGION} --with-decryption --name ${SSMNAME} | jq -r '.Parameters[].Value'`
+  INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+  APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
+  DELIUS_ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment-name"  --query "Tags[].Value" --output text)
+  PRODUCT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=database"  --query "Tags[].Value" --output text | cut -d_ -f1)
+  SSMNAME="/${APPLICATION}-${DELIUS_ENVIRONMENT_NAME}/delius/${PRODUCT}-database/db/oradb_sys_password"
+  SYSPASS=$(aws ssm get-parameters --with-decryption --name $SSMNAME --query Parameters[].Value --output text)
+
   [ -z ${SYSPASS} ] && error "Password for sys in aws parameter store ${SSMNAME} does not exist"
 
 }
