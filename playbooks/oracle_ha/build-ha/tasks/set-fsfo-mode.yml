@@ -42,6 +42,7 @@
         changed_when: false
         when: 
            - standby2 | default('') != ''
+           - high_availability_count | int > 1
 
       # We require no data guard lag if enabling FSFO (irrelevant if disabling FSFO)
       - name: Wait for Data Guard Lag on Standby 2 to Drop to Zero
