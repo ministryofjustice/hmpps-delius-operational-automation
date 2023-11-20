@@ -263,7 +263,7 @@
             - database_primary_sid is defined
             - ( rman_password.stdout is defined and rman_password.stdout | length > 2) or (rman_password is not defined )
             - ( database_registered.stdout_lines is defined and database_registered.stdout_lines[0] | int > 0) or (database_registered is not defined )
-          include: backup_archivelogs_for_restore_point.yml
+          include_tasks: backup_archivelogs_for_restore_point.yml
 
     # Snapshot Standby databases will not have the same set of restore points as other databases so
     # ignore when dropping restore points.
