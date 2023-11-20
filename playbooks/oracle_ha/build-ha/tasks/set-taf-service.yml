@@ -1,19 +1,18 @@
 - name: (main/set-taf-service) Set database unique names depending on hostname
   block:
-
-    - set_fact: 
+    - set_fact:
         db_unique_name: "{{ database_primary_unique_name }}"
       when: inventory_hostname in groups[primary]
 
-    - set_fact: 
+    - set_fact:
         db_unique_name: "{{ database_standby_unique_name }}"
       when: inventory_hostname in groups[standby]
 
-    - set_fact: 
+    - set_fact:
         db_sid_name: "{{ database_primary_sid_name }}"
       when: inventory_hostname in groups[primary]
 
-    - set_fact: 
+    - set_fact:
         db_sid_name: "{{ database_standby_sid_name }}"
       when: inventory_hostname in groups[standby]
 
