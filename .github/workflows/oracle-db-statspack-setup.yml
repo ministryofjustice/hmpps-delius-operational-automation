@@ -1,6 +1,9 @@
 name: "Oracle: Statspack Setup"
 run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}_statspack_setup"
 on:
+  push:
+    branches:
+      - "DBA-559"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
