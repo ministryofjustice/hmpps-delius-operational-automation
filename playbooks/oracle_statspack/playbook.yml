@@ -4,4 +4,4 @@
   become: yes
   become_user: oracle
   roles:
-     - oracle_statspack
+    - oracle_statspack
