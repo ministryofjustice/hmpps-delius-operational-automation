@@ -4,4 +4,4 @@
   become: yes
   become_user: root
   roles:
-     - logfile_housekeeping
+     - oracle_logfile_housekeeping
