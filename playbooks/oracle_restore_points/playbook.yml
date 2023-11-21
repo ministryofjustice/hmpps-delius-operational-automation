@@ -35,6 +35,7 @@
           script: check_flashback_logs.sh
           environment:
             RESTORE_DATE_TIME: "{{ restore_date_time }}"
+          when: database_primary_sid is defined
 
 # Prevent FSFO Observer from performing a failover whilst the primary database is down for flashback
 # by temporarily disabling FSFO if it is configured.   It will be re-enabled after flashback completes.
