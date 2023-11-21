@@ -37,7 +37,7 @@ on:
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
-  command: ansible-playbook operations/playbooks/logfile_housekeeping/playbook.yml
+  command: ansible-playbook operations/playbooks/oracle_logfile_housekeeping/playbook.yml
   inventory: inventory/ansible
 
 # Allow permissions on repository and docker image respectively 
