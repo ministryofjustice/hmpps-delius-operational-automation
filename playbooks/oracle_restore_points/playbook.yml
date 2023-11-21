@@ -205,8 +205,8 @@
 
         - name: Get environment name and application name
           set_fact:
-            environment_name: "{{ hostvars[inventory_hostname].group_names[1] | replace(hostvars[inventory_hostname].group_names[1].split('_')[-2] + '_' + hostvars[inventory_hostname].group_names[1].split('_')[-1],'') }}"
-            application_name: "{{ hostvars[inventory_hostname].group_names[1].split('_')[-2] }}"
+            environment_name: "{{ hostvars[inventory_hostname].group_names[2] | replace('_' + hostvars[inventory_hostname].group_names[2].split('_')[-1],'') }}"
+            application_name: "{{ hostvars[inventory_hostname].group_names[3].split('_')[-2] }}"
 
         - name: Create Oracle Standby Restore Points
           script: create_standby_restore_points.sh
