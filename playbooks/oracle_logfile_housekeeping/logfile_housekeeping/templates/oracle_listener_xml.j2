@@ -1,0 +1,4 @@
+#!/bin/bash
+
+find {{ listener_xml_location }} -name 'log_*.xml' -mtime +{{ longp_policy_days }} -delete
+
