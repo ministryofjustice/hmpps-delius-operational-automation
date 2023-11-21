@@ -103,6 +103,7 @@ jobs:
 
       - name: Check Restore DateTime Input
         if: ${{ github.event.inputs.RestoreDateTime != '' }}
+        shell: bash
         run: |
           isDateInvalid()
           {
