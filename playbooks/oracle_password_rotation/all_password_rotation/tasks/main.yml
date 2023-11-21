@@ -68,7 +68,7 @@
 - name: Get Standby Database Type And Environment
   set_fact:
     database_type: "{{ group_names | select('match','.*_standbydb\\d+') | list | first | regex_replace('^(.*)_standbydb\\d+', '\\1') }}"
-    database_environment: "{{ group_names | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_standbydb\\d+', '\\1') }}"
+    database_environment: "{{ group_names | select('match','.*_standbydb\\d+') | list | first | regex_replace('^(.*)_standbydb\\d+', '\\1') }}"
   when: database_standby_sid is defined
 
 - name: Set Application (Delius)
