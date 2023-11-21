@@ -1,9 +1,6 @@
 name: "Oracle: Logfile Housekeeping"
 run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-logfile-housekeeping"
 on:
-  push:
-    branches:
-      - "DBA-564"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
