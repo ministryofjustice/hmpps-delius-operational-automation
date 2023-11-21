@@ -101,7 +101,9 @@
 #     - audited_interaction_repo is defined
 
 - name: Export dfi schemas only for STGMIS
-  import_playbook: dfi-schemas.yml action="export"
+  import_playbook: dfi-schemas.yml
+  vars:
+    action: "export"
   when:
     - required_action == "Flashback to Restore Point"
     - target_dbs | regex_search('mis_')
@@ -205,7 +207,7 @@
 
         - name: Get environment name and application name
           set_fact:
-            environment_name: "{{ hostvars[inventory_hostname].group_names[2] | replace('_' + hostvars[inventory_hostname].group_names[2].split('_')[-1],'') }}"
+            environment_name: "{{ hostvars[inventory_hostname].group_names[2] | replace(hostvars[inventory_hostname].group_names[2].split('_')[-1],'') }}"
             application_name: "{{ hostvars[inventory_hostname].group_names[3].split('_')[-2] }}"
 
         - name: Create Oracle Standby Restore Points
@@ -441,7 +443,9 @@
             - group_names | select('match','.*_standbydb1') | length > 0
 
 - name: Import dfi schemas only for STGMIS
-  import_playbook: dfi-schemas.yml action="import"
+  import_playbook: dfi-schemas.yml
+  vars:
+    action: "import"
   when:
     - required_action == "Flashback to Restore Point"
     - target_dbs | regex_search('mis_')
