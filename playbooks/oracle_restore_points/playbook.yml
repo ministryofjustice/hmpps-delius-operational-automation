@@ -398,8 +398,8 @@
 - name: Rotate Database Passwords
   import_playbook: ../oracle_password_rotation/password_rotation.yml
   vars:
-      rotate_database_passwords: true
-      rotate_groups: "{{ target_dbs }}"
+    rotate_database_passwords: true
+    rotate_groups: "{{ target_dbs }}"
   when:
     - required_action == "Flashback to Restore Point"
     - is_aws_environment | default(false)
