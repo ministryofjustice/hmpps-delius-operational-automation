@@ -76,10 +76,9 @@ on:
           - "28"
       VerboseOutput:
         description: "Verbose Output level"
-        required: true
+        required: false
         type: choice
         options:
-           - ""
            - "-vv"
            - "-vvv"
            - "-vvvv"
