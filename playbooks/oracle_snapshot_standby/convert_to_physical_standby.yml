@@ -25,7 +25,7 @@
     block:
 
       - name: Push application audit data from snapshot standby to primary database
-        include: push_audit_data_to_primary.yml
+        include_tasks: push_audit_data_to_primary.yml
         when: push_audit_data | bool | default(true)
 
       - name: Convert snapshot standby database to physical standby database
