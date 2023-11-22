@@ -79,7 +79,7 @@
               src: "get_primary_restorepoint_scn.sh"
               dest: "/tmp"
               mode: "u+x"
-            delegate_to: "{{ hostvars[groups['delius_primarydb'][0]]['inventory_hostname'] }}"
+            delegate_to: "{{ hostvars[groups[database_type + 'primarydb'][0]]['inventory_hostname'] }}"
 
           - name: Get scn of primary restore point
             shell: /tmp/get_primary_restorepoint_scn.sh 
