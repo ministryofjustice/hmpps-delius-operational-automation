@@ -1,20 +1,5 @@
 ---
 
-  # - name: Get delius_app_schema password from ssm
-  #   shell: aws ssm get-parameters --region {{ region }} --with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/delius_app_schema_password | jq -r '.Parameters[].Value'
-  #   changed_when: false
-  #   register: delius_app_schema_password
-  #   no_log: true
-
-  # - name: Get delius_pool password from ssm
-  #   shell: aws ssm get-parameters --region {{ region }} --with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/delius_pool_password | jq -r '.Parameters[].Value'
-  #   changed_when: false
-  #   register: delius_pool_password
-  #   no_log: true
-
-  # - debug: var=delius_app_schema_password
-  # - debug: var=delius_pool_password
-
   - name: Get Snapshot Standby Conversion Date
     script: get_snapshot_standby_restore_point.sh
     register: get_snapshot_standby_conversion_date
@@ -31,8 +16,8 @@
     script: push_audit_data_to_primary.sh {{ primary_database }} {{ snapshot_standby_conversion_date }}
     register: push_audit_data_to_primary
     environment:
-       DELIUS_APP_SCHEMA_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_pool_password ', region=region ) }}"
-       DELIUS_POOL_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_pool_password ', region=region ) }}"
+       DELIUS_APP_SCHEMA_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_app_schema_password', region=region ) }}"
+       DELIUS_POOL_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_pool_password', region=region ) }}"
     vars:
       ansible_aws_ssm_timeout: 7200
 
