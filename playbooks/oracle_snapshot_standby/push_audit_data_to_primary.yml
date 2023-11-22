@@ -29,7 +29,7 @@
   # be older than audit data which was propagated from the primary)
   - name: Propagate Audit Data to Repository
     import_tasks: ../delius_audited_interaction/delius_audited_interaction/tasks/call_audit_propagate_automation.yml 
-    when: hostvars[groups[database_type + '_primarydb'][0]]['audited_interaction_repo'] is defined
+    when: hostvars[groups[database_type + 'primarydb'][0]]['audited_interaction_repo'] is defined
     delegate_to: localhost
     delegate_facts: true
     become: no
