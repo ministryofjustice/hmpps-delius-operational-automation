@@ -1,6 +1,9 @@
 name: "Oracle: Snapshot Standby"
 run-name: "Oracle: ${{ format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}-snapshot-standby"
 on:
+  push:
+    branches:
+      - DBA-568
   workflow_dispatch:
     inputs:
       TargetEnvironment:
