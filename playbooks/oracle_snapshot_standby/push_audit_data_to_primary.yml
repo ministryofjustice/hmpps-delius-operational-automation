@@ -1,13 +1,13 @@
 ---
 
   - name: Get delius_app_schema password from ssm
-    shell: . /etc/environment && aws ssm get-parameters --region ${REGION} --with-decryption --name /${HMPPS_ENVIRONMENT}/${APPLICATION}/delius-database/db/delius_app_schema_password | jq -r '.Parameters[].Value'
+    shell: aws ssm get-parameters --region {{ region }}--with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/delius_app_schema_password | jq -r '.Parameters[].Value'
     changed_when: false
     register: delius_app_schema_password
     no_log: true
 
   - name: Get delius_pool password from ssm
-    shell: . /etc/environment && aws ssm get-parameters --region ${REGION} --with-decryption --name /${HMPPS_ENVIRONMENT}/${APPLICATION}/delius-database/db/delius_pool_password | jq -r '.Parameters[].Value'
+    shell: aws ssm get-parameters --region {{ region }}--with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/delius_pool_password | jq -r '.Parameters[].Value'
     changed_when: false
     register: delius_pool_password
     no_log: true
