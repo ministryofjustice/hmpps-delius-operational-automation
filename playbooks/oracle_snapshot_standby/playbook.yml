@@ -29,7 +29,7 @@
 
   - name: Determine FSFO Targets on Primary 
     include_role:
-      name: hmpps-delius-oracledb-ha
+      name: "{{ playbook_dir }}/../oracle_ha"
       tasks_from: determine-fsfo-targets.yml
     vars:
       delegation_host: "{{ primary_hostname }}"
