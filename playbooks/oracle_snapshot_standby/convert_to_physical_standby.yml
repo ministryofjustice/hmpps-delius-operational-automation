@@ -32,8 +32,8 @@
       - name: Convert snapshot standby database to physical standby database
         shell: |
           . ~/.bash_profile
-          dgmgrl / << EOF
           SYS_PASSWORD="{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/oradb_sys_password', region=region ) }}"
+          dgmgrl / << EOF
           connect sys/${SYS_PASSWORD}@{{ primary_database }};
           convert database '{{ database_standby_unique | lower }}' to physical standby;
           EOF
