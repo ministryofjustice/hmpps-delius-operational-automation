@@ -36,5 +36,5 @@
     vars:
        override_capture_date: "{{ snapshot_standby_conversion_date }}"
        database_primary_sid: "{{ primary_database }}"
-       audited_interaction_repo: "{{ hostvars[groups[database_type + '_primarydb'][0]]['audited_interaction_repo'] }}"
+       audited_interaction_repo: "{{ hostvars[groups[database_type + 'primarydb'][0]]['audited_interaction_repo'] }}"
        engineering_account_id: "{{ account_id }}"
