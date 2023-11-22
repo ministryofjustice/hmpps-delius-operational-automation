@@ -13,7 +13,7 @@
 
   - name: Get database type
     set_fact:
-      database_type: "{{ hosts.split(',')[0] | regex_replace('(^.*)_.*$','\\1') }}"
+      database_type: "{{ hosts | replace(hosts.split('_')[-1],'') }}"
 
   - name: Initialize Databases Currently in Configuration
     set_fact:
