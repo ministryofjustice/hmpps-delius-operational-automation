@@ -1,6 +1,9 @@
 name: "Oracle: Release Update"
 run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-release-update"
 on:
+  push:
+    branches:
+      - "DBA-569"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
@@ -94,7 +97,7 @@ on:
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
-  command: ansible-playbook operations/playbooks/oracle_statspack/playbook.yml
+  command: ansible-playbook operations/playbooks/release_update/playbook.yml
   inventory: inventory/ansible
 
 # Allow permissions on repository and docker image respectively 
@@ -113,10 +116,10 @@ jobs:
     continue-on-error: false
     steps:
 
-      - name: Prepare Delius Primary And All Inventory Name
+      - name: Prepare Inventory Names
         id: prepareinventorynames
         run: |
-          hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb"
+          hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}"
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
@@ -131,12 +134,23 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
+      - name: Count Standby Databases Configured In Ansible Inventory
+        id: countstandbydbs
+        working-directory: ${{ env.inventory }}
+        run: |
+            database_environment="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
+            database_type=$(echo ${{ github.event.inputs.TargetHost }} | cut -d_ -f1)
+            high_availability_count=$(yq .high_availability_count.${database_type} group_vars/${database_environment}_all.yml)
+            echo "high_availability_count=$high_availability_count"
+
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
-          sparse-checkout: playbooks/oracle_statspack
+          sparse-checkout: |
+                           playbooks/release_update
+                           ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
@@ -149,8 +163,14 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Run Statspack Setup Playbook
+      - name: Run Release Update Playbook
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
           -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }}
+          -e apply_mode=${{ github.event.inputs.ApplyMode }}
+          -e oracle_patch_directory=${{ github.event.inputs.OraclePatchDirectory }}
+          -e combo_patch_info=${{ github.event.inputs.ComboPatchInfo }}
+          -e opatch_info=${{github.event.inputs.Opatch }}
+          -e keep_aws_snapshot=${{github.event.inputs.AWSSnapShot }}
+          -e high_availability_count=${{ steps.countstandbydbs.outputs.high_availability_count }}

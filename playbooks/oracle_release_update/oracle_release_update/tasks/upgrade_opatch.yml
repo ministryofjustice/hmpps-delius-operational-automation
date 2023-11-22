@@ -1,0 +1,58 @@
+---
+
+# OPatch Upgrade
+- name: Get Version of OPatch
+  shell: |
+         {{ source_home }}/OPatch/opatch version | grep 'OPatch Version:' | awk '{print $NF}'
+  register: getopatchversion
+  changed_when: false
+
+- name: Set Version of OPatch
+  set_fact:
+     opatchversion: "{{ '0' if getopatchversion.stdout == '' else getopatchversion.stdout }}"
+
+- debug:
+    var=getopatchversion
+
+- debug:
+    var=opatchversion
+
+- debug:
+     var=minimum_opatch_version
+  
+
+- name: Upgrade OPatch
+  block:
+
+      # Always move old OPatch out of the way so we are not unzipping into it
+      - name: Move old Opatch out of the way
+        shell: mv {{ source_home }}/OPatch /{{ source_home }}/OPatch.$$.orig
+        become: true
+        become_user: root
+      
+      # Create the replacement directory as root as in the case of grid installation, the parent
+      # directory is not writeable by oracle
+      - name: Create Replacement Directory
+        file:
+           path: "{{ source_home }}/OPatch"
+           state: directory
+           owner: oracle
+           group: oinstall
+           mode: "o+rwx,g+rx"
+        become: true
+        become_user: root
+
+      # Always download OPatch Zip file as new versions have the same name as old versions so we
+      # are safest to overwrite it regardless
+      - name: Download Oracle OPatch Upgrade
+        shell: 'aws s3 cp s3://{{ dependencies_bucket_name }}/dependencies/oracle/rdbms/{{ opatch_zip }} {{ oracle_patch_directory }}'
+
+      - name: Unzip new OPatch utility
+        unarchive:
+          src: "{{ oracle_patch_directory }}/{{ opatch_zip }}"
+          dest: "{{ source_home }}"
+          remote_src: yes
+        timeout: 120
+
+  when: opatchversion is version(minimum_opatch_version,'<')  
+   

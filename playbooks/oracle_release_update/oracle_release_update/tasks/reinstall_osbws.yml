@@ -1,0 +1,80 @@
+# Re-install the Oracle Secure Backup (OSB) Cloud Module
+# This is required after prepare-clone to avoid having issues with
+# an increase in the backup process duration
+
+- name: Show Target Database Home
+  debug: var=target_home
+
+- name: Check osbws config exists
+  stat:
+    path: '{{ target_home }}/dbs/osbws_wallet'
+  register: osbws_config_exists
+
+# Release Update is not responsible for configuring OSBWS so only
+# prepare it in new home if a configuration file already exists
+- name: Re-Install Only If OSBWS Already Configured
+  when: osbws_config_exists.stat.exists
+  block:
+
+    - name: Check osbw installer exists
+      stat:
+        path: '{{ target_home }}/lib/osbws_installer.zip'
+      register: installer_exists
+
+    - name: fail when installer not present
+      fail:
+        msg: osbws_installer.zip does not exist
+      when: installer_exists.stat.exists == false
+
+    - name: Show Installer False Failed Output
+      debug: var=installer_exists.failed
+
+    - name: Unzip OSBWS Installer
+      shell: |
+        cd {{ target_home }}/lib
+        unzip -o osbws_installer.zip
+      register: unzip_output
+
+    - name: Show Output from unzip Installer
+      debug: var=unzip_output.stdout
+
+    - name: Backup osbws_wallet folder
+      shell: |
+        cd {{ target_home }}/dbs
+        cp -r osbws_wallet osbws_wallet.bak
+      register: backup_output
+      
+    - name: Show Output from Backup osbws_wallet folder
+      debug: var=backup_output.failed
+
+    - name: Get IAM_ROLE from osbws.ora
+      shell: |
+        cd {{ target_home }}/dbs
+        grep IAM_ROLE osbws.ora | cut -d'=' -f2
+      register: get_IAM_role
+
+    - name: Set IAM Role
+      set_fact:
+        iam_role: "{{ get_IAM_role.stdout_lines[-1] }}"
+
+    - name: Show iam_role
+      debug: var=iam_role
+
+    - name: Install OSBWS Library
+      shell: |
+        . ~oracle/.bash_profile
+        cd {{ target_home }}/dbs
+        java -jar {{ target_home }}/lib/osbws_install.jar -IAMRole {{ iam_role }} -walletDir {{ target_home }}/dbs/osbws_wallet -libDir {{ target_home }}/lib/
+      register: install_output
+
+    - name: Show Output from Install OSBWS Library
+      debug: var=install_output.failed
+
+    - name: Copy osbws_wallet folder contents back
+      shell: |
+        cd {{ target_home }}/dbs
+        /usr/bin/cp -f osbws_wallet.bak/*sso* osbws_wallet/.
+      register: copy_output
+
+    - name: Show Output from osbws_wallet folder opy
+      debug: var=copy_output

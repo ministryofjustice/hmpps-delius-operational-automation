@@ -1,0 +1,476 @@
+---
+
+# Three apply_mode values are accepted, which cover the three phases of upgrade:
+#
+#  (1) prepare-clone creates a new Oracle Home environment with the new DBRU ready for the upgrade
+#  (2) switch-clone swaps to the new Oracle Home
+#  (3) apply-ojvm-standby installs the OJVM to the Standby Databases (this must be done after the primary database)
+#
+#  This allows us to perform the time consuming set-up of the Oracle Home ahead of time (with the system up) and therefore reduces overall downtime.
+
+- name: Set Default Apply Mode
+  set_fact:
+     apply_mode: prepare-clone
+  when: apply_mode is not defined
+
+- name: Confirm Apply Mode is Valid
+  fail:
+     msg: "Invalid Apply Mode {{ apply_mode }}"
+  when: not apply_mode in ['prepare-clone','switch-clone','apply-ojvm-standby']
+
+- name: Set Database Role (Primary)
+  set_fact:
+    database_role: primary
+  when:  database_primary_sid is defined
+  tags: always
+
+- name: Set Database Role (Standby)
+  set_fact:
+    database_role: standby
+  when:  database_standby_sid is defined
+  tags: always
+
+- name: Find the name of the Primary Host Group
+  set_fact:
+      primary_host_group: "{{ ( (group_names | select('match','.*_standbydb\\d+')) if (database_role == 'standby') else (group_names | select('match','.*_primarydb')) ) | list | first | regex_replace('^(.*)_standbydb\\d+', '\\1_primarydb') }}"
+
+# Now get the primary Hostname
+- name: Get Hostname of Primary
+  set_fact:
+      primary_host: "{{ groups[primary_host_group][0] }}"
+
+- name: Get Memory Size
+  setup:
+      filter: ansible_memory_mb
+
+- name: Get database type
+  set_fact:
+    database_type: "{{ target_hosts.split(',')[0] | regex_replace('(^.*)_.*$','\\1') }}"
+
+# SUPERSET Patch = GI RU + DB RU
+# COMBO Patch = (GI RU + DB RU) + OJVM RU
+
+# We are only allowed to override the Release Update versions from the configuration file whilst preparing a new Oracle Home if the existing Home is still in use.
+# Otherwise, the value in oracle_software in the hmpps_env_configs must be set correctly.
+- fail:
+    msg: "Overriding Release Update configuration is not supported in switch-clone or apply-ojvm-standby modes.  The correct values must be set in oracle_software in hmpps_env_configs."
+  when:
+     - gi_ru_patch_info not in ['','default'] or ojvm_ru_patch_info not in ['','default'] or opatch_info != 'default' or combo_patch_info not in ['','default']
+     - apply_mode != 'prepare-clone'
+
+# As of 19.18 onwards, we can now support installing from the Combo Patch (Which contains GI, DB and OJVM Patches)
+# For backwards compatibility we continue to support specifying GI and OJVM Patches separately.
+# However, you cannot specify both a Combo patch and a GI/OJVM pair at the same time.
+- fail:
+    msg: "You cannot specify a Combo Patch as well as a GI or OJVM Patches.  Use either a Combo Patch on its own, or GI and OJVM Patches together without a Combo Patch."
+  when:
+     - gi_ru_patch_info not in ['','default'] or ojvm_ru_patch_info not in ['','default']
+     - combo_patch_info not in ['','default']
+
+# Combo Patch Update details should be provided in variable combo_patch_info in the format <patch id>:<zip file name>
+# For example: "32545008:p32545008_190000_Linux-x86-64.zip:19.18" if you wish to override the defaults
+# If "default" is specified then we use the values from hmpps_env_configs instead.
+# Note that combo_patch_info and gi_ru_patch_info cannot both be specified.  Use one or the other.
+- name: Override Combo Release Update ID and Filename
+  set_fact:
+      combo_patch_id: "{{ combo_patch_info.split(':')[0] }}"
+      COMBO_RU: "{{ combo_patch_info.split(':')[1] }}"
+      expected_version: "{{ combo_patch_info.split(':')[2] | regex_replace('\\(([\\d.]+)\\)','\\1') }}"
+  when: combo_patch_info not in ['','default']
+
+- name: Set Default Combo Update ID and Filename
+  set_fact:
+      combo_patch_id: "{{ hostvars[primary_host].oracle_software.combo_patch | regex_replace('^p(\\d+)_.*$','\\1') }}"
+      COMBO_RU: "{{ hostvars[primary_host].oracle_software.combo_patch }}"
+      expected_version: "{{ hostvars[primary_host].oracle_software.version }}"
+  when: 
+      - gi_ru_patch_info in ['','default']
+      - combo_patch_info == 'default'
+      - hostvars[primary_host].oracle_software.combo_patch is defined
+
+# Grid Infrastructure Release Update details should be provided in variable gi_ru_patch_info in the format <patch id>:<zip file name>
+# For example: "32545008:p32545008_190000_Linux-x86-64.zip" if you wish to override the defaults
+# If "default" is specified then we use the values from hmpps_env_configs instead
+- name: Override Grid Infrastructure Release Update ID and Filename
+  set_fact:
+      superset_patch_id: "{{ gi_ru_patch_info.split(':')[0] }}"
+      GI_RU: "{{ gi_ru_patch_info.split(':')[1] }}"
+      expected_version: "{{ gi_ru_patch_info.split(':')[2] | regex_replace('\\(([\\d.]+)\\)','\\1') }}"
+  when: gi_ru_patch_info not in ['','default']
+
+- name: Set Default Grid Infrastructure Release Update ID and Filename
+  set_fact:
+      superset_patch_id: "{{ hostvars[primary_host].oracle_software.superset_patch | regex_replace('^p(\\d+)_.*$','\\1') }}"
+      GI_RU: "{{ hostvars[primary_host].oracle_software.superset_patch }}"
+      expected_version: "{{ hostvars[primary_host].oracle_software.version }}"
+  when: 
+      - gi_ru_patch_info == 'default'
+      - hostvars[primary_host].oracle_software.superset_patch is defined
+
+# The FSFO Mode is only defined on the primary, but used on all hosts
+- name: Get Target FSFO Mode
+  set_fact:
+      fsfo_mode: "{{ hostvars[primary_host].fsfo_mode | default('disabled') }}"
+
+- name: Report Target Version
+  debug:
+     msg: "Expected Target Version is {{ expected_version }}"
+
+# Database Release Update details should be provided in variable db_ru_patch_info in the format <patch id>:<zip file name>
+# For example: "32399816:p32399816_190000_Linux-x86-64.zip"  if you wish to override the defaults
+# If "default" is specified then we use the values from hmpps_env_configs instead
+- name: Override OJVM Release Update ID and Filename
+  set_fact:
+      ojvm_patch_id: "{{ ojvm_ru_patch_info.split(':')[0] }}"
+      OJVM_RU: "{{ ojvm_ru_patch_info.split(':')[1] }}"
+  when: ojvm_ru_patch_info not in ['','default']
+
+- name: Set Default OJVM Release Update ID and Filename
+  set_fact:
+      ojvm_patch_id: "{{ hostvars[primary_host].oracle_software.ojvm_patch | regex_replace('^p(\\d+)_.*$','\\1') }}"
+      OJVM_RU: "{{ hostvars[primary_host].oracle_software.ojvm_patch }}"
+  when: 
+     - ojvm_ru_patch_info == 'default'
+     - hostvars[primary_host].oracle_software.superset_patch is defined
+
+# OPatch details should be provided in variable opatch_info in the format <patch id>:<zip file name>
+# For example: "6880880:p6880880_190000_Linux-x86-64.zip" if you wish to override the defaults
+# If "default" is specified then we use the values from hmpps_env_configs instead
+- name: Override Required OPatch ID and Filename
+  set_fact:
+      opatch_id: "{{ opatch_info.split(':')[0] }}"
+      opatch_zip: "{{ opatch_info.split(':')[1] }}"
+  when: opatch_info != 'default'
+
+- name: Set Default OPatch ID and Filename
+  set_fact:
+      opatch_id: "{{ hostvars[primary_host].oracle_software.opatch.version }}"
+      opatch_zip: "{{ hostvars[primary_host].oracle_software.opatch.filename }}"
+  when: opatch_info == 'default'
+
+- name: Get Dependencies Bucket
+  set_fact:
+      dependencies_bucket_name: "{{ dependencies_bucket.name }}"
+  tags: always
+
+# Create symlink so that we may use the AWS Snapshot directory as a role
+- name: Link to AWS Snapshot in current repo as a role
+  file:
+     dest: ~/.ansible/roles/aws-snapshot
+     src: "{{ playbook_dir }}/../../operations/oracle_aws_snapshot/aws_snapshot"
+     state: link
+  run_once: true
+  delegate_to: localhost
+  become: no
+  when: keep_aws_snapshot | default('No AWS Snapshot') != 'No AWS Snapshot'
+
+- name: Create AWS Snapshot of Primary Host Prior to Preparing Clone
+  include_role: 
+     name: aws-snapshot
+  when: 
+     - keep_aws_snapshot | default('No AWS Snapshot') != 'No AWS Snapshot'
+     - apply_mode == 'prepare-clone'
+     - database_role == 'primary'
+  vars:
+     target_host: "{{ inventory_hostname }}"
+     delete_after_days: "{{ keep_aws_snapshot }}"
+
+- name: Copy Release Update Software
+  include: copy_RU_software.yml
+
+# We use the README files within the combo patch to identify which contained patch is the GI RU and which is the OJVM RU
+- name: Get Individual Patches within a Combo Patch
+  when: combo_patch_id is defined
+  block:
+
+      - name: Get GI Patch Number from Combo Patch
+        shell: grep -B1 "Database Grid Infrastructure"  {{ oracle_patch_directory }}/{{ combo_patch_id }}/README.html | grep "<p>Patch" | tr -d -c 0-9
+        register: get_combo_gi_patch_number
+        changed_when: false
+
+      - name: Get OJVM Patch Number from Combo Patch
+        shell: grep -B1 "Oracle JavaVM Component Release Update"  {{ oracle_patch_directory }}/{{ combo_patch_id }}/README.html | grep "<p>Patch" | tr -d -c 0-9
+        register: get_combo_ojvm_patch_number
+        changed_when: false
+
+      - name: Set Individual Patch Directories within the Combo Patch
+        set_fact:
+           combo_gi_patch_id: "{{ get_combo_gi_patch_number.stdout }}"
+           ojvm_patch_id: "{{ get_combo_ojvm_patch_number.stdout }}"
+
+
+- name: Get Current and Target Version Information
+  include: get_versioning_information.yml
+
+# Existing Restore Points will Cause Failure of Compatibility Setting Changes
+- name: Count Existing Restore Points
+  script: get_restore_point_count.sh
+  register: getrestorepointcount
+  changed_when: false
+  tags: restorepoints
+
+- name: Abort if Restore Points
+  fail:
+    msg: "Restore Points Exist"
+  when:
+    - ( getrestorepointcount.stdout | int ) > 0
+    - apply_mode == 'switch-clone'
+  tags: restorepoints    
+
+# If a Session Fails it Can Leave an Out-of-Place Session File Abandonded.  This will prevent subsequent runs unless deleted.
+# Abort if any such files exist
+- name: Count Grid OOP Files
+  shell: FILENAME={{ source_gi_home }}/.opatchauto_storage/$(hostname)/oopsessioninfo.ser && test -e $FILENAME && strings $FILENAME | tail -1 || echo "COMPLETED"
+  register: gi_oop
+
+- fail:
+    msg: "Active OOP Session file exists for {{ source_gi_home }}"
+  when: gi_oop.stdout | trim != 'COMPLETED'
+
+- name: Count Database OOP Files
+  shell: FILENAME={{ source_db_home }}/.opatchauto_storage/$(hostname)/oopsessioninfo.ser && test -e $FILENAME && strings $FILENAME | tail -1 || echo "COMPLETED"
+  register: db_oop
+
+- fail:
+    msg: "Active OOP Session file exists for {{ source_db_home }}"
+  when: db_oop.stdout | trim != 'COMPLETED' 
+
+- name: Confirm Appropriate Role for Mode
+  fail:
+     msg: "apply-ojvm-standby is not appropriate for a primary database (OJVM is installed on primary in switch-clone mode)."
+  when:
+     - database_role == 'primary'
+     - apply_mode == 'apply-ojvm-standby'
+
+# Lock database accounts if we are about to switch to the new cloned and upgraded home
+- name: Lock User Database Accounts
+  script: toggle_database_accounts.sh LOCK
+  when: 
+     - database_role == 'primary'
+     - apply_mode == 'switch-clone'
+     - ( source_gi_version is version(target_gi_version,'<') ) or ( source_db_version is version(target_db_version,'<') )
+
+# Stop disable FSFO to prevent unwanted failover during switch clone on the primary
+# (We also disable FSFO if running prepare-clone on a primary EC2 instance with limited memory, as the load
+#  may be so high as to cause a failover)
+- name: Disable FSFO
+  include:  stop_fsfo.yml
+  when: 
+     - ( database_role == 'primary' )
+     - ( apply_mode == 'switch-clone' ) or ( apply_mode == 'prepare-clone' and ansible_facts.memory_mb.real.total <= 8192 )
+     - ( source_gi_version is version(target_gi_version,'<') ) or ( source_db_version is version(target_db_version,'<') )
+
+- name: Prepare New Grid Infrastructure Home by Cloning and Applying DBRU
+  include: prepare_clone.yml
+  when: 
+    - source_gi_version is version(target_gi_version,'<')
+    - apply_mode == 'prepare-clone'
+    - not stat_target_gi_home.stat.exists
+  vars:
+     source_home: "{{ source_gi_home }}"
+     target_home: "{{ target_gi_home }}"
+     target_version: "{{ target_gi_version }}"
+
+- name: Prepare New Database Home by Cloning and Applying DBRU
+  include: prepare_clone.yml
+  when: 
+    - source_db_version is version(target_db_version,'<')
+    - apply_mode == 'prepare-clone'
+    - not stat_target_db_home.stat.exists
+  vars:
+     source_home: "{{ source_db_home }}"
+     target_home: "{{ target_db_home }}"
+     target_version: "{{ target_db_version }}"
+
+- name: Reinstall the Oracle Secure Backup (OSB) Cloud Module
+  include: reinstall_osbws.yml
+  when:
+    - source_db_version is version(target_db_version,'<')
+    - apply_mode == 'prepare-clone'
+  vars:
+    target_home: "{{ target_db_home }}"
+
+# Stop EM agent during switch-clone to avoid deadlock issues when patching
+- name: Check status of oem agent
+  shell: |
+    . ~/.bash_profile
+     {{ emctl_agent }} status agent
+  ignore_errors: true
+  register: oem_agent_running
+
+- name: Stop oem agent
+  shell: |
+    . ~/.bash_profile
+     {{ emctl_agent }} stop agent
+  when:
+    - oem_agent_running.stdout is search('Agent is Running and Ready')
+    - source_gi_version is version(target_gi_version,'<')
+    - apply_mode == 'switch-clone'
+    - stat_target_gi_home.stat.exists
+
+- name: Switch to New Grid Infrastructure Home
+  include: switch_clone.yml
+  when: 
+    - source_gi_version is version(target_gi_version,'<')
+    - apply_mode == 'switch-clone'
+    - stat_target_gi_home.stat.exists
+  vars:
+     source_home: "{{ source_gi_home }}"
+     target_home: "{{ target_gi_home }}"
+     target_version: "{{ target_gi_version }}"
+
+- name: Switch to New Database Home
+  include: switch_clone.yml
+  when: 
+    - source_db_version is version(target_db_version,'<')
+    - apply_mode == 'switch-clone'
+    - stat_target_db_home.stat.exists
+  vars:
+     source_home: "{{ source_db_home }}"
+     target_home: "{{ target_db_home }}"
+     target_version: "{{ target_db_version }}"
+
+- name: Configure OSBWS to Point to New DB Home
+  include: configure_osbws.yml
+
+- name: Post Switch Steps
+  when: apply_mode == 'switch-clone'
+  block:
+
+      - name: Prepare Bash profile with New Oracle Home
+        lineinfile:
+          path: /home/oracle/.bash_profile
+          regexp: "export ORACLE_HOME={{ source_db_home }}"
+          line: "export ORACLE_HOME={{ target_db_home }}"
+
+      - name: Update Listener Configuration
+        include: update_listener.yml
+        tags: listener
+
+      - name: Update ASM Compatibility
+        include: update_asm_compatibility.yml
+
+      - name: Get Default RMAN Tape Channel
+        script: get_default_rman_channel.sh
+        register: get_default_rman_channel
+        changed_when: false
+
+      - name: Set Default RMAN Tape Channel
+        script: set_default_rman_channel.sh
+        when: not get_default_rman_channel.stdout is search('.*' + target_db_home + '/dbs/osbws.ora.*')
+
+# The OJVM Patch may not be installed onto Standby databases before being applied to Primary
+# Once the primary is ready use the apply-ojvm-standby mode to apply this patch to the standbys
+- name: Install OJVM Release Update
+  include: install_ojvm_ru.yml
+  when: ( apply_mode == 'switch-clone' and database_role == 'primary' ) or ( apply_mode == 'apply-ojvm-standby' and database_role != 'primary' )
+
+# Restart EM agent
+- name: Check status of oem agent
+  shell: |
+    . ~/.bash_profile
+     {{ emctl_agent }} status agent
+  ignore_errors: true
+  register: oem_agent_running
+
+- name: Start oem agent
+  shell: |
+    . ~/.bash_profile
+     {{ emctl_agent }} start agent
+  when: oem_agent_running.stdout is search('Agent is Not Running')
+
+- name: Unlock User Database Accounts
+  script: toggle_database_accounts.sh UNLOCK
+  when: ( apply_mode == 'switch-clone' and database_role == 'primary' )
+
+# Prepare for OEM Update
+- name: Prepare to Update OEM Targets for New Home
+  when: apply_mode == 'switch-clone'
+  block:
+
+      - name: Check if inside AWS.
+        uri:
+          url: http://169.254.169.254/latest/meta-data
+          timeout: 20
+        register: aws_uri_check
+        failed_when: false
+        run_once: yes
+
+      - set_fact:
+          is_aws_environment: "{{ aws_uri_check.status == 200 }}"
+        run_once: yes
+        delegate_to: localhost
+        delegate_facts: true
+
+      # Check if Oracle Primary OEM Agent is Installed And Communicating with OMS
+      - name: Check if Oracle OEM Agent Operating
+        shell: |
+              . ~/.bash_profile
+              {{ emctl_agent | default('false') }} pingOMS
+        register: pingoms
+        run_once: yes
+        ignore_errors: true
+        changed_when: false
+
+      - name: Prepare Ansible Controller Variables for OEM Target Update
+        set_fact:
+           oem_gi_home: "{{ target_gi_home }}"
+           oem_db_home: "{{ target_db_home }}"
+           switched_targets: "{{ ansible_play_hosts }}"
+           agent_connected: "{{ not pingoms.failed }}"
+        delegate_to: localhost
+        delegate_facts: true  
+        run_once: yes
+
+# Re-Enabling FSFO May Be Done at 3 Points:
+#  (a) After a Switch Clone Completes on a Standby Database
+#  (b) After an OJVM Apply Completes on a Standby Database
+#  (c) After a Prepare Clone Completes on a Low Memory Primary Database (where FSFO was disabled to avoid accidental failover)
+# Do NOT re-enable FSFO after Switch Clone on Primary as the Standby
+# Databases will be out-of-sync at this point and it is also possible
+# that a Standby database will be in Snapshot Standby mode and
+# therefore cannot catch up; it will be restarted in new Home following subsequent OJVM Apply on Standby
+- name: Post Switch Clone Steps
+  when: 
+      - (apply_mode == 'apply-ojvm-standby') or (apply_mode == 'switch-clone' and database_role != 'primary') or (apply_mode == 'prepare-clone' and database_role == 'primary' and ansible_facts.memory_mb.real.total <= 8192)
+      - fsfo_mode | default('disabled') in ['enabled','observe','observer']
+  block:
+       
+      - name: Get Standby Role
+        script: get_standby_role.sh
+        register: get_standby_role
+
+      # Re-Enable FSFO from Associated Primary
+      # (Only run from First Standby for each Database Type to avoid competing startups)
+      - name: Re-enable FSFO
+        include_role:
+          name: hmpps-delius-oracledb-ha
+          tasks_from: enable-fsfo.yml
+        vars:
+          delegation_host: "{{ hostvars[groups[database_type + '_primarydb'][0]]['inventory_hostname'] }}"
+          primary_hostname: "{{ hostvars[groups[database_type + '_primarydb'][0]]['inventory_hostname'] }}"
+          fsfo_mode: "{{ hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') }}"
+        when: 
+          - high_availability_count | int > 0
+          - hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
+          - group_names | select('match','.*_standbydb1') | length > 0 
+
+# Oracle should remove OOP Session Files at the end of the patching but sometimes it does not clean up 
+# after itself properly.   If we have got this far without failing then the session files may be removed.
+- name: Remove OOP Session Files
+  when: apply_mode == 'apply-ojvm-standby' or apply_mode == 'switch-clone'
+  block:
+     
+     - name: Find OOP Session Files
+       find:
+          paths: ['{{ target_gi_home }}/.opatchauto_storage','{{ target_db_home }}/.opatchauto_storage']
+          depth: 2
+          recurse: true
+          patterns: ['oopsessioninfo.ser','oopsessioninfo_switchback.ser'] 
+       register: get_oop_session_files
+
+     - name: Delete OOP Session Files
+       file:
+          path: "{{ item.path }}"
+          state: absent
+       loop: "{{ get_oop_session_files.files }}"
