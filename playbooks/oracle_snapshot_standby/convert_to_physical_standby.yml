@@ -1,127 +1,123 @@
-  - name: Get data guard broker role configuration for the standby database to be converted
-    shell: |
-      . ~/.bash_profile
-      dgmgrl / "show database {{ database_standby_unique | lower }}" | grep "Role:" | awk -F: '{print $2}' | awk '{sub(/^[ \t]+/, "");print}'
-    changed_when: false
-    register: database_role
+- name: Get data guard broker role configuration for the standby database to be converted
+  shell: |
+    . ~/.bash_profile
+    dgmgrl / "show database {{ database_standby_unique | lower }}" | grep "Role:" | awk -F: '{print $2}' | awk '{sub(/^[ \t]+/, "");print}'
+  changed_when: false
+  register: database_role
 
-  - name: Check action against current database role and fail if database already in required state
-    debug:
-      msg: Current database role is "{{ database_role.stdout }}" and action chosen is "{{ action }}"
-    failed_when: database_role.stdout == "PHYSICAL STANDBY"
+- name: Check action against current database role and fail if database already in required state
+  debug:
+    msg: Current database role is "{{ database_role.stdout }}" and action chosen is "{{ action }}"
+  failed_when: database_role.stdout == "PHYSICAL STANDBY"
 
-  - name: Set primary database and service name fact
-    set_fact:
-      primary_database: "{{ hostvars[groups[database_type + 'primarydb'][0]]['database_primary_sid'] }}"
-      service_name: "{{ hostvars[groups[database_type + 'primarydb'][0]]['database_primary_sid'] }}_RO"
+- name: Set primary database and service name fact
+  set_fact:
+    primary_database: "{{ hostvars[groups[database_type + 'primarydb'][0]]['database_primary_sid'] }}"
+    service_name: "{{ hostvars[groups[database_type + 'primarydb'][0]]['database_primary_sid'] }}_RO"
 
-  - name: Actions to convert to physical standby only if it's currently in snapshot standby role
-    block:
+- name: Actions to convert to physical standby only if it's currently in snapshot standby role
+  block:
+    - name: Push application audit data from snapshot standby to primary database
+      include_tasks: push_audit_data_to_primary.yml
+      when: push_audit_data | bool | default(true)
 
-      - name: Push application audit data from snapshot standby to primary database
-        include_tasks: push_audit_data_to_primary.yml
-        when: push_audit_data | bool | default(true)
+    - name: Convert snapshot standby database to physical standby database
+      shell: |
+        . ~/.bash_profile
+        SYS_PASSWORD="{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/oradb_sys_password', region=region ) }}"
+        dgmgrl / << EOF
+        connect sys/${SYS_PASSWORD}@{{ primary_database }};
+        convert database '{{ database_standby_unique | lower }}' to physical standby;
+        EOF
+      register: convert_to_physical
 
-      - name: Convert snapshot standby database to physical standby database
-        shell: |
-          . ~/.bash_profile
-          SYS_PASSWORD="{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/oradb_sys_password', region=region ) }}"
-          dgmgrl / << EOF
-          connect sys/${SYS_PASSWORD}@{{ primary_database }};
-          convert database '{{ database_standby_unique | lower }}' to physical standby;
-          EOF
-        register: convert_to_physical
+    - name: Check service name exists for connecting to the snapshot standby database
+      shell: |
+        . ~/.bash_profile
+        srvctl status service -d {{ database_standby_unique }} -s {{ service_name }}
+      register: check_service
+      changed_when: false
+      ignore_errors: true
 
-      - name: Check service name exists for connecting to the snapshot standby database
-        shell: |
-          . ~/.bash_profile
-          srvctl status service -d {{ database_standby_unique }} -s {{ service_name }}
-        register: check_service
-        changed_when: false
-        ignore_errors: true
+    - name: Get Fast-Start Failover Status
+      shell: |
+        . ~/.bash_profile
+        dgmgrl -silent / "show configuration;" | awk -F: '/Fast-Start Failover/{print $2}'
+      register: get_new_fast_start_failover
+      changed_when: false
 
-      - name: Get Fast-Start Failover Status
-        shell: |
-              . ~/.bash_profile
-              dgmgrl -silent / "show configuration;" | awk -F: '/Fast-Start Failover/{print $2}'
-        register: get_new_fast_start_failover
-        changed_when: false
+    - name: Change FSFO Active Target to Current Standby if Preferred
+      include_role:
+        name: "{{ playbook_dir }}/../oracle_ha"
+        tasks_from: set-fsfo-active-target.yml
+      when:
+        - ( get_new_fast_start_failover.stdout | trim ) != 'Disabled'
+        - ( fsfo_targets.split(',')[0] | lower | trim ) == ( database_standby_unique | lower )
+      vars:
+        delegation_host: "{{ primary_hostname }}"
+        preferred_active_target: "{{ fsfo_targets.split(',')[0] | lower | trim }}"
 
-      - name: Change FSFO Active Target to Current Standby if Preferred
-        include_role:
-          name: "{{ playbook_dir }}/../oracle_ha"
-          tasks_from: set-fsfo-active-target.yml
-        when: 
-            - ( get_new_fast_start_failover.stdout | trim ) != 'Disabled'
-            - ( fsfo_targets.split(',')[0] | lower | trim ) == ( database_standby_unique | lower )
-        vars:
-          delegation_host: "{{ primary_hostname }}"
-          preferred_active_target: "{{ fsfo_targets.split(',')[0] | lower | trim }}"
+    - name: Remove service name for connecting to the snapshot standby database
+      shell: |
+        . ~/.bash_profile
+        srvctl stop service -d {{ database_standby_unique }} -s {{ service_name }}
+        srvctl remove service -d {{ database_standby_unique }} -s {{ service_name }}
+      register: delete_service
+      when: check_service.rc == 0
 
-      - name: Remove service name for connecting to the snapshot standby database
-        shell: |
-          . ~/.bash_profile
-          srvctl stop service -d {{ database_standby_unique }} -s {{ service_name }}
-          srvctl remove service -d {{ database_standby_unique }} -s {{ service_name }}
-        register: delete_service
-        when: check_service.rc == 0
+    - name: Create restore point on physical as of the primary restore point scn (if it exists)
+      block:
+        - name: Copy bash script get_primary_restorepoint_scn.sh to primary
+          copy:
+            src: "get_primary_restorepoint_scn.sh"
+            dest: "/tmp"
+            mode: "u+x"
+          delegate_to: "{{ hostvars[groups[database_type + 'primarydb'][0]]['inventory_hostname'] }}"
 
-      - name: Create restore point on physical as of the primary restore point scn (if it exists)
-        block:
+        - name: Get scn of primary restore point
+          shell: /tmp/get_primary_restorepoint_scn.sh
+          delegate_to: "{{ hostvars[groups[database_type + 'primarydb'][0]]['inventory_hostname'] }}"
+          register: primary_restorepoint_scn
 
-          - name: Copy bash script get_primary_restorepoint_scn.sh to primary
-            copy: 
-              src: "get_primary_restorepoint_scn.sh"
-              dest: "/tmp"
-              mode: "u+x"
-            delegate_to: "{{ hostvars[groups[database_type + 'primarydb'][0]]['inventory_hostname'] }}"
+        - name: Create Dictionary of All Restore Points on Primary
+          set_fact:
+            all_restore_points: "{{ all_restore_points | default({}) | combine( { item.split(':')[0]: ( item.split(':')[1] | int ) } ) }}"
+          loop: "{{ primary_restorepoint_scn.stdout_lines }}"
 
-          - name: Get scn of primary restore point
-            shell: /tmp/get_primary_restorepoint_scn.sh 
-            delegate_to: "{{ hostvars[groups[database_type + 'primarydb'][0]]['inventory_hostname'] }}"
-            register: primary_restorepoint_scn
+        - name: Show All Restore Points
+          debug: var=all_restore_points
 
-          - name: Create Dictionary of All Restore Points on Primary
-            set_fact:
-                all_restore_points: "{{ all_restore_points | default({}) | combine( { item.split(':')[0]: ( item.split(':')[1] | int ) } ) }}" 
-            loop: "{{ primary_restorepoint_scn.stdout_lines }}" 
-               
-          - name:  Show All Restore Points
-            debug:
-               var=all_restore_points               
+        - name: Recreate All Primary Restore Points on Standby
+          block:
+            - name: Get Highest SCN of All Restore Points
+              set_fact:
+                highest_restore_point_scn: "{{ (( all_restore_points | dictsort(false,'value') )[-1])[1] }}"
 
-          - name: Recreate All Primary Restore Points on Standby
-            block:
+            - name: Copy bash script get_physical_standby_scn.sh to standby
+              copy:
+                src: "get_physical_standby_scn.sh"
+                dest: "/tmp"
+                mode: "u+x"
 
-                - name: Get Highest SCN of All Restore Points
-                  set_fact:
-                    highest_restore_point_scn: "{{ (( all_restore_points | dictsort(false,'value') )[-1])[1] }}"
-                  
-                - name: Copy bash script get_physical_standby_scn.sh to standby
-                  copy: 
-                    src: "get_physical_standby_scn.sh"
-                    dest: "/tmp"
-                    mode: "u+x"
+            - name: Wait until the physical standby has caught up to the highest primary restorepoint scn
+              shell: /tmp/get_physical_standby_scn.sh
+              changed_when: false
+              register: physical_standby_recovery_scn
+              until: physical_standby_recovery_scn.stdout | int  >= highest_restore_point_scn | int
+              delay: 60
+              retries: 60
+              when: highest_restore_point_scn | length > 0
 
-                - name: Wait until the physical standby has caught up to the highest primary restorepoint scn
-                  shell: /tmp/get_physical_standby_scn.sh
-                  changed_when: false
-                  register: physical_standby_recovery_scn
-                  until: physical_standby_recovery_scn.stdout | int  >= highest_restore_point_scn | int 
-                  delay: 60
-                  retries: 60
-                  when: highest_restore_point_scn | length > 0
+            - name: Create restore points on physical standby as of primary restore point scn
+              script: create_standby_restorepoint.sh {{ item.key }} {{ item.value }}
+              changed_when: false
+              register: create_standby_restorepoint
+              until: create_standby_restorepoint.stdout is not search('ORA-38865')
+              delay: 60
+              retries: 60
+              when: highest_restore_point_scn | length > 0
+              loop: "{{ all_restore_points | dict2items }}"
 
-                - name: Create restore points on physical standby as of primary restore point scn
-                  script: create_standby_restorepoint.sh {{ item.key }} {{ item.value }}
-                  changed_when: false
-                  register: create_standby_restorepoint
-                  until: create_standby_restorepoint.stdout is not search('ORA-38865')
-                  delay: 60
-                  retries: 60
-                  when: highest_restore_point_scn | length > 0
-                  loop: "{{ all_restore_points | dict2items }}"
-          
-            when: all_restore_points is defined
+          when: all_restore_points is defined
 
-    when: database_role.stdout == 'SNAPSHOT STANDBY'
+  when: database_role.stdout == 'SNAPSHOT STANDBY'

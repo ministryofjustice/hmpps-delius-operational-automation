@@ -1,40 +1,39 @@
 ---
+- name: Get Snapshot Standby Conversion Date
+  script: get_snapshot_standby_restore_point.sh
+  register: get_snapshot_standby_conversion_date
 
-  - name: Get Snapshot Standby Conversion Date
-    script: get_snapshot_standby_restore_point.sh
-    register: get_snapshot_standby_conversion_date
+- name: Set Snapshot Standby Conversion Date
+  set_fact:
+    snapshot_standby_conversion_date: "{{ get_snapshot_standby_conversion_date.stdout }}"
 
-  - name: Set Snapshot Standby Conversion Date
-    set_fact:
-        snapshot_standby_conversion_date: "{{ get_snapshot_standby_conversion_date.stdout }}"
+- name: Report Snapshot Standby Conversion Date
+  debug:
+    msg: "Pushing Snapshot Standby Audit Date Created After {{ snapshot_standby_conversion_date }}"
 
-  - name: Report Snapshot Standby Conversion Date
-    debug:
-       msg:  "Pushing Snapshot Standby Audit Date Created After {{ snapshot_standby_conversion_date }}"
+- name: Push the Audit Data
+  script: push_audit_data_to_primary.sh {{ primary_database }} {{ snapshot_standby_conversion_date }}
+  register: push_audit_data_to_primary
+  environment:
+    DELIUS_APP_SCHEMA_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_app_schema_password', region=region ) }}"
+    DELIUS_POOL_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_pool_password', region=region ) }}"
+  vars:
+    ansible_aws_ssm_timeout: 7200
 
-  - name: Push the Audit Data
-    script: push_audit_data_to_primary.sh {{ primary_database }} {{ snapshot_standby_conversion_date }}
-    register: push_audit_data_to_primary
-    environment:
-       DELIUS_APP_SCHEMA_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_app_schema_password', region=region ) }}"
-       DELIUS_POOL_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_pool_password', region=region ) }}"
-    vars:
-      ansible_aws_ssm_timeout: 7200
+- name: Report Audit Data Transfer Output
+  debug: var=push_audit_data_to_primary.stdout_lines
 
-  - name: Report Audit Data Transfer Output
-    debug: var=push_audit_data_to_primary.stdout_lines
-
-  # If audit preservation is enabled then we must propagate the pushed data to the repository
-  # by overriding the previous audit capture date (since the pushed audit data is likely to
-  # be older than audit data which was propagated from the primary)
-  - name: Propagate Audit Data to Repository
-    import_tasks: ../delius_audited_interaction/delius_audited_interaction/tasks/call_audit_propagate_automation.yml 
-    when: hostvars[groups[database_type + 'primarydb'][0]]['audited_interaction_repo'] is defined
-    delegate_to: localhost
-    delegate_facts: true
-    become: no
-    vars:
-       override_capture_date: "{{ snapshot_standby_conversion_date }}"
-       database_primary_sid: "{{ primary_database }}"
-       audited_interaction_repo: "{{ hostvars[groups[database_type + 'primarydb'][0]]['audited_interaction_repo'] }}"
-       engineering_account_id: "{{ account_id }}"
+# If audit preservation is enabled then we must propagate the pushed data to the repository
+# by overriding the previous audit capture date (since the pushed audit data is likely to
+# be older than audit data which was propagated from the primary)
+- name: Propagate Audit Data to Repository
+  import_tasks: ../delius_audited_interaction/delius_audited_interaction/tasks/call_audit_propagate_automation.yml
+  when: hostvars[groups[database_type + 'primarydb'][0]]['audited_interaction_repo'] is defined
+  delegate_to: localhost
+  delegate_facts: true
+  become: no
+  vars:
+    override_capture_date: "{{ snapshot_standby_conversion_date }}"
+    database_primary_sid: "{{ primary_database }}"
+    audited_interaction_repo: "{{ hostvars[groups[database_type + 'primarydb'][0]]['audited_interaction_repo'] }}"
+    engineering_account_id: "{{ account_id }}"

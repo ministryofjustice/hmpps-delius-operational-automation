@@ -5,5 +5,4 @@
   script: disable_user_update.sh
   register: disable_user_update
 
-- debug:
-   var=disable_user_update
+- debug: var=disable_user_update

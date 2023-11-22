@@ -1,77 +1,76 @@
-  - name: Get sys password from ssm
-    shell: aws ssm get-parameters --region {{ region }}--with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/oradb_sys_password | jq -r '.Parameters[].Value'
-    changed_when: false
-    register: sys_password
-    no_log: true
+- name: Get sys password from ssm
+  shell: aws ssm get-parameters --region {{ region }}--with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/oradb_sys_password | jq -r '.Parameters[].Value'
+  changed_when: false
+  register: sys_password
+  no_log: true
 
-  - name: Get data guard broker role configuration for the standby database to be converted
-    shell: |
-      . ~/.bash_profile
-      dgmgrl / "show database {{ database_standby_unique | lower }}" | grep "Role:" | awk -F: '{print $2}' | awk '{sub(/^[ \t]+/, "");print}'
-    changed_when: false
-    register: database_role
+- name: Get data guard broker role configuration for the standby database to be converted
+  shell: |
+    . ~/.bash_profile
+    dgmgrl / "show database {{ database_standby_unique | lower }}" | grep "Role:" | awk -F: '{print $2}' | awk '{sub(/^[ \t]+/, "");print}'
+  changed_when: false
+  register: database_role
 
-  - name: Check action against current database role and fail if database already in required state
-    debug:
-      msg: Current database role is "{{ database_role.stdout }}" and action chosen is "{{ action }}"
-    failed_when: database_role.stdout == "SNAPSHOT STANDBY"
+- name: Check action against current database role and fail if database already in required state
+  debug:
+    msg: Current database role is "{{ database_role.stdout }}" and action chosen is "{{ action }}"
+  failed_when: database_role.stdout == "SNAPSHOT STANDBY"
 
-  - name: Set primary database and service name fact
-    set_fact:
-      primary_database: "{{ hostvars[groups[database_type + 'primarydb'][0]]['database_primary_sid'] }}"
-      service_name: "{{ hostvars[groups[database_type + 'primarydb'][0]]['database_primary_sid'] }}_RO"
+- name: Set primary database and service name fact
+  set_fact:
+    primary_database: "{{ hostvars[groups[database_type + 'primarydb'][0]]['database_primary_sid'] }}"
+    service_name: "{{ hostvars[groups[database_type + 'primarydb'][0]]['database_primary_sid'] }}_RO"
 
-  - name: Actions to convert to snapshot standby only if it's currently in physical standby role
-    block:
+- name: Actions to convert to snapshot standby only if it's currently in physical standby role
+  block:
+    - name: Check standby database apply lag - fail conversion if consistently non zero
+      shell: |
+        . ~/.bash_profile
+        dgmgrl / "show database {{ database_standby_unique | lower }}"  | grep "Apply Lag:" | awk  '{print $3}'
+      register: apply_lag
+      changed_when: false
+      until: apply_lag.stdout == '0'
+      delay: 10
+      retries: 10
 
-      - name: Check standby database apply lag - fail conversion if consistently non zero
-        shell: |
-          . ~/.bash_profile
-          dgmgrl / "show database {{ database_standby_unique | lower }}"  | grep "Apply Lag:" | awk  '{print $3}'
-        register: apply_lag
-        changed_when: false
-        until: apply_lag.stdout == '0'
-        delay: 10
-        retries: 10
+    # If there is only one standby database and FSFO is enabled then we cannot failover
+    - name: Fail if FSFO Enabled and No Valid Target Available
+      fail:
+        msg: "FSFO is enabled and no database available to serve as active target"
+      when:
+        - ( get_fast_start_failover.stdout | trim ) != 'Disabled'
+        - ( fsfo_targets.split(',')[0] | lower | trim ) == ( database_standby_unique | lower )
+        - ( fsfo_targets.split(',') | length < 2 ) or (( set_fsfo_active_target.rc | default(0) ) > 0 )
 
-      # If there is only one standby database and FSFO is enabled then we cannot failover
-      - name: Fail if FSFO Enabled and No Valid Target Available
-        fail:
-            msg: "FSFO is enabled and no database available to serve as active target"
-        when:
-            - ( get_fast_start_failover.stdout | trim ) != 'Disabled'
-            - ( fsfo_targets.split(',')[0] | lower | trim ) == ( database_standby_unique | lower )
-            - ( fsfo_targets.split(',') | length < 2 ) or (( set_fsfo_active_target.rc | default(0) ) > 0 )   
+    # We cannot convert a database to be the standby if it is the active target for FSFO
+    # Therefore swap the primary target to the other standby database if we can
+    - name: Change FSFO Active Target to Other Standby if it Exists
+      include_role:
+        name: "{{ playbook_dir }}/../oracle_ha"
+        tasks_from: set-fsfo-active-target.yml
+      when:
+        - ( fsfo_targets.split(',')[0] | lower | trim ) == ( database_standby_unique | lower )
+        - ( get_fast_start_failover.stdout | trim ) != 'Disabled'
+      register: set_fsfo_active_target
+      ignore_errors: true
+      vars:
+        delegation_host: "{{ primary_hostname }}"
+        preferred_active_target: "{{ fsfo_targets.split(',')[1] | lower | trim }}"
 
-      # We cannot convert a database to be the standby if it is the active target for FSFO
-      # Therefore swap the primary target to the other standby database if we can
-      - name: Change FSFO Active Target to Other Standby if it Exists
-        include_role:
-          name: "{{ playbook_dir }}/../oracle_ha"
-          tasks_from: set-fsfo-active-target.yml
-        when: 
-           - ( fsfo_targets.split(',')[0] | lower | trim ) == ( database_standby_unique | lower )
-           - ( get_fast_start_failover.stdout | trim ) != 'Disabled'
-        register: set_fsfo_active_target
-        ignore_errors: true
-        vars:
-          delegation_host: "{{ primary_hostname }}"
-          preferred_active_target: "{{ fsfo_targets.split(',')[1] | lower | trim }}"
-   
-      - name: Convert physical standby database to snapshot standby database
-        shell: |
-          . ~/.bash_profile
-          dgmgrl / "convert database '{{ database_standby_unique | lower }}' to snapshot standby";
-        register: convert_to_snapshot
-        retries: 3
-        delay: 30
-        until: convert_to_snapshot is not failed
+    - name: Convert physical standby database to snapshot standby database
+      shell: |
+        . ~/.bash_profile
+        dgmgrl / "convert database '{{ database_standby_unique | lower }}' to snapshot standby";
+      register: convert_to_snapshot
+      retries: 3
+      delay: 30
+      until: convert_to_snapshot is not failed
 
-      - name: Create service name for connecting to the snapshot standby database
-        shell: |
-          . ~/.bash_profile
-          srvctl add service -d {{ database_standby_unique }} -s {{ service_name }} -l SNAPSHOT_STANDBY
-          srvctl start service -d {{ database_standby_unique }} -s {{ service_name }}
-        register: create_service
+    - name: Create service name for connecting to the snapshot standby database
+      shell: |
+        . ~/.bash_profile
+        srvctl add service -d {{ database_standby_unique }} -s {{ service_name }} -l SNAPSHOT_STANDBY
+        srvctl start service -d {{ database_standby_unique }} -s {{ service_name }}
+      register: create_service
 
-    when: database_role.stdout == 'PHYSICAL STANDBY'
+  when: database_role.stdout == 'PHYSICAL STANDBY'
