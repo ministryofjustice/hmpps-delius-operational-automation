@@ -1,5 +1,4 @@
 ---
-  
 - name: Get Log Retention Policy from ADRCI
   include: get_longp_policy.yml
 
@@ -25,34 +24,34 @@
 
 - name: Install Monthly Anacron Configuration for XML Listener Log
   template:
-     src: oracle_listener_xml.j2
-     dest: /etc/cron.monthly/oracle_listener_xml
-     mode: '0755'
+    src: oracle_listener_xml.j2
+    dest: /etc/cron.monthly/oracle_listener_xml
+    mode: "0755"
 
 - name: Install Monthly Anacron Configuration for SBTIO Log
   template:
-     src: sbtio_log.j2
-     dest: /etc/cron.monthly/sbtio_log
-     mode: '0755'
+    src: sbtio_log.j2
+    dest: /etc/cron.monthly/sbtio_log
+    mode: "0755"
   vars:
-     sbtio_log_location: "{{ list_of_alert_log_locations | first |  regex_replace('(.*)/alert_.*$','\\1') }}"
+    sbtio_log_location: "{{ list_of_alert_log_locations | first |  regex_replace('(.*)/alert_.*$','\\1') }}"
 
 # On lower spec servers with a large audit trail, the resource overhead of running logrotate can be very high.
 # We want to renice the process and change the IO scheduler to idle mode to reduce the impact as this task
 # can be completed wholly in the backround.
 - name: Nice Priority for Logrotate
   lineinfile:
-      path: /etc/cron.daily/logrotate
-      regexp: "renice \\+19 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
-      line: "renice +19 -p $$ >/dev/null 2>&1"
-      insertafter: "\\#\\!\\/bin\\/sh"
+    path: /etc/cron.daily/logrotate
+    regexp: "renice \\+19 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
+    line: "renice +19 -p $$ >/dev/null 2>&1"
+    insertafter: "\\#\\!\\/bin\\/sh"
 
 - name: Use Idle Mode I/O Scheduler for Logrotate
   lineinfile:
-      path: /etc/cron.daily/logrotate
-      regexp: "ionice \\-c3 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
-      line: "ionice -c3 -p $$ >/dev/null 2>&1"
-      insertafter: "renice \\+19 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
+    path: /etc/cron.daily/logrotate
+    regexp: "ionice \\-c3 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
+    line: "ionice -c3 -p $$ >/dev/null 2>&1"
+    insertafter: "renice \\+19 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
 
 # Logrotate does not work well for audit files because there are so many of them.   This causes bloat in the
 # logrotate.status file which results in memory errors.   Additionally logrotate will only allow compression
@@ -60,8 +59,8 @@
 # files outside of logrotate instead.
 - name: Remove Any Previous Logrotate Configuration for Managing Audit Files
   file:
-     path: /etc/logrotate.d/oracle_adump
-     state: absent
+    path: /etc/logrotate.d/oracle_adump
+    state: absent
 
 - name: Get Audit File Destination
   script: get_audit_file_pattern.sh
@@ -71,8 +70,8 @@
 
 - name: Define Audit Locations
   set_fact:
-     audit_directory: "{{ getauditfilepattern.stdout | trim }}"
-     audit_archive_directory: "{{ getauditfilepattern.stdout | trim }}/../audit_archive"
+    audit_directory: "{{ getauditfilepattern.stdout | trim }}"
+    audit_archive_directory: "{{ getauditfilepattern.stdout | trim }}/../audit_archive"
 
 - name: Ensure the Audit Archive Location Exists
   file:
@@ -81,23 +80,23 @@
 
 - name: Install Daily Audit Log Archival
   template:
-     src: oracle_audit.j2
-     dest: /etc/cron.daily/oracle_audit
-     mode: '0755'
+    src: oracle_audit.j2
+    dest: /etc/cron.daily/oracle_audit
+    mode: "0755"
 
 # On lower spec servers with a large audit trail, the resource overhead of running logrotate can be very high.
 # We want to renice the process and change the IO scheduler to idle mode to reduce the impact as this task
 # can be completed wholly in the backround.
 - name: Nice Priority for Logrotate
   lineinfile:
-      path: /etc/cron.daily/logrotate
-      regexp: "renice \\+19 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
-      line: "renice +19 -p $$ >/dev/null 2>&1"
-      insertafter: "\\#\\!\\/bin\\/sh"
+    path: /etc/cron.daily/logrotate
+    regexp: "renice \\+19 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
+    line: "renice +19 -p $$ >/dev/null 2>&1"
+    insertafter: "\\#\\!\\/bin\\/sh"
 
 - name: Use Idle Mode I/O Scheduler for Logrotate
   lineinfile:
-      path: /etc/cron.daily/logrotate
-      regexp: "ionice \\-c3 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
-      line: "ionice -c3 -p $$ >/dev/null 2>&1"
-      insertafter: "renice \\+19 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
+    path: /etc/cron.daily/logrotate
+    regexp: "ionice \\-c3 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
+    line: "ionice -c3 -p $$ >/dev/null 2>&1"
+    insertafter: "renice \\+19 \\-p \\$\\$ \\>\\/dev\\/null 2\\>\\&1"
