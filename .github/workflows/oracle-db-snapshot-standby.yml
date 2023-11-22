@@ -27,7 +27,7 @@ on:
         description: "Select action to perform"
         type: choice
         options:
-          - "Convert Physical To Snapshot",
+          - "Convert Physical To Snapshot"
           - "Convert Snapshot To Physical"
       PushAudit:
         description: "Push audit data back to primary before converting"
