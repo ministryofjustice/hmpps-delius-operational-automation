@@ -1,9 +1,6 @@
 name: "Oracle: Release Update"
 run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-release-update"
 on:
-  push:
-    branches:
-      - "DBA-569"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
