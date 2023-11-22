@@ -18,8 +18,8 @@
 
   - name: Set primary database and service name fact
     set_fact:
-      primary_database: "{{ hostvars[groups['delius_primarydb'][0]]['database_primary_sid'] }}"
-      service_name: "{{ hostvars[groups['delius_primarydb'][0]]['database_primary_sid'] }}_RO"
+      primary_database: "{{ hostvars[groups[database_type + 'primarydb'][0]]['database_primary_sid'] }}"
+      service_name: "{{ hostvars[groups[database_type + 'primarydb'][0]]['database_primary_sid'] }}_RO"
 
   - name: Actions to convert to snapshot standby only if it's currently in physical standby role
     block:
