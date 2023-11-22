@@ -25,7 +25,7 @@
 
   - name: Get Hostname for Associated Primary
     set_fact:
-        primary_hostname: "{{ hostvars[groups[database_type + '_primarydb'][0]]['inventory_hostname'] }}"
+        primary_hostname: "{{ hostvars[groups[database_type + 'primarydb'][0]]['inventory_hostname'] }}"
 
   - name: Determine FSFO Targets on Primary 
     include_role:
