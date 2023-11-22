@@ -4,6 +4,7 @@
     register: sys_password
     no_log: true
 
+
   - name: Get data guard broker role configuration for the standby database to be converted
     shell: |
       . ~/.bash_profile
@@ -32,7 +33,8 @@
         shell: |
           . ~/.bash_profile
           dgmgrl / << EOF
-          connect sys/{{ sys_password.stdout }}@{{ primary_database }};
+          SYS_PASSWORD="{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/oradb_sys_password', region=region ) }}"
+          connect sys/${SYS_PASSWORD}@{{ primary_database }};
           convert database '{{ database_standby_unique | lower }}' to physical standby;
           EOF
         register: convert_to_physical
