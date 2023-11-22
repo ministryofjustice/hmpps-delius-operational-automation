@@ -93,7 +93,7 @@ on:
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
-  command: ansible-playbook operations/playbooks/release_update/playbook.yml
+  command: ansible-playbook operations/playbooks/oracle_release_update/playbook.yml
   inventory: inventory/ansible
 
 # Allow permissions on repository and docker image respectively 
@@ -136,7 +136,7 @@ jobs:
             download-compressed: true
             version: "v4.35.1"
             force: true
-            
+
       - name: Count Standby Databases Configured In Ansible Inventory
         id: countstandbydbs
         working-directory: ${{ env.inventory }}
@@ -152,7 +152,7 @@ jobs:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: |
-                           playbooks/release_update
+                           playbooks/oracle_release_update
                            ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
