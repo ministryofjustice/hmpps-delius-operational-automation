@@ -75,6 +75,7 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_snapshot_standby
             playbooks/oracle_ha
+            playbooks/delius_audited_interaction
             playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
