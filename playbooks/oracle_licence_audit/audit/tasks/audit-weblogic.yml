@@ -4,7 +4,7 @@
 
 - name: List cluster that contain '-cluster' in the name, will only be one
   delegate_to: localhost
-  shell: aws ecs list-clusters --region {{ region }} | jq -r '.clusterArns[]' | grep -- "{{ environment }}-cluster" | awk -F'/' '{print $NF}'
+  shell: aws ecs list-clusters --region {{ region }} | jq -r '.clusterArns[]' | grep -- "{{ environment_name }}-cluster" | awk -F'/' '{print $NF}'
   register: weblogic_cluster
 
 - name: Get the number of Container instances for the service
