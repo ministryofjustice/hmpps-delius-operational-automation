@@ -1,0 +1,86 @@
+# Create the DELIUS_AUDIT_SCHEMA in all Delius databases.
+# This schema is used in two directions:
+# (1) In the production repository (REPO DB) it is used to Stage and Store incoming AUDITED_INTERACTION data changes.
+# (2) In the non-production databases (CLIENT DB) it is used to Stage and Store incoming USER_ and STAFF data changes.
+# Staging tables for both directions are created in all Delius databases for consistency and to allow roles to be readily changed.
+
+- name: Check Which Schemas Already Installed
+  script: get_installed_schemas.sh
+  register: get_installed_schemas
+  changed_when: false
+
+- name: Show Installed Schemas
+  debug: var=get_installed_schemas.stdout_lines
+
+# Get password for DELIUS_AUDIT_POOL or Create it if it Does not exist
+- name: Get SSM Path
+  shell: |
+    . /etc/environment && echo "/${HMPPS_ENVIRONMENT}/${APPLICATION}/delius-database/db/delius_audit_pool_password"
+  when: not "DELIUS_AUDIT_POOL" in get_installed_schemas.stdout_lines
+  register: ssm_path
+  changed_when: false
+
+- name: Get DELIUS_AUDIT_POOL Password
+  shell: |
+    aws ssm get-parameters --region {{ region }} --with-decryption --name {{ ssm_path.stdout }} | jq -r '.Parameters[].Value'
+  when: not "DELIUS_AUDIT_POOL" in get_installed_schemas.stdout_lines
+  register: get_delius_audit_pool_password
+  changed_when: false
+  no_log: true
+
+# If the DELIUS_AUDIT_POOL password does not exist in this AWS Account then generate a new random password and store it
+- name: Create DELIUS_AUDIT_POOL Password
+  when:
+    - not get_delius_audit_pool_password.stdout | default('') | length > 0
+    - not "DELIUS_AUDIT_POOL" in get_installed_schemas.stdout_lines
+  block:
+    - name: Generate DELIUS_AUDIT_POOL Password
+      set_fact:
+        audit_pool_password: "{{ lookup('password','/dev/null length=15 chars=ascii_letters') }}"
+
+    - name: Store DELIUS_AUDIT_POOL Password
+      community.aws.aws_ssm_parameter_store:
+        name: "{{ ssm_path.stdout }}"
+        region: "{{ region }}"
+        description: "Password for the the DELIUS_AUDIT_POOL account for Delius Audited Interaction Data Consolidation"
+        value: "{{ audit_pool_password }}"
+
+    - name: Get DELIUS_AUDIT_POOL Password
+      shell: |
+        aws ssm get-parameters --region {{ region }} --with-decryption --name {{ ssm_path.stdout }} | jq -r '.Parameters[].Value'
+      register: get_delius_audit_pool_password
+      changed_when: false
+      no_log: true
+
+# Account for Accessing Archived Audited Interaction Data
+- name: Create DELIUS_AUDIT_POOL
+  script: create_delius_audit_pool.sh
+  vars:
+    DELIUS_AUDIT_POOL_PASSWORD: "{{ get_delius_audit_pool_password.stdout }}"
+  when: not "DELIUS_AUDIT_POOL" in get_installed_schemas.stdout_lines
+  register: create_delius_audit_pool
+
+# Account for Storing Archiving Audited Interaction Data
+- name: Setup Repository Database Schema
+  when: not "DELIUS_AUDIT_SCHEMA" in get_installed_schemas.stdout_lines
+  block:
+    - name: Create DELIUS_AUDIT_SCHEMA
+      script: create_delius_audit_schema.sh
+      register: create_delius_audit_schema
+      environment:
+        ENVIRONMENT_NAME: "{{ environment_name }}"
+
+    - debug: var=create_delius_audit_schema
+
+# Disable User Updates for Client Environments Only
+- name: Disable Client-Side User Updates
+  include_tasks: disable_user_update.yml
+  when: audited_interaction_repo is defined
+
+# Create a Scheduler Job to Compress old Partitions of AUDITED_INTERACTION
+- name: Create or Replace Compression Job
+  script: create_compression_job.sh
+  register: create_compression_job
+
+- name: Show Compression Job Creation
+  debug: var=create_compression_job.stdout
