@@ -59,6 +59,11 @@
     path: "{{ weblogic_output }}"
     state: absent
 
+- name: Create audit directory
+  file:
+    path: "{{ audit_dir }}"
+    state: directory
+
 - name: Create weblogic results file
   file:
     path: "{{ weblogic_output }}"
