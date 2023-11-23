@@ -69,7 +69,7 @@ jobs:
           download-compressed: true
           version: "v4.35.1"
           force: true
-          
+
       - name: Get Database Targets For Environment
         id: databasetargets
         working-directory: ${{ env.inventory }}
@@ -89,6 +89,7 @@ jobs:
           build_targets misboe
           build_targets misdsd
           echo "targets=$targets" >> $GITHUB_OUTPUT
+          echo "allHost=group_vars/${environment}_all" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
         id: login-aws
@@ -103,6 +104,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
-          -e environment=${{ matrix.environment }}
+          -e environment_name=${{ matrix.environment }} \
+          -e @$inventory/group_vars/${{ steps.databasetargets.outputs.allHost }}.yml
 
           
