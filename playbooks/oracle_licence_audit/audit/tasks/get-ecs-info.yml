@@ -40,4 +40,4 @@
 
 - name: Populate weblogic temporary info dictionary
   set_fact:
-    weblogic_temp_info: "{{ weblogic_temp_info | combine( {service: { 'environment': environment, 'cluster': cluster, 'instance_type': weblogic_instance_type.stdout, 'instance_type_vcpu_count': weblogic_instance_vcpu_count.stdout | int, 'no_vcpu_core_limit': wcl | int , 'total_no_vcpus': total_no_vcpus | int }} ) }}"
+    weblogic_temp_info: "{{ weblogic_temp_info | combine( {service: { 'environment': environment_name, 'cluster': cluster, 'instance_type': weblogic_instance_type.stdout, 'instance_type_vcpu_count': weblogic_instance_vcpu_count.stdout | int, 'no_vcpu_core_limit': wcl | int , 'total_no_vcpus': total_no_vcpus | int }} ) }}"
