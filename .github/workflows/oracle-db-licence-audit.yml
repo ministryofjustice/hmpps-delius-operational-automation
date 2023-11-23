@@ -1,9 +1,6 @@
 name: "Oracle: Licence Audit"
 run-name: "Oracle-Licence-Audit"
 on:
-  push:
-    branches:
-      - DBA-567
   workflow_dispatch:
     inputs:
       SourceCodeVersion:
@@ -25,10 +22,10 @@ jobs:
   deployment:
     name: oracle-licence-audit
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    #container:
+    # image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     strategy:
-      martrix:
+      matrix:
         environment: [delius-core-dev,delius-core-test,delius-core-training,delius-core-stage,delius-core-pre-prod,delius-core-prod]
     environment: ${{ matrix.environment }}
     timeout-minutes: 1440
