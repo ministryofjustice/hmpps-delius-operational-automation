@@ -1,0 +1,8 @@
+- name: Oracle audit scripts
+  hosts: localhost
+  # become: yes
+  # become_user: root
+  # become_method: sudo
+  gather_facts: yes
+  roles:
+     - audit

@@ -1,0 +1,17 @@
+# - name: controller
+#   include_tasks: audit-controller.yml
+#   when: target_type is not defined
+
+# - name: databases
+#   include_tasks: audit-database.yml
+#   when: target_type is defined and target_type == "database"
+
+- name: Audit Weblogic
+  include_tasks: audit-weblogic.yml
+
+# - name: Audit Databases
+#   include_tasks: audit-database.yml
+
+- name: INFORMATION
+  debug:
+    msg: "Please check s3 bucket {{ dependencies_bucket.name }}/{{ audit_output }}/{{ audit_local_file }} containing output files!"

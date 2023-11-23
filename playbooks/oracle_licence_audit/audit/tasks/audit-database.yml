@@ -1,0 +1,80 @@
+# - name: Update repositories cache and install AWS client package
+#   delegate_to: localhost
+#   shell:  |
+#     apt-get update
+#     apt install -y awscli
+#     apt install -y jq
+#   become_user: root
+
+- name: Retrieve an appropriate name to be including in the output file names
+  shell: grep HMPPS_FQDN /etc/environment | awk -F'=' '{print $NF}' | sed -e 's/"//g'
+  register: output
+
+- name: Get instance name running, should be only one
+  shell: ps -ef | grep ora_smon | grep -v grep | cut -d'_' -f3
+  register: db
+
+- name: Set fact for output names we do expect from running the scripts
+  set_fact:
+    new_host: "{{ output.stdout | regex_replace('^(.*)\\.internal.*$','\\1') }}"
+    sql_output: "{{ ansible_facts.hostname }}_{{ db.stdout }}"
+    cpu_output: "{{ ansible_facts.hostname }}-ct_cpuq.txt"
+
+- name: Set fact for new output names
+  set_fact:
+    new_sql_output: "{{ new_host }}_{{ db.stdout }}"
+    new_cpu_output: "{{ new_host }}-ct_cpuq.txt"
+
+- name: Create work directory on remote host
+  file:
+    path: "{{ audit_dir }}"
+    state: directory
+    owner: oracle
+    mode: '777'
+
+- name: Download cpuq.sh from s3
+  shell: 'aws s3 cp s3://{{ dependencies_bucket.name }}/dependencies/oracle/utils/cpuq.sh {{ audit_dir }}/cpuq.sh'
+
+- name: Download Oracle ReviewLite23.3.sql from s3
+  shell: 'aws s3 cp s3://{{ dependencies_bucket.name }}/dependencies/oracle/utils/ReviewLite23.3.sql {{ audit_dir }}/ReviewLite23.3.sql'
+  args:
+    creates: "{{ audit_dir }}/ReviewLite23.3.sql"
+
+- name: Execute cpu script and rename output file
+  shell: |
+    cd {{ audit_dir }}
+    chmod +x cpuq.sh 
+    echo 'y' | ./cpuq.sh {{ audit_dir }}
+    mv {{ cpu_output }} {{ new_cpu_output}}
+  register: cpuout
+
+- name: Execute Oracle ReviewLite23.3.sql and rename output directory
+  shell: 
+    cmd: |
+      . ~/.bash_profile
+      cd {{ audit_dir }}
+      rm -rf {{ sql_output }} {{ new_sql_output }}
+      sqlplus -s / as sysdba << EOF
+        @ReviewLite23.3.sql
+        exit
+      EOF
+      mv {{ sql_output }} {{ new_sql_output }}
+  become: yes
+  become_method: sudo
+  become_user: oracle
+  register: sqlout
+
+- name: Setup session role
+  delegate_to: localhost
+  community.aws.sts_assume_role:
+    role_arn: "arn:aws:iam::895523100917:role/terraform"
+    role_session_name: "895523100917_audit_terraform"
+  register: assumed_role
+
+- name: Upload 
+  shell: aws s3 cp {{ audit_dir}} s3://{{ dependencies_bucket.name }}/{{ audit_output }} --recursive --exclude "*" --include "*-db-*"
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
+    AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
+  register: upload
