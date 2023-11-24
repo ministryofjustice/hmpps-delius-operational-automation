@@ -1,6 +1,5 @@
 audit_dir: /tmp/audit
-audit_local_dir: "{{ audit_dir }}/{{ ansible_date_time.date }}"
-audit_local_file: "audit-{{ ansible_date_time.date }}.zip"
-weblogic_file: audit-weblogic.lst
+audit_zip_file: "audit-{{ ansible_date_time.date }}.zip"
+weblogic_file: "{{ environment_name }}-audit-weblogic.lst"
 weblogic_output: "{{ audit_dir }}/{{ weblogic_file }}"
 audit_output: "dependencies/oracle/utils/audit/{{ ansible_date_time.date }}"
