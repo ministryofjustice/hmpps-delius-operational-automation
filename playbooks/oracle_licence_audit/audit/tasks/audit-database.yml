@@ -1,28 +1,16 @@
-# - name: Update repositories cache and install AWS client package
-#   delegate_to: localhost
-#   shell:  |
-#     apt-get update
-#     apt install -y awscli
-#     apt install -y jq
-#   become_user: root
-
-- name: Retrieve an appropriate name to be including in the output file names
-  shell: grep HMPPS_FQDN /etc/environment | awk -F'=' '{print $NF}' | sed -e 's/"//g'
-  register: output
-
 - name: Get instance name running, should be only one
   shell: ps -ef | grep ora_smon | grep -v grep | cut -d'_' -f3
   register: db
 
 - name: Set fact for output names we do expect from running the scripts
   set_fact:
-    new_host: "{{ output.stdout | regex_replace('^(.*)\\.internal.*$','\\1') }}"
-    sql_output: "{{ ansible_facts.hostname }}_{{ db.stdout }}"
-    cpu_output: "{{ ansible_facts.hostname }}-ct_cpuq.txt"
+    new_host: "{{ inventory_hostname }}"
+    sql_output: "{{ ansible_facts.fqdn }}_{{ db.stdout }}"
+    cpu_output: "{{ ansible_facts.fqdn }}-ct_cpuq.txt"
 
 - name: Set fact for new output names
   set_fact:
-    new_sql_output: "{{ new_host }}_{{ db.stdout }}"
+    new_sql_output: "{{ new_host }}-{{ db.stdout }}"
     new_cpu_output: "{{ new_host }}-ct_cpuq.txt"
 
 - name: Create work directory on remote host
@@ -33,10 +21,14 @@
     mode: '777'
 
 - name: Download cpuq.sh from s3
-  shell: 'aws s3 cp s3://{{ dependencies_bucket.name }}/dependencies/oracle/utils/cpuq.sh {{ audit_dir }}/cpuq.sh'
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    aws s3 cp s3://{{ dependencies_bucket.name }}/dependencies/oracle/utils/cpuq.sh {{ audit_dir }}/cpuq.sh
 
 - name: Download Oracle ReviewLite23.3.sql from s3
-  shell: 'aws s3 cp s3://{{ dependencies_bucket.name }}/dependencies/oracle/utils/ReviewLite23.3.sql {{ audit_dir }}/ReviewLite23.3.sql'
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    aws s3 cp s3://{{ dependencies_bucket.name }}/dependencies/oracle/utils/ReviewLite23.3.sql {{ audit_dir }}/ReviewLite23.3.sql
   args:
     creates: "{{ audit_dir }}/ReviewLite23.3.sql"
 
@@ -64,17 +56,28 @@
   become_user: oracle
   register: sqlout
 
-- name: Setup session role
-  delegate_to: localhost
-  community.aws.sts_assume_role:
-    role_arn: "arn:aws:iam::895523100917:role/terraform"
-    role_session_name: "895523100917_audit_terraform"
-  register: assumed_role
+- name: Fetch cpu output files
+  fetch: 
+    src: "{{ audit_dir }}/{{ new_cpu_output }}"
+    dest: "{{ audit_dir }}/"
+    flat: yes
 
-- name: Upload 
-  shell: aws s3 cp {{ audit_dir}} s3://{{ dependencies_bucket.name }}/{{ audit_output }} --recursive --exclude "*" --include "*-db-*"
-  environment:
-    AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
-    AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
-    AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
-  register: upload
+- name: Create database directory on controller
+  delegate_to: localhost
+  file:
+    path: "{{ audit_dir }}/{{ new_sql_output }}"
+    state: directory
+
+- name: Find database output files
+  find:
+    path: "{{ audit_dir }}/{{ new_sql_output }}"
+    recurse: yes
+    patterns: "*.csv"
+  register: database_output_files
+
+- name: Fetch database output files
+  fetch:
+    src: "{{ item.path }}"
+    dest: "{{ audit_dir }}/{{ new_sql_output }}/"
+    flat: yes
+  with_items: "{{ database_output_files.files }}"
