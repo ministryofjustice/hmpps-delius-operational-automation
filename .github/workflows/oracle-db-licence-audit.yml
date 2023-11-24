@@ -107,9 +107,9 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
-          -e targets=${{ steps.databasetargets.outputs.targets }}
+          -e targets=${{ steps.databasetargets.outputs.targets }} \
           -e environment_name=${{ matrix.environment }} \
-          -e @$inventory/${{ steps.databasetargets.outputs.allHost }}.yml
+          -e @$inventory/${{ steps.databasetargets.outputs.allHost }}.yml \
           -e audit=yes
 
       - name: Start Ansible Oracle Licence Audit Upload When Last Environment Processed
