@@ -89,33 +89,3 @@
   lineinfile:
     path: "{{ weblogic_output }}"
     line: "Vcpu Total: {{ total_vpcu }}"
-
-- name: Upload weblogic output file to s3
-  shell: aws s3 cp {{ weblogic_output }} s3://{{ dependencies_bucket.name }}/{{ audit_output }}/{{ weblogic_file }}
-
-- name: Create directory locally
-  file:
-    path: "{{ audit_local_dir }}"
-    state: directory
-
-- name: Download s3 bucket output
-  shell: aws s3 cp s3://{{ dependencies_bucket.name }}/{{ audit_output }} {{ audit_local_dir }} --recursive --exclude "*.zip"
-  register: down
-
-- name: Compress directory
-  archive:
-    path: "{{ audit_local_dir }}/*"
-    dest: "{{ audit_local_dir }}/{{ audit_local_file }}"
-    format: zip
-
-- name: Upload to s3 bucket the zip file
-  shell: aws s3 cp {{ audit_local_dir }}/{{ audit_local_file }} s3://{{ dependencies_bucket.name }}/{{ audit_output }}/{{ audit_local_file }}
-
-- name: Remove directory locally
-  file:
-    path: "{{ audit_local_dir }}"
-    state: absent
-
-- name: INFORMATION
-  debug:
-    msg: "Please check s3 bucket {{ dependencies_bucket.name }}/{{ audit_output }}/{{ audit_local_file }} containging output files!"
