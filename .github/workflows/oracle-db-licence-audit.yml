@@ -117,7 +117,7 @@ jobs:
           -e audit=yes
 
       - name: Start Ansible Oracle Licence Audit Upload When Last Environment Processed
-        if: ${{ steps.databasetargets.outputs.lastjob == "true" }}
+        if: ${{ steps.databasetargets.outputs.lastjob == 'true' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -e upload=yes \
