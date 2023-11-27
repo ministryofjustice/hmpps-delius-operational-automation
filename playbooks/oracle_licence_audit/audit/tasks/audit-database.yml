@@ -81,3 +81,9 @@
     dest: "{{ audit_dir }}/{{ new_sql_output }}/"
     flat: yes
   with_items: "{{ database_output_files.files }}"
+
+- name: Upload database output directory to S3
+  delegate_to: localhost
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    aws s3 cp {{ audit_dir }}/{{ new_sql_output }} s3://{{ dependencies_bucket.name }}/{{ audit_output }}/{{ new_sql_output }} --recursive
