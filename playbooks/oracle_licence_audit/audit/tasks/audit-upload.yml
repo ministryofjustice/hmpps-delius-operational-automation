@@ -1,16 +1,14 @@
+- name: Download output directory from S3
+  shell: aws s3 cp s3://{{ dependencies_bucket.name }}/{{ audit_output }}/ {{ audit_dir }}/{{ ansible_date_time.date }}/ --recursive
+
 - name: Compress audit directory
   archive:
-    path: "{{ audit_dir }}/*"
-    dest: "{{ audit_dir }}/{{ audit_zip_file }}"
+    path: "{{ audit_dir }}/{{ ansible_date_time.date }}/*"
+    dest: "{{ audit_dir }}/{{ ansible_date_time.date }}/{{ audit_zip_file }}"
     format: zip
 
 - name: Upload to s3 bucket the zip file
-  shell: aws s3 cp {{ audit_dir }}/{{ audit_zip_file }} s3://{{ dependencies_bucket.name }}/{{ audit_output }}/{{ audit_zip_file }}
-
-# - name: Remove directory locally
-#   file:
-#     path: "{{ audit_dir }}"
-#     state: absent
+  shell: aws s3 cp {{ audit_dir }}/{{ ansible_date_time.date }}/{{ audit_zip_file }} s3://{{ dependencies_bucket.name }}/{{ audit_output }}/{{ audit_zip_file }}
 
 - name: INFORMATION
   debug:
