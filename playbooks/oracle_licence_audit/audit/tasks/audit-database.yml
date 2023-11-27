@@ -18,7 +18,7 @@
     path: "{{ audit_dir }}"
     state: directory
     owner: oracle
-    mode: '777'
+    mode: "777"
 
 - name: Download cpuq.sh from s3
   shell: |
@@ -41,7 +41,7 @@
   register: cpuout
 
 - name: Execute Oracle ReviewLite23.3.sql and rename output directory
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       cd {{ audit_dir }}
@@ -57,7 +57,7 @@
   register: sqlout
 
 - name: Fetch cpu output files
-  fetch: 
+  fetch:
     src: "{{ audit_dir }}/{{ new_cpu_output }}"
     dest: "{{ audit_dir }}/"
     flat: yes

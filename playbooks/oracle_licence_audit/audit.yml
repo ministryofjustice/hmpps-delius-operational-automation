@@ -5,32 +5,28 @@
   become_method: sudo
   gather_facts: yes
   tasks:
-
-  - name: Run Database Task
-    include_role:
-      name: audit
-      tasks_from: audit-database
-    when: audit is defined 
+    - name: Run Database Task
+      include_role:
+        name: audit
+        tasks_from: audit-database
+      when: audit is defined
 
 - name: Oracle Audit Weblogic
   hosts: localhost
   gather_facts: yes
   tasks:
-
-  - name: Run Weblogic Task
-    include_role:
-      name: audit
-      tasks_from: audit-weblogic
-    when: audit is defined
+    - name: Run Weblogic Task
+      include_role:
+        name: audit
+        tasks_from: audit-weblogic
+      when: audit is defined
 
 - name: Run Upload To S3
   hosts: localhost
   gather_facts: no
   tasks:
-
-  - name: Run Upload Task
-    include_role:
-      name: audit
-      tasks_from: audit-upload
-    when: upload is defined
-    
+    - name: Run Upload Task
+      include_role:
+        name: audit
+        tasks_from: audit-upload
+      when: upload is defined

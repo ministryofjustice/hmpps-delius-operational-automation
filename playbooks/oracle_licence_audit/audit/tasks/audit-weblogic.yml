@@ -32,15 +32,14 @@
     loop_var: serv
 
 - name: Get the no. of vpcus used by all services into a list
-  set_fact: 
+  set_fact:
     vcpu_list: "{{ vcpu_list + [item.value.total_no_vcpus] }}"
     total_services_vcpus: "{{  total_services_vcpus | default(0) | int + item.value.total_no_vcpus }}"
     total_available_vpcus: "{{ container_count.stdout | int * item.value.instance_type_vcpu_count }}"
   with_dict: "{{ weblogic_temp_info }}"
 
-- name: Calculate the number of vcpu's allowed 
+- name: Calculate the number of vcpu's allowed
   block:
-        
     - set_fact:
         no_vcpus_used: "{{ total_available_vpcus }}"
       when: total_services_vcpus | int >= total_available_vpcus | int
@@ -78,10 +77,10 @@
   lineinfile:
     path: "{{ weblogic_output }}"
     line: "{{ item.key }}:{{ item.value.instance_type }}:{{ item.value.instance_type_vcpu_count }}:{{item.value.total_no_vcpus_available }}:{{ item.value.total_no_vcpus_used }}"
-  with_dict: "{{ weblogic_info }}" 
+  with_dict: "{{ weblogic_info }}"
 
 - name: Total up number for weblogic vcpu's
-  set_fact: 
+  set_fact:
     total_vpcu: "{{ total_vpcu | default(0) | int + item.value.total_no_vcpus_used }}"
   with_dict: "{{ weblogic_info }}"
 
