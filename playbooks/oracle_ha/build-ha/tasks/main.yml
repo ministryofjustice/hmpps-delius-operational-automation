@@ -190,6 +190,6 @@
 - name: Install Oracle Secure Web Backup Service (oswbs) On Standby
   when: inventory_hostname in groups[ standby ]
   include_role:
-    name: "{{ playbook_dir }}/../../roles/oracle-secure-backup"
+    name: "{{ playbook_dir }}/../oracle-secure-backup"
   vars:
     database_home: "{{ oracle_database_oracle_home }}"
