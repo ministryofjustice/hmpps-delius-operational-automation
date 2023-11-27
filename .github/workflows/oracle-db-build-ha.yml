@@ -134,6 +134,7 @@ jobs:
           echo $standbydb1Host
           echo $standbydb2Host
           echo $high_availability_count
+
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
         with:
@@ -142,6 +143,16 @@ jobs:
           sparse-checkout: playbooks/oracle_ha
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Roles From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: roles/oracle-secure-backup
+          path: operations
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
