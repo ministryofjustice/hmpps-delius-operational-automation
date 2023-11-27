@@ -151,7 +151,7 @@ jobs:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
           sparse-checkout: roles/oracle-secure-backup
-          path: operations
+          path: operation_roles
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
