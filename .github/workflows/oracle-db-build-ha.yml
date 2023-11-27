@@ -100,6 +100,7 @@ jobs:
           sparse-checkout: |
             ansible/hosts
             ansible/group_vars
+            ansible/roles/oracle-secure-backup
           path: inventory
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
@@ -145,16 +146,6 @@ jobs:
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
-      - name: Checkout Roles From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
-        with:
-          repository: ministryofjustice/modernisation-platform-configuration-management
-          sparse-checkout-cone-mode: false
-          sparse-checkout: roles/oracle-secure-backup
-          path: operations
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
-          fetch-depth: 0
-
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
@@ -173,6 +164,7 @@ jobs:
       - name: Build High Availability Standby 1 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
+          mv inventory/ansible/roles/oracle-secure-backup operations/playbooks
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
           -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
@@ -181,6 +173,6 @@ jobs:
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
           -e standby_number=1 \
-          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}
+          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }} 
           # -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
           
