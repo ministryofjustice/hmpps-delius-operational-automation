@@ -181,8 +181,15 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Start Ansible Backup
+      - name: Start Ansible Backup On Primary
+        id: backup
+        continue-on-error: true
         run: $backup_command -i $inventory -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
+
+      - name: Start Ansible Backup On First Standby (If Exists) If Primary Backup Failed
+        if: job.steps.backup.status == failure() && ${env.RmanTarget} ~= .*primarydb && -e ${env.inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml
+        shell: bash
+        run: $backup_command -i $inventory -e rman_target=${RmanTarget/primarydb/standbydb1} -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
 
       - name: Start Ansible Validate And Fix Absent Chunks
         run: $validate_command -i $inventory -e rman_target=$RmanTarget -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
