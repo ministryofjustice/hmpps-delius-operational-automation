@@ -93,7 +93,7 @@ jobs:
           build_targets misdsd
           echo "targets=$targets" >> $GITHUB_OUTPUT
           echo "allHost=group_vars/${environment}_all" >> $GITHUB_OUTPUT
-          if [[ $((${{ strategy.job-index }} + 1 )) ==  ${{ strategy.job-total }} ]]
+          if [[ $((${{ strategy.job-index }} + 1 )) -eq  ${{ strategy.job-total }} ]]
           then
             echo "lastjob=true" >> $GITHUB_OUTPUT
           fi
