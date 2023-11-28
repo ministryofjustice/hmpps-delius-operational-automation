@@ -82,7 +82,8 @@ jobs:
       - name: Output Input Parameters
         shell: bash
         run: |
-          echo -e "PrimarySourceType: ${{ github.event.inputs.PrimarySourceType }}\n\
+          echo -e "Procedure: ${{ github.event.inputs.Procedure }}\n\
+          PrimarySourceType: ${{ github.event.inputs.PrimarySourceType }}\n\
           SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
           SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
 
