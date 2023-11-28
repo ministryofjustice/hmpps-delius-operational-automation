@@ -1,5 +1,5 @@
 name: "Oracle: AWS Snapshot"
-run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment) }}-Aws-Snapshot"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-Aws-Snapshot"
 on:
   push:
     branches:
