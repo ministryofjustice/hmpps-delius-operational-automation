@@ -1,9 +1,6 @@
 name: "Oracle: AWS Snapshot"
-run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-Aws-Snapshot"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-aws-snapshot"
 on:
-  push:
-    branches:
-      - DBA-570
   workflow_dispatch:
     inputs:
       TargetEnvironment:
@@ -135,8 +132,8 @@ jobs:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: |
-              playbooks/oracle_aws_snapshot
-              playbooks/ansible.cfg
+            playbooks/oracle_aws_snapshot
+            playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
@@ -154,5 +151,5 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
-          -e target_host={{ steps.preparetargetnames.outputs.TargetHost }} \
-          -e delete_after_days={{ github.event.inputs.DeleteAfterDays }} ${{ github.event.inputs.Verbose }}
+          -e target_host=${{ steps.preparetargetnames.outputs.TargetHost }} \
+          -e delete_after_days=${{ github.event.inputs.DeleteAfterDays }} ${{ github.event.inputs.Verbose }}
