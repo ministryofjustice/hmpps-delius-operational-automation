@@ -82,7 +82,8 @@ jobs:
       - name: Output Input Parameters
         shell: bash
         run: |
-          echo -e "PrimarySourceType: ${{ github.event.inputs.PrimarySourceType }}\n\
+          echo -e "Procedure: ${{ github.event.inputs.Procedure }}\n\
+          PrimarySourceType: ${{ github.event.inputs.PrimarySourceType }}\n\
           SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
           SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
 
@@ -100,6 +101,8 @@ jobs:
           sparse-checkout: |
             ansible/hosts
             ansible/group_vars
+            ansible/roles/oracle-secure-backup
+            ansible/roles/get-ec2-facts
           path: inventory
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
@@ -134,6 +137,7 @@ jobs:
           echo $standbydb1Host
           echo $standbydb2Host
           echo $high_availability_count
+
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
         with:
@@ -162,6 +166,8 @@ jobs:
       - name: Build High Availability Standby 1 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
+          mkdir -p ~/.ansible/roles
+          mv inventory/ansible/roles/* ~/.ansible/roles
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
           -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
@@ -170,6 +176,6 @@ jobs:
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
           -e standby_number=1 \
-          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}
+          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }} 
           # -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
           
