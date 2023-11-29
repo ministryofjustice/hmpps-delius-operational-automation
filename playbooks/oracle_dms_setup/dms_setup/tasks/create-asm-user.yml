@@ -2,7 +2,9 @@
   include_vars: "{{ dms_user_application }}.yml"
 
 - name: Get {{ dms_user }} password from ssm
-  shell: aws ssm get-parameters --region {{ region }} --with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/{{ dms_user }}_password | jq -r '.Parameters[].Value'
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    aws ssm get-parameters --region {{ region }} --with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/{{ dms_user }}_password | jq -r '.Parameters[].Value'
   changed_when: false
   register: dms_password
   no_log: true
