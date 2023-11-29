@@ -1,13 +1,11 @@
-
 - name: Create AWS Snapshot of EC2 Instance
   delegate_to: localhost
   become: no
   block:
-
     - name: Get Name of Backup Vault
       shell: |
-            set -o pipefail
-            aws backup list-backup-vaults --region {{ region }} | jq -r 'first( .BackupVaultList[].BackupVaultName | select (contains("oracle-backup-vault")) ) '
+        set -o pipefail
+        aws backup list-backup-vaults --region {{ region }} | jq -r 'first( .BackupVaultList[].BackupVaultName | select (contains("oracle-backup-vault")) ) '
       register: get_backup_vault
       changed_when: false
       args:
@@ -19,8 +17,8 @@
 
     - name: Run Backup Job
       shell: |
-            set -o pipefail
-            aws backup start-backup-job --backup-vault-name {{ get_backup_vault.stdout }} --resource-arn arn:aws:ec2:{{ region }}:{{ caller_info.account }}:instance/{{ backup_hostname }} --iam-role-arn arn:aws:iam::{{ caller_info.account }}:role/service-role/AWSBackupDefaultServiceRole  --lifecycle DeleteAfterDays={{ delete_after_days | default(7) }} --region {{ region }} | jq -r '.BackupJobId'
+        set -o pipefail
+        aws backup start-backup-job --backup-vault-name {{ get_backup_vault.stdout }} --resource-arn arn:aws:ec2:{{ region }}:{{ caller_info.account }}:instance/{{ backup_hostname }} --iam-role-arn arn:aws:iam::{{ caller_info.account }}:role/service-role/AWSBackupDefaultServiceRole  --lifecycle DeleteAfterDays={{ delete_after_days | default(7) }} --region {{ region }} | jq -r '.BackupJobId'
       register: start_backup_job
       args:
         executable: /bin/bash
@@ -28,8 +26,8 @@
     # If the Backup Job is at Status CREATED then wait until this changes.   This simply means it is in a queue to run.
     - name: Get Backup Job Status
       shell: |
-            set -o pipefail
-            aws backup describe-backup-job --backup-job-id "{{ start_backup_job.stdout }}"  --region "{{ region }}" | jq -r '.State'
+        set -o pipefail
+        aws backup describe-backup-job --backup-job-id "{{ start_backup_job.stdout }}"  --region "{{ region }}" | jq -r '.State'
       register: get_backup_job_status
       until: not get_backup_job_status.stdout is search("CREATED")
       retries: 60
@@ -40,8 +38,8 @@
 
     - name: Get Backup AMI Name
       shell: |
-            set -o pipefail
-            aws backup describe-backup-job --backup-job-id "{{ start_backup_job.stdout }}"  --region "{{ region }}" | jq -r '.RecoveryPointArn | split("/")[1]'
+        set -o pipefail
+        aws backup describe-backup-job --backup-job-id "{{ start_backup_job.stdout }}"  --region "{{ region }}" | jq -r '.RecoveryPointArn | split("/")[1]'
       register: get_ami_name
       changed_when: false
       args:
@@ -51,8 +49,8 @@
     # Note that tghe "//" below sets the Progress to 0% if no snapshots are found.   If Progress of any snapshot is 0% then report the Snapshot as Pending.
     - name: Wait for All Snapshots for the Backup to Be Above 0% Complete
       shell: |
-            set -o pipefail
-            aws ec2 describe-snapshots --filters Name=description,Values="*for {{ get_ami_name.stdout }}" --region={{ region }} | jq '.Snapshots[].Progress // "0%" | match("^0%") | "SNAPSHOT_PENDING"'
+        set -o pipefail
+        aws ec2 describe-snapshots --filters Name=description,Values="*for {{ get_ami_name.stdout }}" --region={{ region }} | jq '.Snapshots[].Progress // "0%" | match("^0%") | "SNAPSHOT_PENDING"'
       register: get_snapshot_status
       until: not get_snapshot_status.stdout is search("SNAPSHOT_PENDING")
       retries: 60
