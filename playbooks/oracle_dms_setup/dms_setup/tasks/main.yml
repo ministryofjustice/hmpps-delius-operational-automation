@@ -4,7 +4,7 @@
     msg: "The parameter active_data_guard must be set to true for this host before setting up DMS"
   when:
      - not ( active_data_guard | default(false) | bool )
-     - read_host != 'delius_primarydb'
+     - read_host is not search ('primarydb')
 
 - name: (main) Define List of DMS Users
   set_fact:
@@ -21,7 +21,7 @@
     # If we are reading from a standby database then ADG must be enabled
     - name: (main) Convert to Active Data Guard (ADG)
       include_tasks: setup-standby-to-adg.yml
-      when: read_host != 'delius_primarydb'
+      when: read_host is not search('delius_primarydb')
          
     - name: (main) Create Database Migration Service (DMS) user on primary database
       include_tasks: create-dms-user.yml
@@ -53,7 +53,7 @@
       vars: 
           dms_user_application: "{{ item }}"
           delegate_host: "{{ inventory_hostname }}"
-      when: read_host != 'delius_primarydb'    
+      when: read_host is not search('delius_primarydb')
       tags: asm
 
     # If this application needs access to the primary database (standby_only is false)
