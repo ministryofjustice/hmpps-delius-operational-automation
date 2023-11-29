@@ -1,0 +1,17 @@
+# To ensure the AWS snapshot contains a consistent copy of database datafiles,
+# disable standby recovery whilst we create the snapshot.
+- block:
+    - name: Get Data Guard Apply Mode
+      script: get_data_guard_apply_mode.sh
+      register: get_data_guard_apply_mode
+
+    - name: Suepend Data Guard Apply
+      script: data_guard_apply_off.sh
+      when: get_data_guard_apply_mode.stdout is search ('APPLY-ON')
+
+    - name: Create Snapshot
+      include_tasks: create_snapshot.yml
+
+  always:
+    - name: Unsuspend Data Guard Apply
+      script: data_guard_apply_on.sh
