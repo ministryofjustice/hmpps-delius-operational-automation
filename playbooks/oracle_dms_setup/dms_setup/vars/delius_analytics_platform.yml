@@ -10,7 +10,7 @@ objects:
   - name: V_$ARCHIVED_LOG
     grant_type: SELECT
   - name: V_$LOG
-    grant_type: SELECT 
+    grant_type: SELECT
   - name: V_$LOGFILE
     grant_type: SELECT
   - name: V_$DATABASE
@@ -81,8 +81,8 @@ objects:
     grant_type: SELECT
 
 system_privileges:
-  - name: CREATE SESSION 
-  - name: SELECT ANY TRANSACTION 
+  - name: CREATE SESSION
+  - name: SELECT ANY TRANSACTION
   - name: SELECT ANY TABLE
   - name: EXEMPT ACCESS POLICY
 

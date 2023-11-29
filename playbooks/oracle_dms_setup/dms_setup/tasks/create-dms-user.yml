@@ -17,7 +17,7 @@
   changed_when: false
 
 - name: Create {{ dms_user }} user
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       ORACLE_SID={{ delius_primary_sid }}
@@ -60,7 +60,7 @@
 
 - name: User {{ dms_user }} creation output
   debug:
-    msg: "{{ sql_out }}" 
+    msg: "{{ sql_out }}"
   with_items: "{{ create_user_plsql.stdout_lines }}"
   loop_control:
     label: "User Output"

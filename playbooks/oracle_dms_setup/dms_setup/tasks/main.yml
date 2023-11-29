@@ -1,57 +1,55 @@
-
 # ADG Must be enabled unless we are configuring DMS Reads from the primary
 - fail:
     msg: "The parameter active_data_guard must be set to true for this host before setting up DMS"
   when:
-     - not ( active_data_guard | default(false) | bool )
-     - read_host is not search ('primarydb')
+    - not ( active_data_guard | default(false) | bool )
+    - read_host is not search ('primarydb')
 
 - name: (main) Define List of DMS Users
   set_fact:
-      dms_user_applications: "{{ ( [] if ( include_analytics_platform | default('yes') == 'no') else ['delius_analytics_platform'] ) +
-                                 ( [] if ( include_audited_interaction | default('yes') == 'no') else ['delius_audited_interaction'] ) }}"
+    dms_user_applications: "{{ ( [] if ( include_analytics_platform | default('yes') == 'no') else ['delius_analytics_platform'] ) +
+      ( [] if ( include_audited_interaction | default('yes') == 'no') else ['delius_audited_interaction'] ) }}"
 
 - name: Set fact for delius_primarydb
   set_fact:
     delius_primarydb: "{{ read_host | replace (read_host.split('_')[-1], 'primarydb') }}"
 
 - block:
-
     # If we are reading from a standby database then ADG must be enabled
     - name: (main) Convert to Active Data Guard (ADG)
       include_tasks: setup-standby-to-adg.yml
       when: read_host is not search('delius_primarydb')
-         
+
     - name: (main) Create Database Migration Service (DMS) user on primary database
       include_tasks: create-dms-user.yml
-      vars: 
-          dms_user_application: "{{ item }}"
+      vars:
+        dms_user_application: "{{ item }}"
       loop: "{{ dms_user_applications }}"
 
     - name: (main) Temporarily Drop Trigger to Restrict Scope of DMS Logins for Database Link Creation
       include_tasks: drop-dms-trigger.yml
-      vars: 
-          dms_user_application: "{{ item }}"
+      vars:
+        dms_user_application: "{{ item }}"
       loop: "{{ dms_user_applications }}"
 
     - name: (main) Create Database Migration Service (DMS) Database Link to primary database
       include_tasks: create-dms-dblink.yml
-      vars: 
-          dms_user_application: "{{ item }}"
+      vars:
+        dms_user_application: "{{ item }}"
       loop: "{{ dms_user_applications }}"
-    
+
     - name: (main) Create Trigger to Restrict Scope of DMS Logins
       include_tasks: create-dms-trigger.yml
-      vars: 
-          dms_user_application: "{{ item }}"
+      vars:
+        dms_user_application: "{{ item }}"
       loop: "{{ dms_user_applications }}"
 
     - name: (main) Create Database Migration Service (DMS) user for ASM on standby database
       include_tasks: create-asm-user.yml
       loop: "{{ dms_user_applications }}"
-      vars: 
-          dms_user_application: "{{ item }}"
-          delegate_host: "{{ inventory_hostname }}"
+      vars:
+        dms_user_application: "{{ item }}"
+        delegate_host: "{{ inventory_hostname }}"
       when: read_host is not search('delius_primarydb')
       tags: asm
 
@@ -61,31 +59,31 @@
     - name: (main) Create Database Migration Service (DMS) user for ASM on primary database
       include_tasks: create-asm-user.yml
       loop: "{{ dms_user_applications }}"
-      vars: 
-          dms_user_application: "{{ item }}"
-          delegate_host: "{{ delius_primary_host }}"
+      vars:
+        dms_user_application: "{{ item }}"
+        delegate_host: "{{ delius_primary_host }}"
       when: not (standby_only | default(true) | bool)
 
     - name: (main) Activate supplemental logging on primary database
       include_tasks: setup-database-supplemental-logging.yml
       loop: "{{ dms_user_applications }}"
-      vars: 
-          dms_user_application: "{{ item }}"
+      vars:
+        dms_user_application: "{{ item }}"
 
     - name: (main) Activate supplemental logging on tables
       include_tasks: setup-tables-supplemental-logging.yml
       loop: "{{ dms_user_applications }}"
-      vars: 
-          dms_user_application: "{{ item }}"
+      vars:
+        dms_user_application: "{{ item }}"
 
     - name: (main) Create DMS Oracle directories
       include_tasks: create-dms-directories.yml
       loop: "{{ dms_user_applications }}"
-      vars: 
-          dms_user_application: "{{ item }}"
+      vars:
+        dms_user_application: "{{ item }}"
 
     - name: (main) Flush shared pool on standby to fix Oracle Bug 17344971
       script: flush_shared_pool.sh
-  
+
   become: yes
   become_user: oracle

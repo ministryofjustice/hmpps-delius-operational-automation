@@ -1,5 +1,5 @@
 - name: Convert standby database to ADG
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       ORACLE_SID={{ database_standby_sid }}
@@ -41,7 +41,7 @@
   changed_when: false
 
 - name: Modify start options to read only
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       ORACLE_SID={{ database_standby_sid }}

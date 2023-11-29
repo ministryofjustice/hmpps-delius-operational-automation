@@ -84,7 +84,7 @@ objects:
     grant_type: SELECT
 
 system_privileges:
-  - name: CREATE SESSION 
+  - name: CREATE SESSION
   - name: CREATE TABLE
 
 dms_tables:

@@ -2,7 +2,7 @@
   include_vars: "{{ dms_user_application }}.yml"
 
 - name: Switch on supplemental logging on tables
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       ORACLE_SID={{ delius_primary_sid }}
@@ -56,11 +56,11 @@
   with_items: "{{ dms_tables }}"
   register: supplemental_output
   loop_control:
-      loop_var: object
+    loop_var: object
 
 - name: Supplemental output
   debug:
-    msg: "{{ sql_out.stdout }}" 
+    msg: "{{ sql_out.stdout }}"
   with_items: "{{ supplemental_output.results }}"
   loop_control:
     label: "Supplemental Output"

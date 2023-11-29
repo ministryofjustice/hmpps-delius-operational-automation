@@ -1,6 +1,6 @@
 - name: Include Variables for {{ dms_user_application }} Setup
   include_vars: "{{ dms_user_application }}.yml"
-  
+
 # STANDBY_ONLY is used to indicate whether we only allow the DMS account to use
 # the standby database.
 #    If the Host used for reading data is the primary database then we
@@ -12,7 +12,7 @@
   script: create_dms_logon_trigger.sh
   delegate_to: "{{ delius_primary_host }}"
   environment:
-     DMS_USER: "{{ dms_user }}"
-     USER_SUPPORT_USER: "{{ user_support_user }}"
-     STANDBY_ONLY: "{{ 'FALSE' if (read_host == 'delius_primarydb') else (standby_only | upper) }}"
-     SET_NLS_DATE_FORMAT: "{{ 'TRUE' if ( set_nls_date_format | default(false) | bool ) else 'FALSE' }}"
+    DMS_USER: "{{ dms_user }}"
+    USER_SUPPORT_USER: "{{ user_support_user }}"
+    STANDBY_ONLY: "{{ 'FALSE' if (read_host == 'delius_primarydb') else (standby_only | upper) }}"
+    SET_NLS_DATE_FORMAT: "{{ 'TRUE' if ( set_nls_date_format | default(false) | bool ) else 'FALSE' }}"
