@@ -31,7 +31,8 @@
         INTO v_count_log
         FROM dba_log_groups
         WHERE table_name = UPPER('{{ object.name }}')
-        AND   owner = UPPER('{{ object.owner }}');
+        AND   owner = UPPER('{{ object.owner }}')
+        AND   log_group_type LIKE '{{ object.log_data | upper }}%LOGGING';
 
         IF v_count_log = 0
         THEN
