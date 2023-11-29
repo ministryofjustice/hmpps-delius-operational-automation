@@ -4,27 +4,6 @@
   become: no
   block:
 
-    - name: Get the current caller identity information
-      amazon.aws.aws_caller_info:
-      register: caller_info
-      changed_when: false
-
-    # Use access to engineering account terraform role to subsequently access local terraform role
-    - community.aws.sts_assume_role:
-          role_arn: "arn:aws:iam::{{ account_id }}:role/terraform"
-          role_session_name: "Eng-Oracle-EC2-Snapshot-{{ environment_name }}"
-      register: assumed_engineering_role
-      changed_when: false
-
-    - community.aws.sts_assume_role:
-          role_arn: "arn:aws:iam::{{ caller_info.account }}:role/terraform"
-          role_session_name: "Oracle-EC2-Snapshot"
-          aws_access_key: "{{ assumed_engineering_role.sts_creds.access_key }}"   
-          aws_secret_key: "{{ assumed_engineering_role.sts_creds.secret_key }}"
-          security_token: "{{ assumed_engineering_role.sts_creds.session_token }}"
-      register: assumed_role
-      changed_when: false
-
     - name: Get Name of Backup Vault
       shell: |
             set -o pipefail
@@ -33,10 +12,6 @@
       changed_when: false
       args:
         executable: /bin/bash
-      environment:
-        AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
-        AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
-        AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
 
     - fail:
         msg: "No Oracle Backup Vault Available"
@@ -49,10 +24,6 @@
       register: start_backup_job
       args:
         executable: /bin/bash
-      environment:
-        AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
-        AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
-        AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
 
     # If the Backup Job is at Status CREATED then wait until this changes.   This simply means it is in a queue to run.
     - name: Get Backup Job Status
@@ -66,10 +37,6 @@
       changed_when: false
       args:
         executable: /bin/bash
-      environment:
-        AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
-        AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
-        AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
 
     - name: Get Backup AMI Name
       shell: |
@@ -79,10 +46,6 @@
       changed_when: false
       args:
         executable: /bin/bash
-      environment:
-        AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
-        AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
-        AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
 
     # We do not need to wait for completion of the backup as it is run asynchronously but it should be more than 0% complete on all EBS volumes before we move on.
     # Note that tghe "//" below sets the Progress to 0% if no snapshots are found.   If Progress of any snapshot is 0% then report the Snapshot as Pending.
@@ -97,7 +60,3 @@
       changed_when: false
       args:
         executable: /bin/bash
-      environment:
-        AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
-        AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
-        AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
