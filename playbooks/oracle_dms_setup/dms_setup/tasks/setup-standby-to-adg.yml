@@ -1,0 +1,63 @@
+- name: Convert standby database to ADG
+  shell: 
+    cmd: |
+      . ~/.bash_profile
+      ORACLE_SID={{ database_standby_sid }}
+      ORAENV_ASK=NO
+      . oraenv > /dev/null
+
+      sqlplus -s / as sysdba << EOF
+
+      WHENEVER SQLERROR EXIT FAILURE
+      SET ECHO OFF HEAD OFF PAGES 0 FEED OFF SERVEROUTPUT ON
+
+      DECLARE
+
+        v_open_mode         v\$database.open_mode%TYPE;
+        v_recovery_mode     v\$archive_dest_status.recovery_mode%TYPE;
+
+      BEGIN
+
+        SELECT a.open_mode,
+               b.recovery_mode
+         INTO  v_open_mode,
+               v_recovery_mode
+        FROM   v\$database a,
+               v\$archive_dest_status b
+        WHERE b.dest_id = 1
+        AND   b.status = 'VALID';
+
+        IF v_open_mode = 'MOUNTED' and v_recovery_mode = 'MANAGED REAL TIME APPLY'
+        THEN
+          EXECUTE IMMEDIATE 'ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL';
+          EXECUTE IMMEDIATE 'ALTER DATABASE OPEN';
+          EXECUTE IMMEDIATE 'ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION';   
+        END IF;
+
+      END;
+      /
+      EOF
+  register: convert_adg_output
+  changed_when: false
+
+- name: Modify start options to read only
+  shell: 
+    cmd: |
+      . ~/.bash_profile
+      ORACLE_SID={{ database_standby_sid }}
+      ORAENV_ASK=NO
+      . oraenv > /dev/null
+      STARTOPTION=$(srvctl config database -d {{ database_standby_sid }} | egrep "Start options" | awk -F: '{gsub(/^ /,"",$2);print $2}')
+      if [ "${STARTOPTION}" != "read only" ]
+      then
+        srvctl modify database -d {{ database_standby_sid }} -s 'READ ONLY'
+        echo "Modified start option to read only"
+      else
+        echo "Start option already read only"
+      fi
+  register: modify_srvctl
+  changed_when: false
+
+- name: Output start options
+  debug:
+    msg: "{{ modify_srvctl.stdout }}"

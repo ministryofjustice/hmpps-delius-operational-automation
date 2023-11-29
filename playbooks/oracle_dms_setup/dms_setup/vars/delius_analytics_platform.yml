@@ -1,0 +1,833 @@
+delius_primary_host: "{{ hostvars[groups['delius_primarydb'][0]]['inventory_hostname'] }}"
+delius_primary_sid: "{{ hostvars[groups['delius_primarydb'][0]]['database_primary_sid'] }}"
+dms_user: "delius_analytics_platform"
+user_support_user: "delius_user_support"
+dms_replication_instance_identifier: "deliusreplicationinstance"
+# Analytics Platform DMS Endpoint may only use the ADG Standby
+standby_only: "TRUE"
+
+objects:
+  - name: V_$ARCHIVED_LOG
+    grant_type: SELECT
+  - name: V_$LOG
+    grant_type: SELECT 
+  - name: V_$LOGFILE
+    grant_type: SELECT
+  - name: V_$DATABASE
+    grant_type: SELECT
+  - name: V_$THREAD
+    grant_type: SELECT
+  - name: V_$PARAMETER
+    grant_type: SELECT
+  - name: V_$NLS_PARAMETERS
+    grant_type: SELECT
+  - name: V_$TIMEZONE_NAMES
+    grant_type: SELECT
+  - name: V_$TRANSACTION
+    grant_type: SELECT
+  - name: V_$STANDBY_LOG
+    grant_type: SELECT
+  - name: ALL_INDEXES
+    grant_type: SELECT
+  - name: ALL_OBJECTS
+    grant_type: SELECT
+  - name: ALL_TABLES
+    grant_type: SELECT
+  - name: ALL_USERS
+    grant_type: SELECT
+  - name: ALL_CATALOG
+    grant_type: SELECT
+  - name: ALL_CONSTRAINTS
+    grant_type: SELECT
+  - name: ALL_CONS_COLUMNS
+    grant_type: SELECT
+  - name: ALL_TAB_COLS
+    grant_type: SELECT
+  - name: ALL_IND_COLUMNS
+    grant_type: SELECT
+  - name: ALL_VIEWS
+    grant_type: SELECT
+  - name: ALL_LOG_GROUPS
+    grant_type: SELECT
+  - name: SYS.DBA_REGISTRY
+    grant_type: SELECT
+  - name: SYS.OBJ$
+    grant_type: SELECT
+  - name: DBA_TABLESPACES
+    grant_type: SELECT
+  - name: ALL_TAB_PARTITIONS
+    grant_type: SELECT
+  - name: ALL_ENCRYPTED_COLUMNS
+    grant_type: SELECT
+  - name: V_$TRANSPORTABLE_PLATFORM
+    grant_type: SELECT
+  - name: DBMS_FILE_TRANSFER
+    grant_type: EXECUTE
+  - name: DBMS_FILE_GROUP
+    grant_type: EXECUTE
+  - name: SYS.DBMS_CRYPTO
+    grant_type: EXECUTE
+  - name: SYS.ENC$
+    grant_type: SELECT
+  - name: DBA_OBJECTS
+    grant_type: SELECT
+  - name: V_$CONTAINERS
+    grant_type: SELECT
+  - name: GV_$TRANSACTION
+    grant_type: SELECT
+  - name: V_$DATAGUARD_STATS
+    grant_type: SELECT
+  - name: V_$DATABASE_INCARNATION
+    grant_type: SELECT
+
+system_privileges:
+  - name: CREATE SESSION 
+  - name: SELECT ANY TRANSACTION 
+  - name: SELECT ANY TABLE
+  - name: EXEMPT ACCESS POLICY
+
+dms_tables:
+  - name: ADDITIONAL_IDENTIFIER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ADDITIONAL_OFFENCE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ADDITIONAL_SENTENCE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ADDRESS
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ADDRESS_ASSESSMENT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ALIAS
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ALL_TEAM
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: AP_AUDIT_REGISTER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: AP_REFERRAL_DELTA
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: AP_REFERRAL_DELTA_ERROR
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: APPROVED_PREMISES_PREFERRED
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: APPROVED_PREMISES_REFERRAL
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: APPROVED_PREMISES_RESIDENCE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ASSESSMENT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: BOROUGH
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: BUSINESS_INTERACTION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: CASE_ALLOCATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: CASE_ALLOCATION_LINK
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: CASE_ALLOCATION_QUESTION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: CASELOAD
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: COHORT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: COHORT_DIARY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: COHORT_HISTORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: CONTACT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: CONTACT_ALERT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: CONTACT_ALERT_CLEAR
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: CONTACT_TYPE_ICON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: CONTACT_UPLOAD_DOCUMENT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: COURT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: COURT_APPEARANCE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: COURT_REPORT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: COURT_REPORT_TRANSFER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: CUSTODY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: CUSTODY_HISTORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DEREGISTRATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DISABILITY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DISABILITY_PROVISION_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DISPOSAL
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DISPOSAL_TYPE_AD_RQMNT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DISPOSAL_TYPE_AD_SENT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DISPOSAL_TYPE_LIC_COND_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DISPOSAL_TYPE_RQMNT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DISTRICT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DOCUMENT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DOCUMENT_TEMPLATE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DOCUMENT_TEMPLATE_AREA
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DPA_REPORT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DPA_REPORT_OFFENDER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DRUG_TEST_PROFILE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DRUG_TEST_RESULT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DRUG_USAGE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DRUGS_TEST
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DRUGS_TEST_PROFILE_DRUG_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DSS_SEARCH_OFFENDER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DSS_SEARCH_REQUEST
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: DYNAMIC_RSR_HISTORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ENFORCEMENT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: EVENT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: EXCLUSION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: EXTERNAL_PROVIDER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: FORM_20_30
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: GDPR_DESTRUCTION_LOG
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: GDPR_OFF_ELIGIBLE_DELETION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: GDPR_OFF_ELIGIBLE_SEARCH
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: GDPR_OFF_IICSA_SEARCH
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: GDPR_OFFENDER_DUPLICATE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: GDPR_OFFENDER_FREE_TEXT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: GDPR_OFFENDER_RETAINED
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: HOST_AT_RELEASE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: INSTITUTIONAL_REPORT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: INSTITUTIONAL_REPORT_TRANSFER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: KEY_DATE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: LIC_CONDITION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: LIC_CONDITION_MANAGER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: LIC_CONDITION_TRANSFER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: LOCAL_DELIVERY_UNIT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: LOST_BEDS
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: MAIN_OFFENCE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: MANAGEMENT_TIER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: MASTER_TRANSFER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: MERGE_DUPLICATES
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: MERGE_HISTORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: MERGE_OFFENDER_VALUES
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: MOST_RECENTLY_VIEWED_OFFENDERS
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ND_PARAMETER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: NOMIS_CASE_NOTE_ERROR
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: NSI
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: NSI_MANAGER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: NSI_TRANSFER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OASYS_ASSESSMENT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OASYS_ASSMNT_SECTION_SCORE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OASYS_SENTENCE_PLAN
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OASYS_SP_NEED
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OASYS_SP_TEXT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OASYS_SP_WORK_SUMMARY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OBJECT_TYPE_DOCUMENT_TEMPLATE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OFFENDER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OFFENDER_ADDRESS
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OFFENDER_HIERARCHY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OFFENDER_MANAGER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OFFENDER_PRISONER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OFFENDER_TRANSFER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OFFICE_LOCATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OFFICER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OFFLOC
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: OGRS_ASSESSMENT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ORDER_MANAGER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ORDER_TRANSFER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ORGANISATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: ORGANISATION_OFFENDER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PERSONAL_CIRCUMSTANCE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PERSONAL_CONTACT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PNC_NUMBER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PRECON_HISTORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PRISON_OFFENDER_MANAGER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROBATION_AREA
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROBATION_AREA_USER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROPOSAL
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROPOSAL_TYPE_COURTREPORT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROPOSED_RQMNT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROVIDER_EMPLOYEE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROVIDER_LAO
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROVIDER_LOCATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROVIDER_TEAM
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROVIDER_TEAM_EMPLOYEE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROVIDER_TEAM_LOCATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PROVISION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PSS_RQMNT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PSS_RQMNT_MANAGER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: PSS_RQMNT_TRANSFER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_AD_RQMNT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_AD_RQMNT_TYPE_MAIN_CATEGORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_AD_RQMNT_TYPE_TERMINATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_AP_AP_PROVISION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_AP_AP_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_AP_REFERRAL_GROUP
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_APPROVED_PREMISES
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_APPROVED_PREMISES_STAFF
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_ASSESSMENT_OUTCOME
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_ASSESSMENT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_ASSMNT_TYPE_ASSMNT_OUTCOME
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_ASSMNT_TYPE_REFERRAL_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CIRCUMSTANCE_SUB_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CIRCUMSTANCE_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CIRCUMSTANCE_TYPE_PROVIDER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CIRCUMSTANCE_TYPE_SUBTYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CJALICENCE_COND_TERMINATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CON_OUT_TYPE_CONTACT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CON_TYPE_AD_REQ_TYPE_MAINCAT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CON_TYPE_LIC_CON_TYPEMAINCAT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CON_TYPE_REQ_TYPE_MAINCAT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CONTACT_OUTCOME_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CONTACT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CONTACT_TYPE_DISPOSAL_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CONTACT_TYPE_NOMIS_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CONTACT_TYPE_NSI_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CONTACT_TYPE_OUTCOME
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_CONTACT_TYPECONTACT_CATEGORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_COURT_REJECTION_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_COURT_REPORT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_COURT_TEAM
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_COURT_TRANSFER_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_DISPOSAL_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_DISPOSAL_TYPE_TERMINATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_DRUG_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_ENF_ACT_CONTACT_OUT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_ENFORCEMENT_ACTION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_EXPLANATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_GEN_REF_OUTCOME_REF_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_HOST
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_INSTITUTION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_LIC_COND_REJECTION_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_LIC_COND_TRANSFER_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_LIC_COND_TYPE_MAIN_CAT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_LINKED_LIST
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_MOVE_ON_CATEGORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_NOMIS_TYPE_NSI_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_NSI_REJECTION_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_NSI_STATUS
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_NSI_TRANSFER_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_NSI_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_NSI_TYPE_OUTCOME
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_NSI_TYPE_PROBATION_AREA
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_NSI_TYPE_STATUS
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_NSI_TYPE_SUB_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_OFFENCE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_OFFICE_LOCATION_LINK
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_POST_CJA_LIC_CONDITION_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_PSS_RQMNT_REJECTION_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_PSS_RQMNT_TRANSFER_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_PSS_RQMNT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_PSS_RQMNT_TYPE_MAIN_CATEGORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_PSS_RQMNT_TYPE_SUB_CATEGORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_PSS_RQMNT_TYPE_TERMINATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_RECALL_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_REFERENCE_DATA_MASTER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_REFERRAL_SOURCE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_REFERRAL_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_REGISTER_DUPLICATE_GROUP
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_REGISTER_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_REGISTER_TYPE_CATEGORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_REGISTER_TYPE_DUP_GRP
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_REGISTER_TYPE_LEVEL
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_REGISTER_TYPE_PROVIDER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_RQMNT_NSI_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_RQMNT_REJECTION_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_RQMNT_TRANSFER_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_RQMNT_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_RQMNT_TYPE_MAIN_CATEGORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_RQMNT_TYPE_TERMINATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_STANDARD_REFERENCE_LIST
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_TEAM_LONG_POSTCODE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_TEAM_SHORT_POSTCODE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_TIER_ALLOC_QUESTION_TIER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_TRANSFER_REASON
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: RECALL
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: REFERRAL
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: REGISTRATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: REGISTRATION_REVIEW
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: REJECTED_TRANSFER_DIARY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: RELEASE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: REPORT_MANAGER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: RESPONSIBLE_OFFICER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: RESTRICTION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: RQMNT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: RQMNT_MANAGER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: RQMNT_TRANSFER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: SC_PROVIDER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: STAFF
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: STAFF_TEAM
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: SUBJECT_ACCESS_REPORT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: SUBJECT_ACCESS_REPORT_CONTACT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: TEAM
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: TEAM_OFFICE_LOCATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: TIER_ALLOCATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: TIER_ALLOCATION_QUESTION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: TRIGGER_OFFENCE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: UPW_ADJUSTMENT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: UPW_ALLOCATION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: UPW_APPOINTMENT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: UPW_DAY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: UPW_DETAILS
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: UPW_PROJECT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: UPW_PROJECT_AVAILABILITY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: UPW_PROJECT_TIMESCALES_GROUP
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: UPW_WORK_NATURE_QUALIFICATIONS
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: USER_
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: USER_NOTE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL

@@ -1,0 +1,24 @@
+- name: Include Variables for {{ dms_user_application }} Setup
+  include_vars: "{{ dms_user_application }}.yml"
+
+- name: Create archive and redo Oracle directories used for DMS
+  shell: 
+    cmd: |
+      . ~/.bash_profile
+      ORACLE_SID={{ delius_primary_sid }}
+      ORAENV_ASK=NO
+      . oraenv > /dev/null
+
+      sqlplus -s / as sysdba << EOF
+
+      WHENEVER SQLERROR EXIT FAILURE
+      SET ECHO OFF HEAD OFF PAGES 0 FEED OFF SERVEROUTPUT ON
+
+      CREATE OR REPLACE DIRECTORY dms_migration_archive AS '+FLASH';
+      CREATE OR REPLACE DIRECTORY dms_migration_redo AS '+FLASH';
+      GRANT READ ON DIRECTORY dms_migration_archive TO {{ dms_user }};
+      GRANT READ ON DIRECTORY dms_migration_redo TO {{ dms_user }};
+      EOF
+  delegate_to: "{{ delius_primary_host }}"
+  register: directory_output
+  changed_when: false
