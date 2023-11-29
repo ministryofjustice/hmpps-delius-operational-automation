@@ -1,9 +1,6 @@
 name: "Oracle: DMS Setup"
 run-name: "Oracle: ${{ format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}-dms"
 on:
-  push:
-    branches:
-      - DBA-565
   workflow_dispatch:
     inputs:
       TargetEnvironment:
@@ -104,7 +101,7 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Configure Oracle Autotasks
+      - name: Start Ansible DMS Setup
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
