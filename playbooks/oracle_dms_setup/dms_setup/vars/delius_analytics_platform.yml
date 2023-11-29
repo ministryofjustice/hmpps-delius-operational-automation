@@ -1,5 +1,5 @@
-delius_primary_host: "{{ hostvars[groups['delius_primarydb'][0]]['inventory_hostname'] }}"
-delius_primary_sid: "{{ hostvars[groups['delius_primarydb'][0]]['database_primary_sid'] }}"
+delius_primary_host: "{{ hostvars[groups[delius_primarydb][0]]['inventory_hostname'] }}"
+delius_primary_sid: "{{ hostvars[groups[delius_primarydb][0]]['database_primary_sid'] }}"
 dms_user: "delius_analytics_platform"
 user_support_user: "delius_user_support"
 dms_replication_instance_identifier: "deliusreplicationinstance"
