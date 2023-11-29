@@ -11,10 +11,9 @@
       dms_user_applications: "{{ ( [] if ( include_analytics_platform | default('yes') == 'no') else ['delius_analytics_platform'] ) +
                                  ( [] if ( include_audited_interaction | default('yes') == 'no') else ['delius_audited_interaction'] ) }}"
 
-- name: Change read host name if not ending with primarydb
+- name: Set fact for delius_primarydb
   set_fact:
     delius_primarydb: "{{ read_host | replace (read_host.split('_')[-1], 'primarydb') }}"
-  when: read_host is not search ('primarydb')
 
 - block:
 
