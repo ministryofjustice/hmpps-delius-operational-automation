@@ -80,4 +80,4 @@
 
 - name: Supplemental output
   debug:
-    msg: "{{ supplemental_output.stdout }}" 
+    msg: "{{ supplemental_output.stdout }}"
