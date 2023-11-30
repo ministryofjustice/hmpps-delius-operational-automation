@@ -2,5 +2,6 @@
 # Example:
 # *   @ministryofjustice/operations-engineering
 .github/* @ministryofjustice/hmpps-migration
-.github/oracle* @ministryofjustice/hmpps-dba
+.github/oracle-* @ministryofjustice/hmpps-dba
+playbooks/** @ministryofjustice/hmpps-dba
 * @ministryofjustice/hmpps-migration
