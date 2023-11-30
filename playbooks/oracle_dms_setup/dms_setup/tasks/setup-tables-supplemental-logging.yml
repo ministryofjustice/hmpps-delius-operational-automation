@@ -18,50 +18,66 @@
 
         v_count_log      NUMBER(1);
         v_count_table    NUMBER(1);
+        l_dms_tables     CLOB:='{{ dms_tables | to_nice_json }}';
 
       BEGIN
 
-        SELECT COUNT(*)
-        INTO v_count_table
-        FROM dba_tables
-        WHERE table_name = UPPER('{{ object.name }}')
-        AND   owner = UPPER('{{ object.owner }}');
+        FOR d IN (SELECT *
+                  FROM json_table( l_dms_tables, '\$[*]'
+                  COLUMNS (name, owner, log_data)))
+        LOOP
 
-        SELECT COUNT(*)
-        INTO v_count_log
-        FROM dba_log_groups
-        WHERE table_name = UPPER('{{ object.name }}')
-        AND   owner = UPPER('{{ object.owner }}')
-        AND   log_group_type LIKE '{{ object.log_data | upper }}%LOGGING';
+          SELECT COUNT(*)
+          INTO v_count_table
+          FROM dba_tables
+          WHERE table_name = UPPER(d.name)
+          AND   owner = UPPER(d.owner);
 
-        IF v_count_log = 0
-        THEN
-          IF v_count_table = 1
+          SELECT COUNT(*)
+          INTO v_count_log
+          FROM dba_log_groups
+          WHERE table_name = UPPER(d.name)
+          AND   owner = UPPER(d.owner);
+
+          IF v_count_log = 0
           THEN
-            EXECUTE IMMEDIATE 'ALTER TABLE {{ object.owner }}.{{ object.name }} ADD SUPPLEMENTAL LOG DATA ({{ object.log_data }}) COLUMNS'; 
-            dbms_output.put_line('Supplemental logging switched on {{ object.owner }}.{{ object.name }}');
+            IF v_count_table = 1
+            THEN
+              EXECUTE IMMEDIATE 'ALTER TABLE '||d.owner||'.'||d.name||' ADD SUPPLEMENTAL LOG DATA ('||d.log_data||') COLUMNS'; 
+              dbms_output.put_line('Supplemental logging for '||d.log_data||' switched on '||d.owner||'.'||d.name);
+            ELSE
+              dbms_output.put_line('Table '||d.owner||'.'||d.name||' does not exist');
+            END IF;
           ELSE
-            dbms_output.put_line('Table {{ object.owner }}.{{ object.name }} does not exist');
+            
+            FOR l IN (SELECT log_group_type
+                      FROM dba_log_groups
+                      WHERE table_name = UPPER(d.name)
+                      AND   owner = UPPER(d.owner))
+            LOOP
+              IF l.log_group_type NOT LIKE d.log_data||'%LOGGING'
+              THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE '||d.owner||'.'||d.name||' DROP SUPPLEMENTAL LOG DATA ( '||REPLACE(REPLACE(l.log_group_type,' LOGGING'),' COLUMN')||') COLUMNS';
+              ELSIF l.log_group_type LIKE d.log_data||'%LOGGING'
+              THEN
+                dbms_output.put_line('Supplemental logging for '||d.log_data||' already switched on '||d.owner||'.'||d.name);
+              ELSE
+                EXECUTE IMMEDIATE 'ALTER TABLE '||d.owner||'.'||d.name||' ADD SUPPLEMENTAL LOG DATA ('||d.log_data||') COLUMNS';
+              END IF;
+            END LOOP;
+
           END IF;
-        ELSE
-          dbms_output.put_line('Supplemental logging already switched on {{ object.owner }}.{{ object.name }}');
-        END IF;
+
+        END LOOP;
 
       END;
       /
       EOF
   delegate_to: "{{ delius_primary_host }}"
   changed_when: false
-  no_log: true
-  with_items: "{{ dms_tables }}"
+  no_log: false
   register: supplemental_output
-  loop_control:
-    loop_var: object
 
 - name: Supplemental output
   debug:
-    msg: "{{ sql_out.stdout }}"
-  with_items: "{{ supplemental_output.results }}"
-  loop_control:
-    label: "Supplemental Output"
-    loop_var: sql_out
+    msg: "{{ supplemental_output.stdout }}"
