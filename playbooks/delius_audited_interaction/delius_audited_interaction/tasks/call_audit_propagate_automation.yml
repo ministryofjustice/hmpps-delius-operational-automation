@@ -1,0 +1,52 @@
+# This value comes from the inventory in hmpps-engineering-platform-terraform/env_configs
+- name: Set Engineering environment AWS Account ID
+  set_fact:
+    engineering_account_id: "{{ account_id }}"
+
+- name: Update repositories cache and install AWS client package
+  shell: |
+    apt-get update
+    apt install -y awscli
+    apt install -y jq
+
+# Use the Engineering Account's Terraform Role to Run the Audit Data Propagation
+- community.aws.sts_assume_role:
+    role_arn: "arn:aws:iam::{{ engineering_account_id }}:role/terraform"
+    role_session_name: "{{ inventory_hostname }}_terraform"
+  register: assumed_role
+
+- name: Start Audit Propagation for {{ database_primary_sid }}
+  shell: |
+    aws ssm start-automation-execution --document-name "arn:aws:ssm:{{ region }}:{{ engineering_account_id }}:automation-definition/delius-audited-interaction" --region eu-west-2 --parameters "Action=\"propagate audit\",ClientDatabase={{ database_primary_sid }},RepoDatabase={{ audited_interaction_repo }}{{ ',OverrideCaptureDate=' + override_capture_date if (override_capture_date is defined) else ''}}" | jq --raw-output '.AutomationExecutionId'
+  register: propagate_audited_interaction
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
+    AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
+
+- name: Start Output
+  debug: var=propagate_audited_interaction
+
+- fail:
+    msg: "Audit Propagation CodeBuild failed to start."
+  when: propagate_audited_interaction.stdout == ''
+
+- name: Report Automation ID
+  debug:
+    msg: "Running Audit Data Propagation in account ({{ engineering_account_id }}).  Automation ID is {{ propagate_audited_interaction.stdout }}."
+
+- name: Wait for Propagation of {{ database_primary_sid }} Audit Data to {{ audited_interaction_repo }}
+  shell: |
+    aws ssm describe-automation-step-executions --automation-execution-id "{{ propagate_audited_interaction.stdout }}" --region=eu-west-2 --filters "Key=StepName,Values=CheckBuildStatus" | jq --raw-output '.StepExecutions[0].StepStatus'
+  register: automation_status
+  until: automation_status.stdout == 'Success' or automation_status.stdout == 'Failed'
+  retries: 50
+  delay: 30
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
+    AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
+
+- fail:
+    msg: "Failed to complete Audit Data Propagation update.   See Automation ID {{ propagate_audited_interaction.stdout }}"
+  when: automation_status.stdout != 'Success'

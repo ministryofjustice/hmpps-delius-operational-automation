@@ -186,3 +186,10 @@
           become: true
           become_user: "{{ rdbms_service_user.name }}"
       when: ( hostvars[groups[ primary ][0]]['fsfo_mode']   | default('disabled')) != 'disabled'
+
+- name: Install Oracle Secure Web Backup Service (oswbs) On Standby
+  when: inventory_hostname in groups[ standby ]
+  include_role:
+    name: oracle-secure-backup
+  vars:
+    database_home: "{{ oracle_database_oracle_home }}"

@@ -1,0 +1,7 @@
+{% for object in objects %}
+GRANT {{ object.grant_type }} ON {{ object.name }} TO {{ dms_user }}; 
+{% endfor %}
+
+{% for privilege in system_privileges %}
+GRANT {{ privilege.name }} TO {{ dms_user }}; 
+{% endfor %}

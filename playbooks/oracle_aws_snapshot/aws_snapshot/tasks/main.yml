@@ -1,0 +1,18 @@
+# Before Taking Snapshot, a Primary Database must be in Backup Mode
+# and a Standby Database must not be in Recovery
+
+- name: Get Hostname
+  setup:
+    filter: ec2_name
+
+- name: Take AWS Snapshot of Primary
+  include_tasks: snapshot_of_primary.yml
+  vars:
+    backup_hostname: "{{ ec2_name }}"
+  when: database_primary_sid is defined
+
+- name: Take AWS Snapshot of Standby
+  include_tasks: snapshot_of_standby.yml
+  vars:
+    backup_hostname: "{{ ec2_name }}"
+  when: database_standby_sid is defined

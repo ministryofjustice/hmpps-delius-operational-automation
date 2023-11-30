@@ -1,6 +1,9 @@
 # Add a team or username to this file
 # Example:
 # *   @ministryofjustice/operations-engineering
-.github/* @ministryofjustice/hmpps-migration
-.github/oracle* @ministryofjustice/hmpps-dba
-* @ministryofjustice/hmpps-migration
+.github/ @ministryofjustice/hmpps-migration
+.github/workflows/oracle-* @ministryofjustice/hmpps-dba
+
+playbooks/** @ministryofjustice/hmpps-dba
+docker/** @ministryofjustice/hmpps-migration
+ansible/** @ministryofjustice/hmpps-migration
