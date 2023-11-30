@@ -1,0 +1,59 @@
+- name: Include Variables for {{ dms_user_application }} Setup
+  include_vars: "{{ dms_user_application }}.yml"
+
+- name: Get {{ dms_user }} password from ssm
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    aws ssm get-parameters --region {{ region }} --with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/{{ dms_user }}_password | jq -r '.Parameters[].Value'
+  changed_when: false
+  register: dms_password
+  no_log: true
+
+- name: Create {{ dms_user }} asm user
+  shell:
+    cmd: |
+      . ~/.bash_profile
+      ORACLE_SID=+ASM
+      ORAENV_ASK=NO
+      . oraenv > /dev/null;
+      sqlplus -s / as sysasm << EOF
+      WHENEVER SQLERROR EXIT FAILURE
+      SET PAGES 100 HEAD OFF LINES 200 FEED OFF SERVEROUTPUT ON
+
+      DECLARE
+
+        CURSOR c1 IS
+          SELECT username
+          FROM v\$pwfile_users
+          WHERE username = UPPER('{{ dms_user }}');
+
+        r1 c1%ROWTYPE;
+
+      BEGIN
+
+        OPEN c1;
+        FETCH c1 INTO r1;
+        IF c1%NOTFOUND 
+        THEN
+          EXECUTE IMMEDIATE 'create user {{ dms_user }} identified by "{{ dms_password.stdout }}"';
+          EXECUTE IMMEDIATE 'grant sysasm to {{ dms_user }}';
+          EXECUTE IMMEDIATE 'grant sysdba to {{ dms_user }}';                     
+          dbms_output.put_line('User {{ dms_user }} for asm created');
+        ELSE   
+          dbms_output.put_line('User {{ dms_user }} for asm already exists');
+        END IF;
+        CLOSE c1;           
+      END;
+      /
+      EOF
+  changed_when: false
+  register: create_asm_user
+  delegate_to: "{{ delegate_host }}"
+
+- name: User {{ dms_user }} creation output
+  debug:
+    msg: "{{ sql_out }}"
+  with_items: "{{ create_asm_user.stdout_lines }}"
+  loop_control:
+    label: "User Output"
+    loop_var: sql_out
