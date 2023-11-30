@@ -2,7 +2,7 @@
   include_vars: "{{ dms_user_application }}.yml"
 
 - name: Switch on supplemental logging on tables
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       ORACLE_SID={{ delius_primary_sid }}

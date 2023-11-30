@@ -12,7 +12,7 @@
 # We need to be able to log into the DMS User Account to create the Database Link
 # so the Logon Trigger on this Account must be temporarily removed if it exists
 - name: Check Existence of Logon Trigger
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       sqlplus -s / as sysdba << EOF
@@ -24,7 +24,7 @@
       FROM   dba_triggers
       WHERE  trigger_name = '{{ dms_user | upper }}_RESTRICT'
       AND    owner = '{{ user_support_user | upper }}';
-  
+
       EOF
   delegate_to: "{{ delius_primary_host }}"
   register: get_logon_trigger
@@ -32,7 +32,7 @@
 
 # If we drop the logon trigger it will be recreated later
 - name: Drop of Logon Trigger
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       sqlplus -s / as sysdba << EOF
@@ -41,14 +41,14 @@
       SET ECHO OFF HEAD OFF PAGES 0 FEED OFF SERVEROUTPUT ON
 
       DROP TRIGGER {{ user_support_user }}.{{ dms_user }}_RESTRICT;
-  
+
       EOF
   delegate_to: "{{ delius_primary_host }}"
   register: drop_logon_trigger
   when: get_logon_trigger.stdout is search((dms_user | upper) + '_RESTRICT')
 
 - name: Check Existence of Database Link to the Primary Database
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       sqlplus -s /nolog << EOF
@@ -61,7 +61,7 @@
       SELECT 'DB_LINK='||db_link
       FROM   user_db_links
       WHERE  db_link = 'AWSDMS_DBLINK';
-  
+
       EOF
   delegate_to: "{{ delius_primary_host }}"
   register: get_db_link
@@ -70,7 +70,7 @@
     DMS_PASSWORD: "{{ dms_password.stdout }}"
 
 - name: Check If Database Link is Functional
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       sqlplus -s /nolog << EOF
@@ -82,7 +82,7 @@
 
       SELECT *
       FROM   dual@awsdms_dblink;
-  
+
       EOF
   delegate_to: "{{ delius_primary_host }}"
   register: check_db_link
@@ -92,7 +92,7 @@
     DMS_PASSWORD: "{{ dms_password.stdout }}"
 
 - name: Drop Non-Functional Database Link
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       sqlplus -s /nolog << EOF
@@ -103,18 +103,18 @@
       SET ECHO OFF HEAD OFF PAGES 0 FEED OFF SERVEROUTPUT ON
 
       DROP DATABASE LINK awsdms_dblink;
-  
+
       EOF
   delegate_to: "{{ delius_primary_host }}"
   register: drop_db_link
-  when: 
-     - get_db_link.stdout is search('.*DB_LINK=AWSDMS_DBLINK.*')
-     - check_db_link.rc | default(0) > 0
+  when:
+    - get_db_link.stdout is search('.*DB_LINK=AWSDMS_DBLINK.*')
+    - check_db_link.rc | default(0) > 0
   environment:
     DMS_PASSWORD: "{{ dms_password.stdout }}"
 
 - name: Create Database Link to the Primary Database
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       sqlplus -s /nolog << EOF
@@ -137,11 +137,11 @@
       connect / as sysdba
 
       REVOKE CREATE DATABASE LINK FROM {{ dms_user }};
-    
+
       EOF
   delegate_to: "{{ delius_primary_host }}"
   register: create_db_link
   when: ( not (get_db_link.stdout is search('.*DB_LINK=AWSDMS_DBLINK.*')) )
-        or ( drop_db_link.stdout | default('') is search('.*Database link dropped..*') )     
+    or ( drop_db_link.stdout | default('') is search('.*Database link dropped..*') )
   environment:
     DMS_PASSWORD: "{{ dms_password.stdout }}"

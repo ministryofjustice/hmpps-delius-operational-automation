@@ -2,7 +2,7 @@
   include_vars: "{{ dms_user_application }}.yml"
 
 - name: Create archive and redo Oracle directories used for DMS
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       ORACLE_SID={{ delius_primary_sid }}
