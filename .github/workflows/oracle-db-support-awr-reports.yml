@@ -1,9 +1,5 @@
 name: "Oracle: Support AWR Reports"
 run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-support-awr-reports"
-on:
-  push:
-    branches:
-      - DBA-581
   workflow_dispatch:
     inputs:
       TargetEnvironment:
