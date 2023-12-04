@@ -7,6 +7,16 @@
     is_primary: "{{ 'PRIMARY' in db_role.stdout.split(',') | first }}"
     is_adg: "{{ 'READ ONLY WITH APPLY' in db_role.stdout.split(',') | last }}"
 
+- block:
+
+    - name: Check ADG Is Configured
+      debug:
+        msg: "No ADG Standby Configured"
+
+    - meta: end_play
+
+  when: not is_adg
+
 - name: Enable RMF database user
   include_tasks: enable-database-user.yml
   when: is_primary
