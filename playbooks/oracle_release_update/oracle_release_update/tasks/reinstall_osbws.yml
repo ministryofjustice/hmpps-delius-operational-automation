@@ -64,7 +64,7 @@
       shell: |
         . ~oracle/.bash_profile
         cd {{ target_home }}/dbs
-        java -jar {{ target_home }}/lib/osbws_install.jar -IAMRole {{ iam_role }} -walletDir {{ target_home }}/dbs/osbws_wallet -libDir {{ target_home }}/lib/
+        ${ORACLE_HOME}/jdk/bin/java -jar {{ target_home }}/lib/osbws_install.jar -IAMRole {{ iam_role }} -walletDir {{ target_home }}/dbs/osbws_wallet -libDir {{ target_home }}/lib/ -useHttps
       register: install_output
 
     - name: Show Output from Install OSBWS Library

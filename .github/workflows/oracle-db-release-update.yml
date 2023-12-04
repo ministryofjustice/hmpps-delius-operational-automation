@@ -166,6 +166,13 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
+      # We have not included support for separate Release Update patches for GI and OJVM.
+      # Instead only the ComboPatchInfo parameter is allowed to support the Release Update Combo Patch.
+      # However, GI and OJVM patches are still available (but hidden) within the Ansible playbook
+      # so we get the parameters gi_ru_patch_info and ojvm_ru_patch_info to the empty string to
+      # disable this functionality.  (It may be desirable to remove this at a later date, but
+      # occassionally the Combo patch can be delayed in which case being able to install the
+      # individual patches can be potentially useful.)
       - name: Run Release Update Playbook
         run: |
           export ANSIBLE_CONFIG=$ansible_config
@@ -175,5 +182,7 @@ jobs:
           -e oracle_patch_directory=${{ github.event.inputs.OraclePatchDirectory }}
           -e combo_patch_info=${{ github.event.inputs.ComboPatchInfo }}
           -e opatch_info=${{github.event.inputs.Opatch }}
-          -e keep_aws_snapshot=${{github.event.inputs.AWSSnapShot }}
+          -e "keep_aws_snapshot='${{github.event.inputs.AWSSnapShot }}'"
           -e high_availability_count=${{ steps.countstandbydbs.outputs.high_availability_count }}
+          -e gi_ru_patch_info=''
+          -e ojvm_ru_patch_info=''

@@ -42,7 +42,7 @@
             standby_host: "{{ groups[database_type + '_standbydb1'][0] }}"
             adg_standby_sid: "{{ hostvars[groups[database_type + '_standbydb1'][0]]['database_standby_sid'] }}"
         when: 
-           - database[database_type]['high_availability_count'] | int >= 1
+           - high_availability_count | int >= 1
            - database_role == 'primary'
 
       - name: Disable ADG on Standby 2
@@ -51,7 +51,7 @@
             standby_host: "{{ groups[database_type + '_standbydb2'][0] }}"
             adg_standby_sid: "{{ hostvars[groups[database_type + '_standbydb2'][0]]['database_standby_sid'] }}"
         when: 
-           - database[database_type]['high_availability_count'] | int == 2
+           - high_availability_count | int == 2
            - database_role == 'primary'
 
       - name: Shutdown Database for Patching

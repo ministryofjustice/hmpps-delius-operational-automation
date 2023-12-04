@@ -13,6 +13,11 @@
      apply_mode: prepare-clone
   when: apply_mode is not defined
 
+- name: Set Empty String for GI and OJVM Patches if Not Defined
+  set_fact:
+     gi_ru_patch_info: "{{ '' if (gi_ru_patch_info is not defined) else gi_ru_patch_info }}"
+     ojvm_ru_patch_info: "{{ '' if (ojvm_ru_patch_info is not defined) else ojvm_ru_patch_info }}"
+
 - name: Confirm Apply Mode is Valid
   fail:
      msg: "Invalid Apply Mode {{ apply_mode }}"
@@ -45,7 +50,11 @@
 
 - name: Get database type
   set_fact:
-    database_type: "{{ target_hosts.split(',')[0] | regex_replace('(^.*)_.*$','\\1') }}"
+    database_type: "{{ (group_names | select('match','environment_name_.*' + ( project_name | default('UNSET'))  + '.*' + ( simple_environment_name | default('UNSET')) + '.*_dbs$') | first | default('') ).split('_')[-2] | default('') }}"
+
+- name: Show Database Type
+  debug:
+     msg: "database_type={{ database_type }}"
 
 # SUPERSET Patch = GI RU + DB RU
 # COMBO Patch = (GI RU + DB RU) + OJVM RU
@@ -53,7 +62,7 @@
 # We are only allowed to override the Release Update versions from the configuration file whilst preparing a new Oracle Home if the existing Home is still in use.
 # Otherwise, the value in oracle_software in the hmpps_env_configs must be set correctly.
 - fail:
-    msg: "Overriding Release Update configuration is not supported in switch-clone or apply-ojvm-standby modes.  The correct values must be set in oracle_software in hmpps_env_configs."
+    msg: "Overriding Release Update configuration is not supported in switch-clone or apply-ojvm-standby modes.  The correct values must be set in oracle_software in modernisation_platform."
   when:
      - gi_ru_patch_info not in ['','default'] or ojvm_ru_patch_info not in ['','default'] or opatch_info != 'default' or combo_patch_info not in ['','default']
      - apply_mode != 'prepare-clone'
@@ -153,11 +162,22 @@
       dependencies_bucket_name: "{{ dependencies_bucket.name }}"
   tags: always
 
+- debug:
+     var: keep_aws_snapshot
+
 # Create symlink so that we may use the AWS Snapshot directory as a role
+- name: Create Roles Directory
+  file:
+    dest: ~/.ansible/roles
+    state: directory
+  run_once: true
+  delegate_to: localhost
+  become: no
+      
 - name: Link to AWS Snapshot in current repo as a role
   file:
      dest: ~/.ansible/roles/aws-snapshot
-     src: "{{ playbook_dir }}/../../operations/oracle_aws_snapshot/aws_snapshot"
+     src: "{{ playbook_dir }}/../../playbooks/oracle_aws_snapshot/aws_snapshot"
      state: link
   run_once: true
   delegate_to: localhost
