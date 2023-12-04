@@ -250,7 +250,6 @@
         loop_var: username
       when:
         - database_primary_sid is defined
-
 # Restart Monitoring regardless of success of password rotation
 #always:
 

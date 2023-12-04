@@ -4,5 +4,4 @@
   register: create_compression_job
 
 - name: Show Compression Job Creation
-  debug:
-     var=create_compression_job.stdout
+  debug: var=create_compression_job.stdout
