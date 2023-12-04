@@ -1,0 +1,7 @@
+- hosts: "{{ target_hosts }}"
+  become: yes
+  become_user: oracle
+  become_method: sudo
+  gather_facts: yes
+  roles: 
+    - awr_reports_setup
