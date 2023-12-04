@@ -7,7 +7,7 @@
 
 - name: Check osbws config exists
   stat:
-    path: '{{ target_home }}/dbs/osbws_wallet'
+    path: "{{ target_home }}/dbs/osbws_wallet"
   register: osbws_config_exists
 
 # Release Update is not responsible for configuring OSBWS so only
@@ -15,10 +15,9 @@
 - name: Re-Install Only If OSBWS Already Configured
   when: osbws_config_exists.stat.exists
   block:
-
     - name: Check osbw installer exists
       stat:
-        path: '{{ target_home }}/lib/osbws_installer.zip'
+        path: "{{ target_home }}/lib/osbws_installer.zip"
       register: installer_exists
 
     - name: fail when installer not present
@@ -43,7 +42,7 @@
         cd {{ target_home }}/dbs
         cp -r osbws_wallet osbws_wallet.bak
       register: backup_output
-      
+
     - name: Show Output from Backup osbws_wallet folder
       debug: var=backup_output.failed
 

@@ -4,4 +4,4 @@
   become: yes
   become_user: oracle
   roles:
-     - oracle_release_update
+    - oracle_release_update
