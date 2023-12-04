@@ -1,8 +1,0 @@
----
-#  After a database has been duplicated, the Users table should no longer be updateable by the Delius Application
-
-- name: Disable DML on USER_ table
-  script: disable_user_update.sh
-  register: disable_user_update
-
-- debug: var=disable_user_update

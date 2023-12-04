@@ -1,0 +1,8 @@
+# Create a Scheduler Job to Compress old Partitions of AUDITED_INTERACTION
+- name: Create or Replace Compression Job
+  script: create_compression_job.sh
+  register: create_compression_job
+
+- name: Show Compression Job Creation
+  debug:
+     var=create_compression_job.stdout

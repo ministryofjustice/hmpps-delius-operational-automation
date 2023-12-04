@@ -215,67 +215,6 @@
       when:
         - database_primary_sid is defined
 
-    - name: Rotate Password for DELIUS_AUDIT_POOL on Client and Repository Databases
-      when:
-        - database_primary_sid is defined
-        - database_type | default('') == 'delius'
-      block:
-        - name: Find Ansible Config Files Specifying the Audited Interaction Repo
-          find:
-            paths: ${GITHUB_WORKSPACE}/inventory/ansible
-            contains: audited_interaction_repo
-            recurse: true
-          register: audited_interaction_repos
-          delegate_to: localhost
-          become: no
-
-        - debug:
-            var: audited_interaction_repos
-
-        - name: Read Ansible Config Files Containing Audited Interaction Repo
-          slurp:
-            src: "{{ item }}"
-          loop: "{{ audited_interaction_repos.files | map(attribute='path') | list }}"
-          register: config_contents
-          delegate_to: localhost
-          become: no
-
-        - name: Populate List of Audited Interaction Repository Databases
-          set_fact:
-            repo_dbs: "{{ repo_dbs | default([]) + [ (item['content'] | b64decode | regex_search('^.*audited_interaction_repo:\\s*(\\w+)$',multiline=true)) | regex_replace('^.*audited_interaction_repo:\\s*(\\w+)$','\\1') ] }}"
-          loop: "{{ config_contents.results }}"
-          when: item['content'] is defined and item['content']
-
-        # Enable Gradual Database Password Rollover for DELIUS_AUDIT_POOL to avoid
-        # logon failures between updating the database password and updating the Audit
-        # wallet on the OEM host
-        - name: Set Profile for DELIUS_AUDIT_POOL on Primary
-          include_tasks: set_delius_audit_pool_profile.yml
-          vars:
-            db_name: ""
-            login_user: ""
-            login_pwd: ""
-          when: (audited_interaction_repo is defined) or (database_primary_sid in repo_dbs)
-
-        # We rotate the DELIUS_AUDIT_POOL password if this is a client database (audited_interaction_repo is defined)
-        # or a repository database (specified as the audited_interaction_repo parameter for at least one environment)
-        - name: Set Passwords for Delius Audit Pool User if Audit Preservation Configured
-          include_tasks: rotate_system_passwords.yml
-          vars:
-            db_type: "delius"
-            db_username: "delius_audit_pool"
-          when: (audited_interaction_repo is defined) or (database_primary_sid in repo_dbs)
-
-        - name: Lock Unused Delius Audit Pool User if Audit Preservation Not Configured
-          script: lock_db_password.sh
-          environment:
-            DB_USERNAME: "DELIUS_AUDIT_POOL"
-          when:
-            - not (audited_interaction_repo is defined)
-            - not (database_primary_sid in repo_dbs)
-          register: lock_db_password
-          changed_when: lock_db_password.stdout is search ('.*Locked.*')
-
     # The same ASMSNMP password is used on primary and standby instances, so we initially create the new
     # password on primary only and then apply to all instances.
     # (Do not attempt to change password for engineering hosts unless we are an engineering environment)
@@ -312,18 +251,6 @@
       when:
         - database_primary_sid is defined
 
-    - name: Unlock Accounts DELIUS_AUDIT_POOL if in use
-      include_tasks: unlock_system_passwords.yml
-      vars:
-        db_username: "delius_audit_pool"
-        db_name: ""
-        login_user: ""
-        login_pwd: ""
-        db_type: "delius"
-      when:
-        - database_primary_sid is defined
-        - database_type == 'delius'
-        - (audited_interaction_repo is defined) or (database_primary_sid in repo_dbs)
 # Restart Monitoring regardless of success of password rotation
 #always:
 
