@@ -1,0 +1,27 @@
+---
+- name: Check if OSBWS Configuration File exists
+  stat:
+    path: "{{ target_db_home  }}/dbs/osbws.ora"
+  register: osbws
+
+- name: Copied OSBWS Configuration Should point to New Home
+  lineinfile:
+    path: "{{ target_db_home }}/dbs/osbws.ora"
+    regexp: "OSB_WS_WALLET="
+    line: OSB_WS_WALLET='location=file:{{ target_db_home }}/dbs/osbws_wallet CREDENTIAL_ALIAS=s3_aws'
+  when: osbws.stat.exists
+
+- name: Check if OSBWS Duplication Configuration file exists
+  stat:
+    path: "/home/oracle/admin/rman_scripts/osbws_duplicate.ora"
+  register: osbws_duplicate
+
+# We only need to update the duplication configuration when we are actually switching to use the new Home
+- name: OSBWS Duplication Configuration Should point to New Home
+  lineinfile:
+    path: "/home/oracle/admin/rman_scripts/osbws_duplicate.ora"
+    regexp: "OSB_WS_WALLET="
+    line: OSB_WS_WALLET='location=file:{{ target_db_home }}/dbs/osbws_wallet CREDENTIAL_ALIAS=s3_aws'
+  when:
+    - osbws_duplicate.stat.exists
+    - apply_mode == 'switch-clone'
