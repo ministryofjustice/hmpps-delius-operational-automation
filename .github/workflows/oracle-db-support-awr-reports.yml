@@ -9,9 +9,6 @@ on:
         type: choice
         options:
           - "delius-core-dev"
-          - "delius-core-test"
-          - "delius-core-training"
-          - "delius-core-stage"
           - "delius-core-pre-prod"
           - "delius-core-prod"
       TargetHosts:
