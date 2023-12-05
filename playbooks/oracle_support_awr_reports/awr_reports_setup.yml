@@ -3,5 +3,5 @@
   become_user: oracle
   become_method: sudo
   gather_facts: yes
-  roles: 
+  roles:
     - awr_reports_setup
