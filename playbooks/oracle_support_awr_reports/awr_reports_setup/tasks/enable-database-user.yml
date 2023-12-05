@@ -1,7 +1,9 @@
+- name: Password check
+  
 - name: Check RMF database password is set in parameter store and set random password 
   set_fact:
     new_sysumf_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digit length=16') }}"
-    ssm_sysumf_password: "{{ lookup('aws_ssm', '{{ ssm_sysumf_name }}') }}"
+    ssm_sysumf_password: "{{ lookup('aws_ssm', '{{ ssm_sysumf_name }}',region=region) }}"
 
 - name: Create ssm parameter entry if not set in parameter store
   aws_ssm_parameter_store:
