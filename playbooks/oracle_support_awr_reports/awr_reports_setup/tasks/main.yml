@@ -8,7 +8,7 @@
 
 - name: Enable RMF database user
   include_tasks: enable-database-user.yml
-  when: database_primary_id is defined
+  when: database_primary_sid is defined
 
 - name: Set hidden UMF parameter on both primary and ADG databases
   script: set_hidden_parameter.sh
