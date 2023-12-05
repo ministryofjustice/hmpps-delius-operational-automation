@@ -91,16 +91,6 @@
     - target_dbs | regex_search('delius_')
     - database_primary_sid is defined
 
-# Propagate remaining Audited Interaction Data from the database prior to flashback
-# if an audited_interaction_repo has been defined within this environment
-# - name: Archive Remaining Audited Interaction Data
-#   import_playbook: ../delius_audited_interaction/delius_audited_interaction_run.yml
-#   when:
-#     - required_action == "Flashback to Restore Point"
-#     - target_dbs | regex_search('delius_')
-#     - database_primary_sid is defined
-#     - audited_interaction_repo is defined
-
 - name: Export dfi schemas only for STGMIS
   import_playbook: dfi-schemas.yml
   vars:
