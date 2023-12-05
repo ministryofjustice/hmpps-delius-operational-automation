@@ -1,0 +1,68 @@
+- name: Get database role
+  script: get_database_role.sh
+  register: db_role
+
+- name: Set facts adg
+  set_fact:
+    is_adg: "{{ 'READ ONLY WITH APPLY' in db_role.stdout }}"
+
+- name: Enable RMF database user
+  include_tasks: enable-database-user.yml
+  when: database_primary_sid is defined
+
+- name: Set hidden UMF parameter on both primary and ADG databases
+  script: set_hidden_parameter.sh
+  register: set_hidden_parameter
+  failed_when: set_hidden_parameter.rc != 0
+  when: database_primary_id is defined or is_adg
+
+- block:
+    - name: Create database links on primary
+      script: create_database_links.sh {{ sysumf_password }}
+      environment:
+        PRIMARY_DB_LINK: "{{ primary_db_link }}"
+        ADG_DB_LINK: "{{ adg_db_link }}"
+        DB_PASS: "{{ sysumf_password }}"
+      register: create_database_links
+      failed_when: create_database_links.rc != 0
+
+    - name: Configure umf node on primary
+      script: configure_node.sh
+      environment:
+        NODE: "{{ primary_node }}"
+        DB_LINK: "{{ primary_db_link }}"
+      register: configure_primary_node
+      failed_when: configure_primary_node.rc != 0
+
+  when: database_primary_sid is defined
+
+- name: Configure umf node on adg
+  script: configure_node.sh
+  environment:
+    NODE: "{{ adg_node }}"
+    DB_LINK: "{{ adg_db_link }}"
+  register: configure_adg_node
+  failed_when: configure_adg_node.rc != 0
+  when: is_adg
+
+- block:
+    - name: Create umf topology on primary
+      script: create_topology.sh
+      environment:
+        TOPOLOGY_NAME: "{{ topology_name }}"
+
+    - name: Register adg node to topology
+      script: register_to_topology.sh
+      environment:
+        TOPOLOGY_NAME: "{{ topology_name }}"
+        ADG_NODE: "{{ adg_node }}"
+        PRIMARY_DB_LINK: "{{ primary_db_link }}"
+        ADG_DB_LINK: "{{ adg_db_link }}"
+
+    - name: Register adg node for awr service
+      script: register_to_awr.sh
+      environment:
+        TOPOLOGY_NAME: "{{ topology_name }}"
+        ADG_NODE: "{{ adg_node }}"
+
+  when: database_primary_sid is defined
