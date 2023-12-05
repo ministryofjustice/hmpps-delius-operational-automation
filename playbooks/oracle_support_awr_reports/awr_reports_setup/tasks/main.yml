@@ -67,4 +67,4 @@
         TOPOLOGY_NAME: "{{ topology_name }}" 
         ADG_NODE: "{{ adg_node }}"   
   
-  when: primary_database_sid is defined
+  when: database_primary_sid is defined
