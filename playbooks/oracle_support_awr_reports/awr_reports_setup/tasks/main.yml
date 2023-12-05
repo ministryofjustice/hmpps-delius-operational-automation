@@ -2,30 +2,19 @@
   script: get_database_role.sh
   register: db_role
 
-- name: Set facts for primary and adg
+- name: Set facts adg
   set_fact:
-    is_primary: "{{ 'PRIMARY' in db_role.stdout.split(',') | first }}"
-    is_adg: "{{ 'READ ONLY WITH APPLY' in db_role.stdout.split(',') | last }}"
-
-- block:
-
-    - name: Check ADG Is Configured
-      debug:
-        msg: "No ADG Standby Configured"
-
-    - meta: end_play
-
-  when: not is_adg
+    is_adg: "{{ 'READ ONLY WITH APPLY' in db_role.stdout }}"
 
 - name: Enable RMF database user
   include_tasks: enable-database-user.yml
-  when: is_primary
+  when: database_primary_id is defined
 
 - name: Set hidden UMF parameter on both primary and ADG databases
   script: set_hidden_parameter.sh
   register: set_hidden_parameter
   failed_when: set_hidden_parameter.rc != 0
-  when:  is_primary or is_adg
+  when:  database_primary_id is defined or is_adg
 
 - block:
 
@@ -46,7 +35,7 @@
       register: configure_primary_node
       failed_when: configure_primary_node.rc != 0
     
-  when: is_primary
+  when: database_primary_sid is defined
 
 - name: Configure umf node on adg
   script: configure_node.sh 
@@ -78,4 +67,4 @@
         TOPOLOGY_NAME: "{{ topology_name }}" 
         ADG_NODE: "{{ adg_node }}"   
   
-  when: is_primary
+  when: primary_database_sid is defined
