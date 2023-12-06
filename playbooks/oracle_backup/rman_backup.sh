@@ -248,6 +248,11 @@ EOF
   fi
 }
 
+get_db_role () {
+  DATABASE_ROLE=$(srvctl config database -d ${ORACLE_SID} | awk -F: '/Database role/{print $2}' | xargs)
+  info "Database role = $DATABASE_ROLE"
+}
+
 cold_check () {
   info "Checking the database is up and in correct mode"
   ps -eo args | grep ^ora_smon_${TARGET_DB_SID} >/dev/null 2>&1
@@ -423,6 +428,14 @@ EOF
   do
     echo -e "  allocate channel c${i} device type $TYPE" 						>> $RMANCMDFILE
   done
+  if [[ "$DATABASE_ROLE" = "PHYSICAL_STANDBY" ]]
+  then
+    # If we are running the backup on a standby database it is possible that some archivelogs may have already
+    # been deleted by the ARCHIVELOG DELETION POLICY of APPLIED ON STANDBY.  Therefore we need to run a 
+    # crosscheck and delete first, otherwise any deleted archivelogs could case the script to error.
+    echo "  crosscheck archivelog all;"                                                                   >>$RMANCMDFILE
+    echo "  delete noprompt expired archivelog all;"                                                      >>$RMANCMDFILE
+  fi
   if [ "$BACKUP_TYPE" = "COLD" ]
   then
     echo "  shutdown immediate;"                                                                         >> $RMANCMDFILE
@@ -627,6 +640,7 @@ then
    validate archivelogs
 fi
 get_db_status
+get_db_role
 if [ "$BACKUP_TYPE" = "COLD" ]
 then
    cold_check
