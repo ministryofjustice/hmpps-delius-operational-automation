@@ -184,7 +184,7 @@
         arc_sequences: "{{ arc_sequences | combine({item.split()[1]: {'low_scn': item.split()[2], 'high_scn': item.split()[5] }}) }}"
       loop: "{{ archivelog_backup_list.stdout_lines | select('match','\\s*\\d+\\s+\\d+\\s+\\d+\\s+\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\s+\\d+\\s+\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}') | list }}"
       when: (( ( item.split()[3] + ' ' + item.split()[4] ) | to_datetime) - ( incarnation_start_date | to_datetime)).total_seconds() >= 0
-      
+
     # We want to ignore any archive log backups associated with Restore Points if these are the most
     # recent backups taken, since these could appear to result in a gap in the backed up sequences
     - name: Get Listing of Archivelog Backups Associated with Restore Points If Ahead of Normal Backups
@@ -194,13 +194,13 @@
 
     - name: Fetch All Archivelog Sequence Numbers Associated with Restore Point into List
       set_fact:
-          restore_point_arc_seq_nos: "{{ restore_point_arc_seq_nos + [ item.split()[1] ] }}"
+        restore_point_arc_seq_nos: "{{ restore_point_arc_seq_nos + [ item.split()[1] ] }}"
       loop: "{{ restore_point_archivelog_backup_list.stdout_lines | select('match','\\s*\\d+\\s+\\d+\\s+\\d+\\s+\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\s+\\d+\\s+\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}') | list }}"
 
     - name: Exclude Archivelog Sequences Associated with Restore Points If Ahead of Normal Backups
       set_fact:
-          arc_sequences: "{{ arc_sequences | dict2items | rejectattr('key','in',restore_point_arc_seq_nos) | items2dict }}"
-  
+        arc_sequences: "{{ arc_sequences | dict2items | rejectattr('key','in',restore_point_arc_seq_nos) | items2dict }}"
+
     - name: Create List of Highest SCNs in Each Archivelog Backed Up
       set_fact:
         high_scns: "{{ high_scns | default([]) + [ item.value.high_scn ] }}"
