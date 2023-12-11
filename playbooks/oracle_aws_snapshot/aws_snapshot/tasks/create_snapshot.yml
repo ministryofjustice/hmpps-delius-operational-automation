@@ -2,7 +2,6 @@
   delegate_to: localhost
   become: no
   block:
-
     - name: Get the current caller identity information
       amazon.aws.aws_caller_info:
       register: caller_info
