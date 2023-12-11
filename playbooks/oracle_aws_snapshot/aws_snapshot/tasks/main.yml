@@ -3,16 +3,16 @@
 
 - name: Get Hostname
   setup:
-    filter: ec2_name
+    filter: ansible_hostname
 
 - name: Take AWS Snapshot of Primary
   include_tasks: snapshot_of_primary.yml
   vars:
-    backup_hostname: "{{ ec2_name }}"
+    backup_hostname: "{{ ansible_hostname }}"
   when: database_primary_sid is defined
 
 - name: Take AWS Snapshot of Standby
   include_tasks: snapshot_of_standby.yml
   vars:
-    backup_hostname: "{{ ec2_name }}"
+    backup_hostname: "{{ ansible_hostname }}"
   when: database_standby_sid is defined
