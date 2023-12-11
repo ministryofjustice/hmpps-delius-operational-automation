@@ -90,11 +90,6 @@
             enable_trace_flag: "-e Y"
           when: enable_trace | default(false) | bool
 
-        - name: Set ssm parameter when variable is not null
-          set_fact:
-            ssm_parameter_option: "-p {{ ssm_parameter }}"
-          when: ssm_parameter is defined
-
         - block:
             - name: Get Current RMAN Retention
               script: get_rman_retention.sh {{ database_primary_sid | default(database_standby_sid) }}
@@ -138,7 +133,7 @@
 
         - name: Create RMAN Command
           set_fact:
-            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }} {{ ssm_parameter_option|default() }}"
+            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }}"
 
         - name: Show RMAN Command
           debug:
