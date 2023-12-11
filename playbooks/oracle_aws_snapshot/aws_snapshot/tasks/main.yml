@@ -5,14 +5,18 @@
   setup:
     filter: ansible_hostname
 
+- name: Determine EC2 Instance Name
+  set_fact:
+     ec2_instance_name: "{{ ansible_hostname | regex_replace('.*-([\\w\\d]+)$','i-\\1') }}"
+
 - name: Take AWS Snapshot of Primary
   include_tasks: snapshot_of_primary.yml
   vars:
-    backup_hostname: "{{ ansible_hostname }}"
+    backup_hostname: "{{ ec2_instance_name }}"
   when: database_primary_sid is defined
 
 - name: Take AWS Snapshot of Standby
   include_tasks: snapshot_of_standby.yml
   vars:
-    backup_hostname: "{{ ansible_hostname }}"
+    backup_hostname: "{{ ec2_instance_name }}"
   when: database_standby_sid is defined
