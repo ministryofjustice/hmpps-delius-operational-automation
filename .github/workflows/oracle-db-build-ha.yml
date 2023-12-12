@@ -182,7 +182,7 @@ jobs:
           -e method=${{ github.event.inputs.Procedure }} \
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
-          -e standby_number=1 \
+          -e standby_number=2 \
           -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}
 
           
