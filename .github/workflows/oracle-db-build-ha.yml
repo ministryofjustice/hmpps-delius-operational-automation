@@ -168,8 +168,6 @@ jobs:
       - name: Build High Availability Standby 1 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
-          mkdir -p ~/.ansible/roles
-          mv inventory/ansible/roles/* ~/.ansible/roles
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
           -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
@@ -178,6 +176,18 @@ jobs:
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
           -e standby_number=1 \
-          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }} 
-          # -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
+          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}
+
+      - name: Build High Availability Standby 2 Database
+        if: ${{ steps.standbydbsconfigured.outputs.standbydb2Host != '' }}
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          $command -i $inventory \
+          -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
+          -e standby=${{ steps.standbydbsconfigured.outputs.standbydb2Host }} \
+          -e method=${{ github.event.inputs.Procedure }} \
+          -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
+          -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
+          -e standby_number=2 \
+          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}
           
