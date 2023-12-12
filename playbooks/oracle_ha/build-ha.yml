@@ -6,4 +6,4 @@
   roles:
     - role: build-ha
       vars:
-         force_restore: true
+        force_restore: true

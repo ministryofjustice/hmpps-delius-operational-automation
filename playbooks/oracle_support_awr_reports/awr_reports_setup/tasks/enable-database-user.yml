@@ -1,0 +1,22 @@
+- name: Check RMF database password is set in parameter store and set random password
+  set_fact:
+    new_sysumf_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digit length=16') }}"
+    ssm_sysumf_password: "{{ lookup('aws_ssm', '{{ ssm_sysumf_name }}',region=region) }}"
+
+- name: Create ssm parameter entry if not set in parameter store
+  aws_ssm_parameter_store:
+    name: "{{ ssm_sysumf_name }}"
+    description: "Password for {{ ssm_sysumf_name }}"
+    string_type: "SecureString"
+    value: "{{ new_sysumf_password }}"
+    region: "{{ region }}"
+  when: ssm_sysumf_password | length == 0
+
+- name: Set fact for the RMF database password to be used elsewhere
+  set_fact:
+    sysumf_password: "{% if ssm_sysumf_password | length > 0  %} {{ ssm_sysumf_password }} {% else %} {{ new_sysumf_password }} {% endif %}"
+
+- name: Enable RMF (SYS$UMF) database user
+  script: enable_database_user.sh {{ sysumf_password }}
+  register: enable_database_user
+  failed_when: enable_database_user.rc != 0

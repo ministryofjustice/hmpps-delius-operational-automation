@@ -1,7 +1,7 @@
-- name: (main/set-primary-config) Add standby's to primary tnsnames 
+- name: (main/set-primary-config) Add standby's to primary tnsnames
   blockinfile:
     insertafter: EOF
-    path: '{{ oracle_database_oracle_home }}/network/admin/tnsnames.ora'  
+    path: "{{ oracle_database_oracle_home }}/network/admin/tnsnames.ora"
     block: |
 
       {{ database_standby_unique_name }} =
@@ -18,23 +18,23 @@
     marker: "# {mark} ANSIBLE MANAGED BLOCK ADD STANDBY {{ database_standby_unique_name }}"
 
 - name: (main/set-primary-config) Setup primary listener
-  blockinfile: 
-    path: '{{ oracle_grid_oracle_home }}/network/admin/listener.ora'
+  blockinfile:
+    path: "{{ oracle_grid_oracle_home }}/network/admin/listener.ora"
     block: |
 
-     SID_LIST_LISTENER=
-      (SID_LIST =
-        (SID_DESC =
-          (GLOBAL_DBNAME = {{ database_primary_unique_name }})
-          (ORACLE_HOME = {{ oracle_database_oracle_home }})
-          (SID_NAME = {{ database_primary_sid }})
-        )
-        (SID_DESC=
-          (GLOBAL_DBNAME = {{ database_primary_unique_name }}_DGMGRL)
-          (ORACLE_HOME = {{ oracle_database_oracle_home }})
-          (SID_NAME = {{ database_primary_sid }})
-        )
-      )
+      SID_LIST_LISTENER=
+       (SID_LIST =
+         (SID_DESC =
+           (GLOBAL_DBNAME = {{ database_primary_unique_name }})
+           (ORACLE_HOME = {{ oracle_database_oracle_home }})
+           (SID_NAME = {{ database_primary_sid }})
+         )
+         (SID_DESC=
+           (GLOBAL_DBNAME = {{ database_primary_unique_name }}_DGMGRL)
+           (ORACLE_HOME = {{ oracle_database_oracle_home }})
+           (SID_NAME = {{ database_primary_sid }})
+         )
+       )
     owner: "{{ rdbms_service_user.name }}"
     marker: "# {mark} ANSIBLE MANAGED BLOCK PRIMARY SERVICE NAMES"
   register: primary_listener

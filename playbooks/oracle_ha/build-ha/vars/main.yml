@@ -1,7 +1,5 @@
-
 ---
-
-# Setup variables 
+# Setup variables
 dns: "hmpps-development.modernisation-platform.internal"
 standby_host: "{{ hostvars[groups[standby][0]]['inventory_hostname'] }}"
 primary_host: "{{ hostvars[groups[primary][0]]['inventory_hostname'] }}"
@@ -17,7 +15,7 @@ rdbms_service_user:
   group: oinstall
 
 # Define conditions on which we wish to failover
-target_fsfo_health_conditions: ["Corrupted Controlfile","Corrupted Dictionary","Stuck Archiver","Datafile Write Errors","Inaccessible Logfile"]
+target_fsfo_health_conditions: ["Corrupted Controlfile", "Corrupted Dictionary", "Stuck Archiver", "Datafile Write Errors", "Inaccessible Logfile"]
 
 # During AWS Start/Stop we occassionally have disconnections about around 60-70 seconds during DB re-start.
 # 120 seconds provides sufficent overhead for these to automatically resolve and prevent false failover.

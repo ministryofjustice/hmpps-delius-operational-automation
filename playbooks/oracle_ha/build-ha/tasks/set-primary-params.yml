@@ -1,5 +1,4 @@
 ---
-
 - name: (main/set-primary-params) Copy setup primary bash script
   copy:
     src: "{{ role_path}}/files/setup_primary_for_ha.sh"

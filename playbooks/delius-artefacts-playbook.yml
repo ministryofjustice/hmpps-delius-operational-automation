@@ -53,8 +53,8 @@
 
     - name: Deploy Audited Interaction Data Consolidation Schema
       include_role:
-        name: "{{ playbook_dir }}/delius_audited_interaction/delius_audited_interaction"
-      when: deploy_audited_interaction | default('no') == "yes"
+        name: "{{ playbook_dir }}/compress_audited_interaction/compress_audited_interaction"
+      when: deploy_audit_compression_job | default('no') == "yes"
 
     # Audited Interaction Stub Users updates the USERS_ table with application users who
     # have access to production data only on non-production environments.   These Stub Users

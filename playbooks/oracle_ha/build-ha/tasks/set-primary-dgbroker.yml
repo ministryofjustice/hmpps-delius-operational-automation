@@ -1,4 +1,3 @@
-
 - name: (main/set-primary-dgbroker) Configure Oracle Data Guard broker on primary
   copy:
     src: "{{ role_path}}/files/setup_primary_dgbroker.sh"
@@ -7,7 +6,7 @@
   become: true
   become_user: "{{ rdbms_service_user.name }}"
 
-- name: (main/set-primary-dgbroker) Run Oracle Data Guard script for standby 
+- name: (main/set-primary-dgbroker) Run Oracle Data Guard script for standby
   shell: ". ~/.bash_profile; /tmp/setup_primary_dgbroker.sh -t {{ database_primary_unique_name }} -s {{ database_standby_unique_name }}"
   become: true
   become_user: "{{ rdbms_service_user.name }}"

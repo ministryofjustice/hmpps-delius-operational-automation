@@ -1,0 +1,89 @@
+name: "Oracle: Support AWR Reports"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-support-awr-reports"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-core-dev"
+          - "delius-core-pre-prod"
+          - "delius-core-prod"
+      TargetHosts:
+        description: "Database target hosts"
+        type: string
+        default: "delius_dbs"
+      SourceCodeVersion:
+        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+
+env:
+  ansible_config: operations/playbooks/ansible.cfg
+  command: ansible-playbook operations/playbooks/oracle_support_awr_reports/awr_reports_setup.yml
+  inventory: inventory/ansible
+
+# Allow permissions on repository and docker image respectively 
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:
+  deployment:
+    environment: ${{ github.event.inputs.TargetEnvironment }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    timeout-minutes: 1440
+    continue-on-error: false
+    steps:
+
+      - name: Prepare Delius Inventory Name
+        id: prepareinventoryname
+        run: |
+          target_hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHosts }}"
+          echo "target_hosts=${target_hosts}" >> $GITHUB_OUTPUT
+
+      - name: Checkout Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oracle_support_awr_reports
+            playbooks/ansible.cfg
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      - name: Start Ansible AWR Support Reports
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          $command -i $inventory -e target_hosts=${{ steps.prepareinventoryname.outputs.target_hosts }}

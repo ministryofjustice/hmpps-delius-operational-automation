@@ -1,0 +1,7 @@
+- name: Create EC2 Instance Backup
+  hosts: "{{ target_host }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+    - aws_snapshot

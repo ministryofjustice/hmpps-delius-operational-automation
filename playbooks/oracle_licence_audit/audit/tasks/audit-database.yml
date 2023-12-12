@@ -1,0 +1,89 @@
+- name: Get instance name running, should be only one
+  shell: ps -ef | grep ora_smon | grep -v grep | cut -d'_' -f3
+  register: db
+
+- name: Set fact for output names we do expect from running the scripts
+  set_fact:
+    new_host: "{{ inventory_hostname }}"
+    sql_output: "{{ ansible_facts.fqdn }}_{{ db.stdout }}"
+    cpu_output: "{{ ansible_facts.fqdn }}-ct_cpuq.txt"
+
+- name: Set fact for new output names
+  set_fact:
+    new_sql_output: "{{ new_host }}-{{ db.stdout }}"
+    new_cpu_output: "{{ new_host }}-ct_cpuq.txt"
+
+- name: Create work directory on remote host
+  file:
+    path: "{{ audit_dir }}"
+    state: directory
+    owner: oracle
+    mode: "777"
+
+- name: Download cpuq.sh from s3
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    aws s3 cp s3://{{ dependencies_bucket.name }}/dependencies/oracle/utils/cpuq.sh {{ audit_dir }}/cpuq.sh
+
+- name: Download Oracle ReviewLite23.3.sql from s3
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    aws s3 cp s3://{{ dependencies_bucket.name }}/dependencies/oracle/utils/ReviewLite23.3.sql {{ audit_dir }}/ReviewLite23.3.sql
+  args:
+    creates: "{{ audit_dir }}/ReviewLite23.3.sql"
+
+- name: Execute cpu script and rename output file
+  shell: |
+    cd {{ audit_dir }}
+    chmod +x cpuq.sh 
+    echo 'y' | ./cpuq.sh {{ audit_dir }}
+    mv {{ cpu_output }} {{ new_cpu_output}}
+  register: cpuout
+
+- name: Execute Oracle ReviewLite23.3.sql and rename output directory
+  shell:
+    cmd: |
+      . ~/.bash_profile
+      cd {{ audit_dir }}
+      rm -rf {{ sql_output }} {{ new_sql_output }}
+      sqlplus -s / as sysdba << EOF
+        @ReviewLite23.3.sql
+        exit
+      EOF
+      mv {{ sql_output }} {{ new_sql_output }}
+  become: yes
+  become_method: sudo
+  become_user: oracle
+  register: sqlout
+
+- name: Fetch cpu output files
+  fetch:
+    src: "{{ audit_dir }}/{{ new_cpu_output }}"
+    dest: "{{ audit_dir }}/"
+    flat: yes
+
+- name: Create database directory on controller
+  delegate_to: localhost
+  file:
+    path: "{{ audit_dir }}/{{ new_sql_output }}"
+    state: directory
+
+- name: Find database output files
+  find:
+    path: "{{ audit_dir }}/{{ new_sql_output }}"
+    recurse: yes
+    patterns: "*.csv"
+  register: database_output_files
+
+- name: Fetch database output files
+  fetch:
+    src: "{{ item.path }}"
+    dest: "{{ audit_dir }}/{{ new_sql_output }}/"
+    flat: yes
+  with_items: "{{ database_output_files.files }}"
+
+- name: Upload database output directory to S3
+  delegate_to: localhost
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    aws s3 cp {{ audit_dir }}/{{ new_sql_output }} s3://{{ dependencies_bucket.name }}/{{ audit_output }}/{{ new_sql_output }} --recursive

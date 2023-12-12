@@ -1,0 +1,54 @@
+---
+- name: Convert standby database to either snapshot or physical standby database
+  hosts: "{{ hosts }}"
+  become: yes
+  become_user: oracle
+  become_method: sudo
+  gather_facts: false
+
+  tasks:
+    - debug: var=action
+
+    - name: Get database type
+      set_fact:
+        database_type: "{{ hosts | replace(hosts.split('_')[-1],'') }}"
+
+    - name: Initialize Databases Currently in Configuration
+      set_fact:
+        databases_in_configuration: []
+
+    - name: Initialize FSFO Targets
+      set_fact:
+        fsfo_targets: ""
+
+    - name: Get Hostname for Associated Primary
+      set_fact:
+        primary_hostname: "{{ hostvars[groups[database_type + 'primarydb'][0]]['inventory_hostname'] }}"
+
+    - name: Determine FSFO Targets on Primary
+      include_role:
+        name: "{{ playbook_dir }}/../oracle_ha"
+        tasks_from: determine-fsfo-targets.yml
+      vars:
+        delegation_host: "{{ primary_hostname }}"
+        standby1_hostname: "{{ hostvars[groups[database_type + 'standbydb1'][0]]['inventory_hostname'] }}"
+        standby2_hostname: "{{ hostvars[(groups[database_type + 'standbydb2']|default([]))[0]|default({})]['inventory_hostname'] | default('') }}"
+
+    - name: Get Fast-Start Failover Status
+      shell: |
+        . ~/.bash_profile
+        dgmgrl -silent / "show configuration;" | awk -F: '/Fast-Start Failover/{print $2}'
+      register: get_fast_start_failover
+      changed_when: false
+
+    - debug: var=fsfo_targets
+
+    - name: Convert to snapshot standby database
+      include_tasks: convert_to_snapshot_standby.yml
+      when: action == "Convert Physical To Snapshot"
+
+    - name: Convert to physical standby database
+      include_tasks: convert_to_physical_standby.yml
+      vars:
+        push_audit_data: "{{ push_audit | default('yes') }}"
+      when: action == "Convert Snapshot To Physical"

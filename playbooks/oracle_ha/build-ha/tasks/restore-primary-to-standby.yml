@@ -1,59 +1,56 @@
-
 - name: (main/restore-primary-to-standby) Primary tasks
   block:
+    - name: (main/restore-primary-to-standby) Detect dataguard config on primary
+      script: get_dataguard_configuration.sh
+      changed_when: false
+      become: true
+      become_user: "{{ rdbms_service_user.name }}"
+      register: get_dataguard_configuration
 
-      - name: (main/restore-primary-to-standby) Detect dataguard config on primary
-        script: get_dataguard_configuration.sh
-        changed_when: false
-        become: true
-        become_user: "{{ rdbms_service_user.name }}"
-        register: get_dataguard_configuration
+    - name: (main/restore-primary-to-standby) Check standby database is in sync
+      script: standby_database_insync.sh
+      changed_when: false
+      delegate_to: "{{ standby_host }}"
+      become: true
+      become_user: "{{ rdbms_service_user.name }}"
+      register: standby_database_insync
 
-      - name: (main/restore-primary-to-standby) Check standby database is in sync
-        script: standby_database_insync.sh
-        changed_when: false
-        delegate_to: "{{ standby_host }}"
-        become: true
-        become_user: "{{ rdbms_service_user.name }}"
-        register: standby_database_insync
+    # If there is no dataguard configuration on the primary we want to force a duplicate to standby regardless
+    # of the dataguard status on the standby.  This typically occurs if the primary has been refreshed or restored
+    # and we need to force the standby databases (which may still be running from before the restore) to be refreshed as well.
+    - name: (main/restore-primary-to-standby) Set Force Restore Flag if no Dataguard Configuration on Primary
+      set_fact:
+        primary_data_guard_unconfigured: true
+      when: get_dataguard_configuration.stdout is search('ORA-16532') or (not standby_database_insync.stdout_lines[0] | bool)
 
-      # If there is no dataguard configuration on the primary we want to force a duplicate to standby regardless
-      # of the dataguard status on the standby.  This typically occurs if the primary has been refreshed or restored
-      # and we need to force the standby databases (which may still be running from before the restore) to be refreshed as well.
-      - name: (main/restore-primary-to-standby) Set Force Restore Flag if no Dataguard Configuration on Primary
-        set_fact:
-            primary_data_guard_unconfigured: true
-        when: get_dataguard_configuration.stdout is search('ORA-16532') or (not standby_database_insync.stdout_lines[0] | bool)
+    # The RMAN Catalog may not exist in the TNS Names File on the Standby, so record its value for later use if
+    # we are not using Active Database Duplication
+    - name: (main/restore-primary-to-standby) Get Catalog TNS Alias
+      shell: |
+        . ~/.bash_profile
+        tnsping {{ catalog }} | grep Attempting | sed 's/Attempting to contact //' | sed 's/ //g'
+      register: rman_tnsnames
+      changed_when: false
+      run_once: true
+      become: true
+      become_user: "{{ rdbms_service_user.name }}"
+      when: catalog is defined
 
-      # The RMAN Catalog may not exist in the TNS Names File on the Standby, so record its value for later use if
-      # we are not using Active Database Duplication
-      - name: (main/restore-primary-to-standby) Get Catalog TNS Alias
-        shell: |
-                . ~/.bash_profile
-                tnsping {{ catalog }} | grep Attempting | sed 's/Attempting to contact //' | sed 's/ //g'
-        register: rman_tnsnames 
-        changed_when: false
-        run_once: true
-        become: true
-        become_user: "{{ rdbms_service_user.name }}"
-        when: catalog is defined
+  when: inventory_hostname in groups[primary]
 
-  when: inventory_hostname in groups[primary]  
-
-- name: (main/restore-primary-to_standby) 
+- name: (main/restore-primary-to_standby)
   block:
-
     # Force Restore Flag is Set if Forced (e.g. After Duplicate) or if a Data Guard Config issue has been found on the Primary
     - name: (main/restore-primary-to-standby) Set Force Restore Flag
       set_fact:
-          force_restore_flag: "-f"
+        force_restore_flag: "-f"
       when: ( force_restore | default(false) | bool ) or ( hostvars[groups[primary][0]].primary_data_guard_unconfigured | default(false) | bool )
 
     - name: (main/restore-primary-to-standby) Configure database to use ASM password file
       shell: |
-             . ~/.bash_profile
-             srvctl status database -d {{ database_standby_sid }} > /dev/null 2>&1
-             [ $? -eq 0 ] && srvctl modify database -d {{ database_standby_sid }} -pwfile +DATA/{{ database_standby_sid }}/orapw{{ database_standby_sid }} || echo
+        . ~/.bash_profile
+        srvctl status database -d {{ database_standby_sid }} > /dev/null 2>&1
+        [ $? -eq 0 ] && srvctl modify database -d {{ database_standby_sid }} -pwfile +DATA/{{ database_standby_sid }}/orapw{{ database_standby_sid }} || echo
       become: true
       become_user: "{{ rdbms_service_user.name }}"
 
@@ -67,7 +64,7 @@
 
     - name: (main/restore-primary-to-standby) Set use backup flag and RMAN catalog connection if not using Active Duplication
       set_fact:
-         use_backup_flag: "-b -c \"{{ rman_tnsnames.stdout }}\""
+        use_backup_flag: '-b -c "{{ rman_tnsnames.stdout }}"'
       when: ( primary_source_type | default('active') ) == 'backup'
 
     # Avoid Attempt to Create SBT Channels when running outside of AWS
@@ -78,7 +75,7 @@
 
     - name: (main/restore-primary-to-standby) Report Script Run Command
       debug:
-         msg: "Running: /tmp/rman_duplicate_to_standby.sh {{ use_backup_flag | default('') }} {{ no_sbt_flag | default('') }} {{ force_restore_flag | default('') }} -t {{ database_primary_unique_name }} -s {{ database_standby_unique_name }} -i {{ oracle_database_oracle_home }}/dbs/init{{ database_standby_sid}}.ora_predg {{ ssm_parameter_option|default() }}"
+        msg: "Running: /tmp/rman_duplicate_to_standby.sh {{ use_backup_flag | default('') }} {{ no_sbt_flag | default('') }} {{ force_restore_flag | default('') }} -t {{ database_primary_unique_name }} -s {{ database_standby_unique_name }} -i {{ oracle_database_oracle_home }}/dbs/init{{ database_standby_sid}}.ora_predg {{ ssm_parameter_option|default() }}"
 
     - name: (main/restore-primary-to-standby) Run rman restore bash script
       shell: ". ~/.bash_profile; /tmp/rman_duplicate_to_standby.sh {{ use_backup_flag | default('') }} {{ no_sbt_flag | default('') }} {{ force_restore_flag | default('') }} -t {{ database_primary_unique_name }} -s {{ database_standby_unique_name }} -i {{ oracle_database_oracle_home }}/dbs/init{{ database_standby_sid}}.ora_predg {{ ssm_parameter_option|default() }}"

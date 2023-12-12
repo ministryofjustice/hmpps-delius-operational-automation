@@ -82,7 +82,8 @@ jobs:
       - name: Output Input Parameters
         shell: bash
         run: |
-          echo -e "PrimarySourceType: ${{ github.event.inputs.PrimarySourceType }}\n\
+          echo -e "Procedure: ${{ github.event.inputs.Procedure }}\n\
+          PrimarySourceType: ${{ github.event.inputs.PrimarySourceType }}\n\
           SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
           SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
 
@@ -100,6 +101,8 @@ jobs:
           sparse-checkout: |
             ansible/hosts
             ansible/group_vars
+            ansible/roles/oracle-secure-backup
+            ansible/roles/get-ec2-facts
           path: inventory
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
@@ -134,12 +137,15 @@ jobs:
           echo $standbydb1Host
           echo $standbydb2Host
           echo $high_availability_count
+
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
-          sparse-checkout: playbooks/oracle_ha
+          sparse-checkout: |
+            playbooks/oracle_ha
+            playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
@@ -184,5 +190,4 @@ jobs:
           -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
           -e standby_number=2 \
           -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}
-
           

@@ -1,0 +1,188 @@
+name: "Oracle: Release Update"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-release-update"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-pre-prod"
+          - "delius-core-prod"
+      TargetHost:
+        description: "Database target host"
+        required: true
+        type: choice
+        options: 
+          - "delius_primarydb"
+          - "delius_standbydb1"
+          - "delius_standbydb2"
+          - "delius_standbydb1,delius_standbydb2"
+          - "delius_dbs"
+          - "mis_primarydb"
+          - "mis_standbydb1"
+          - "mis_dbs"
+          - "misboe_primarydb"
+          - "misboe_standbydb1"
+          - "misboe_dbs"
+          - "misdsd_primarydb"
+          - "misdsd_standbydb1"
+          - "misdsd_dbs"
+      ApplyMode:
+        description: "Installation Mode (prepare-clone, switch-clone, apply-ojvm-standby)"
+        required: true
+        type: choice
+        options:
+          - "prepare-clone"
+          - "switch-clone"
+          - "apply-ojvm-standby"
+      OraclePatchDirectory:
+        description: "Staging area on EC2 instance for downloading software"
+        required: true
+        type: choice
+        options:
+          - "/u01/software/19c/patches"
+      ComboPatch:
+        description: "Combo Patch to Install (default = use value from environment configuration)"
+        required: true
+        type: choice
+        options:
+          - "default"
+          - "34773504:p34773504_190000_Linux-x86-64.zip:(19.18)"
+          - "35370167:p35370167_190000_Linux-x86-64.zip:(19.20)"
+      OPatch:
+        description: "OPatch Utility to Use (default = use value from environment configuration)"
+        required: true
+        type: choice
+        options: 
+          - "default"
+          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.29.zip:(12.2.0.1.29)"
+          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.32.zip:(12.2.0.1.32)"
+          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.36.zip:(12.2.0.1.36)"
+      AWSSnapshot:
+        description: "Number of Days to Keep AWS Snapshot of Primary Database Host"
+        required: true
+        type: choice
+        options:
+          - "No AWS Snapshot"
+          - "2"
+          - "7"
+          - "14"
+          - "28"
+      VerboseOutput:
+        description: "Verbose Output level"
+        required: false
+        type: choice
+        options:
+           - "-vv"
+           - "-vvv"
+           - "-vvvv"
+      SourceCodeVersion:
+        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+
+env:
+  ansible_config: operations/playbooks/ansible.cfg
+  command: ansible-playbook operations/playbooks/oracle_release_update/playbook.yml
+  inventory: inventory/ansible
+
+# Allow permissions on repository and docker image respectively 
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:
+  deployment:
+    environment: ${{ github.event.inputs.TargetEnvironment }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    timeout-minutes: 1440
+    continue-on-error: false
+    steps:
+
+      - name: Prepare Inventory Names
+        id: prepareinventorynames
+        run: |
+          hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}"
+          echo "hosts=${hosts}" >> $GITHUB_OUTPUT
+
+      - name: Checkout Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Install yq
+        uses: dcarbone/install-yq-action@v1.1.1
+        with:
+            download-compressed: true
+            version: "v4.35.1"
+            force: true
+
+      - name: Count Standby Databases Configured In Ansible Inventory
+        id: countstandbydbs
+        working-directory: ${{ env.inventory }}
+        run: |
+            database_environment="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
+            database_type=$(echo ${{ github.event.inputs.TargetHost }} | cut -d_ -f1)
+            high_availability_count=$(yq .high_availability_count.${database_type} group_vars/${database_environment}_all.yml)
+            echo "high_availability_count=$high_availability_count"
+
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+                           playbooks/oracle_release_update
+                           ansible.cfg
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      # We have not included support for separate Release Update patches for GI and OJVM.
+      # Instead only the ComboPatchInfo parameter is allowed to support the Release Update Combo Patch.
+      # However, GI and OJVM patches are still available (but hidden) within the Ansible playbook
+      # so we get the parameters gi_ru_patch_info and ojvm_ru_patch_info to the empty string to
+      # disable this functionality.  (It may be desirable to remove this at a later date, but
+      # occassionally the Combo patch can be delayed in which case being able to install the
+      # individual patches can be potentially useful.)
+      - name: Run Release Update Playbook
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          $command -i $inventory \
+          -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }}
+          -e apply_mode=${{ github.event.inputs.ApplyMode }}
+          -e oracle_patch_directory=${{ github.event.inputs.OraclePatchDirectory }}
+          -e combo_patch_info=${{ github.event.inputs.ComboPatchInfo }}
+          -e opatch_info=${{github.event.inputs.Opatch }}
+          -e "keep_aws_snapshot='${{github.event.inputs.AWSSnapShot }}'"
+          -e high_availability_count=${{ steps.countstandbydbs.outputs.high_availability_count }}
+          -e gi_ru_patch_info=''
+          -e ojvm_ru_patch_info=''

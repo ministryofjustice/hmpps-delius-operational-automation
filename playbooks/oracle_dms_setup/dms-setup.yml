@@ -1,0 +1,8 @@
+# Specify the host we want DMS to read data from.  This may either be an ADG Standby
+# or the Primary if an ADG Standby does not exist
+- hosts: "{{ read_host }}"
+  gather_facts: no
+  become: yes
+  become_user: root
+  roles:
+    - dms_setup

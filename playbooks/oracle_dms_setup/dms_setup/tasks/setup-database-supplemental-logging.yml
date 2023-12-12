@@ -1,0 +1,48 @@
+- name: Include Variables for {{ dms_user_application }} Setup
+  include_vars: "{{ dms_user_application }}.yml"
+
+- name: Switch on supplemental logging on database
+  shell:
+    cmd: |
+      . ~/.bash_profile
+      ORACLE_SID={{ delius_primary_sid }}
+      ORAENV_ASK=NO
+      . oraenv > /dev/null
+
+      sqlplus -s / as sysdba << EOF
+
+      WHENEVER SQLERROR EXIT FAILURE
+      SET ECHO OFF HEAD OFF PAGES 0 FEED OFF SERVEROUTPUT ON
+
+      DECLARE
+
+        v_supplemental_log_data_min        v\$database.supplemental_log_data_min%TYPE;
+
+      BEGIN
+
+        SELECT a.supplemental_log_data_min
+         INTO  v_supplemental_log_data_min
+        FROM   v\$database a;
+
+        IF v_supplemental_log_data_min = 'NO'
+        THEN
+          EXECUTE IMMEDIATE 'ALTER DATABASE ADD SUPPLEMENTAL LOG DATA';
+          dbms_output.put_line('Minimal database supplemental logging switched on');
+        ELSE
+          dbms_output.put_line('Minimal database supplemental logging already switched on');
+        END IF;
+
+      END;
+      /
+      EOF
+  delegate_to: "{{ delius_primary_host }}"
+  register: supplemental_output
+  changed_when: false
+
+- name: Supplemental output
+  debug:
+    msg: "{{ sql_out }}"
+  with_items: "{{ supplemental_output.stdout_lines }}"
+  loop_control:
+    label: "Supplemental Output"
+    loop_var: sql_out
