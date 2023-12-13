@@ -10,21 +10,16 @@ WHENEVER SQLERROR EXIT FAILURE
 
 -- Allow PERFSTAT User Create Scheduler Jobs
 GRANT CREATE JOB TO perfstat;
-EXIT
-EOF
 
-sqlplus -s /nolog <<EOF
-CONNECT perfstat/$1
 SET LINES 1000
 SET PAGES 0
 SET FEEDBACK OFF
 SET HEADING OFF
-WHENEVER SQLERROR EXIT FAILURE
 
 BEGIN
 
     DBMS_SCHEDULER.create_job (
-    job_name => 'STATSPACK_SNAPSHOT',
+    job_name => 'PERFSTAT.STATSPACK_SNAPSHOT',
     job_type => 'PLSQL_BLOCK',
     job_action => 'statspack.snap(i_snap_level => 6, i_modify_parameter=>''true'');',
     start_date => systimestamp,
@@ -33,7 +28,7 @@ BEGIN
     comments => 'Hourly Statspack snapshot');
 
     DBMS_SCHEDULER.create_job (
-    job_name => 'STATSPACK_PURGE',
+    job_name => 'PERFSTAT.STATSPACK_PURGE',
     job_type => 'PLSQL_BLOCK',
     job_action => 'statspack.purge(i_num_days=>31,i_extended_purge=>true);',
     start_date => systimestamp,

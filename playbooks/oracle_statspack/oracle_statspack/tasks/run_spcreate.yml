@@ -13,17 +13,11 @@
   register: temp_tablespace
   changed_when: false
 
-# It does not matter what password we use for the PERFSTAT account as it will
-# be locked following creation and never used directly
-- name: Generate password for PERFSTAT account
-  set_fact:
-    perfstat_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters') }}"
-
 - name: Install Statspack
-  script: install_statspack.sh  {{ perfstat_password }} {{ temp_tablespace.stdout|trim }}
+  script: install_statspack.sh {{ temp_tablespace.stdout|trim }}
 
 - name: Schedule Hourly Snapshots
-  script: create_scheduler_jobs.sh {{ perfstat_password }}
+  script: create_scheduler_jobs.sh
 
 - name: Lock the Perfstat Account
   script: lock_perfstat.sh
