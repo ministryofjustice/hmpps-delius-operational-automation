@@ -1,0 +1,24 @@
+---
+- name: Get Snapshot Standby Conversion Date
+  script: get_snapshot_standby_restore_point.sh
+  register: get_snapshot_standby_conversion_date
+
+- name: Set Snapshot Standby Conversion Date
+  set_fact:
+    snapshot_standby_conversion_date: "{{ get_snapshot_standby_conversion_date.stdout }}"
+
+- name: Report Snapshot Standby Conversion Date
+  debug:
+    msg: "Pushing Snapshot Standby Audit Date Created After {{ snapshot_standby_conversion_date }}"
+
+- name: Push the Audit Data
+  script: push_audit_data_to_primary.sh {{ primary_database }} {{ snapshot_standby_conversion_date }}
+  register: push_audit_data_to_primary
+  environment:
+    DELIUS_APP_SCHEMA_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_app_schema_password', region=region ) }}"
+    DELIUS_POOL_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_pool_password', region=region ) }}"
+  vars:
+    ansible_aws_ssm_timeout: 7200
+
+- name: Report Audit Data Transfer Output
+  debug: var=push_audit_data_to_primary.stdout_lines

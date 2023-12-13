@@ -1,0 +1,105 @@
+delius_primary_host: "{{ hostvars[groups[delius_primarydb][0]]['inventory_hostname'] }}"
+delius_primary_sid: "{{ hostvars[groups[delius_primarydb][0]]['database_primary_sid'] }}"
+dms_user: "delius_audit_dms_pool"
+user_support_user: "delius_user_support"
+# Audited Interaction Preservation may use the Standby for Reading Audit Data is available
+# but writes of User Data must be to the Primary (therefore standby_only is false)
+standby_only: "FALSE"
+# The Date Format for Inserts by the DMS Agent is hardcoded as YYYY-MM-DD HH24:MI:SS
+# This is only relevant for inserts and updates
+set_nls_date_format: true
+
+objects:
+  - name: V_$DATABASE
+    grant_type: SELECT
+  - name: V_$THREAD
+    grant_type: SELECT
+  - name: V_$PARAMETER
+    grant_type: SELECT
+  - name: V_$NLS_PARAMETERS
+    grant_type: SELECT
+  - name: V_$TIMEZONE_NAMES
+    grant_type: SELECT
+  - name: ALL_INDEXES
+    grant_type: SELECT
+  - name: ALL_OBJECTS
+    grant_type: SELECT
+  - name: ALL_TABLES
+    grant_type: SELECT
+  - name: ALL_USERS
+    grant_type: SELECT
+  - name: ALL_CATALOG
+    grant_type: SELECT
+  - name: ALL_CONSTRAINTS
+    grant_type: SELECT
+  - name: ALL_CONS_COLUMNS
+    grant_type: SELECT
+  - name: ALL_TAB_COLS
+    grant_type: SELECT
+  - name: ALL_IND_COLUMNS
+    grant_type: SELECT
+  - name: ALL_LOG_GROUPS
+    grant_type: SELECT
+  - name: SYS.DBA_REGISTRY
+    grant_type: SELECT
+  - name: SYS.OBJ$
+    grant_type: SELECT
+  - name: DBA_TABLESPACES
+    grant_type: SELECT
+  - name: ALL_TAB_PARTITIONS
+    grant_type: SELECT
+  - name: ALL_ENCRYPTED_COLUMNS
+    grant_type: SELECT
+  - name: V_$TRANSACTION
+    grant_type: SELECT
+  - name: V_$LOGMNR_LOGS
+    grant_type: SELECT
+  - name: V_$LOGMNR_CONTENTS
+    grant_type: SELECT
+  - name: V_$LOG
+    grant_type: SELECT
+  - name: V_$ARCHIVED_LOG
+    grant_type: SELECT
+  - name: V_$LOGFILE
+    grant_type: SELECT
+  - name: V_$TRANSACTION
+    grant_type: SELECT
+  - name: V_$STANDBY_LOG
+    grant_type: SELECT
+  - name: DBMS_LOGMNR
+    grant_type: EXECUTE
+  - name: SYS.ENC$
+    grant_type: SELECT
+  - name: DBA_OBJECTS
+    grant_type: SELECT
+  - name: V_$CONTAINERS
+    grant_type: SELECT
+  - name: GV_$TRANSACTION
+    grant_type: SELECT
+  - name: V_$DATAGUARD_STATS
+    grant_type: SELECT
+  - name: V_$DATABASE_INCARNATION
+    grant_type: SELECT
+  - name: V_$TRANSPORTABLE_PLATFORM
+    grant_type: SELECT
+
+system_privileges:
+  - name: CREATE SESSION
+  - name: CREATE TABLE
+
+dms_tables:
+  - name: AUDITED_INTERACTION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: USER_
+    owner: DELIUS_APP_SCHEMA
+    log_data: PRIMARY KEY
+  - name: STAFF
+    owner: DELIUS_APP_SCHEMA
+    log_data: PRIMARY KEY
+  - name: PROBATION_AREA
+    owner: DELIUS_APP_SCHEMA
+    log_data: PRIMARY KEY
+  - name: PROBATION_AREA_USER
+    owner: DELIUS_APP_SCHEMA
+    log_data: PRIMARY KEY

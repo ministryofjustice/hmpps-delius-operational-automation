@@ -1,0 +1,67 @@
+- name: Include Variables for {{ dms_user_application }} Setup
+  include_vars: "{{ dms_user_application }}.yml"
+
+- name: Get {{ dms_user }} password from ssm
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    aws ssm get-parameters --region {{ region }} --with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/{{ dms_user }}_password | jq -r '.Parameters[].Value'
+  changed_when: false
+  register: "dms_password"
+  #no_log: true
+
+- name: Copy object and system privilege template to primary
+  template:
+    src: grant_privileges.sql.j2
+    dest: /tmp/grant_privileges.sql
+  delegate_to: "{{ delius_primary_host }}"
+  changed_when: false
+
+- name: Create {{ dms_user }} user
+  shell:
+    cmd: |
+      . ~/.bash_profile
+      ORACLE_SID={{ delius_primary_sid }}
+      ORAENV_ASK=NO
+      . oraenv > /dev/null;
+        sqlplus -s / as sysdba << EOF
+          WHENEVER SQLERROR EXIT FAILURE
+          SET PAGES 100 HEAD OFF LINES 200 FEED OFF SERVEROUTPUT ON
+
+          DECLARE
+
+            CURSOR c1 IS
+              SELECT username
+              FROM dba_users
+              WHERE username = upper('{{ dms_user }}');
+
+            r1 c1%ROWTYPE;
+
+          BEGIN
+
+            OPEN c1;
+            FETCH c1 INTO r1;
+            IF c1%NOTFOUND 
+            THEN
+              EXECUTE IMMEDIATE 'create user {{ dms_user }} identified by "{{ dms_password.stdout }}"';             
+              dbms_output.put_line('User {{ dms_user }} created');
+            ELSE   
+              dbms_output.put_line('User {{ dms_user }} already exists');
+            END IF;
+            CLOSE c1;           
+          END;
+          /
+          @/tmp/grant_privileges.sql
+          EXEC dbms_output.put_line('Privileges granted to {{ dms_user }}');
+          AUDIT CREATE SESSION BY {{ dms_user }};
+      EOF
+  delegate_to: "{{ delius_primary_host }}"
+  changed_when: false
+  register: create_user_plsql
+
+- name: User {{ dms_user }} creation output
+  debug:
+    msg: "{{ sql_out }}"
+  with_items: "{{ create_user_plsql.stdout_lines }}"
+  loop_control:
+    label: "User Output"
+    loop_var: sql_out

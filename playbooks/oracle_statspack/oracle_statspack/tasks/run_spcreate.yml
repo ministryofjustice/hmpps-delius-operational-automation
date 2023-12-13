@@ -1,0 +1,23 @@
+---
+- name: Check if Statspack Tablespace Exists
+  script: check_if_statspack_tablespace_exists.sh
+  register: tablespace_name
+  changed_when: false
+
+- name: Create Statspack Tablespace if Absent
+  script: create_statspack_tablespace.sh
+  when: 'tablespace_name.stdout is not search("STATSPACK_DATA")'
+
+- name: Get Default Temporary Tablespace
+  script: get_default_temporary_tablespace.sh
+  register: temp_tablespace
+  changed_when: false
+
+- name: Install Statspack
+  script: install_statspack.sh {{ temp_tablespace.stdout|trim }}
+
+- name: Schedule Hourly Snapshots
+  script: create_scheduler_jobs.sh
+
+- name: Lock the Perfstat Account
+  script: lock_perfstat.sh

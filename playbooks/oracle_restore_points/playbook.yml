@@ -35,6 +35,7 @@
           script: check_flashback_logs.sh
           environment:
             RESTORE_DATE_TIME: "{{ restore_date_time }}"
+          when: database_primary_sid is defined
 
 # Prevent FSFO Observer from performing a failover whilst the primary database is down for flashback
 # by temporarily disabling FSFO if it is configured.   It will be re-enabled after flashback completes.
@@ -89,16 +90,6 @@
     - required_action == "Flashback to Restore Point"
     - target_dbs | regex_search('delius_')
     - database_primary_sid is defined
-
-# Propagate remaining Audited Interaction Data from the database prior to flashback
-# if an audited_interaction_repo has been defined within this environment
-# - name: Archive Remaining Audited Interaction Data
-#   import_playbook: ../delius_audited_interaction/delius_audited_interaction_run.yml
-#   when:
-#     - required_action == "Flashback to Restore Point"
-#     - target_dbs | regex_search('delius_')
-#     - database_primary_sid is defined
-#     - audited_interaction_repo is defined
 
 - name: Export dfi schemas only for STGMIS
   import_playbook: dfi-schemas.yml

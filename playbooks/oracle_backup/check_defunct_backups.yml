@@ -22,15 +22,6 @@
   set_fact:
     inventory_file: "{{ inventory_directory }}/{{ inventory_filename }}"
 
-# - name: Slurp Environment File to Get Backup Bucket Location
-#   slurp:
-#       src: /etc/environment
-#   register: environmentfile
-
-# - name: Set Backup Location
-#   set_fact:
-#     hmpps_s3_oracledb_backups_arn: "{{ environmentfile['content'] | b64decode | regex_search('S3_ORACLEDB_BACKUPS_ARN=\".*\"') | regex_replace('S3_ORACLEDB_BACKUPS_ARN=\"arn:aws:s3:::(.*)\"','\\1') }}"
-
 - block:
     - include_tasks: fetch_inventory_files.yml
   delegate_to: localhost
@@ -43,12 +34,14 @@
     dest: "{{ inventory_file }}"
     owner: oracle
 
-- name: Establish SSM Name
-  set_fact:
-    ssmname: "/{{ environment_name }}/{{ project_name }}/oracle-db-operation/rman/rman_password"
-
 - name: Get RMAN Catalog Password
-  shell: aws ssm get-parameters --region {{ region }} --with-decryption --name {{ ssmname }} | jq -r '.Parameters[].Value'
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+    ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
+    DELIUS_ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment-name"  --query "Tags[].Value" --output text)
+    APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
+    aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT_NAME}-${APPLICATION}-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .rman
   register: rman_password
   changed_when: false
   no_log: true
@@ -60,7 +53,7 @@
 # Get the Delius Slack token or the Alfresco Slack token if it does not exist
 - name: Get Slack Token
   shell: |
-    . ~/.bash_profile
+    export PATH=$PATH:/usr/local/bin
     aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value
   register: getslacktoken
   changed_when: false

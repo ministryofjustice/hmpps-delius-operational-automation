@@ -1,0 +1,22 @@
+# To ensure the AWS snapshot contains a consistent copy of database datafiles, swap into backup mode
+# whilst we create the snapshot.
+- block:
+    - name: Get Database Backup Mode
+      script: get_backup_mode.sh
+      register: get_backup_mode
+
+    - name: End Datafile Backup
+      script: end_backup.sh
+      when: get_backup_mode.stdout is search ('PARTIAL')
+
+    - name: Put Database into Backup Mode
+      script: begin_backup.sh
+      when: get_backup_mode.stdout is search ('NOT ACTIVE') or  get_backup_mode.stdout is search ('PARTIAL')
+
+    - name: Create Snapshot
+      include_tasks: create_snapshot.yml
+
+  always:
+    # Always ensure database is not left in Backup Mode even if the backup failed
+    - name: Take Database out of Backup Mode
+      script: end_backup.sh
