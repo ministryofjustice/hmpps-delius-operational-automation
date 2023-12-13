@@ -43,7 +43,6 @@ usage () {
   echo "                                              [ -a min archivelog sequence,max archivelog sequence ] "
   echo "                                              [ -l <comma separated list of datafiles to backup> ] "
   echo "                                              [ -g <target db global name> ]"
-  echo "                                              [ -p <ssm parameter> ]"
   echo ""
   echo "where"
   echo ""
@@ -61,7 +60,6 @@ usage () {
   echo "  catalog db  = database where the rman repository resides"
   echo "  trace       = Y/N flag indicating whether to enable RMAN trace.  Default is N."
   echo "  archivelogs = range of archivelogs to backup in format of minimum sequence,maximum sequence (e.g. 100,110 ).  Do not put spaces around the comma."
-  echo "  ssm parameter = ssm parameter name to be updated"
   echo "  "
   echo "  If -a or -l is NOT specified then a full backup of the database and all archivelogs not already backed up is performed."
   echo "     -a and -l are mutually exclusive.  If you wish to backup a range of archivelogs and some datafiles then call the script twice "
@@ -88,14 +86,6 @@ warning () {
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
-
-  # Report Backup Failure in SSM Parameters
-  if [ "${SSM_PARAMETER}" != "UNSPECIFIED" ]
-  then  
-    . /etc/environment
-    aws ssm put-parameter --region ${REGION} --value "FAILED" --name "${SSM_PARAMETER}" --overwrite --type String
-  fi
-
   exit $ERROR_STATUS
 }
 
@@ -209,14 +199,12 @@ validate () {
                        then
                          error "Catalog mode is $CATALOGMODE, specify catalog db"
                        else
-                         . /etc/environment
-                         SSMNAME="/${HMPPS_ENVIRONMENT}/${APPLICATION}/oracle-db-operation/rman/rman_password"
-                         if [[ ${TARGET_DB_SID} =~ .*OEM ]]
-                         then
-                           SSMNAME="/${HMPPS_ENVIRONMENT}/${APPLICATION}/rman-database/db/rman_password"
-                         fi 
-                         RMANPASS=`aws ssm get-parameters --region ${REGION} --with-decryption --name ${SSMNAME} | jq -r '.Parameters[].Value'`
-                         [ -z ${RMANPASS} ] && error "Password for rman in aws parameter store ${SSMNAME} does not exist"
+                          INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+                          ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
+                          DELIUS_ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment-name"  --query "Tags[].Value" --output text)
+                          APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
+                          RMANPASS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT_NAME}-${APPLICATION}-dba-passwords --region eu-west-2 --query SecretString --output text| jq -r .rman)
+                         [ -z ${RMANPASS} ] && error "Password for rman in aws secret ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT_NAME}-${APPLICATION}-dba-passwords does not exist"
                          CATALOG_CONNECT=rman19c/${RMANPASS}@$CATALOG_DB
                        fi
                      fi
@@ -590,7 +578,6 @@ MINIMIZE_LOAD=UNSPECIFIED
 TRACE_FILE=N
 ARCHIVELOGS=UNSPECIFIED
 DATAFILES=UNSPECIFIED
-SSM_PARAMETER=UNSPECIFIED
 while getopts "d:t:b:f:i:n:m:u:c:e:a:l:g:p:" opt
 do
   case $opt in
@@ -607,7 +594,6 @@ do
     a) ARCHIVELOGS=$OPTARG ;;
     l) DATAFILES=$OPTARG ;;
     g) TARGET_DB_NAME=$OPTARG ;;
-    p) SSM_PARAMETER=$OPTARG ;;
     *) usage ;;
   esac
 done
@@ -623,7 +609,6 @@ info "Load Duration       = $MINIMIZE_LOAD"
 info "Trace File          = $TRACE_FILE"
 info "Archivelog Range    = $ARCHIVELOGS"
 info "Specific Datafiles  = $DATAFILES"
-info "SSM parameter       = $SSM_PARAMETER"
 
 validate user
 info "Execute $THISUSER bash profile"
@@ -681,14 +666,6 @@ info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
 info "Completes successfully"
-
-info "Update ssm backup parameter if specified"
-if [ "${SSM_PARAMETER}" != "UNSPECIFIED" ]
-then  
-  . /etc/environment
-  aws ssm put-parameter --region ${REGION} --value "BackedUp" --name "${SSM_PARAMETER}" --overwrite --type String
-  [ $? -ne 0 ] && error "Updating ssm backup parameter"
-fi
 
 # Exit with success status if no error found
 exit 0

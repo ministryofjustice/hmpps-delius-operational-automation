@@ -40,54 +40,37 @@
     metadata_working_directory: /home/oracle/admin/metadata_validation
     num_of_days_back_to_validate: 7
 
-# - name: Slurp Environment File to Get Backup Bucket Location
-#   slurp:
-#       src: /etc/environment
-#   register: environmentfile
-
-# - name: Set Backup Location
-#   set_fact:
-#     hmpps_s3_oracledb_backups_arn: "{{ environmentfile['content'] | b64decode | regex_search('S3_ORACLEDB_BACKUPS_ARN=\".*\"') | regex_replace('S3_ORACLEDB_BACKUPS_ARN=\"arn:aws:s3:::(.*)\"','\\1') }}"
-
-# - name: Set Current Environment
-#   set_fact:
-#     hmpps_environment: "{{ environmentfile['content'] | b64decode | regex_search('HMPPS_ENVIRONMENT=\"?[-\\w]+\"?') | regex_replace('HMPPS_ENVIRONMENT=\"?([-\\w]+)\"?','\\1') }}"
-
-# - name: Set Current Application
-#   set_fact:
-#     application: "{{ environmentfile['content'] | b64decode | regex_search('APPLICATION=\".*\"') | regex_replace('APPLICATION=\"(.*)\"','\\1') }}"
-
-# - name: Set Current Region
-#   set_fact:
-#     region: "{{ environmentfile['content'] | b64decode | regex_search('REGION=\".*\"') | regex_replace('REGION=\"(.*)\"','\\1') }}"
-
-# - name: Establish SSM Name
-#   set_fact:
-#     ssmname: "/{{ hmpps_environment }}/{{ application }}/{% if application == 'engineering' %}rman-database/db{% else %}oracle-db-operation/rman{% endif %}/rman_password"
-
 # Get the Delius Slack token is stored in various places depending on the environment:  try all 3 known locations
-# - name: Get Slack Token
-#   shell: aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || \
-#          aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value || \
-#          aws ssm get-parameter --name /engineering-prod/engineering/oem-database/db/slack_token --region {{ region }} --output text --with-decryption --query Parameter.Value
-#   register: getslacktoken
-#   changed_when: false
+- name: Get Slack Token
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || \
+    aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value || \
+    aws ssm get-parameter --name /engineering-prod/engineering/oem-database/db/slack_token --region {{ region }} --output text --with-decryption --query Parameter.Value
+  register: getslacktoken
+  changed_when: false
 
-# - name: Setup Slack Configuration
-#   set_fact:
-#     slack_channel: "#delius-aws-oracle-dev-alerts"
+- name: Setup Slack Configuration
+  set_fact:
+    slack_channel: "#delius-aws-oracle-dev-alerts"
 
 # Only production database alerts should go to the prod channel
-# - name: Setup Slack Configuration for Production
-#   set_fact:
-#     slack_channel: "#delius-aws-oracle-prod-alerts"
-#   when: environment_name in ['delius-prod','engineering-prod']
+- name: Setup Slack Configuration for Production
+  set_fact:
+    slack_channel: "#delius-aws-oracle-prod-alerts"
+  when: environment_name in ['delius-core-production']
 
-# - name: Get RMAN Catalog Password
-#   shell: aws ssm get-parameters --region {{ region }} --with-decryption --name {{ ssmname }} | jq -r '.Parameters[].Value'
-#   register: rman_password
-#   changed_when: false
-#   no_log: true
+- name: Get RMAN Catalog Password
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+    ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
+    DELIUS_ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment-name"  --query "Tags[].Value" --output text)
+    APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
+    aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT_NAME}-${APPLICATION}-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .rman
+  register: rman_password
+  changed_when: false
+  no_log: true
 
 - name: Set RMAN Catalog Connection
   set_fact:
