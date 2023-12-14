@@ -3,9 +3,6 @@
   register: get_dbsnmp_monitoring_profile
   changed_when: false
   environment:
-    DB_NAME: "{{ db_name }}"
-    LOGIN_USER: "{{ login_user }}"
-    LOGIN_PWD: "{{ login_pwd }}"
     PROFILE_NAME: "DBSNMP_MONITORING_PROFILE"
 
 # Check Which Profile DBSNMP is Using
@@ -14,32 +11,18 @@
   register: get_dbsnmp_current_profile
   changed_when: false
   environment:
-    DB_NAME: "{{ db_name }}"
-    LOGIN_USER: "{{ login_user }}"
-    LOGIN_PWD: "{{ login_pwd }}"
     PROFILE_USER: "DBSNMP"
 
 - name: Create DBSNMP Profile
   script: create_dbsnmp_monitoring_profile.sh
   when: get_dbsnmp_monitoring_profile.stdout_lines[-1] != 'DBSNMP_MONITORING_PROFILE'
-  environment:
-    DB_NAME: "{{ db_name }}"
-    LOGIN_USER: "{{ login_user }}"
-    LOGIN_PWD: "{{ login_pwd }}"
 
 - name: Customize DBSNMP Profile
   script: alter_dbsnmp_monitoring_profile.sh
-  environment:
-    DB_NAME: "{{ db_name }}"
-    LOGIN_USER: "{{ login_user }}"
-    LOGIN_PWD: "{{ login_pwd }}"
 
 - name: Set DBSNMP Profile
   script: set_monitoring_profile.sh
   when: get_dbsnmp_current_profile.stdout_lines[-1] != 'DBSNMP_MONITORING_PROFILE'
   environment:
-    DB_NAME: "{{ db_name }}"
-    LOGIN_USER: "{{ login_user }}"
-    LOGIN_PWD: "{{ login_pwd }}"
     PROFILE_USER: "DBSNMP"
     PROFILE_NAME: "DBSNMP_MONITORING_PROFILE"

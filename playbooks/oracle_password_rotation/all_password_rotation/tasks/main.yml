@@ -75,16 +75,26 @@
   set_fact:
     application: "{{ database_type + '-database' }}"
 
+- name: Build Secret Name From EC2 Tags
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+    ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
+    DELIUS_ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment-name"  --query "Tags[].Value" --output text)
+    APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
+    echo ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT_NAME}-${APPLICATION}-dba-passwords
+  register: build_secret_name
+
+- name: Set Secret Manager Name
+  set_fact:
+    secret_name: "{{ build_secret_name.stdout }}"
+
 #  The rest of this play is in a block so we can re-enable monitoring even if it fails
 - name: Rotate Passwords
   block:
     # Do not specify database login credentials as will login as SYS on primary
     - name: Set Profile for DBSNMP on Primary
       include_tasks: set_dbsnmp_profile.yml
-      vars:
-        db_name: ""
-        login_user: ""
-        login_pwd: ""
       when:
         - database_primary_sid is defined
 
@@ -94,10 +104,6 @@
     # to become aware of the situation before the account gets locked out.
     - name: Set Profile for SYS on Primary
       include_tasks: set_sys_profile.yml
-      vars:
-        db_name: ""
-        login_user: ""
-        login_pwd: ""
       when:
         - database_primary_sid is defined
 
@@ -149,7 +155,7 @@
     # for rotating the password in the Alfresco or Audit wallets.
     - name: Remember Existing SYSTEM Password
       set_fact:
-        original_system_password: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/{{ application }}/db/oradb_system_password',region=region ) }}"
+        original_system_password: "{{ lookup('aws_secret', '{{ secret_name }}.system',region=region,nested=true) }}"
       when:
         - database_type == 'delius'
 
@@ -225,7 +231,7 @@
       when:
         - database_primary_sid is defined
 
-    - name: Generate ASMSNMP Passwords
+    - name: Rotate ASMSNMP Passwords
       include_tasks: rotate_asm_passwords.yml
       vars:
         db_type: "{{ database_type }}"
@@ -241,9 +247,6 @@
       include_tasks: unlock_system_passwords.yml
       vars:
         db_username: "{{ username }}"
-        db_name: ""
-        login_user: ""
-        login_pwd: ""
         db_type: "{{ database_type }}"
       loop: ["sys", "system", "dbsnmp"]
       loop_control:

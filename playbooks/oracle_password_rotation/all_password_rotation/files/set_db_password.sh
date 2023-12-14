@@ -5,11 +5,9 @@
 
 . ~/.bash_profile
 
-[[ ! -z ${DB_NAME} ]] && CONNECT="@${DB_NAME}"
-[[ -z ${LOGIN_USER} ]] && SYSDBA="as sysdba"
+DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${SECRET_NAME} --region eu-west-2 --query SecretString --output text| jq -r .${DB_USERNAME})
 
-sqlplus -S /nolog <<EOSQL
-connect ${LOGIN_USER}/${LOGIN_PWD}${CONNECT} ${SYSDBA}
+sqlplus -S / as sysdba <<EOSQL
 set pages 0
 set lines 30
 set echo on
