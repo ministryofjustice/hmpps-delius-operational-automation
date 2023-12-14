@@ -60,6 +60,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     env:
+      ansible_config: operations/playbooks/ansible.cfg
       command: ansible-playbook operations/ansible/roles/oracle-db-parameters/set_oracle_parameters.yml
       inventory: inventory/ansible
     continue-on-error: false
