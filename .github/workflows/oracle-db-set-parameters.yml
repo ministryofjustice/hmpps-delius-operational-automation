@@ -107,4 +107,6 @@ jobs:
           aws-region: "eu-west-2"
 
       - name: Start Set Parameters
-        run: $command -i $inventory -e target_host=${{needs.build_target_name.outputs.TargetHost}}
+        run: | 
+            export ANSIBLE_CONFIG=$ansible_config
+            $command -i $inventory -e target_host=${{needs.build_target_name.outputs.TargetHost}}
