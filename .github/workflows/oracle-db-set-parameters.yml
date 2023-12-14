@@ -22,12 +22,16 @@ on:
           - "delius_primarydb"
           - "delius_standbydb1"
           - "delius_standbydb2"
+          - "delius_dbs"
           - "mis_primarydb"
           - "mis_standbydb1"
+          - "mis_dbs"
           - "misboe_primarydb"
           - "misboe_standbydb1"
+          - "misboe_dbs"
           - "misdsd_primarydb"
           - "misdsd_standbydb1"
+          - "misdsd_dbs"
       SourceCodeVersion:
         description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
