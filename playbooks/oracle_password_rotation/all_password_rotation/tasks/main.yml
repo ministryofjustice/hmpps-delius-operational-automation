@@ -81,10 +81,6 @@
     # Do not specify database login credentials as will login as SYS on primary
     - name: Set Profile for DBSNMP on Primary
       include_tasks: set_dbsnmp_profile.yml
-      vars:
-        db_name: ""
-        login_user: ""
-        login_pwd: ""
       when:
         - database_primary_sid is defined
 
@@ -94,10 +90,6 @@
     # to become aware of the situation before the account gets locked out.
     - name: Set Profile for SYS on Primary
       include_tasks: set_sys_profile.yml
-      vars:
-        db_name: ""
-        login_user: ""
-        login_pwd: ""
       when:
         - database_primary_sid is defined
 
@@ -225,7 +217,7 @@
       when:
         - database_primary_sid is defined
 
-    - name: Generate ASMSNMP Passwords
+    - name: Rotate ASMSNMP Passwords
       include_tasks: rotate_asm_passwords.yml
       vars:
         db_type: "{{ database_type }}"
@@ -241,9 +233,6 @@
       include_tasks: unlock_system_passwords.yml
       vars:
         db_username: "{{ username }}"
-        db_name: ""
-        login_user: ""
-        login_pwd: ""
         db_type: "{{ database_type }}"
       loop: ["sys", "system", "dbsnmp"]
       loop_control:
