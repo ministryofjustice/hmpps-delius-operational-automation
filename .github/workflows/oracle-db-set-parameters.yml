@@ -38,7 +38,7 @@ on:
         default: "main"
 
 env:
-  ansible_config: operations/playbooks/ansible.cfg
+  ansible_config: ansible/playbooks/ansible.cfg
 
 permissions:
   contents: read
@@ -75,7 +75,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/ansible.cfg
-          path: operations
+          path: ansible
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
