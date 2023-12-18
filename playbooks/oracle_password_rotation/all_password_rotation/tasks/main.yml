@@ -153,9 +153,19 @@
 
     # We are changing the SYSTEM password so keep a note of the old value as this will be required later
     # for rotating the password in the Alfresco or Audit wallets.
-    - name: Remember Existing SYSTEM Password
-      set_fact:
-        original_system_password: "{{ lookup('aws_secret', '{{ secret_name }}.system',region=region,nested=true) }}"
+
+    - block:
+
+        - name: Get Existing SYSTEM Password
+          shell: |
+            export PATH=$PATH:/usr/local/bin
+            echo $(aws secretsmanager get-secret-value --secret-id {{ secret_name }} --region eu-west-2  --query SecretString --output text | jq -r .system)
+          register: getsystemsecret
+
+        - name: Remember Existing SYSTEM Password
+          set_fact:
+            original_system_password: "{{ getsystemsecret.stdout }}"
+  
       when:
         - database_type == 'delius'
 
