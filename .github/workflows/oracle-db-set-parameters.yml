@@ -22,16 +22,27 @@ on:
           - "delius_primarydb"
           - "delius_standbydb1"
           - "delius_standbydb2"
+          - "delius_dbs"
           - "mis_primarydb"
           - "mis_standbydb1"
+          - "mis_dbs"
           - "misboe_primarydb"
           - "misboe_standbydb1"
+          - "misboe_dbs"
           - "misdsd_primarydb"
           - "misdsd_standbydb1"
+          - "misdsd_dbs"
+      SourceCodeVersion:
+        description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
       SourceConfigVersion:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
+
+env:
+  ansible_config: ansible/playbooks/ansible.cfg
 
 permissions:
   contents: read
@@ -60,6 +71,17 @@ jobs:
       inventory: inventory/ansible
     continue-on-error: false
     steps:
+
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/ansible.cfg
+          path: ansible
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
 
       - name: Checkout Role From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -92,4 +114,6 @@ jobs:
           aws-region: "eu-west-2"
 
       - name: Start Set Parameters
-        run: $command -i $inventory -e target_host=${{needs.build_target_name.outputs.TargetHost}}
+        run: | 
+            export ANSIBLE_CONFIG=$ansible_config
+            $command -i $inventory -e target_host=${{needs.build_target_name.outputs.TargetHost}}
