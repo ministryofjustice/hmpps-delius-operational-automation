@@ -4,7 +4,7 @@
 # (This is used to greatly reduce the number of LIST operations run against the bucket)
 - name: Set Backup Inventory Location
   set_fact:
-    s3_oracledb_backups_inventory: "{{ db_backup_s3_bucket_name | regex_replace('^(.*)(-oracle-database-backups)$','\\1-oracle-databases-backuppieces') }}"
+    s3_oracledb_backups_inventory: "{{ db_backup_s3_bucket_name | regex_replace('^(.*)(-oracle-database-backups)$','\\1-oracle-database-backuppieces') }}"
     s3_oracledb_backups_inventory_arn: "{{ db_backup_s3_bucket_name }}-inventory"
 
 # Symlink to the Inventory file is kept in the folder using format dt=YYYY-MM-DD-HH24-MI
