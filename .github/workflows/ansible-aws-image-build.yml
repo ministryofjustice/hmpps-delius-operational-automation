@@ -50,7 +50,7 @@ jobs:
           outputs: type=docker,dest=/tmp/ansible-aws-image.tar
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ansible-aws-image
           path: /tmp/ansible-aws-image.tar
