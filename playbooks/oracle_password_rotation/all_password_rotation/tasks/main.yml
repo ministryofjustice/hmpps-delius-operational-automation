@@ -155,7 +155,6 @@
     # for rotating the password in the Alfresco or Audit wallets.
 
     - block:
-
         - name: Get Existing SYSTEM Password
           shell: |
             export PATH=$PATH:/usr/local/bin
@@ -165,7 +164,7 @@
         - name: Remember Existing SYSTEM Password
           set_fact:
             original_system_password: "{{ getsystemsecret.stdout }}"
-  
+
       when:
         - database_type == 'delius'
 
