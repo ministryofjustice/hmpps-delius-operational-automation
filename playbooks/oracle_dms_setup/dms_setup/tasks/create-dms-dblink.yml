@@ -4,7 +4,7 @@
 - name: Get {{ dms_user }} password from ssm
   shell: |
     export PATH=$PATH:/usr/local/bin
-    aws ssm get-parameters --region {{ region }} --with-decryption --name /{{ environment_name }}/{{ project_name }}/delius-database/db/{{ dms_user }}_password | jq -r '.Parameters[].Value'
+    aws secretsmanager get-secret-value --secret-id {{ secret_name }} --region {{ region }} --query SecretString --output text| jq -r .{{ dms_user }}
   changed_when: false
   register: "dms_password"
   no_log: true
