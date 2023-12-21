@@ -58,8 +58,8 @@
     token: "{{ getslacktoken.stdout }}"
     msg: "{{ notification_msg }}"
     channel: "{{ slack_channel }}"
-    username: 'Defunct Backup Deletion on {{ inventory_hostname }}'
-    icon_emoji: ':put_litter_in_its_place:'
+    username: "Defunct Backup Deletion on {{ inventory_hostname }}"
+    icon_emoji: ":put_litter_in_its_place:"
   when: aws_s3_rm.stdout_lines | length > 0
   delegate_to: localhost
   become: no
