@@ -30,21 +30,21 @@
 
 - name: (main/set-primary-config) Handle FQDN For Primary and Standby Host 1 TNS Purposes
   set_fact:
-    primary_host_tns: "{{ primary_host | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
-    standby_host1_tns: "{{ hostvars[groups[ standby1 ][0]]['inventory_hostname'] | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
+    primary_host_tns: "{{ hostvars[primary_host]['ansible_facts']['fqdn'] }}"
+    standby_host1_tns: "{{ hostvars[groups[ standby1 ][0]]['inventory_hostname'] }}.{{ dns_zone_internal }}"
   tags: var
 
 # The second standby database is optional
 - name: (main/set-primary-config) Handle FQDN For Standby Host 2 TNS Purpose
   set_fact:
-    standby_host2_tns: "{{ hostvars[groups[ standby2 ][0]]['inventory_hostname'] | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
+    standby_host2_tns: "{{ hostvars[groups[ standby2 ][0]]['inventory_hostname'] }}.{{ dns_zone_internal }}"
   when: high_availability_count | int > 1
   tags: var
 
 # The following variable is not required if we are only running FSFO Setup or Password Rotation (system-wide configuration - not specific to one standby database)
 - name: (main/set-primary-config) Handle FQDN For Any Standby Host TNS Purpose
   set_fact:
-    standby_host_tns: "{{ standby_host | regex_replace('^(.+)-(.*)-(db-(1|2|3))$' ,'\\2-\\1-\\3') }}.{{ dns }}"
+    standby_host_tns: "{{ hostvars[standby_host]['ansible_facts']['fqdn'] }}"
   when:
     - not fsfo_setup
     - not password_rotation

@@ -80,9 +80,9 @@
     export PATH=$PATH:/usr/local/bin
     INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
     ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-    DELIUS_ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment-name"  --query "Tags[].Value" --output text)
+    DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
     APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
-    echo ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT_NAME}-${APPLICATION}-dba-passwords
+    echo ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords
   register: build_secret_name
 
 - name: Set Secret Manager Name
@@ -153,9 +153,18 @@
 
     # We are changing the SYSTEM password so keep a note of the old value as this will be required later
     # for rotating the password in the Alfresco or Audit wallets.
-    - name: Remember Existing SYSTEM Password
-      set_fact:
-        original_system_password: "{{ lookup('aws_secret', '{{ secret_name }}.system',region=region,nested=true) }}"
+
+    - block:
+        - name: Get Existing SYSTEM Password
+          shell: |
+            export PATH=$PATH:/usr/local/bin
+            echo $(aws secretsmanager get-secret-value --secret-id {{ secret_name }} --region eu-west-2  --query SecretString --output text | jq -r .system)
+          register: getsystemsecret
+
+        - name: Remember Existing SYSTEM Password
+          set_fact:
+            original_system_password: "{{ getsystemsecret.stdout }}"
+
       when:
         - database_type == 'delius'
 

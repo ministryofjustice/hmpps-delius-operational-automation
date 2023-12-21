@@ -201,10 +201,10 @@ validate () {
                        else
                           INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
                           ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-                          DELIUS_ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment-name"  --query "Tags[].Value" --output text)
+                          DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
                           APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
-                          RMANPASS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT_NAME}-${APPLICATION}-dba-passwords --region eu-west-2 --query SecretString --output text| jq -r .rman)
-                         [ -z ${RMANPASS} ] && error "Password for rman in aws secret ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT_NAME}-${APPLICATION}-dba-passwords does not exist"
+                          RMANPASS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region eu-west-2 --query SecretString --output text| jq -r .rman)
+                         [ -z ${RMANPASS} ] && error "Password for rman in aws secret ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords does not exist"
                          CATALOG_CONNECT=rman19c/${RMANPASS}@$CATALOG_DB
                        fi
                      fi

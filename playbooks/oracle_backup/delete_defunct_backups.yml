@@ -23,6 +23,7 @@
 
 - name: Delete {{ defunct_dbid }} Backups
   shell: |
+    export PATH=$PATH:/usr/local/bin
     aws s3 rm s3://{{ bucket }}/file_chunk/{{ defunct_dbid }}/ --recursive
   register: aws_s3_rm
   vars:

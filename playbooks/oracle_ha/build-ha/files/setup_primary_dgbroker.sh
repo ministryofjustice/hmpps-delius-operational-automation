@@ -66,16 +66,15 @@ EOF
 
 lookup_db_sys_password() {
 
- info "Looking up sys password in aws ssm parameter"
+ info "Looking up sys password in aws secret"
 
   INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+  ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
+  DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
   APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
-  DELIUS_ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment-name"  --query "Tags[].Value" --output text)
-  PRODUCT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=database"  --query "Tags[].Value" --output text | cut -d_ -f1)
-  SSMNAME="/${APPLICATION}-${DELIUS_ENVIRONMENT_NAME}/delius/${PRODUCT}-database/db/oradb_sys_password"
-  SYSPASS=$(aws ssm get-parameters --with-decryption --name $SSMNAME --query Parameters[].Value --output text)
+  SYSPASS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --query SecretString --output text| jq -r .sys)
 
-  [ -z ${SYSPASS} ] && error "Password for sys in aws parameter store ${SSMNAME} does not exist"
+  [ -z ${SYSPASS} ] && error "Password for sys in aws secret ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-password does not exist"
 
 }
 
