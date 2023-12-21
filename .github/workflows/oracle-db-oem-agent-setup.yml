@@ -1,9 +1,6 @@
 name: "Oracle: OEM Agent Setup"
 run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_oem_agent_setup"
 on:
-  push:
-    branches:
-      - "DBA-594"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
