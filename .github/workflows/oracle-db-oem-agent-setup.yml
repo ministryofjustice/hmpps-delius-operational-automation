@@ -88,7 +88,9 @@ jobs:
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
-          sparse-checkout: ansible/roles/oracle-oem-agent-setup
+          sparse-checkout: |
+               ansible/roles/oracle-oem-agent-setup
+               ansible/site.yml
           path: operations
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
