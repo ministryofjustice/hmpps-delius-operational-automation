@@ -128,5 +128,5 @@ jobs:
       - name: Start Set Parameters
         run: | 
             export ANSIBLE_CONFIG=$ansible_config
-            echo "Running $command"
+            echo "Running $command -e target=${{needs.build_target_name.outputs.TargetHost}} ${{ github.events.inputs.VerboseOutput }}"
             $command -i $inventory -e target=${{needs.build_target_name.outputs.TargetHost}} ${{ github.events.inputs.VerboseOutput }}
