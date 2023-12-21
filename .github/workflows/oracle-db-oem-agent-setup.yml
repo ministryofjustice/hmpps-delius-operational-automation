@@ -128,5 +128,10 @@ jobs:
       - name: Start Set Parameters
         run: | 
             export ANSIBLE_CONFIG=$ansible_config
+            echo "E: ${{ github.event.inputs.TargetEnvironment }} "
+            echo "H: ${{ github.event.inputs.TargetHost }}"
+            echo "V: ${{ github.events.inputs.VerboseOutput }}"
+            echo "S: ${{ github.event.inputs.SourceCodeVersion }}"
+            echo "F: ${{ github.event.inputs.SourceConfigVersion }}"
             echo "Running $command -e target=${{needs.build_target_name.outputs.TargetHost}} ${{ github.events.inputs.VerboseOutput }}"
             $command -i $inventory -e target=${{needs.build_target_name.outputs.TargetHost}} ${{ github.events.inputs.VerboseOutput }}
