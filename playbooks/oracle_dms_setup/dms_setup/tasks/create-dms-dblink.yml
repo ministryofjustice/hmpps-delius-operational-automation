@@ -1,7 +1,7 @@
 - name: Include Variables for {{ dms_user_application }} Setup
   include_vars: "{{ dms_user_application }}.yml"
 
-- name: Get {{ dms_user }} password from ssm
+- name: Get {{ dms_user }} password from secret
   shell: |
     export PATH=$PATH:/usr/local/bin
     aws secretsmanager get-secret-value --secret-id {{ secret_name }} --region {{ region }} --query SecretString --output text| jq -r .{{ dms_user }}
