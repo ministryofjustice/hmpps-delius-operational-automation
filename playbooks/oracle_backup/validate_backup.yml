@@ -11,7 +11,6 @@
   # as this will vary between environments
 
   tasks:
-
     - name: Get RMAN Catalog Password
       shell: |
         export PATH=$PATH:/usr/local/bin

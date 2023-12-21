@@ -130,7 +130,6 @@
         - catalog is defined
 
       block:
-
         - name: Get RMAN Catalog Password
           shell: |
             export PATH=$PATH:/usr/local/bin
