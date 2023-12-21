@@ -32,6 +32,15 @@ on:
           - "misdsd_primarydb"
           - "misdsd_standbydb1"
           - "misdsd_dbs"
+      VerboseOutput:
+        description: "Verbose Output level"
+        type: choice
+        default: ""
+        options:
+          - ""
+          - "-vv"
+          - "-vvv"
+          - "-vvvv"
       SourceCodeVersion:
         description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -118,4 +127,4 @@ jobs:
       - name: Start Set Parameters
         run: | 
             export ANSIBLE_CONFIG=$ansible_config
-            $command -i $inventory -e target=${{needs.build_target_name.outputs.TargetHost}}
+            $command -i $inventory -e target=${{needs.build_target_name.outputs.TargetHost}} ${{ github.events.inputs.VerboseOutput }}
