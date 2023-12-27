@@ -6,6 +6,7 @@
 # 2. Push additional audit records from the Standby to the Primary
 # 3. Drop the database link
 
+. ~/.bash_profile
 
 # Retrieve passwords for Delius application users
 INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
