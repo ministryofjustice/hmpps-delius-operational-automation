@@ -7,6 +7,15 @@
 # 3. Drop the database link
 
 
+# Retrieve passwords for Delius application users
+INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
+DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
+APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
+SECRET_ID=${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-application-passwords
+DELIUS_APP_SCHEMA_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} --query SecretString --output text| jq -r .delius_app_schema)
+DELIUS_POOL_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} --query SecretString --output text| jq -r .delius_pool)
+
 # TNS Alis for Primary Database
 PRIMARY_DB=$1
 # Date of the Snapshot Conversion (Format YYYY-MM-DD-HH24-MI-SS)
