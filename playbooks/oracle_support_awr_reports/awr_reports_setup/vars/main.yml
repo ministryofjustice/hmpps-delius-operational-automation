@@ -1,4 +1,3 @@
-ssm_sysumf_name: "/{{ environment_name }}/{{ project_name }}/delius-database/db/oradb_sysumf_password"
 primary_db_link: "PRIMARY_TO_ADG"
 adg_db_link: "ADG_TO_PRIMARY"
 primary_node: "PRIMARY_SITE"
