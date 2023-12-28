@@ -6,10 +6,6 @@
   set_fact:
     is_adg: "{{ 'READ ONLY WITH APPLY' in db_role.stdout }}"
 
-- name: Enable RMF database user
-  include_tasks: enable-database-user.yml
-  when: database_primary_sid is defined
-
 - name: Set hidden UMF parameter on both primary and ADG databases
   script: set_hidden_parameter.sh
   register: set_hidden_parameter
@@ -17,12 +13,28 @@
   when: database_primary_id is defined or is_adg
 
 - block:
+
+    - name: Build Secret Id From EC2 Tags
+      shell: |
+        export PATH=$PATH:/usr/local/bin
+        INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+        ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
+        DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
+        APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
+        echo ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords
+      register: buildsecretid
+
+    - name: Enable RMF database user
+      include_tasks: enable-database-user.yml
+      vars:
+        secret_id: "{{ buildsecretid.stdout }}"
+
     - name: Create database links on primary
-      script: create_database_links.sh {{ sysumf_password }}
+      script: create_database_links.sh
       environment:
         PRIMARY_DB_LINK: "{{ primary_db_link }}"
         ADG_DB_LINK: "{{ adg_db_link }}"
-        DB_PASS: "{{ sysumf_password }}"
+        SECRET_ID: "{{ buildsecretid.stdout }}"
       register: create_database_links
       failed_when: create_database_links.rc != 0
 
