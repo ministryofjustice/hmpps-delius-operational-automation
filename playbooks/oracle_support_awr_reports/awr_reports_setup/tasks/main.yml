@@ -13,7 +13,6 @@
   when: database_primary_id is defined or is_adg
 
 - block:
-
     - name: Build Secret Id From EC2 Tags
       shell: |
         export PATH=$PATH:/usr/local/bin
