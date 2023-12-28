@@ -1,6 +1,7 @@
 - name: Enable RMF (SYS$UMF) database user
   script: enable_database_user.sh
   environment:
-    PASSWORD_LENGTH: "{{ password_length }}"
+    SECRET_ID: "{{ secret_id }}"
+    PASSWORD_LENGTH: 15
   register: enable_database_user
   failed_when: enable_database_user.rc != 0
