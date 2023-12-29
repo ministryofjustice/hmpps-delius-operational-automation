@@ -101,6 +101,7 @@ jobs:
                ansible/roles/oracle-oem-agent-setup
                ansible/roles/get-ec2-facts
                ansible/roles/secretsmanager-passwords
+               ansible/roles/get-modernisation-platform-facts
                ansible/site.yml
           path: operations
           ref: ${{ github.event.inputs.SourceConfigVersion }}
