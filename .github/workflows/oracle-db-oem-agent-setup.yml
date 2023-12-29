@@ -102,6 +102,7 @@ jobs:
                ansible/roles/get-ec2-facts
                ansible/roles/secretsmanager-passwords
                ansible/roles/get-modernisation-platform-facts
+               ansible/roles/epel
                ansible/site.yml
           path: operations
           ref: ${{ github.event.inputs.SourceConfigVersion }}
