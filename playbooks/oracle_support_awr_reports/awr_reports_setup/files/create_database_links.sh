@@ -3,6 +3,7 @@
 . ~/.bash_profile
 
 DB_USER="SYS\$UMF"
+DB_PASS=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} --query SecretString --output text | jq -r .sysumf)
 
 sqlplus -s / as sysdba << EOF
 
@@ -54,13 +55,13 @@ DECLARE
     --
 BEGIN
 
-    SELECT db_unique_name
+    SELECT UPPER(db_unique_name)
     INTO l_primary_db_unique_name
     FROM v\$archive_dest_status
     WHERE database_mode = 'OPEN'
     AND type = 'LOCAL';
 
-    SELECT db_unique_name
+    SELECT UPPER(db_unique_name)
     INTO l_adg_db_unique_name
     FROM v\$archive_dest_status
     WHERE database_mode IN ('OPEN_READ-ONLY')

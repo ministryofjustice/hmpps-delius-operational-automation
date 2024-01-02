@@ -14,9 +14,6 @@
 - name: Push the Audit Data
   script: push_audit_data_to_primary.sh {{ primary_database }} {{ snapshot_standby_conversion_date }}
   register: push_audit_data_to_primary
-  environment:
-    DELIUS_APP_SCHEMA_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_app_schema_password', region=region ) }}"
-    DELIUS_POOL_PASSWORD: "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/delius-database/db/delius_pool_password', region=region ) }}"
   vars:
     ansible_aws_ssm_timeout: 7200
 
