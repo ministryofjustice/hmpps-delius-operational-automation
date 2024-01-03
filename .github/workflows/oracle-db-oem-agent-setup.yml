@@ -10,6 +10,7 @@ on:
         options:
           - "delius-core-dev"
           - "delius-core-test"
+          - "delius_core_development_test"
           - "delius-core-training"
           - "delius-core-stage"
           - "delius-core-pre-prod"
