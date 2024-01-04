@@ -1,0 +1,16 @@
+#!/bin/bash
+
+. ~/.bash_profile
+export JAVA_HOME=$ORACLE_HOME/jdk/jre
+
+# An emcli session may already be active.  Check if we can run a sync
+# and only if this fails attempt to create a new session.
+{{ emcli }} sync
+if [[ $? -gt 0 ]]; then
+   echo "{{ oem_sysman_password }}" | {{ emcli }} login
+   RC=$?
+   if [[ $RC -gt 0 ]]; then
+      exit $RC
+   fi
+   {{ emcli }} sync
+fi

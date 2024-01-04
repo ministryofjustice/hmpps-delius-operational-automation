@@ -1,0 +1,134 @@
+name: "Oracle: OEM Rules Setup"
+run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_oem_rules_setup"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-pre-prod"
+          - "delius-core-prod"
+      TargetHost:
+        description: "Database target host"
+        required: true
+        type: choice
+        options:
+          - "delius_primarydb"
+          - "delius_standbydb1"
+          - "delius_standbydb2"
+          - "delius_dbs"
+          - "mis_primarydb"
+          - "mis_standbydb1"
+          - "mis_dbs"
+          - "misboe_primarydb"
+          - "misboe_standbydb1"
+          - "misboe_dbs"
+          - "misdsd_primarydb"
+          - "misdsd_standbydb1"
+          - "misdsd_dbs"
+      ReplaceExistingRuleSet:
+        description: "Replace Existing Rule Set if it Exists?"
+        type: boolean
+        required: true
+        default: 'false'
+      VerboseOutput:
+        description: "Verbose Output level"
+        type: choice
+        default: ""
+        options:
+          - ""
+          - "-vv"
+          - "-vvv"
+          - "-vvvv"
+      SourceCodeVersion:
+        description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+
+env:
+  ansible_config: ansible/playbooks/ansible.cfg
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:
+  build_target_name:
+    runs-on: ubuntu-latest
+    outputs:
+      TargetHost: ${{ steps.preparetargetname.outputs.TargetHost }}
+    steps:
+      - name: Prepare Target Name
+        id: preparetargetname
+        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
+  deployment:
+    name: oracle-db-oem-rules-setup
+    needs: build_target_name
+    environment: ${{ github.event.inputs.TargetEnvironment }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    timeout-minutes: 1440
+    env:
+      command: ansible-playbook operations/playbooks/oracle_oem_rules_setup/playbook.yml
+      inventory: inventory/ansible
+    continue-on-error: false
+    steps:
+
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/ansible.cfg
+          path: ansible
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Role From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+               ansible/roles/secretsmanager-passwords
+          path: operations
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      - name: Start OEM Rules Setup
+        run: | 
+            export ANSIBLE_CONFIG=$ansible_config
+            $command -i $inventory -e target=${{needs.build_target_name.outputs.TargetHost}} -e replace_existing_rule_set=${{ github.event.inputs.ReplaceExistingRuleSet }} ${{ github.event.inputs.VerboseOutput }}
