@@ -4,90 +4,40 @@
 # the need for the Diagnostics pack.
 - name: Get Name of Host Target
   shell: |
-          . ~/.bash_profile
-          {{ emctl_agent }} config agent listtargets | awk -F, '/^\[.*, host\]/{print $1}' | sed 's/^\[//'
+    . ~/.bash_profile
+    {{ emctl_agent }} config agent listtargets | awk -F, '/^\[.*, host\]/{print $1}' | sed 's/^\[//'
   register: get_agent_host
   changed_when: false
   when: not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
-- name: Get Current Monitoring Exclusion Data
-  run_once: true
-  delegate_to: localhost
-  become: no
-  block:
-
-      - name: Get the Time
-        setup:
-          filter: ansible_date_time
-
-      - name: Get Currently Excluded Hosts
-        set_fact:
-            lookup_exclusion_list: "{{ lookup('aws_ssm', '/engineering-{{ engineering_env }}/engineering/oem_monitoring_excluded_hosts', aws_access_key=engineering_role.sts_creds.access_key, aws_secret_key=engineering_role.sts_creds.secret_key, aws_security_token=engineering_role.sts_creds.session_token, region=region ) }}"
-
-      - debug:
-           msg: "{{ lookup_exclusion_list | type_debug }}"
-
-      # AWS_SSM Handling of the StringList SSM Parameter type has been found to not be reliably consistent.
-      # Sometimes it is returned as a comma-delimited string and sometime it is returned as a list variable
-      # We need to detect the returned type and convert if if necessary
-      - name: Create Current Exclusion List (Returned List)
-        set_fact:
-           exclusion_list: "{{ lookup_exclusion_list }}"
-        when: lookup_exclusion_list | type_debug == 'list'
-
-      - name: Create Current Exclusion List (Returned String)
-        set_fact:
-           exclusion_list: "{{ lookup_exclusion_list.split(',') }}"
-        when: lookup_exclusion_list | type_debug in ['string','AnsibleUnsafeText','AnsibleUnicode']
-
-      - name: Create Current Exclusion List (No Existing Exclusions)
-        set_fact:
-           exclusion_list: []
-        when: lookup_exclusion_list == 'NONE'
-
-      - debug:
-            var: exclusion_list
-
-      # Housekeeping: remove exclusions which are past dated to avoid the list becoming too large
-      - name: Initialize New List of Exclusions That Have Not Expired
-        set_fact:
-            non_expired_exclusion_list: []
-
-      # We always remove exclusions which have expired, regardless of the target or blackout name associated with them
-      - name: Add Existing Exclusions That Have Not Expired
-        set_fact:
-            non_expired_exclusion_list: "{{ non_expired_exclusion_list + [ item ] }}"
-        loop: "{{ exclusion_list }}"
-        when: ( item | regex_replace('^.*\\(.*(\\d{4}\\-\\d{2}\\-\\d{2}\\-\\d{2}\\-\\d{2}\\-\\d{2})\\).*$','\\1') | replace('-','') | int ) >
-              ( '%Y%m%d%H%M%S' | strftime( ansible_date_time.epoch | int ) | int )
-
-- name: Temporarily Exclude Hosts from Monitoring
+- name: Temporarily Exclude Host from Monitoring
   when: action == 'start'
-  run_once: true
-  delegate_to: localhost
-  become: no
   block:
 
       - name: Define Timeout for Monitoring Exclusion Period
         set_fact:
-            exclude_timeout: "{{ '%Y-%m-%d-%H-%M-%S' | strftime( ( ansible_date_time.epoch | int ) + duration ) }}"
+          exclude_timeout: "{{ '%Y-%m-%d-%H-%M-%S' | strftime( ( ansible_date_time.epoch | int ) + duration ) }}"
 
-      - name: Create Exclude Host List for Current Run
+      - name: Define Exclude Comment For Host
         set_fact:
-            exclude_hosts: "{{ ( exclude_hosts | default([]) ) + [ hostvars[item].get_agent_host.stdout + ' ' + '(' + blackout | default('UNNAMED_BLACKOUT') + ': ' + exclude_timeout + ')' ] }}"
-        loop: "{{ ansible_play_hosts }}"
-        when: hostvars[item].get_agent_host.stdout is defined
+          exclude_comment: "{{ blackout | default('UNNAMED_BLACKOUT') + '_' + exclude_timeout }}"
 
-      - name: Append Current Host Exclusions to Existing Non-Expired Exclusions
-        set_fact:
-            updated_exclusion_list: "{{ non_expired_exclusion_list | join(',') }},{{ exclude_hosts | join(',') }}"
+      - name: Get Sysman Password
+        include_tasks: get_facts.yml
+
+      - name: Update Host Comment Property With Excluded Host
+        shell: |
+          . ~/.bash_profile
+          export PATH=$PATH:{{ emcli_java_location }}
+          {{ emcli }} login -username=sysman -password={{ oem_sysman_password }} -force > /dev/null
+          {{ emcli }} set_target_property_value -property_records="{{ get_agent_host.stdout }}:host:Comment:{{ exclude_comment }}"
+        register: updatecomment
+
 
 # Some metrics should be explicitly re-evaluated as they are not gathered frequently and may be out of date when the exclusion is removed
 - name: Re-Evaluate Named Metrics
   include_tasks: reevaluate_metrics.yml
-  when: 
-      - action == 'stop'
-      - not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
+  when: action == 'stop'
   vars:
       agent_target: "{{ get_agent_host.stdout | trim }}"
       metric_name: "{{ item }}"
@@ -95,69 +45,16 @@
      - "ME$DATA_GUARD_ACTIVE_TARGET"
 
 - name: Re-Include Hosts in Monitoring After Job Completion
-  when: 
-      - action == 'stop'
-  run_once: true
-  delegate_to: localhost
-  become: no
+  when: action == 'stop'
   block:
 
-        # If the blackout name has been supplied then only remove exclusions matching that name for the target
-        # and the supplied exclusion expiry time (or all matching exclusions if the exclusion expiry time has not been supplied)
-        - name: Define Matching Pattern if a Blackout Name has Been Supplied
-          set_fact:
-                matching_pattern: "{{ blackout + ': ' + exclusion_expiry | default('[^\\)]*') }}"
-          when: blackout is defined
+      - name: Get Sysman Password
+        include_tasks: get_facts.yml
 
-        # If the blackout name has not been supplied then remove exclusions matching
-        # the supplied exclusion expiry time (or ALL exclusions for the target if the exclusion expiry time has not been supplied)
-        - name: Define Matching Pattern if a Blackout Name has Not Been Supplied
-          set_fact:
-                matching_pattern: "{{ '[^\\)]*' + exclusion_expiry | default('[^\\)]*') }}"
-          when: not blackout is defined
-
-        # To identify an exclusion to be removed it must be a combination of one of the hosts in the current play along with
-        # the expiry timestamp used when the exclusion was initially created
-        - name: Create List of Exclusions To Be Removed
-          set_fact:
-              remove_exclusions_regexs: "{{ (remove_exclusions_regexs | default([])) + [ hostvars[item].get_agent_host.stdout + ' ' + '\\(' + matching_pattern + '\\)' ] }}"
-          loop: "{{ ansible_play_hosts_all }}"
-          when: hostvars[item].get_agent_host.stdout is defined    
-
-        - name: Initialize New List of Exclusions That Do Not Include Current Host Exclusions
-          set_fact:
-              purged_exclusion_list: []
-
-        - debug:
-             var=non_expired_exclusion_list
-
-        - debug:
-             var=remove_exclusions_regexs
-
-        - name: Add Existing Exclusions That Do Not Include Current Host / Expiry Combination
-          set_fact:
-              purged_exclusion_list: "{{ non_expired_exclusion_list | reject('match', remove_exclusions_regexs | join('|')) | list }}"
-
-        - name: New Exclusion List is Original List Minus Expired Exclusions and Exclusions from Current Play
-          set_fact:
-              updated_exclusion_list: "{{ purged_exclusion_list | join(',') }}"
-
-- name: Update SSM Exclusions Parameter
-  run_once: true
-  delegate_to: localhost
-  become: no
-  block:
-
-      # We cannot have an empty SSM parameter so set it to NONE if there are no targets to be excluded
-      - name: Append Current Host Exclusion
-        community.aws.aws_ssm_parameter_store:
-            name: "/engineering-{{ bastion_inventory.stdout }}/engineering/oem_monitoring_excluded_hosts"
-            description: "List of EC2 Hosts Currently Excluded from OEM Monitoring (with timeout of exclusion)"
-            string_type: "StringList"
-            value: "{{ updated_exclusion_list | default('NONE') | regex_replace('^,','') | regex_replace('^$','NONE') }}"
-            region: "{{ region }}"
-            aws_access_key: "{{ engineering_role.sts_creds.access_key }}"
-            aws_secret_key: "{{ engineering_role.sts_creds.secret_key }}"
-            security_token: "{{ engineering_role.sts_creds.session_token }}"
-        retries: 4
-        delay: "{{ 60 | random }}"
+      - name: Update Host Comment Property With Empty String
+        shell: |
+          . ~/.bash_profile
+          export PATH=$PATH:{{ emcli_java_location }}
+          {{ emcli }} login -username=sysman -password={{ oem_sysman_password }} -force > /dev/null
+          {{ emcli }} set_target_property_value -property_records="{{ get_agent_host.stdout }}:host:Comment:"
+        register: updatecomment
