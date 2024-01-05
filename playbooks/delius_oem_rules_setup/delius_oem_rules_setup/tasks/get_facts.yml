@@ -1,10 +1,10 @@
 ---
 - name: Gather Subset of Facts
   ansible.builtin.setup:
-     gather_subset:
-        - '!all'
-        - '!min'
-        - 'distribution'
+    gather_subset:
+      - "!all"
+      - "!min"
+      - "distribution"
 
 - name: Get OEM secrets
   import_role:

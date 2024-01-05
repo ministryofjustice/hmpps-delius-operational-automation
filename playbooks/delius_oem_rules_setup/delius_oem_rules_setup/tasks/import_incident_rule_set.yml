@@ -1,7 +1,6 @@
 ---
 - name: Import Incident Rule Set for Delius Targets
   block:
-
     # EMCLI Login script contains a password so ensure it is not readable by other users
     - name: Copy Incident Rule Set Import scripts
       template:
@@ -20,10 +19,10 @@
 
     - name: Run Incident Rule Set Import
       ansible.builtin.shell: |
-          echo "running emcli_login.sh"
-          {{ stage }}/emcli_login.sh
-          echo "running import_incident_rule_set.sh"
-          {{ stage }}/import_incident_rule_set.sh
+        echo "running emcli_login.sh"
+        {{ stage }}/emcli_login.sh
+        echo "running import_incident_rule_set.sh"
+        {{ stage }}/import_incident_rule_set.sh
 
   always:
     - name: Remove Incident Rule Set scripts from Staging Area

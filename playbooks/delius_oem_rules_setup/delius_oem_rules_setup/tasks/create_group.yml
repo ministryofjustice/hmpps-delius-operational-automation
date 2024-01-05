@@ -1,7 +1,6 @@
 ---
 - name: Create Dynamic Group for Delius Targets
   block:
-
     # EMCLI Login script contains a password so ensure it is not readable by other users
     - name: Copy group creation scripts
       template:
@@ -14,10 +13,10 @@
 
     - name: Run Dynamic Group Creation Script
       ansible.builtin.shell: |
-          echo "running emcli_login.sh"
-          {{ stage }}/emcli_login.sh
-          echo "running create_group.sh"
-          {{ stage }}/create_group.sh
+        echo "running emcli_login.sh"
+        {{ stage }}/emcli_login.sh
+        echo "running create_group.sh"
+        {{ stage }}/create_group.sh
       register: run_group_creation
       changed_when: run_group_creation.stdout is search('.*dynamic group created.*')
 
