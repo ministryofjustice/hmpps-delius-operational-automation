@@ -114,4 +114,5 @@ jobs:
       - name: Start OEM Rules Setup
         run: | 
             export ANSIBLE_CONFIG=$ansible_config
+            find . -ls
             $command -i $inventory -e target=${{needs.build_target_name.outputs.TargetHost}} -e replace_existing_rule_set=${{ github.event.inputs.ReplaceExistingRuleSet }} ${{ github.event.inputs.VerboseOutput }}
