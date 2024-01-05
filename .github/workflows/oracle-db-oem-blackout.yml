@@ -1,12 +1,6 @@
 name: "Oracle: OEM Blackout"
 run-name: "Oracle: ${{ format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}-oem-blackout"
 on:
-  push:
-    branches:
-      - DBA-600
-    paths:
-      - playbooks/oem_blackout/**
-      - .github/workflows/oracle-db-oem-blackout.yml
   workflow_dispatch:
     inputs:
       TargetEnvironment:
