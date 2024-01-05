@@ -38,7 +38,7 @@ on:
         default: "main"
 
 env:
-  ansible_config: ansible/playbooks/ansible.cfg
+  ansible_config: operations/playbooks/ansible.cfg
 
 permissions:
   contents: read
@@ -63,7 +63,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     env:
-      command: ansible-playbook operations/playbooks/oracle_oem_rules_setup/playbook.yml
+      command: ansible-playbook operations/playbooks/delius_oem_rules_setup/playbook.yml
       inventory: inventory/ansible
     continue-on-error: false
     steps:
@@ -75,7 +75,8 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/ansible.cfg
-          path: ansible
+            playbooks/delius_oem_rules_setup
+          path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
@@ -86,7 +87,9 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
                ansible/roles/secretsmanager-passwords
-          path: operations
+               ansible/roles/get-ec2-facts
+               ansible/roles/get-modernisation-platform-facts
+          path: roles
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
@@ -113,4 +116,6 @@ jobs:
       - name: Start OEM Rules Setup
         run: | 
             export ANSIBLE_CONFIG=$ansible_config
+            # Link the checked out configuration roles to somewhere Ansible will be able to find them
+            ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/delius_oem_rules_setup/roles
             $command -i $inventory -e target=${{needs.build_target_name.outputs.TargetHost}} -e replace_existing_rule_set=${{ github.event.inputs.ReplaceExistingRuleSet }} ${{ github.event.inputs.VerboseOutput }}
