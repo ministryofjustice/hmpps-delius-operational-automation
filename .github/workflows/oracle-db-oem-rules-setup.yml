@@ -63,7 +63,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     env:
-      command: ansible-playbook operations/playbooks/oracle_oem_rules_setup/playbook.yml
+      command: ansible-playbook operations/playbooks/delius_oem_rules_setup/playbook.yml
       inventory: inventory/ansible
     continue-on-error: false
     steps:
@@ -75,6 +75,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/ansible.cfg
+            playbooks/delius_oem_rules_setup
           path: ansible
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
