@@ -38,7 +38,7 @@ on:
         default: "main"
 
 env:
-  ansible_config: operations/playbooks/ansible.cfg
+  ansible_config: ansible/playbooks/ansible.cfg
 
 permissions:
   contents: read
@@ -63,7 +63,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
     timeout-minutes: 1440
     env:
-      command: ansible-playbook operations/playbooks/delius_oem_rules_setup/playbook.yml
+      command: ansible-playbook ansible/playbooks/delius_oem_rules_setup/playbook.yml
       inventory: inventory/ansible
     continue-on-error: false
     steps:
@@ -76,7 +76,7 @@ jobs:
           sparse-checkout: |
             playbooks/ansible.cfg
             playbooks/delius_oem_rules_setup
-          path: operations
+          path: ansible
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
