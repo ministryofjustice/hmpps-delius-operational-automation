@@ -13,7 +13,7 @@
         - import_incident_rule_set.sh
 
     - name: Copy Incident Rule definition
-      template:
+      copy:
         src: rule_set.xml
         dest: "{{ stage }}/rule_set.xml"
         mode: "0600"

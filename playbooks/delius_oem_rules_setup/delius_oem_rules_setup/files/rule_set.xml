@@ -705,4 +705,11 @@
          </RuleAdvNotification>
       </RuleCondAction>
    </Rule>
+   <SourceObjectSpecificAttributeGroup>
+   <SourceObjectSpecificAttribute>
+         <AttrName>sys_target_guid</AttrName>
+         <OperatorCode>IN</OperatorCode>
+         <AttrValue>delius|composite</AttrValue>
+      </SourceObjectSpecificAttribute>
+   </SourceObjectSpecificAttributeGroup>
 </RuleSet>
