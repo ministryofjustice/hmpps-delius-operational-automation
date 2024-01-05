@@ -115,8 +115,9 @@ jobs:
       - name: Start OEM Rules Setup
         run: | 
             export ANSIBLE_CONFIG=$ansible_config
-            ln -s roles/ansible/roles operations/playbooks/delius_oem_rules_setup/roles
-            ls -l operations/playbooks/delius_oem_rules_setup/roles
+            echo $PWD
+            ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/delius_oem_rules_setup/roles
+            ls -ld operations/playbooks/delius_oem_rules_setup/roles
             cd operations/playbooks/delius_oem_rules_setup/roles
             pwd
             ls -l
