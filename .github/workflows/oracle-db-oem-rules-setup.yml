@@ -38,7 +38,7 @@ on:
         default: "main"
 
 env:
-  ansible_config: ansible/playbooks/ansible.cfg
+  ansible_config: operations/playbooks/ansible.cfg
 
 permissions:
   contents: read
@@ -76,7 +76,7 @@ jobs:
           sparse-checkout: |
             playbooks/ansible.cfg
             playbooks/delius_oem_rules_setup
-          path: ansible
+          path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
