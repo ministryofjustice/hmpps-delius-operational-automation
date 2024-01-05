@@ -118,7 +118,6 @@ jobs:
             echo $PWD
             ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/delius_oem_rules_setup/roles
             ls -ld operations/playbooks/delius_oem_rules_setup/roles
-            cd operations/playbooks/delius_oem_rules_setup/roles
             pwd
             ls -l
             find .
