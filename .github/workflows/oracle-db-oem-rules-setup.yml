@@ -88,7 +88,7 @@ jobs:
           sparse-checkout: |
                ansible/roles/secretsmanager-passwords
                ansible/roles/get-ec2-facts
-          path: etc
+          path: /etc
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
