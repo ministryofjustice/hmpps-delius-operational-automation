@@ -1,0 +1,9 @@
+# We only need to setup OEM once but this requires EMCLI so it must be done on a database
+# host.  Therefore we run it from the primary database for the environment.
+- name: Setup OEM Rules for Delius in this Environment
+  hosts: "environment_name_{{ environment_name }}_{{ delius_environment }}_delius_primarydb"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+    - delius_oem_rules_setup

@@ -1,0 +1,9 @@
+---
+- name: Get SYSMAN Password
+  import_tasks: get_facts.yml
+
+- name: Create Delius Target Group
+  import_tasks: create_group.yml
+
+- name: Import Delius Incident Rule Set
+  import_tasks: import_incident_rule_set.yml

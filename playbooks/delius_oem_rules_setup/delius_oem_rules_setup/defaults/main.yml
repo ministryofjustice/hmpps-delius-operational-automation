@@ -1,0 +1,11 @@
+emcli: /u01/app/oracle/product/emcli/emcli
+ruleset_name: "AWS Incident management rule set for Delius targets"
+artefact_dir: /u02
+stage: "{{ artefact_dir }}/stage"
+oem_secretsmanager_passwords:
+  emrep:
+    account_name: "hmpps-oem-{{ aws_environment }}"
+    assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+    secret: "/oracle/database/EMREP/shared-passwords"
+    users:
+      - sysman:
