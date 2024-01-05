@@ -88,7 +88,7 @@ jobs:
           sparse-checkout: |
                ansible/roles/secretsmanager-passwords
                ansible/roles/get-ec2-facts
-          path: /etc
+          path: roles
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
@@ -115,5 +115,6 @@ jobs:
       - name: Start OEM Rules Setup
         run: | 
             export ANSIBLE_CONFIG=$ansible_config
+            ln -s roles/ansible/roles operations/playbooks/delius_oem_rules_setup/roles
             find .
             $command -i $inventory -e target=${{needs.build_target_name.outputs.TargetHost}} -e replace_existing_rule_set=${{ github.event.inputs.ReplaceExistingRuleSet }} ${{ github.event.inputs.VerboseOutput }}
