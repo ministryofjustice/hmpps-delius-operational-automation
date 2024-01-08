@@ -34,27 +34,26 @@
 # Disable OEM Native Monitoring to avoid noise due to agent / broker connection failures during password changes
 - name: Disable Monitoring
   block:
-
     - name: Start database monitoring blackout
       include_role:
-         name: ../oem_blackout/oem-blackout
+        name: ../oem_blackout/oem-blackout
       vars:
-          target: "{{ inventory_hostname }}"
-          action: "start"
-          object_type: "all"
-          blackout: "PASSWORD_ROTATION_{{ environment_name }}"
-          duration: ""
-          allow_jobs: false
+        target: "{{ inventory_hostname }}"
+        action: "start"
+        object_type: "all"
+        blackout: "PASSWORD_ROTATION_{{ environment_name }}"
+        duration: ""
+        allow_jobs: false
 
     # Disable OEM Script-Based Monitoring to avoid noise due to agent / broker connection failures during password changes
     - name: Temporarily Exclude Target Hosts from Monitoring During Password Changes
       include_role:
-         name: ../oem_blackout/oem-blackout
-         tasks_from: script_exclusion.yml
+        name: ../oem_blackout/oem-blackout
+        tasks_from: script_exclusion.yml
       vars:
-          action: "start"
-          blackout: "PASSWORD_ROTATION_{{ environment_name }}"
-          duration: 7200
+        action: "start"
+        blackout: "PASSWORD_ROTATION_{{ environment_name }}"
+        duration: 7200
 
 - name: Get Primary Database Type And Environment
   set_fact:
@@ -259,21 +258,19 @@
         loop_var: username
       when:
         - database_primary_sid is defined
-# Restart Monitoring regardless of success of password rotation
+  # Restart Monitoring regardless of success of password rotation
   always:
-
-  - name: Re-Enable Monitoring
-    block:
-
+    - name: Re-Enable Monitoring
+      block:
         # Re-Enable OEM Native Monitoring
         - name: Stop database monitoring blackout
           include_role:
             name: ../oem_blackout/oem-blackout
           vars:
-              target: "{{ inventory_hostname }}"
-              action: "stop"
-              object_type: "all"
-              blackout: "PASSWORD_ROTATION_{{ environment_name }}"
+            target: "{{ inventory_hostname }}"
+            action: "stop"
+            object_type: "all"
+            blackout: "PASSWORD_ROTATION_{{ environment_name }}"
 
         # Re-Enable OEM Script-Based Monitoring
         # We supply the script path here to allow the script_exclusion.yml file
@@ -285,5 +282,5 @@
             name: ../oem_blackout/oem-blackout
             tasks_from: script_exclusion.yml
           vars:
-              action: "stop"
-              blackout: "PASSWORD_ROTATION_{{ environment_name }}"
+            action: "stop"
+            blackout: "PASSWORD_ROTATION_{{ environment_name }}"
