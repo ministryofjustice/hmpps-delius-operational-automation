@@ -10,6 +10,10 @@
   changed_when: false
   when: not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
 
+- name: Get the Time
+  setup:
+    filter: ansible_date_time
+
 - name: Temporarily Exclude Host from Monitoring
   when: action == 'start'
   block:
