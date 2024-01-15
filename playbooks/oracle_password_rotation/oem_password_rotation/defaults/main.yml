@@ -4,7 +4,7 @@ rman_secretsmanager_passwords:
     assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
     secret: "/oracle/database/{{ db_configs['RCVCAT']['rcvcat_db_name'] }}/shared-passwords"
     users:
-      - rman:
+      - rcvcatowner:
 
 oem_secretsmanager_passwords:
   oem:
