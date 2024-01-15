@@ -1,0 +1,8 @@
+password_length: 15
+# Allow one hour for OEM to stop and restart without sending any notifications.
+# This includes time for RDS OEM agents to be restarted to support registration password changes.
+# In practice it should clear in around one hour, but allow further 15 minute margin.
+# (NB: Password change should be scheduled during period when notifications are not critical
+#  e.g. Overnight when nobody is checking them)
+oem_notification_sleep: 4500
+oem_notification_lock_file: "/home/oracle/admin/em/lock_file"

@@ -1,0 +1,35 @@
+- name: Rotate RMAN Password
+  include_tasks: rotate_rman_password.yml
+  when: rotate_rman_password | default(false) | bool
+
+- name: Rotate OEM and Agent Registration Passwords
+  when: rotate_oem_passwords | default(false) | bool
+  block:
+    # We do not want notifications being sent whilst OEM is starting up, so grab the lock file and hold it until
+    # a reasonable time has passed.   By this time all transient start-up type incidents should have self-cleared.
+    # Any remaining incidents will be picked up by the next notification cron job.
+    #
+    # Note that the lock may already be held by another process.   This does not mean that we should not proceed,
+    # however we need to reduce the lock hold time by the amount of time that we wait for this other process.
+    # So, we take note of the lock request start time, and subtract this from the actual time that we get the lock,
+    # before subtracting the whole amount from the requested sleep time.  Note that we have to use EVAL to ensure
+    # the date evalations happens at runtime (once lock held) and not when the command is initially passed to flock.
+    # (Use conditional to avoid attempting a negative sleep)
+    - name: Lock Notification Polling
+      shell: |
+        LOCK_REQUESTED_START=$(date +%s); export LOCK_REQUESTED_START
+        /usr/bin/flock --timeout {{ oem_notification_sleep }} {{ oem_notification_lock_file }} -c "eval \"echo \$(( ( {{ oem_notification_sleep }} - ( \$(date +%s) - LOCK_REQUESTED_START ) ) > 0 ? ( {{ oem_notification_sleep }} - ( \$(date +%s) - LOCK_REQUESTED_START ) ) : 0 )) | xargs sleep\""
+      async: "{{ oem_notification_sleep }}"
+      poll: 0
+      register: lock_notification_polling
+
+    - name: Rotate OEM Passwords
+      include_tasks: rotate_oem_passwords.yml
+
+    # If we are rotating the OEM passwords then we should also rotate the Agent Registration Passwords
+    - name: Rotate Agent Registration Password
+      include_tasks: rotate_agent_registration_password.yml
+
+- name: Ensure OEM Target Passwords are in Sync with Secrets
+  include_tasks: sync_monitoring_passwords.yml
+  when: sync_monitoring_passwords | default(false) | bool
