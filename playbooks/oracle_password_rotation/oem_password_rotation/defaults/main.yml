@@ -1,0 +1,33 @@
+rman_secretsmanager_passwords:
+  catalog:
+    account_name: "hmpps-oem-{{ aws_environment }}"
+    assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+    secret: "/oracle/database/{{ db_configs['RCVCAT']['rcvcat_db_name'] }}/shared-passwords"
+    users:
+      - rman:
+
+oem_secretsmanager_passwords:
+  oem:
+    account_name: "hmpps-oem-{{ aws_environment }}"
+    assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+    secret: "/oracle/database/EMREP/shared-passwords"
+    users:
+      - sysman:
+
+oemdb_secretsmanager_passwords:
+  oemdb:
+    account_name: "hmpps-oem-{{ aws_environment }}"
+    assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+    secret: "/oracle/database/EMREP/passwords"
+    users:
+      - sys:
+
+agent_secretsmanager_passwords:
+  agent:
+    account_name: "hmpps-oem-{{ aws_environment }}"
+    assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+    secret: "/oracle/oem/shared-passwords"
+    users:
+      - agentreg:
+
+asm_monitoring_secret_name: "/ec2/{{ ec2_name }}/asm-passwords"
