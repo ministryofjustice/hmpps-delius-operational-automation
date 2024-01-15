@@ -1,4 +1,3 @@
-
 password_length: 15
 # Allow one hour for OEM to stop and restart without sending any notifications.
 # This includes time for RDS OEM agents to be restarted to support registration password changes.
