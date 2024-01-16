@@ -133,9 +133,6 @@ jobs:
             echo "standbydb2Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')" >> $GITHUB_OUTPUT
           fi
           echo "high_availability_count=${high_availability_count}" >> $GITHUB_OUTPUT
-          echo $standbydb1Host
-          echo $standbydb2Host
-          echo $high_availability_count
 
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
@@ -168,14 +165,14 @@ jobs:
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory \
+          echo -e "$command -i $inventory \
           -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
           -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
           -e method=${{ github.event.inputs.Procedure }} \
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           -e fsfo_mode=${{ steps.getfsfomode.outputs.fsfo_mode }} \
           -e standby_number=1 \
-          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}
+          -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}"
 
       - name: Build High Availability Standby 2 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb2Host != '' }}
