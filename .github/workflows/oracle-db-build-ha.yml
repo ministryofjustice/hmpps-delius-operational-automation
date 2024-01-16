@@ -101,8 +101,6 @@ jobs:
           sparse-checkout: |
             ansible/hosts
             ansible/group_vars
-            ansible/roles/oracle-secure-backup
-            ansible/roles/get-ec2-facts
           path: inventory
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
@@ -125,15 +123,16 @@ jobs:
           then
             echo "No standbydb's configured"
             exit 1
-          elif [[ ${high_availability_count} -eq 1 ]]
+          fi
+          if [[ ${high_availability_count} -ge 1 ]]
           then
             echo "standbydb1Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb1/')"  >> $GITHUB_OUTPUT
-            echo "high_availability_count=1" >> $GITHUB_OUTPUT
-          elif [[ ${high_availability_count} -eq 2 ]]
+          fi
+          if [[ ${high_availability_count} -eq 2 ]]
           then
             echo "standbydb2Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')" >> $GITHUB_OUTPUT
-            echo "high_availability_count=2" >> $GITHUB_OUTPUT
           fi
+          echo "high_availability_count=${high_availability_count}" >> $GITHUB_OUTPUT
           echo $standbydb1Host
           echo $standbydb2Host
           echo $high_availability_count
