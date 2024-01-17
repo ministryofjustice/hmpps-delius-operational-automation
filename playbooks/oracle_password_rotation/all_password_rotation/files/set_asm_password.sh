@@ -5,8 +5,12 @@
 
 . ~/.bash_profile
 
-SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${SECRET_NAME} --region eu-west-2 --query SecretString --output text| jq -r .sys)
-ASMSNMP_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${SECRET_NAME} --region eu-west-2 --query SecretString --output text| jq -r .asmsnmp)
+PATH=$PATH:/usr/local/bin
+
+# Check secret name if it belongs to OEM because the username for the sys password is different
+
+ASMSNMP_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${SECRET_NAME} --region eu-west-2 --query SecretString --output text| jq -r .${ASM_USERNAME})
+SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${SECRET_NAME} --region eu-west-2 --query SecretString --output text| jq -r .${SYS_USERNAME})
 
 export ORACLE_SID=+ASM
 export ORAENV_ASK=NO

@@ -7,6 +7,14 @@
 
 DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${SECRET_NAME} --region eu-west-2 --query SecretString --output text| jq -r .${DB_USERNAME})
 
+if [[ ! -z ${OEM_DB_NAME} ]]
+then
+    PATH=$PATH:/usr/local/bin
+    ORAENV_ASK=NO
+    ORACLE_SID=${OEM_DB_NAME}
+    . oraenv > /dev/null 2>&1
+fi
+
 sqlplus -S / as sysdba <<EOSQL
 set pages 0
 set lines 30
