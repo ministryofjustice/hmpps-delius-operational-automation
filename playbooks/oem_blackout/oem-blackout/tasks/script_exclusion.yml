@@ -8,7 +8,7 @@
     {{ emctl_agent }} config agent listtargets | awk -F, '/^\[.*, host\]/{print $1}' | sed 's/^\[//'
   register: get_agent_host
   changed_when: false
-  when: not inventory_hostname is search('.engineering-') or environment_name is search('engineering')
+  when: not inventory_hostname is search('oem') or environment_name is search('hmpps-oem')
 
 - name: Get the Time
   setup:
