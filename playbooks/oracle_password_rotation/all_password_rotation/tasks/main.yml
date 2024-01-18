@@ -6,6 +6,6 @@
 
 # Distinguish OEM environments 
 
-- name: Rotate Passwords For OEM Databases (Includes RMAN)
+- name: Rotate OEM Database Passwords
   include_tasks: oem_database_passwords.yml
   when: environment_name is search('hmpps-oem')
