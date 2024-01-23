@@ -1,28 +1,33 @@
-- name: Check if DBSNMP Profile Exists
-  script: get_monitoring_profile.sh
-  register: get_dbsnmp_monitoring_profile
-  changed_when: false
+- block:
+    - name: Check if DBSNMP Profile Exists
+      script: get_monitoring_profile.sh
+      register: get_dbsnmp_monitoring_profile
+      changed_when: false
+      environment:
+        PROFILE_NAME: "DBSNMP_MONITORING_PROFILE"
+
+    # Check Which Profile DBSNMP is Using
+    - name: Check Current DBSNMP Profile
+      script: get_current_profile.sh
+      register: get_dbsnmp_current_profile
+      changed_when: false
+      environment:
+        PROFILE_USER: "DBSNMP"
+
+    - name: Create DBSNMP Profile
+      script: create_dbsnmp_monitoring_profile.sh
+      register: out
+      when: get_dbsnmp_monitoring_profile.stdout_lines[-1] != 'DBSNMP_MONITORING_PROFILE'
+
+    - name: Customize DBSNMP Profile
+      script: alter_dbsnmp_monitoring_profile.sh
+
+    - name: Set DBSNMP Profile
+      script: set_monitoring_profile.sh
+      when: get_dbsnmp_current_profile.stdout_lines[-1] != 'DBSNMP_MONITORING_PROFILE'
+      environment:
+        PROFILE_USER: "DBSNMP"
+        PROFILE_NAME: "DBSNMP_MONITORING_PROFILE"
+
   environment:
-    PROFILE_NAME: "DBSNMP_MONITORING_PROFILE"
-
-# Check Which Profile DBSNMP is Using
-- name: Check Current DBSNMP Profile
-  script: get_current_profile.sh
-  register: get_dbsnmp_current_profile
-  changed_when: false
-  environment:
-    PROFILE_USER: "DBSNMP"
-
-- name: Create DBSNMP Profile
-  script: create_dbsnmp_monitoring_profile.sh
-  when: get_dbsnmp_monitoring_profile.stdout_lines[-1] != 'DBSNMP_MONITORING_PROFILE'
-
-- name: Customize DBSNMP Profile
-  script: alter_dbsnmp_monitoring_profile.sh
-
-- name: Set DBSNMP Profile
-  script: set_monitoring_profile.sh
-  when: get_dbsnmp_current_profile.stdout_lines[-1] != 'DBSNMP_MONITORING_PROFILE'
-  environment:
-    PROFILE_USER: "DBSNMP"
-    PROFILE_NAME: "DBSNMP_MONITORING_PROFILE"
+    OEM_DB_NAME: "{{ oem_db_name | default() }}"

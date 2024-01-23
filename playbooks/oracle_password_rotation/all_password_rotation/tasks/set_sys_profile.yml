@@ -1,30 +1,34 @@
-- name: Check if SYS Profile Exists
-  script: get_monitoring_profile.sh
-  register: get_sys_monitoring_profile
-  changed_when: false
+- block:
+    - name: Check if SYS Profile Exists
+      script: get_monitoring_profile.sh
+      register: get_sys_monitoring_profile
+      changed_when: false
+      environment:
+        PROFILE_NAME: "SYS_PROFILE"
+
+    # Check Which Profile SYS is Using
+    - name: Check Current SYS Profile
+      script: get_current_profile.sh
+      register: get_sys_current_profile
+      changed_when: false
+      environment:
+        PROFILE_USER: "SYS"
+      vars:
+        ansible_aws_ssm_timeout: 60
+
+    - name: Create SYS Profile
+      script: create_sys_profile.sh
+      when: get_sys_monitoring_profile.stdout_lines[-1] != 'SYS_PROFILE'
+
+    - name: Customize SYS Profile
+      script: alter_sys_profile.sh
+
+    - name: Set SYS Profile
+      script: set_monitoring_profile.sh
+      when: get_sys_current_profile.stdout_lines[-1] != 'SYS_PROFILE'
+      environment:
+        PROFILE_USER: "SYS"
+        PROFILE_NAME: "SYS_PROFILE"
+
   environment:
-    PROFILE_NAME: "SYS_PROFILE"
-
-# Check Which Profile SYS is Using
-- name: Check Current SYS Profile
-  script: get_current_profile.sh
-  register: get_sys_current_profile
-  changed_when: false
-  environment:
-    PROFILE_USER: "SYS"
-  vars:
-    ansible_aws_ssm_timeout: 60
-
-- name: Create SYS Profile
-  script: create_sys_profile.sh
-  when: get_sys_monitoring_profile.stdout_lines[-1] != 'SYS_PROFILE'
-
-- name: Customize SYS Profile
-  script: alter_sys_profile.sh
-
-- name: Set SYS Profile
-  script: set_monitoring_profile.sh
-  when: get_sys_current_profile.stdout_lines[-1] != 'SYS_PROFILE'
-  environment:
-    PROFILE_USER: "SYS"
-    PROFILE_NAME: "SYS_PROFILE"
+    OEM_DB_NAME: "{{ oem_db_name | default() }}"
