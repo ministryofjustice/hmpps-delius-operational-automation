@@ -1,5 +1,4 @@
 - block:
-
     - name: Check if SYS Profile Exists
       script: get_monitoring_profile.sh
       register: get_sys_monitoring_profile

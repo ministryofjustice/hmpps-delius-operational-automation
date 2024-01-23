@@ -1,5 +1,4 @@
 - block:
-
     - name: Check if DBSNMP Profile Exists
       script: get_monitoring_profile.sh
       register: get_dbsnmp_monitoring_profile
