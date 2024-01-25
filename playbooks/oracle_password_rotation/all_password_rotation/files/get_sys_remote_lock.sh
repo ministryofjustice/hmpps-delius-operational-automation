@@ -5,7 +5,7 @@
 
 [[ "${DB_NAME}" == "NONE" ]] && exit 0
 
-if [[ ! -z ${DB_NAME} ]]
+if [[ "${DB_TYPE}" == "OEM" ]]
 then
     PATH=$PATH:/usr/local/bin
     ORAENV_ASK=NO
