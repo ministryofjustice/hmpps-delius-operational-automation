@@ -4,6 +4,8 @@
 .github/ @ministryofjustice/hmpps-migration
 .github/workflows/oracle-* @ministryofjustice/hmpps-dba
 
+.github/workflows/delius-* @ministryofjustice/hmpps-dba
+
 playbooks/** @ministryofjustice/hmpps-dba
 docker/** @ministryofjustice/hmpps-migration
 ansible/** @ministryofjustice/hmpps-migration
