@@ -446,7 +446,7 @@
     - database_primary_sid | regex_search('STGMIS')
 
 - name: Stop Blackout for Flashback
-  import_playbook: ../oem-blackout/playbook.yml
+  import_playbook: ../oem_blackout/playbook.yml
   when: required_action == "Flashback to Restore Point"
   vars:
       target: "{{ target_dbs }}"
