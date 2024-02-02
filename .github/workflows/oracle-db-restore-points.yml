@@ -160,26 +160,18 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
-      - name: Install yq
-        uses: dcarbone/install-yq-action@v1.1.1
-        with:
-          download-compressed: true
-          version: "v4.35.1"
-          force: true
-
       - name: Define Targets
         id: definetargets
         working-directory: ${{ env.inventory }}
         run: |
-          set -x
           targets=""
           prefix="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
           build_targets() {
             databasetype=${1}
-            high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
-            [ $high_availability_count -le 2 ] && targets="${targets}${prefix}_${databasetype}_primarydb,"
-            [ $high_availability_count -eq 1 ] && targets="${targets}${prefix}_${databasetype}_standbydb1,"
-            [ $high_availability_count -eq 2 ] && targets="${targets}${prefix}_${databasetype}_standbydb1,${prefix}_${databasetype}_standbydb2,"
+            if [[ -e group_vars/${prefix}_${databasetype}_primarydb.yml ]]
+            then
+              targets="${targets}${prefix}_${databasetype}_dbs,"
+            fi
             echo
           }
           [ "${{ github.event.inputs.IncludeDelius }}" == "yes" ] && build_targets delius
