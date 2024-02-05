@@ -389,7 +389,7 @@
 # out of Sync with those in SSM Parameter store and OEM.  Rotate the passwords again to sync everything up.
 # (This step is skipped if not in AWS since there will be no password store)
 - name: Rotate Database Passwords
-  import_playbook: ../oracle_password_rotation/password_rotation.yml
+  import_playbook: ../oracle_password_rotation/database_password_rotation.yml
   vars:
     rotate_database_passwords: true
     rotate_groups: "{{ target_dbs }}"
