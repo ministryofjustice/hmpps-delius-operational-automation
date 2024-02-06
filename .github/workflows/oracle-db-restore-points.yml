@@ -143,6 +143,7 @@ jobs:
             playbooks/oracle_restore_points
             playbooks/block_sessions
             playbooks/oracle_password_rotation
+            playbooks/oem_blackout
             playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
