@@ -72,11 +72,11 @@
   import_playbook: ../oem_blackout/playbook.yml
   when: required_action == "Flashback to Restore Point"
   vars:
-      target: "{{ target_dbs }}"
-      blackout: "Flashback_to_{{ restore_point_name }}"
-      object_type: all
-      action: start
-      allow_jobs: true
+    target: "{{ target_dbs }}"
+    blackout: "Flashback_to_{{ restore_point_name }}"
+    object_type: all
+    action: start
+    allow_jobs: true
 
 # Ensure all connections to Delius Primary are blocked and removed
 # prior to a Flashback
@@ -444,10 +444,10 @@
   import_playbook: ../oem_blackout/playbook.yml
   when: required_action == "Flashback to Restore Point"
   vars:
-      target: "{{ target_dbs }}"
-      blackout: "Flashback_to_{{ restore_point_name }}"
-      object_type: all
-      action: stop
+    target: "{{ target_dbs }}"
+    blackout: "Flashback_to_{{ restore_point_name }}"
+    object_type: all
+    action: stop
 
 # Always Run the Restore Point Report at the End
 - name: Report restore points
