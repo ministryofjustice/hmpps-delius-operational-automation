@@ -83,7 +83,7 @@
 - name: Block connections to Delius primary database
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: "{{ target_dbs.split(',') | select('search', '.*delius_primarydb') | first  }}"
+    target_host: "{{ target_dbs.split(',') | select('match','.*delius_dbs') | first | replace('dbs','primarydb') }}"
     database: { "delius": { "high_availability_count": 0 } }
     action: block
   when:
@@ -198,17 +198,12 @@
 
           when: (restore_date_time | default() | length > 0) and database_primary_sid is defined
 
-        - name: Get environment name and application name
-          set_fact:
-            environment_name: "{{ hostvars[inventory_hostname].group_names[2] | replace(hostvars[inventory_hostname].group_names[2].split('_')[-1],'') }}"
-            application_name: "{{ hostvars[inventory_hostname].group_names[3].split('_')[-2] }}"
-
         - name: Create Oracle Standby Restore Points
           script: create_standby_restore_points.sh
           when: database_standby_sid is defined
           environment:
             RESTORE_POINT_NAME: "{{ uplift_restore_point_name | default(restore_point_name) | upper }}"
-            SCN: "{{ hostvars[groups[environment_name + application_name + '_primarydb'][0]]['scn'] | default('0') }}"
+            SCN: "{{ hostvars[groups[hostvars[inventory_hostname].group_names | select('match','.*_dbs') | first | replace('dbs','primarydb')][0]]['scn'] | default('0') }}"
 
         - name: Create Oracle Primary Restore Points
           script: create_primary_restore_points.sh
@@ -306,7 +301,7 @@
 - name: Unblock connections to Delius primary database
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: "{{ target_dbs.split(',') | select('search', '.*delius_primarydb') | first }}"
+    target_host: "{{ target_dbs.split(',') | select('match','.*delius_dbs') | first | replace('dbs','primarydb') }}"
     database: { "delius": { "high_availability_count": 0 } }
     action: unblock
     ignore_flashback: true
