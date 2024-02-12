@@ -7,13 +7,15 @@ on:
             type: choice
             options:
               - "dev"
+              - "test"
         old_home_area:
             required: true
             type: string
         new_home_area:
             required: true
             type: string
-            
+  workflow_call:
+
 jobs:
     deploy:
         name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}

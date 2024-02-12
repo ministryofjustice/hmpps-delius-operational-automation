@@ -7,9 +7,12 @@ on:
           type: choice
           options:
             - "dev"
+            - "test"
       rbac_tag:
         required: true
         type: string
+  workflow_call:
+
 jobs:
     deploy:
         name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}

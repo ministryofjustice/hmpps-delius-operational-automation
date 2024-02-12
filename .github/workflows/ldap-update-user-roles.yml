@@ -32,6 +32,8 @@ on:
       user_filter:
         required: false
         type: string
+  workflow_call:
+
             
 jobs:
     deploy:
