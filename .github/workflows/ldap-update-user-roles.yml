@@ -106,8 +106,8 @@ jobs:
                 field-value-pairs: |
                     $.containerDefinitions[0].command: ["ldap-automation", "update-user-roles", ${{ steps.calculate-args.outputs.COMMAND_ARGS }} ]
 
-                    $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task-exec"
-                    $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task"
+                    $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-ecs-task-exec"
+                    $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-ecs-task"
 
                     $.containerDefinitions[0].image: "ghcr.io/ministryofjustice/hmpps-ldap-automation:${{ vars.LDAP_AUTOMATION_IMAGE_TAG }}"
 

@@ -51,8 +51,8 @@ jobs:
                 field-value-pairs: |
                     $.containerDefinitions[0].command: ["ldap-automation", "update-user-home-areas", "--old-home-area", "${{ github.event.inputs.old_home_area }}", "--new-home-area", "${{ github.event.inputs.new_home_area }}"]
 
-                    $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task-exec"
-                    $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-task"
+                    $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-ecs-task-exec"
+                    $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-ecs-task"
 
                     $.containerDefinitions[0].image: "${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-ldap-automation-ecr-repo:${{ vars.LDAP_AUTOMATION_IMAGE_TAG }}"
 
