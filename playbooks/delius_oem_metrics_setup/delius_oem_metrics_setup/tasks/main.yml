@@ -1,9 +1,10 @@
 ---
-- name: Get SYSMAN Password
-  import_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
+# - name: Get SYSMAN Password
+#   import_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
 
-- name: Create Delius Target Group
-  import_tasks: create_group.yml
+- name: DEV ONLY TO SPEED UP
+  set_fact:
+     oem_sysman_password: W7eb1P7BO_agV64
 
-- name: Import Delius Incident Rule Set
-  import_tasks: import_incident_rule_set.yml
+- name: Modify Metric Thresholds
+  import_tasks: modify_metric_thresholds.yml

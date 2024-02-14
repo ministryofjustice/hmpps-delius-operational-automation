@@ -1,0 +1,58 @@
+---
+- name: Import Incident Rule Set for Delius Targets
+  block:
+    # EMCLI Login script contains a password so ensure it is not readable by other users
+    - name: Copy EMCLI Login scripts
+      template:
+        src: "{{ playbook_dir }}/../../common/templates/emcli_login.sh.j2"
+        dest: "{{ stage }}/emcli_login.sh"
+        mode: "0700"
+
+    - name: Combine All Metrics with Host Specific Metrics
+      set_fact:
+         combined_oem_metrics: "{{ all_oem_metrics | combine(host_oem_metrics) }}"
+
+    - name: List All Metric Thresholds
+      debug:
+         var: host_oem_metrics
+
+    - name: Initialize List of OEM Targets on this Host
+      set_fact:
+         oem_targets: []
+
+    - name: Get List of OEM Targets on this Host
+      ansible.builtin.shell: |
+          . ~/.bash_profile
+          {{ emctl_agent }} config agent listtargets | grep -E "^\[.*\]$" | sed 's/^\[//' | sed 's/\]$//'
+      register: get_list_of_oem_targets
+      changed_when: false
+
+    - name: Populate List of OEM Targets on this Host
+      set_fact:
+         oem_targets: "{{ oem_targets + [{'target_name': (item.split(',')[0]), 'target_type': (item.split(',')[1] | trim) }]}}"
+      loop: "{{ get_list_of_oem_targets.stdout_lines }}"
+
+    - name: Display List of OEM Targets on this Host
+      debug:
+         var: oem_targets
+
+    - name: Display List of Oracle Databases on this Host
+      debug:
+         msg: "{{ oem_targets | selectattr('target_type','equalto','oracle_database') | list }}"
+
+    - name: What
+      debug:
+         msg: "{{ item.key }}"
+      loop: "{{ host_oem_metrics | dict2items }}"
+
+
+    # - name: Modify Metric Thresholds
+    #   shell: |
+    #          {{ stage }}/emcli_login.sh
+    #          {{ emcli }} modify_threshold -target_name={{ target.name }} -target_type={{ target.type }}
+    #   loop: 
+    #      "{{ oem_targets | dict2list | product(host_oem_metrics)}}"
+    #   when:
+    #       item.0.target_type = item.1.key
+
+         
