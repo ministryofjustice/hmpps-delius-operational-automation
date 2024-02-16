@@ -8,3 +8,4 @@
 
 - name: Modify Metric Thresholds
   import_tasks: modify_metric_thresholds.yml
+  when: (all_oem_metrics is defined) or (host_oem_metrics is defined)

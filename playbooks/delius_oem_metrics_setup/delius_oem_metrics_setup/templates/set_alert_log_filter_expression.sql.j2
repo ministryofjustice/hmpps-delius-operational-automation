@@ -1,0 +1,23 @@
+UPDATE sysman.mgmt_coll_item_properties
+SET
+    property_value = '{{ filter_expression }}'
+WHERE
+        property_name = 'ignorePattern'
+    AND ( object_guid, metric_guid ) IN (
+        SELECT
+            mcip.object_guid, mcip.metric_guid
+        FROM
+                       sysman.em_targets et
+            INNER JOIN sysman.mgmt_coll_item_properties mcip 
+            ON         et.target_guid = mcip.object_guid
+            INNER JOIN sysman.mgmt_metrics mm 
+            ON         mcip.metric_guid = mm.metric_guid
+            AND        et.category_prop_1 = mm.category_prop_1
+            AND        et.type_meta_ver = mm.type_meta_ver
+        WHERE
+                et.target_name = '{{ database_target_name }}'
+            AND et.target_type = 'oracle_database'
+            AND mcip.coll_name LIKE 'db_alertlog_coll%%'
+            AND mcip.property_name = 'ignorePattern'
+            AND mm.metric_name = 'db_alert_log'
+    );

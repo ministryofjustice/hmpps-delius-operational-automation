@@ -1,0 +1,26 @@
+---
+# As of OEM 13.5 there is no way to set the Filter Expression for Database Alert
+# Log Monitoring using EMCLI.  Therefore we instead set this value directly in
+# the OMS Repository by updating the sysman.mgmt_coll_item_properties table.
+
+- block:
+
+    - name: Copy Alert Log Filter Expression SQL Script
+      template:
+        src: set_alert_log_filter_expression.sql.j2
+        dest: "{{ stage }}/set_alert_log_filter_expression.sql"
+
+    - name: Run SQL to Update Alert Log Filter Expression
+      become_user: oracle
+      ansible.builtin.shell: |
+        echo "running emcli_login.sh"
+        . {{ stage }}/emcli_login.sh
+        {{ emcli }} execute_sql -sql="FILE" -input_file="FILE:{{ stage }}/set_alert_log_filter_expression.sql" -targets="EMREP:oracle_database"
+      register: update_alert_log_filter_expression
+
+  always:
+
+    - name: Remove SQL Script from Stage Area
+      file:
+         path: "{{ stage }}/set_alert_log_filter_expression.sql"
+         state: absent
