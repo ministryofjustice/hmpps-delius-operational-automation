@@ -99,6 +99,18 @@ set_ora_env () {
   export NLS_DATE_FORMAT=YYMMDDHH24MI
 }
 
+get_rman_password () {
+  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ASSUME_ROLE_NAME}"
+  SESSION="catalog-ansible"
+  CREDS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION}"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")
+  export AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
+  export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
+  export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
+  SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:${SECRET}"
+  RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
+}
+
 validate () {
   ACTION=$1
   case "$ACTION" in
@@ -199,13 +211,9 @@ validate () {
                        then
                          error "Catalog mode is $CATALOGMODE, specify catalog db"
                        else
-                          INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-                          ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-                          DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-                          APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
-                          RMANPASS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region eu-west-2 --query SecretString --output text| jq -r .rman)
-                         [ -z ${RMANPASS} ] && error "Password for rman in aws secret ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords does not exist"
-                         CATALOG_CONNECT=rman19c/${RMANPASS}@$CATALOG_DB
+                         get_rman_password
+                         [ -z ${RMANPASS} ] && error "Password for RMAN catalog user ${RMANPASS} does not exist"
+                         CATALOG_CONNECT=rcvcatowner/${RMANPASS}@$CATALOG_DB
                        fi
                      fi
                      ;;

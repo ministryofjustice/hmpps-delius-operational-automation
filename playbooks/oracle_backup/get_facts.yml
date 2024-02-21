@@ -1,0 +1,48 @@
+- name: Set Secrets Dictionary
+  set_fact:
+    secretsmanager_passwords:
+      emrep:
+        account_name: "hmpps-oem-{{ aws_environment }}"
+        assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+        secret: "/oracle/database/EMREP/shared-passwords"
+        users:
+          - sysman:
+      catalog:
+        account_name: "hmpps-oem-{{ aws_environment }}"
+        assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+        secret: "/oracle/database/{{ catalog }}/shared-passwords"
+        users:
+          - rcvcatowner: 
+
+- name: Get Account Ids
+  set_fact:
+    account_ids: "{{ lookup('aws_ssm', 'account_ids', region='eu-west-2') }}"
+
+- name: Get OEM secrets
+  import_role:
+    name: secretsmanager-passwords
+  vars:
+    secretsmanager_passwords: "{{ secretsmanager_passwords }}"
+
+- name: Set password facts
+  set_fact:
+    sysman_password: "{{ secretsmanager_passwords_dict['emrep'].passwords['sysman'] }}"
+    rcvcatowner_password: "{{ secretsmanager_passwords_dict['catalog'].passwords['rcvcatowner'] }}"
+
+- name: Catalog Host Name
+  when: not tnsnames_entry_exists
+  block:
+
+    - name: Get Catalog Host Name
+      shell: |
+        . ~/.bash_profile
+        export PATH=$PATH:/u01/app/oracle/product/oem-agent/agent_{{ OEM_AGENT_VERSION }}/oracle_common/jdk/jre/bin
+        {{ emcli }} sync 1>/dev/null 2>&1 || ( {{ emcli }} login -username=sysman -password=${SYSMAN_PASSWORD} -force && {{ emcli }} sync ) 1>/dev/null 2>&1
+        {{ emcli }} get_targets -noheader -targets="%:oracle_oms" | awk '{print $NF}' | cut -d: -f1
+      environment:
+        SYSMAN_PASSWORD: "{{ sysman_password }}"
+      register: getcataloghostname
+
+    - name: Set Catalog Host Name
+      set_fact:
+        catalog_hostname: "{{ getcataloghostname.stdout }}"
