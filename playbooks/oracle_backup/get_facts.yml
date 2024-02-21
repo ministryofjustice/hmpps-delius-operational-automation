@@ -12,7 +12,7 @@
         assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
         secret: "/oracle/database/{{ catalog }}/shared-passwords"
         users:
-          - rcvcatowner: 
+          - rcvcatowner:
 
 - name: Get Account Ids
   set_fact:
@@ -32,7 +32,6 @@
 - name: Catalog Host Name
   when: not tnsnames_entry_exists
   block:
-
     - name: Get Catalog Host Name
       shell: |
         . ~/.bash_profile
