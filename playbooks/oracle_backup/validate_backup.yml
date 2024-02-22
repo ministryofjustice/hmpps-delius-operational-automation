@@ -11,37 +11,38 @@
   # as this will vary between environments
 
   tasks:
-    - name: Get RMAN Catalog Password
-      shell: |
-        export PATH=$PATH:/usr/local/bin
-        INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-        ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-        DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-        APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
-        aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .rman
-      register: rman_password
-      changed_when: false
-      no_log: true
 
-    - name: Change rman target group name if not ending with delius_primarydb
+    - name: Get Passwords
+      include_tasks: get_facts.yml
+
+    - name: Change rman target group name to end with delius_primarydb
       set_fact:
-        delius_primarydb: "{{ rman_target | replace (rman_target.split('_')[-2] + '_' + rman_target.split('_')[-1], 'delius_primarydb')}}"
-      when: rman_target is not search ('delius_primarydb')
+        delius_primarydb: "{{ rman_target | regex_replace('_standbydb([1-2])$','_primarydb') }}"
+
+    - name: Set Environment Variables Required For Shell And Script Modules
+      set_fact:
+        assume_role_name: "{{ secretsmanager_passwords['catalog'].assume_role_name }}"
+        secret_account_id: "{{ account_ids[secretsmanager_passwords['catalog'].account_name] }}"
+        secret: "{{ secretsmanager_passwords['catalog'].secret }}"
 
     # As we do not have a tnsnames.ora file on the standby we pick up the tnsnames definition for the catalog from the primary
     - name: Get RMAN Catalog TNS Alias from Primary (TNSNAMES file not in place on Standby)
-      script: get_catalog_connection.sh {{ hostvars[groups['delius_primarydb'][0]]['database_primary_sid'] }} {{ catalog }}
-      delegate_to: "{{ groups['delius_primarydb'][0] }}"
+      script: get_catalog_connection.sh {{ hostvars[groups[delius_primarydb][0]]['database_primary_sid'] }} {{ catalog }}
+      delegate_to: "{{ groups[delius_primarydb][0] }}"
       when: catalog is defined
       register: rman_tnsnames
 
-    - name: Set RMAN Catalog Connection
+    - name: Set Environment Variable Catalog Required For Shell And Script Modules
       set_fact:
-        connect_to_catalog: "{{ 'rman19c/' + rman_password.stdout + '@' + catalog if (catalog is defined) else 'NOCATALOG' }}"
-      no_log: true
+        catalog: "{{ rman_tnsnames.stdout_lines[0] if (catalog is defined) else 'NOCATALOG' }}"
 
     - name: Get DBID
-      script: run_rman_command.sh "{{ database_standby_sid | default(database_primary_sid) }}" "{{ connect_to_catalog }}" exit
+      script: run_rman_command.sh "{{ database_standby_sid | default(database_primary_sid) }}" exit
+      environment:
+        CATALOG: "{{ catalog }}"
+        ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+        SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+        SECRET: "{{ secret }}"
       register: getdbid
       changed_when: false
 
@@ -71,7 +72,12 @@
 
     - block:
         - name: Resync catalog on primary just in case any database structure changes have occurred
-          script: run_resync_catalog.sh "{{ connect_to_catalog }}"
+          script: run_resync_catalog.sh
+          environment:
+            CATALOG: "{{ catalog }}"
+            ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+            SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+            SECRET: "{{ secret }}"
           delegate_to: "{{ ansible_play_hosts[0] | regex_replace('-db-\\d{1}','-db-1') }}"
           changed_when: false
           register: resync_catalog
@@ -91,7 +97,12 @@
     # (1) the lowest SCN required to start recovery.
     # (2) the SCN required to clear fuzziness in the datafiles.
     - name: Run Backup Preview
-      script: run_backup_preview.sh {{ database_standby_sid | default(database_primary_sid) }}  "{{ connect_to_catalog }}" "{{ end_scn | default() }}"
+      script: run_backup_preview.sh {{ database_standby_sid | default(database_primary_sid) }} "{{ end_scn | default() }}"
+      environment:
+        CATALOG: "{{ catalog }}"
+        ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+        SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+        SECRET: "{{ secret }}"
       register: backup_preview
       changed_when: false
       vars:
@@ -117,7 +128,7 @@
         validate_incremental_command: "validate backupset {{ incremental_backup_sets | join(',') }};"
       when: incremental_backup_sets is defined
 
-    - name: Create Validation Command for Incremental Backups
+    - name: Create Validation Command for Incremental Backupsf
       set_fact:
         validate_incremental_command: "# No Incrementals to Validate"
       when: incremental_backup_sets is undefined
@@ -132,7 +143,12 @@
         media_recovery_fuzziness_scn: "{{ backup_preview.stdout_lines | select('match','.*Recovery must be done beyond SCN .*') | list | first | regex_replace('^Recovery must be done beyond SCN (\\d+) to clear datafile fuzziness$','\\1') }}"
 
     - name: Get Start Date for Current Database Incarnation for Current DBID
-      script: get_rman_incarnation_start_date.sh {{ database_standby_sid | default(database_primary_sid) }} "{{ connect_to_catalog }}" "{{ dbid }}"
+      script: get_rman_incarnation_start_date.sh {{ database_standby_sid | default(database_primary_sid) }} "{{ dbid }}"
+      environment:
+        CATALOG: "{{ catalog }}"
+        ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+        SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+        SECRET: "{{ secret }}"
       register: incarnation_start
       changed_when: false
 
@@ -147,7 +163,12 @@
     # We are only interested in backups of archivelogs from the recovery start SCN as these are the only ones
     # required to perform recovery of the database
     - name: Get Listing of Archivelog Backups
-      script: run_list_archivelog_backup.sh {{ database_standby_sid | default(database_primary_sid) }} {{ media_recovery_start_scn }} "{{ connect_to_catalog }}" "{{ end_scn | default() }}"
+      script: run_list_archivelog_backup.sh {{ database_standby_sid | default(database_primary_sid) }} {{ media_recovery_start_scn }} "{{ end_scn | default() }}"
+      environment:
+        CATALOG: "{{ catalog }}"
+        ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+        SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+        SECRET: "{{ secret }}"
       register: archivelog_backup_list
       changed_when: false
 
@@ -190,7 +211,7 @@
     # We want to ignore any archive log backups associated with Restore Points if these are the most
     # recent backups taken, since these could appear to result in a gap in the backed up sequences
     - name: Get Listing of Archivelog Backups Associated with Restore Points If Ahead of Normal Backups
-      script: run_list_restore_point_archivelog_backup.sh {{ database_standby_sid | default(database_primary_sid) }} {{ media_recovery_start_scn }} "{{ connect_to_catalog }}" "{{ end_scn | default() }}"
+      script: run_list_restore_point_archivelog_backup.sh {{ database_standby_sid | default(database_primary_sid) }} {{ media_recovery_start_scn }} "{{ end_scn | default() }}"
       register: restore_point_archivelog_backup_list
       changed_when: false
 
@@ -252,7 +273,12 @@
 
     - name: Run Database and Archivelog Backup Validation
       shell: |
-        . ~/.bash_profile; /tmp/run_backup_validation.sh {{ database_standby_sid | default(database_primary_sid) }} {{ media_recovery_start_scn }}  {{ parallelism }} "{{ validate_incremental_command }}" "{{ validate_archivelog_command }}" "{{ connect_to_catalog }}" "{{ end_scn | default() }}"
+        . ~/.bash_profile; /tmp/run_backup_validation.sh {{ database_standby_sid | default(database_primary_sid) }} {{ media_recovery_start_scn }}  {{ parallelism }} "{{ validate_incremental_command }}" "{{ validate_archivelog_command }}" "{{ end_scn | default() }}"
+      environment:
+        CATALOG: "{{ catalog }}"
+        ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+        SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+        SECRET: "{{ secret }}"
       async: 21600
       poll: 300
       register: backup_validation
