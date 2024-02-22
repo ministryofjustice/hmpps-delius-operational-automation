@@ -1,4 +1,11 @@
 ---
+
+- debug:
+    var: "{{ playbook_dir }}"
+
+- debug:
+    var: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
+
 - name: Get SYSMAN Password
   import_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
 
