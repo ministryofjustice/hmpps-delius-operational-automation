@@ -4,7 +4,6 @@
 # the OMS Repository by updating the sysman.mgmt_coll_item_properties table.
 
 - block:
-
     - name: Copy Alert Log Filter Expression SQL Script
       template:
         src: set_alert_log_filter_expression.sql.j2
@@ -19,8 +18,7 @@
       register: update_alert_log_filter_expression
 
   always:
-
     - name: Remove SQL Script from Stage Area
       file:
-         path: "{{ stage }}/set_alert_log_filter_expression.sql"
-         state: absent
+        path: "{{ stage }}/set_alert_log_filter_expression.sql"
+        state: absent
