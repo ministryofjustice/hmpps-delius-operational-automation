@@ -24,6 +24,9 @@
   debug:
     msg: "{{ catalog }} exists in tnsnames: {{ tnsnames_entry_exists }}"
 
+- name: Get Passwords
+  include_tasks: get_facts.yml
+
 - name: Add catalog connect identifier to {{ oracle_home.stdout }}/network/admin/tnsnames.ora
   blockinfile:
     backup:
@@ -38,43 +41,28 @@
           (CONNECT_TIMEOUT=10)
           (RETRY_COUNT=3)
           (ADDRESS_LIST=
-            (ADDRESS = (PROTOCOL = TCP)(HOST={{ hostvars[groups['rman_primarydb'][0]]['inventory_hostname'] }})(PORT = 1521))
+            (ADDRESS = (PROTOCOL = TCP)(HOST={{ catalog_hostname }})(PORT = 1521))
           )
-          (CONNECT_DATA=(SERVICE_NAME={{ catalog }}_TAF))
+          (CONNECT_DATA=(SERVICE_NAME=RCV_TAF))
         )
 
     owner: "oracle"
     marker: "# {mark} {{ marker_name }}"
   when: not tnsnames_entry_exists
 
-- name: Check we can connect to the catalog
-  block:
-    - name: Get catalog rman password
-      shell: |
-        export PATH=$PATH:/usr/local/bin
-        INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-        ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-        DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-        APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
-        aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .rman
-      changed_when: false
-      register: rman_password
-      no_log: true
+- name: Attempt to connect to the catalog as rman
+  shell:
+    cmd: |
+      . ~/.bash_profile
+      sqlplus -s /nolog<< EOF
+      whenever sqlerror exit failure
+      connect rcvcatowner/{{ rcvcatowner_password }}@{{ catalog }}
+      EOF
+  changed_when: false
+  register: rman_connect
+  no_log: true
 
-    - name: Attempt to connect to the catalog as rman
-      shell:
-        cmd: |
-          . ~/.bash_profile
-          sqlplus -s /nolog<< EOF
-          whenever sqlerror exit failure
-          connect rman19c/{{ rman_password.stdout }}@{{ catalog }} 
-          EOF
-      become_user: oracle
-      changed_when: false
-      register: rman_connect
-      no_log: true
-
-    - name: Display connection result
-      debug:
-        msg: "Catalog connection good"
-      when: rman_connect.rc == 0
+- name: Display connection result
+  debug:
+    msg: "Catalog connection good"
+  when: rman_connect.rc == 0

@@ -60,4 +60,4 @@ default_audit_options:
       "GRANT ANY PRIVILEGE",
       "GRANT ANY ROLE",
     ]
-  NoAuditSessions: ["CONTACT_SEARCH_POOL"]
+  NoAuditSessions: []
