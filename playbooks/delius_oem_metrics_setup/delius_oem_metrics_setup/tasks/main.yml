@@ -7,7 +7,7 @@
     var: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
 
 - name: Get SYSMAN Password
-  import_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
+  include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
 
 - name: Modify Metric Thresholds
   import_tasks: modify_metric_thresholds.yml
