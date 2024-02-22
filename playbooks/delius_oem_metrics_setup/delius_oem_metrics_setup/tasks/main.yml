@@ -1,23 +1,4 @@
 ---
-
-- name: Show Playbook Directory
-  debug:
-    var: playbook_dir
-
-- name: Show Facts Directory
-  debug:
-    msg: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
-
-- name: Show What is There
-  shell: |
-         find {{ playbook_dir }}/../../
-  register: what_is_it
-  delegate_to: localhost
-  become: false
-
-- debug:
-    var: what_is_it
-
 - name: Get SYSMAN Password
   include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
  
