@@ -12,6 +12,7 @@
   shell: |
          find {{ playbook_dir }}/../../common/
   register: what_is_it
+  become: false
 
 - debug:
     var: what_is_it
