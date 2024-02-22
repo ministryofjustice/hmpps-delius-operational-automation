@@ -68,5 +68,3 @@
     - name: Get Slack Token
       set_fact:
         getslacktoken: "{{ lookup('aws_ssm', 'manual-ops-alerts-slack-token', region='eu-west-2') }}"
-
-
