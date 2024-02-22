@@ -34,39 +34,21 @@
     dest: "{{ inventory_file }}"
     owner: oracle
 
-- name: Get RMAN Catalog Password
-  shell: |
-    export PATH=$PATH:/usr/local/bin
-    INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-    ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-    DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-    APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
-    aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .rman
-  register: rman_password
-  changed_when: false
-  no_log: true
+- name: Get Passwords
+  include_tasks: get_facts.yml
+  vars:
+    database_sid: "{{ database_primary_sid | default(database_standby_sid) }}"
+    get_slack_channel:
 
-- name: Setup Slack Configuration
+- name: Change rman target group name to end with delius_primarydb
   set_fact:
-    slack_channel: "#delius-aws-oracle-dev-alerts"
+    delius_primarydb: "{{ rman_target | regex_replace('_standbydb([1-2])$','_primarydb') }}"
 
-# Get the Delius Slack token or the Alfresco Slack token if it does not exist
-- name: Get Slack Token
-  shell: |
-    export PATH=$PATH:/usr/local/bin
-    aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value
-  register: getslacktoken
-  changed_when: false
-
-# Get RMAN Catalog Password (Cannot use this as runs on the control instance)
-# - name: lookup ssm parameter store in the current region
-#   set_fact:
-#      rman_password="{{ lookup('aws_ssm',ssmname,region=region) }}"
-
-- name: Change rman target group name if not ending with delius_primarydb
+- name: Set Environment Variables Required For Shell And Script Modules
   set_fact:
-    delius_primarydb: "{{ rman_target | replace (rman_target.split('_')[-2] + '_' + rman_target.split('_')[-1], 'delius_primarydb')}}"
-  when: rman_target is not search ('delius_primarydb')
+    assume_role_name: "{{ secretsmanager_passwords['catalog'].assume_role_name }}"
+    secret_account_id: "{{ account_ids[secretsmanager_passwords['catalog'].account_name] }}"
+    secret: "{{ secretsmanager_passwords['catalog'].secret }}"
 
 # As we do not have a tnsnames.ora file on the standby we pick up the tnsnames definition for the catalog from the primary
 - name: Get RMAN Catalog TNS Alias from Primary (TNSNAMES file not in place on Standby)
@@ -75,13 +57,17 @@
   when: catalog is defined
   register: rman_tnsnames
 
-- name: Set RMAN Connect String
+- name: Set Environment Variable Catalog Required For Shell And Script Modules
   set_fact:
-    connect_to_catalog: "{{ 'rman19c/' + rman_password.stdout + '@' + rman_tnsnames.stdout_lines[0] if (catalog is defined) else 'NOCATALOG' }}"
-  no_log: true
+    catalog: "{{ rman_tnsnames.stdout_lines[0] if (catalog is defined) else 'NOCATALOG' }}"
 
 - name: Get DBID
-  script: run_rman_command.sh "{{ database_primary_sid | default(database_standby_sid) }}" "{{ connect_to_catalog }}" exit
+  script: run_rman_command.sh "{{ database_primary_sid | default(database_standby_sid) }}" exit
+  environment:
+    CATALOG: "{{ catalog }}"
+    ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+    SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+    SECRET: "{{ secret }}"
   register: getdbid
   changed_when: false
 
@@ -93,7 +79,12 @@
   debug: var=dbid
 
 - name: Get DBIDs in Catalog for this Database
-  script: run_rman_command.sh "{{ database_primary_sid | default(database_standby_sid) }}" "{{ connect_to_catalog }}" "list incarnation of database;"
+  script: run_rman_command.sh "{{ database_primary_sid | default(database_standby_sid) }}" "list incarnation of database;"
+  environment:
+    CATALOG: "{{ catalog }}"
+    ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+    SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+    SECRET: "{{ secret }}"
   register: getincarnations
 
 # The DBID is the first numeric column after the database name in the output
@@ -136,7 +127,12 @@
   debug: var=backup_folders
 
 - name: Get Backup Retention Policy
-  script: run_rman_command.sh "{{ database_primary_sid | default(database_standby_sid) }}" "{{ connect_to_catalog }}" "show retention policy;"
+  script: run_rman_command.sh "{{ database_primary_sid | default(database_standby_sid) }}" "show retention policy;"
+  environment:
+    CATALOG: "{{ catalog }}"
+    ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+    SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+    SECRET: "{{ secret }}"
   register: getretentionpolicy
   changed_when: false
 

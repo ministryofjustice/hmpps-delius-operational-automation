@@ -47,3 +47,26 @@
     - name: Set Catalog Host Name
       set_fact:
         catalog_hostname: "{{ getcataloghostname.stdout }}"
+
+- name: Slack Channel
+  when: get_slack_channel is defined
+  block:
+    - name: Get Slack Channel
+      shell: |
+        . ~/.bash_profile
+        export PATH=$PATH:/u01/app/oracle/product/oem-agent/agent_{{ OEM_AGENT_VERSION }}/oracle_common/jdk/jre/bin
+        {{ emcli }} sync 1>/dev/null 2>&1 || ( {{ emcli }} login -username=sysman -password=${SYSMAN_PASSWORD} -force && {{ emcli }} sync ) 1>/dev/null 2>&1
+        {{ emcli }} list -resource=TargetProperties -search="TARGET_NAME='{{ database_sid }}'"  -search="PROPERTY_NAME='orcl_gtp_contact'" -columns="PROPERTY_VALUE" -colsize="PROPERTY_VALUE:30" -noheader -format="name:script"
+      environment:
+        SYSMAN_PASSWORD: "{{ sysman_password }}"
+      register: getslackchannel
+
+    - name: Setup Slack Configuration
+      set_fact:
+        slack_channel: "{{ getslackchannel.stdout }}"
+
+    - name: Get Slack Token
+      set_fact:
+        getslacktoken: "{{ lookup('aws_ssm', 'manual-ops-alerts-slack-token', region='eu-west-2') }}"
+
+
