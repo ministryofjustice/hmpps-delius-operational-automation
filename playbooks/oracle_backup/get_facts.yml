@@ -30,7 +30,9 @@
     rcvcatowner_password: "{{ secretsmanager_passwords_dict['catalog'].passwords['rcvcatowner'] }}"
 
 - name: Catalog Host Name
-  when: not tnsnames_entry_exists
+  when:
+    - tnsnames_entry_exists is defined
+    - not tnsnames_entry_exists
   block:
     - name: Get Catalog Host Name
       shell: |
