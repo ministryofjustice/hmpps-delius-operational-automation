@@ -17,6 +17,20 @@ on:
           - "delius-core-stage"
           - "delius-core-pre-prod"
           - "delius-core-prod"
+      TargetHost:
+        description: "Database target host"
+        required: true
+        type: choice
+        options: 
+          - "delius_primarydb"
+          - "delius_standbydb1"
+          - "delius_standbydb2"
+          - "mis_primarydb"
+          - "mis_standbydb1"
+          - "misboe_primarydb"
+          - "misboe_standbydb1"
+          - "misdsd_primarydb"
+          - "misdsd_standbydb1"
       VerboseOutput:
         description: "Verbose Output level"
         type: choice
@@ -51,7 +65,7 @@ jobs:
     steps:
       - name: Prepare Target Name
         id: preparetargetname
-        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT
+        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
   deployment:
     name: oracle-db-oem-metrics-setup
     needs: build_target_name
