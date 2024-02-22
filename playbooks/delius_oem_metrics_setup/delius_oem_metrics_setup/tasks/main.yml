@@ -2,11 +2,11 @@
 
 - name: Show Playbook Directory
   debug:
-    var: "{{ playbook_dir }}"
+    var: playbook_dir
 
 - name: Show Facts Directory
   debug:
-    var: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
+    msg: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
 
 - name: Get SYSMAN Password
   include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
