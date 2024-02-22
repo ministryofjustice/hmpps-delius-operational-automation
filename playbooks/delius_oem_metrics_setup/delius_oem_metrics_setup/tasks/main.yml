@@ -10,7 +10,7 @@
 
 - name: Show What is There
   shell: |
-         find {{ playbook_dir }}/../../common/
+         find {{ playbook_dir }}/../../
   register: what_is_it
   delegate_to: localhost
   become: false
