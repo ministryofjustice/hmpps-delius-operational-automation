@@ -212,7 +212,7 @@ validate () {
                          error "Catalog mode is $CATALOGMODE, specify catalog db"
                        else
                          get_rman_password
-                         [ -z ${RMANPASS} ] && error "Password for RMAN catalog user ${RMANPASS} does not exist"
+                         [ -z ${RMANPASS} ] && error "Password for RMAN catalog user rcvcatowner does not exist"
                          CATALOG_CONNECT=rcvcatowner/${RMANPASS}@$CATALOG_DB
                        fi
                      fi
