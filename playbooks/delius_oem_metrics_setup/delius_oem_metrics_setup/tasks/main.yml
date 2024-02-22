@@ -1,9 +1,11 @@
 ---
 
-- debug:
+- name: Show Playbook Directory
+  debug:
     var: "{{ playbook_dir }}"
 
-- debug:
+- name: Show Facts Directory
+  debug:
     var: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
 
 - name: Get SYSMAN Password
