@@ -2,7 +2,8 @@ name: "Oracle: OEM Metrics Setup"
 run-name: "Oracle: ${{ format('{0}', github.event.inputs.TargetEnvironment) }}_oem_metrics_setup"
 on:
   push:
-    - "DBA-598-METRICS"
+    branches:
+      - "DBA-598-METRICS"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
