@@ -8,13 +8,15 @@
         dest: "{{ stage }}/emcli_login.sh"
         mode: "0700"
 
-    - name: All OEM Metrics
-      debug:
-        var: all_oem_metrics
+    - name: Initialize All Metrics
+      set_fact:
+         all_oem_metrics: {}
+      when: all_oem_metrics is not defined
 
-    - name: List All Metric Thresholds
-      debug:
-         var: host_oem_metrics
+    - name: Initialize Host Metrics
+      set_fact:
+        host_oem_metrics: {}
+      when: host_oem_metrics is not defined
 
     - name: Initialize List of OEM Targets on this Host
       set_fact:
@@ -32,55 +34,7 @@
          oem_targets: "{{ oem_targets + [{'target_name': (item.split(',')[0]), 'target_type': (item.split(',')[1] | trim) }]}}"
       loop: "{{ get_list_of_oem_targets.stdout_lines }}"
 
-    - name: Display List of OEM Targets on this Host
-      debug:
-         var: oem_targets
-
-    - name: Display List of Oracle Databases on this Host
-      debug:
-         msg: "{{ oem_targets | selectattr('target_type','equalto','oracle_database') | list }}"
-
-    - name: Show All Metrics
-      debug:
-         msg: "{{ (( all_oem_metrics | flatten_metrics ) + ( host_oem_metrics | flatten_metrics )) | rejectattr('target_name','equalto','custom_properties') | list }}"
-
-
-
-    - name: Custom Properties to be Set
-      debug:
-        msg: "{{ item.0.target_name }} {{ item.0.target_type }} --> {{ item.1.target_name }} {{ item.1.target_type }}"
-      loop:
-        "{{ oem_targets | product((( all_oem_metrics | flatten_custom_properties ) + ( host_oem_metrics | flatten_custom_properties )) | rejectattr('target_name','equalto','input_file') | list ) }}"
-      when:
-        - item.0.target_type == item.1.target_type
-        - (item.0.target_name == item.1.target_name) or (item.1.target_name == 'all')
-
-
-    # - name: Set Metric
-    #   set_fact:
-    #      list_of_metrics: "{{ ( list_of_metrics | default([]) ) + { 'target_type': item.key, 'target_name': item.value.key, 'input_file': item.value.input_file } }}"
-    #   loop:
-
-
-    - name: Metric Thresholds to be Set
-      debug:
-        msg: "{{ item.0.target_name }} {{ item.0.target_type }} --> {{ item.1.target_name }} {{ item.1.target_type }}"
-      loop:
-        "{{ oem_targets | product((( all_oem_metrics | flatten_metrics ) + ( host_oem_metrics | flatten_metrics )) | rejectattr('target_name','equalto','custom_properties') | list ) }}"
-      when:
-        - item.0.target_type == item.1.target_type
-        - (item.0.target_name == item.1.target_name) or (item.1.target_name == 'all')
-
-    # - name: Modify Metric Thresholds
-    #   shell: |
-    #          {{ stage }}/emcli_login.sh
-    #          {{ emcli }} modify_threshold -target_name={{ target.name }} -target_type={{ target.type }}
-    #   loop: 
-    #      "{{ oem_targets | dict2list | product(host_oem_metrics)}}"
-    #   when:
-    #       item.0.target_type = item.1.key
-
-    - name: Metric Thresholds to be Set
+    - name: Set the Metric Thresholds
       shell: |
               . {{ stage }}/emcli_login.sh
               cat <<-EOINPUT > {{ stage }}/oem_threshold.txt
@@ -90,14 +44,26 @@
               {{ emcli }} modify_threshold -target_name={{ item.0.target_name }} -target_type={{ item.1.target_type }} \
                     -input_file="FILE:{{ stage }}/oem_threshold.txt"
       loop:
-        "{{ oem_targets | product((( all_oem_metrics | flatten_metrics ) + ( host_oem_metrics | flatten_metrics )) | rejectattr('target_name','equalto','custom_properties') | list ) }}"
+         "{{ oem_targets | product(( all_oem_metrics | flatten_emcli_metrics ) + ( host_oem_metrics | flatten_emcli_metrics )) }}"
       when:
         - item.0.target_type == item.1.target_type
         - (item.0.target_name == item.1.target_name) or (item.1.target_name == 'all')
       register: set_metric_thresholds
 
-    - debug:
-        var: set_metric_thresholds
+    - name: Set Scheduler Attributes
+      shell: |
+              . {{ stage }}/emcli_login.sh
+              echo "Setting scheduler attributes for {{ item.1.target_type }} {{ item.0.target_name }} {{ item.1.collection_name }}"
+              {{ emcli }} modify_collection_schedule -targetNames={{ item.0.target_name }} -targetType={{ item.1.target_type }} \
+                    -collectionName={{ item.1.collection_name }} \
+                    {{ ('-collectionStatus=' + item.1.collection_attribute_value) if (item.1.collection_attribute == 'collectionStatus') else '' }} \
+                    -preview=N -force
+      loop:
+         "{{ oem_targets | product(( all_oem_metrics | flatten_emcli_metrics('schedule') ) + ( host_oem_metrics | flatten_emcli_metrics('schedule') )) }}"
+      when:
+        - item.0.target_type == item.1.target_type
+        - (item.0.target_name == item.1.target_name) or (item.1.target_name == 'all')
+      register: set_metric_thresholds
 
     - name: Setup Database Credentials
       include_tasks: configure_database_credentials.yml
@@ -105,7 +71,7 @@
     - name: Set Alert Log Filter Expressions
       include_tasks: set_alert_log_filter_expression.yml
       loop:
-        "{{ oem_targets | product((( all_oem_metrics | flatten_custom_properties ) + ( host_oem_metrics | flatten_custom_properties )) | rejectattr('property_value','none') | list ) }}"
+         "{{ oem_targets | product(( all_oem_metrics | flatten_emcli_metrics('custom_properties') ) + ( host_oem_metrics | flatten_emcli_metrics('custom_properties') )) }}"
       when:
         - item.0.target_type == 'oracle_database'
         - item.0.target_type == item.1.target_type
@@ -115,10 +81,9 @@
          filter_expression: "{{ item.1.property_value }}"
          database_target_name: "{{ item.0.target_name }}"
 
+  always:
 
-  # always:
-
-  #     - name: Remove Threshold File from Stage Area
-  #       file:
-  #          path: "{{ stage }}/oem_threshold.txt"
-  #          state: absent
+      - name: Remove Threshold File from Stage Area
+        file:
+           path: "{{ stage }}/oem_threshold.txt"
+           state: absent
