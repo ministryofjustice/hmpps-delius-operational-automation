@@ -126,7 +126,6 @@
         - catalog is defined
 
       block:
-
         - name: Get Passwords
           include_tasks: get_facts.yml
 

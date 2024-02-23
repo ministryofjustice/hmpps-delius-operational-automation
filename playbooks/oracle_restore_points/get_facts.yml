@@ -24,4 +24,3 @@
     assume_role_name: "{{ catalog_secretsmanager_passwords['catalog'].assume_role_name }}"
     secret_account_id: "{{ account_ids[catalog_secretsmanager_passwords['catalog'].account_name] }}"
     secret: "{{ catalog_secretsmanager_passwords['catalog'].secret }}"
-
