@@ -43,6 +43,21 @@
         echo "Setting thresholds for {{ item.1.target_type }} {{ item.0.target_name }}"
         {{ emcli }} modify_threshold -target_name={{ item.0.target_name }} -target_type={{ item.1.target_type }} \
               -input_file="FILE:{{ stage }}/oem_threshold.txt"
+        # There appears to be an undocumented bug unsetting thresholds using EMCLI input files.
+        # Although the documentation suggests using " " to unset the threshold, this appears to
+        # instead result in the literal value of " " being used.  As a workaround we can
+        # unset the threshold by specifying it directly as a command line parameter instead of
+        # using the input file.   Currently this bug only manifests for setting the Warning
+        # Threshold for the db_alert_log genericErrStack metric, so we only apply for the 
+        # workaround in this case. 
+        WARNING_THRESHOLD_UNSET_BUG=$(awk '/START_RECORD/{flag=1}/metric\s*,\s*db_alert_log$/{flag++}/^column\s*,\s*genericErrStack$/{flag++}/^warning_threshold\s*,\s*" "/{flag++}/END_RECORD/{if(flag==4){print "YES"}}')
+        if [[ "{{ item.1.target_type}}" == "oracle_database "]] &&
+           [[ "${WARNING_THRESHOLD_UNSET_BUG}" == "YES" ]]; then
+           echo "Using workaround to unset Warning Threshold."
+           {{ emcli }} -modify_threshold -target_name={{ item.0.target_name }} -target_type={{ item.1.target_type }} \
+              -metric="db_alert_log" -column="genericErrStack" -warning_threshold="" \
+              -key_columns=";"
+        fi
       loop: "{{ oem_targets | product(( all_oem_metrics | flatten_emcli_metrics ) + ( host_oem_metrics | flatten_emcli_metrics )) }}"
       when:
         - item.0.target_type == item.1.target_type
