@@ -116,9 +116,9 @@
         - (restore_point_name | default('') | length ) == 0
         - (required_action == "Create Restore Point") or (required_action == "Drop Restore Point") or (required_action == "Flashback to Restore Point")
 
-    - name: Default connect_to_catalog
+    - name: Default catalog
       set_fact:
-        connect_to_catalog: ""
+        catalog: ""
 
     # Get the RMAN Catalog details if creating a restore point to ensure
     # we backup any archive logs which will be needed.  (Or to unkeep the backup if dropping the restore point)
@@ -130,26 +130,18 @@
         - catalog is defined
 
       block:
-        - name: Get RMAN Catalog Password
-          shell: |
-            export PATH=$PATH:/usr/local/bin
-            INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-            ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-            DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-            APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
-            aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .rman
-          register: rman_password
-          changed_when: false
-          no_log: true
 
-        - name: Set RMAN Connect String
-          set_fact:
-            connect_to_catalog: "rman19c/{{ rman_password.stdout }}@{{ catalog }}"
-          no_log: true
+        - name: Get Passwords
+          include_tasks: get_facts.yml
 
         - name: Check primary database registered in rman catalog database
           when: database_primary_sid is defined
-          script: check_database_registered.sh {{ database_primary_unique }} {{ connect_to_catalog }}
+          script: check_database_registered.sh {{ database_primary_unique }}
+          environment:
+            CATALOG: "{{ catalog }}"
+            ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+            SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+            SECRET: "{{ secret }}"
           register: database_registered
           changed_when: false
 
@@ -251,7 +243,7 @@
         - name: Backup Any Archivelogs Needed for Flashing Back
           when:
             - database_primary_sid is defined
-            - ( rman_password.stdout is defined and rman_password.stdout | length > 2) or (rman_password is not defined )
+            - ( rcvcatowner_password is defined and rcvcatowner_password | length > 2) or (rcvcatowner_password is not defined )
             - ( database_registered.stdout_lines is defined and database_registered.stdout_lines[0] | int > 0) or (database_registered is not defined )
           include_tasks: backup_archivelogs_for_restore_point.yml
 
@@ -271,11 +263,14 @@
           script: nokeep_backup_of_archivelog_sequences.sh
           when:
             - database_primary_sid is defined
-              - ( rman_password.stdout is defined and rman_password.stdout | length > 2) or (rman_password is not defined )
+              - ( rcvcatowner_password is defined and rcvcatowner_password| length > 2) or (rcvcatowner_password is not defined )
               - ( database_registered.stdout_lines is defined and database_registered.stdout_lines[0] | int > 0) or (database_registered is not defined )
           environment:
             RESTORE_POINT_NAME: "{{ restore_point_name | upper }}"
-            CATALOG_CONNECTION: "{{ connect_to_catalog }}"
+            CATALOG: "{{ catalog }}"
+            ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+            SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+            SECRET: "{{ secret }}"
 
     # Do not attempt to flashback Snapshot Standby databases - these should instead be converted
     # back to physical standby databases

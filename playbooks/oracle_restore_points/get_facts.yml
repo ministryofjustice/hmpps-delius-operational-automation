@@ -1,0 +1,27 @@
+- name: Set Secrets Dictionary
+  set_fact:
+    secretsmanager_passwords:
+      catalog:
+        account_name: "hmpps-oem-{{ aws_environment }}"
+        assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+        secret: "/oracle/database/{{ catalog }}/shared-passwords"
+        users:
+          - rcvcatowner:
+
+- name: Get Account Ids
+  set_fact:
+    account_ids: "{{ lookup('aws_ssm', 'account_ids', region='eu-west-2') }}"
+
+- name: Get OEM secrets
+  import_role:
+    name: secretsmanager-passwords
+  vars:
+    secretsmanager_passwords: "{{ secretsmanager_passwords }}"
+
+- name: Set Environment Variables Required For Shell And Script Modules
+  set_fact:
+    rcvcatowner_password: "{{ secretsmanager_passwords_dict['catalog'].passwords['rcvcatowner'] }}"
+    assume_role_name: "{{ secretsmanager_passwords['catalog'].assume_role_name }}"
+    secret_account_id: "{{ account_ids[secretsmanager_passwords['catalog'].account_name] }}"
+    secret: "{{ secretsmanager_passwords['catalog'].secret }}"
+
