@@ -51,8 +51,7 @@
         # Threshold for the db_alert_log genericErrStack metric, so we only apply for the 
         # workaround in this case. 
         WARNING_THRESHOLD_UNSET_BUG=$(awk '/START_RECORD/{flag=1}/metric\s*,\s*db_alert_log$/{flag++}/^column\s*,\s*genericErrStack$/{flag++}/^warning_threshold\s*,\s*" "/{flag++}/END_RECORD/{if(flag==4){print "YES"}}' {{ stage }}/oem_threshold.txt)
-        if [[ "{{ item.1.target_type}}" == "oracle_database "]] &&
-           [[ "${WARNING_THRESHOLD_UNSET_BUG}" == "YES" ]]; then
+        if [[ "{{ item.1.target_type}}" == "oracle_database "]] && [[ "${WARNING_THRESHOLD_UNSET_BUG}" == "YES" ]]; then
            echo "Using workaround to unset Warning Threshold."
            {{ emcli }} -modify_threshold -target_name={{ item.0.target_name }} -target_type={{ item.1.target_type }} \
               -metric="db_alert_log" -column="genericErrStack" -warning_threshold="" \
