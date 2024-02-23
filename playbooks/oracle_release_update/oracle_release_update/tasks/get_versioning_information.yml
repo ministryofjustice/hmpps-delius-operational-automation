@@ -1,17 +1,18 @@
+
 - name: Get Oracle Grid Infrastructure Version
   shell: |
-    . ~oracle/.bash_profile
-    export ORACLE_SID=+ASM
-    export ORAENV_ASK=NO
-    . oraenv
-    sqlplus -v | sed '/^\s*$/d'
+        . ~oracle/.bash_profile
+        export ORACLE_SID=+ASM
+        export ORAENV_ASK=NO
+        . oraenv
+        sqlplus -v | sed '/^\s*$/d'
   changed_when: false
   register: get_grid_version
   tags: always
 
 - name: Set Oracle Grid Infrastructure Version
   set_fact:
-    source_gi_version: "{{ get_grid_version.stdout_lines[-1] | regex_replace('^.* ([\\d\\.]+).*$','\\1') }}"
+     source_gi_version: "{{ get_grid_version.stdout_lines[-1] | regex_replace('^.* ([\\d\\.]+).*$','\\1') }}"
   tags: always
 
 - name: Show Current Grid Infrastructure Version
@@ -20,18 +21,18 @@
 
 - name: Get Oracle Grid Infrastructure Home
   shell: |
-    . ~oracle/.bash_profile
-    export ORACLE_SID=+ASM
-    export ORAENV_ASK=NO
-    . oraenv
-    echo $ORACLE_HOME
+        . ~oracle/.bash_profile
+        export ORACLE_SID=+ASM
+        export ORAENV_ASK=NO
+        . oraenv
+        echo $ORACLE_HOME
   changed_when: false
   register: get_gi_home
   tags: always
 
 - name: Set Oracle Grid Infrastructure Home
   set_fact:
-    source_gi_home: "{{ get_gi_home.stdout_lines[-1] }}"
+     source_gi_home: "{{ get_gi_home.stdout_lines[-1] }}"
 
 - name: Show Current Grid Infrastructure Home
   debug: var=source_gi_home
@@ -39,15 +40,15 @@
 
 - name: Get Oracle Database Version
   shell: |
-    . ~oracle/.bash_profile
-    sqlplus -v | sed '/^\s*$/d'
+        . ~oracle/.bash_profile
+        sqlplus -v | sed '/^\s*$/d'
   changed_when: false
   register: get_database_version
   tags: always
 
 - name: Set Oracle Database Version
   set_fact:
-    source_db_version: "{{ get_database_version.stdout_lines[-1] | regex_replace('^.* ([\\d\\.]+).*$','\\1') }}"
+     source_db_version: "{{ get_database_version.stdout_lines[-1] | regex_replace('^.* ([\\d\\.]+).*$','\\1') }}"
   tags: always
 
 - name: Show Current Database Version
@@ -56,15 +57,15 @@
 
 - name: Get Oracle Database Home
   shell: |
-    . ~oracle/.bash_profile
-    echo $ORACLE_HOME
+        . ~oracle/.bash_profile
+        echo $ORACLE_HOME
   changed_when: false
   register: get_db_home
   tags: always
 
 - name: Set Oracle Database Home
   set_fact:
-    source_db_home: "{{ get_db_home.stdout_lines[-1] }}"
+     source_db_home: "{{ get_db_home.stdout_lines[-1] }}"
 
 - name: Show Current Database Home
   debug: var=source_db_home
@@ -77,7 +78,7 @@
 
 - name: Get Target Grid Infrastructure Version
   set_fact:
-    target_gi_version: "{{ get_dbru_version.stdout }}"
+     target_gi_version: "{{ get_dbru_version.stdout }}"
 
 - fail:
     msg: "Could Not Determine Target Grid Infrastructure Version"
@@ -89,26 +90,26 @@
 
 - name: Generate Target Grid Infrastructure Home
   set_fact:
-    target_gi_home: "{{ source_gi_home | regex_replace('/([\\d\\.]+)/grid$','/' + target_gi_version + '/grid') }}"
+     target_gi_home:  "{{ source_gi_home | regex_replace('/([\\d\\.]+)/grid$','/' + target_gi_version + '/grid') }}"
 
 - name: Show New Grid Infrastructure Target Home
   debug: var=target_gi_home
 
 - name: Check if Oracle Grid Infrastructure Target Home Has Already Been Cloned
   stat:
-    path: "{{ target_gi_home }}"
+     path: "{{ target_gi_home }}"
   register: stat_target_gi_home
 
 - name: Abort if Trying to Switch to Non Existing New Home
   fail:
-    msg: "Grid Infrastructure Home {{ target_gi_home }} does not exist: cannot switch."
+     msg: "Grid Infrastructure Home {{ target_gi_home }} does not exist: cannot switch."
   when:
-    - not stat_target_gi_home.stat.exists
-    - apply_mode == 'switch-clone'
+     - not stat_target_gi_home.stat.exists
+     - apply_mode == 'switch-clone'
 
 - name: Get Target Database Version
   set_fact:
-    target_db_version: "{{ get_dbru_version.stdout }}"
+     target_db_version: "{{ get_dbru_version.stdout }}"
 
 - fail:
     msg: "Could Not Determine Target Database Version"
@@ -120,22 +121,22 @@
 
 - name: Generate Target Database Home
   set_fact:
-    target_db_home: "{{ source_db_home | regex_replace('/([\\d\\.]+)/db$','/' + target_db_version + '/db') }}"
+     target_db_home:  "{{ source_db_home | regex_replace('/([\\d\\.]+)/db$','/' + target_db_version + '/db') }}"
 
 - name: Show New Database Target Home
   debug: var=target_db_home
 
 - name: Check if Database Target Home Has Already Been Cloned
   stat:
-    path: "{{ target_db_home }}"
+     path: "{{ target_db_home }}"
   register: stat_target_db_home
 
 - name: Abort if Trying to Switch to Non Existing New Home
   fail:
-    msg: "Database Home {{ target_db_home }} does not exist: cannot switch."
+     msg: "Database Home {{ target_db_home }} does not exist: cannot switch."
   when:
-    - not stat_target_db_home.stat.exists
-    - apply_mode == 'switch-clone'
+     - not stat_target_db_home.stat.exists
+     - apply_mode == 'switch-clone'
 
 - name: Get Minimum OPatch Version Number
   shell: grep "You must use the OPatch utility version" {{ oracle_patch_directory }}/{{ superset_patch_id | default(combo_patch_id + '/' + combo_gi_patch_id) }}/README.html | grep -o -E '[0-9]+' | paste -sd . --
@@ -144,7 +145,7 @@
 
 - name: Set Minimum OPatch Version
   set_fact:
-    minimum_opatch_version: "{{ get_opatch_version.stdout }}"
+     minimum_opatch_version: "{{ get_opatch_version.stdout }}"
 
 - name: Show Minimum OPatch Version
   debug: var=minimum_opatch_version

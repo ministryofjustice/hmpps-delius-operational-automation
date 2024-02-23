@@ -1,0 +1,8 @@
+---
+
+- name: Update Targets
+  include: update_agent_targets.yml
+  vars:
+     target_host: "{{ item }}"
+  loop: "{{ update_targets | default ( target_hosts.split(',') ) }}"
+

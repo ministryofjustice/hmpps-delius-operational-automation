@@ -1,0 +1,60 @@
+---
+
+- name: Deinstall Grid Infrastructure Software
+  when: 
+     - oracle_grid_oracle_home is defined
+     - oracle_grid_oracle_home != 'DO_NOT_DEINSTALL'
+  block:
+
+    - name: Check Grid Infrastructure Home Format 
+      fail:
+         msg: "Grid Infrastructure Oracle Home {{ oracle_grid_oracle_home }} does not match expected format."
+      when: not ( oracle_grid_oracle_home | regex_search("^/u01/app/grid/product/[0-9\.]+/grid$"))
+           
+    - name: Deinstall Grid Infrastructure Home
+      include: deinstall.yml
+      vars:
+          deinstall_home: "{{ oracle_grid_oracle_home }}"
+
+- name: Deinstall Database Software
+  when: 
+     - oracle_database_oracle_home is defined
+     - oracle_database_oracle_home != 'DO_NOT_DEINSTALL'
+  block:
+
+    - name: Check Database Home Format 
+      fail:
+         msg: "Database Oracle Home {{ oracle_database_oracle_home }} does not match expected format."
+      when: not (oracle_database_oracle_home | regex_search("^/u01/app/oracle/product/[0-9\.]+/db$"))
+           
+    - name: Deinstall Database Home
+      include: deinstall.yml
+      vars:
+          deinstall_home: "{{ oracle_database_oracle_home }}"
+
+- name: Check if inside AWS.
+  uri:
+    url: http://169.254.169.254/latest/meta-data
+    timeout: 20
+  register: aws_uri_check
+  failed_when: false
+  run_once: yes
+
+- set_fact:
+    is_aws_environment: "{{ aws_uri_check.status == 200 }}"
+  run_once: yes
+  delegate_to: localhost
+  delegate_facts: true
+
+# Set variables ready to run target deletion in next playbook
+# (The approach taken to delete these targets will differ between AWS and non-AWS environments)
+# NB: We use ansible_play_hosts to compile a list of targets which have not failed so far
+# as we do not want to delete targets for hosts where the deinstall has failed.
+- name: Prepare Ansible Controller Variables for OEM Target Deletion
+  set_fact:
+      oem_gi_home: "{{ oracle_grid_oracle_home }}"
+      oem_db_home: "{{ oracle_database_oracle_home }}"
+      deinstalled_targets: "{{ ansible_play_hosts }}"
+  delegate_to: localhost
+  delegate_facts: true  
+  run_once: yes

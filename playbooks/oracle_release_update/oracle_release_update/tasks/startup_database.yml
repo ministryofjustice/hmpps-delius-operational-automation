@@ -1,8 +1,9 @@
 ---
+
 - name: Get Database Status
   shell: |
-    . ~/.bash_profile
-    srvctl status database -d {{ database_primary_sid | default(database_standby_sid) }}
+         . ~/.bash_profile
+         srvctl status database -d {{ database_primary_sid | default(database_standby_sid) }}
   register: database_status
   changed_when: false
 
@@ -11,6 +12,6 @@
 
 - name: Startup Database
   shell: |
-    . ~/.bash_profile
-    srvctl start database -d {{ database_primary_sid | default(database_standby_sid) }}
+         . ~/.bash_profile
+         srvctl start database -d {{ database_primary_sid | default(database_standby_sid) }}
   when: database_status.stdout is search("Database is not running.")

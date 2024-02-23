@@ -8,23 +8,23 @@
 
 - name: Get All Session Cookie Directories
   find:
-    path: "{{ path_prefix }}/.opatchauto_storage"
-    file_type: directory
-    patterns: "^[^system_patches]"
-    use_regex: true
+      path: "{{ path_prefix }}/.opatchauto_storage"
+      file_type: directory
+      patterns: "^[^system_patches]"
+      use_regex: true
   register: cookie_directories
 
 - name: Get Cookie Files
   find:
-    path: "{{ item.path }}"
-    file_type: file
-    patterns: oopsessioninfo.ser
-  register: cookie_files
+      path: "{{ item.path }}"
+      file_type: file
+      patterns: oopsessioninfo.ser
+  register:  cookie_files
   loop: "{{ cookie_directories.files }}"
 
 - name: Get List of Files
   set_fact:
-    list_of_session_cookies: "{{ cookie_files.results | map(attribute='files') | list | flatten | map(attribute='path') | list  }}"
+      list_of_session_cookies: "{{ cookie_files.results | map(attribute='files') | list | flatten | map(attribute='path') | list  }}"
 
 - name: Convert Session Cookies to COMPLETED
   include: complete_session_cookies.yml

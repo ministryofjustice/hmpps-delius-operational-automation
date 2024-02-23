@@ -1,0 +1,7 @@
+---
+- hosts: "{{ groups['oem_primarydb'][0] }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+     - update_oem

@@ -1,0 +1,7 @@
+---
+- name: hmpps-oracledb-bootstrap
+  src: https://github.com/ministryofjustice/hmpps-delius-core-oracledb-bootstrap
+- name: hmpps-oracledb-patches
+  src: https://github.com/ministryofjustice/hmpps-oracle-database-patches
+- name: hmpps-delius-oracledb-ha
+  src: https://github.com/ministryofjustice/hmpps-delius-oracledb-ha

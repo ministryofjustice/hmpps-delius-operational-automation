@@ -1,0 +1,26 @@
+---
+
+# The environment name is not held in Ansible Variables for Engineering Hosts
+# so use the /etc/environment file instead
+- name: Get Environment Name
+  shell: . /etc/environment && echo ${HMPPS_ENVIRONMENT}
+  register: get_rman_environment_name
+  changed_when: false
+
+- name: Check if Catalog is Not Current
+  script: get_catalog_upgrade_required.sh
+  register: get_catalog_upgrade_required
+  changed_when: false
+  environment:
+     REGION: "{{ region }}"
+     SSM_NAME: "/{{ get_rman_environment_name.stdout | trim }}/engineering/rman-database/db/rman_password"
+
+- name: Run Catalog Upgrade only When Required
+  when: get_catalog_upgrade_required is search('.*DBMS_RCV.*database is not current.*')
+  block:
+
+      - name: Upgrade RMAN Catalog
+        script: upgrade_rman_catalog.sh
+        environment:
+          REGION: "{{ region }}"
+          SSM_NAME: "/{{ get_rman_environment_name.stdout | trim }}/engineering/rman-database/db/rman_password"
