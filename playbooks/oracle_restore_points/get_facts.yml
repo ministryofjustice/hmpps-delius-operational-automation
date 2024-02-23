@@ -1,6 +1,6 @@
 - name: Set Secrets Dictionary
   set_fact:
-    secretsmanager_passwords:
+    catalog_secretsmanager_passwords:
       catalog:
         account_name: "hmpps-oem-{{ aws_environment }}"
         assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
@@ -16,7 +16,7 @@
   import_role:
     name: secretsmanager-passwords
   vars:
-    secretsmanager_passwords: "{{ secretsmanager_passwords }}"
+    secretsmanager_passwords: "{{ catalog_secretsmanager_passwords }}"
 
 - name: Set Environment Variables Required For Shell And Script Modules
   set_fact:
