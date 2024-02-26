@@ -1,0 +1,7 @@
+---
+- hosts: "{{ hosts }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+     - remove_orphan_backups
