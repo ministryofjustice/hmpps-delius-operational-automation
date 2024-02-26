@@ -392,19 +392,19 @@
   when: apply_mode == 'switch-clone'
   block:
 
-      - name: Check if inside AWS.
-        uri:
-          url: http://169.254.169.254/latest/meta-data
-          timeout: 20
-        register: aws_uri_check
-        failed_when: false
-        run_once: yes
+      # - name: Check if inside AWS.
+      #   uri:
+      #     url: http://169.254.169.254/latest/meta-data
+      #     timeout: 20
+      #   register: aws_uri_check
+      #   failed_when: false
+      #   run_once: yes
 
-      - set_fact:
-          is_aws_environment: "{{ aws_uri_check.status == 200 }}"
-        run_once: yes
-        delegate_to: localhost
-        delegate_facts: true
+      # - set_fact:
+      #     is_aws_environment: "{{ aws_uri_check.status == 200 }}"
+      #   run_once: yes
+      #   delegate_to: localhost
+      #   delegate_facts: true
 
       # Check if Oracle Primary OEM Agent is Installed And Communicating with OMS
       - name: Check if Oracle OEM Agent Operating
@@ -416,15 +416,15 @@
         ignore_errors: true
         changed_when: false
 
-      - name: Prepare Ansible Controller Variables for OEM Target Update
-        set_fact:
-           oem_gi_home: "{{ target_gi_home }}"
-           oem_db_home: "{{ target_db_home }}"
-           switched_targets: "{{ ansible_play_hosts }}"
-           agent_connected: "{{ not pingoms.failed }}"
-        delegate_to: localhost
-        delegate_facts: true  
-        run_once: yes
+      # - name: Prepare Ansible Controller Variables for OEM Target Update
+      #   set_fact:
+      #      oem_gi_home: "{{ target_gi_home }}"
+      #      oem_db_home: "{{ target_db_home }}"
+      #      switched_targets: "{{ ansible_play_hosts }}"
+      #      agent_connected: "{{ not pingoms.failed }}"
+      #   delegate_to: localhost
+      #   delegate_facts: true  
+      #   run_once: yes
 
 # Re-Enabling FSFO May Be Done at 3 Points:
 #  (a) After a Switch Clone Completes on a Standby Database
