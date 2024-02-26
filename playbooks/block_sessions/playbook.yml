@@ -57,7 +57,7 @@
     - debug: var=standbydb2_ip
 
     - name: Get OEM Host Name
-      shell:  |
+      shell: |
         {{ emctl_agent }} status agent | grep -E '^Repository URL' | cut -d: -f3 | sed 's/\/\///'
       become_user: oracle
       register: getoemhostname
