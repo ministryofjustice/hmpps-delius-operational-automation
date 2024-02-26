@@ -1,0 +1,7 @@
+- name: Setup OEM Metrics for Delius in this Environment
+  hosts: "{{ target }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+    - delius_oem_metrics_setup

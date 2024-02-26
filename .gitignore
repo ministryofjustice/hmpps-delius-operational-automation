@@ -10,3 +10,5 @@ python-env/
 *.sha256
 terraform.tfstate
 .idea/
+core
+__pycache__

@@ -1,7 +1,4 @@
 #!/bin/bash
-#
-# Remove KEEP attribute from backup (allow normal recovery window to apply)
-#
 
 get_rman_password () {
   ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -15,18 +12,20 @@ get_rman_password () {
   RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
 }
 
-. ~/.bash_profile
+export ORACLE_SID=$1
+export SCRIPT_FILE=$2
 
-if [[ ! -z "$CATALOG" ]] 
-then
-   get_rman_password
-   CONNECT_CATALOG="connect catalog rcvcatowner/${RMANPASS}@${CATALOG}"
-fi
+export PATH=$PATH:/usr/local/bin; 
+export ORAENV_ASK=NO ; 
+. oraenv >/dev/null;
 
-rman target / <<EORMAN
+DATESTAMP=$( date +%Y%m%d%H%M%S )
 
-$CONNECT_CATALOG
+get_rman_password
+CATALOG_CONNECT_STRING="connect catalog rcvcatowner/${RMANPASS}@${CATALOG}"
 
-change backup tag='RP_${RESTORE_POINT_NAME}' nokeep;
-
-EORMAN
+rman target / log=/tmp/delete_orphan_${ORACLE_SID}_${DATESTAMP}.out <<EOF
+${CATALOG_CONNECT_STRING} 
+@ ${SCRIPT_FILE}
+EXIT
+EOF
