@@ -43,25 +43,64 @@
         echo "Setting thresholds for {{ item.1.target_type }} {{ item.0.target_name }}"
         {{ emcli }} modify_threshold -target_name={{ item.0.target_name }} -target_type={{ item.1.target_type }} \
               -input_file="FILE:{{ stage }}/oem_threshold.txt"
+        # There appears to be an undocumented bug unsetting thresholds using EMCLI input files.
+        # Although the documentation suggests using " " to unset the threshold, this appears to
+        # instead result in the literal value of " " being used.  As a workaround we can
+        # unset the threshold by specifying it directly as a command line parameter instead of
+        # using the input file.   Currently this bug only manifests for setting the Warning
+        # Threshold for the db_alert_log genericErrStack metric, so we only apply for the 
+        # workaround in this case. 
+        WARNING_THRESHOLD_UNSET_BUG=$(awk '/START_RECORD/{flag=1}/metric\s*,\s*db_alert_log$/{flag++}/^column\s*,\s*genericErrStack$/{flag++}/^warning_threshold\s*,\s*" "/{flag++}/END_RECORD/{if(flag==4){print "YES"}}' {{ stage }}/oem_threshold.txt)
+        if [[ "{{ item.1.target_type}}" == "oracle_database" ]] && [[ "${WARNING_THRESHOLD_UNSET_BUG}" == "YES" ]]; then
+           echo "Using workaround to unset Warning Threshold."
+           {{ emcli }} modify_threshold -target_name={{ item.0.target_name }} -target_type={{ item.1.target_type }} \
+              -metric="db_alert_log" -column="genericErrStack" -warning_threshold="" \
+              -key_columns=";"
+        fi
       loop: "{{ oem_targets | product(( all_oem_metrics | flatten_emcli_metrics ) + ( host_oem_metrics | flatten_emcli_metrics )) }}"
       when:
         - item.0.target_type == item.1.target_type
         - (item.0.target_name == item.1.target_name) or (item.1.target_name == 'all')
       register: set_metric_thresholds
 
-    - name: Set Scheduler Attributes
+    - name: Enable and Disable Collections
       shell: |
         . {{ stage }}/emcli_login.sh
-        echo "Setting scheduler attributes for {{ item.1.target_type }} {{ item.0.target_name }} {{ item.1.collection_name }}"
+        echo "Setting scheduler state for {{ item.1.target_type }} {{ item.0.target_name }} {{ item.1.collection_name }}"
         {{ emcli }} modify_collection_schedule -targetNames={{ item.0.target_name }} -targetType={{ item.1.target_type }} \
               -collectionName={{ item.1.collection_name }} \
-              {{ ('-collectionStatus=' + item.1.collection_attribute_value) if (item.1.collection_attribute == 'collectionStatus') else '' }} \
+              -collectionStatus={{ item.1.collection_attribute_value }} \
               -preview=N -force
       loop: "{{ oem_targets | product(( all_oem_metrics | flatten_emcli_metrics('schedule') ) + ( host_oem_metrics | flatten_emcli_metrics('schedule') )) }}"
       when:
         - item.0.target_type == item.1.target_type
         - (item.0.target_name == item.1.target_name) or (item.1.target_name == 'all')
-      register: set_metric_thresholds
+        - item.1.collection_attribute == 'collectionStatus'
+      register: enable_disable_collections
+
+    # We change the collection schedule by using the "interval" attribute.  This is not an Oracle attribute but
+    # instead it combines 2 Oracle attributes we have defined here for that purpose, separated by a space.
+    # It takes the form 'freqValue freqType' where freqValue and freqType are Oracle attributes described at:
+    # https://docs.oracle.com/en/enterprise-manager/cloud-control/enterprise-manager-cloud-control/13.5/emcli/modify_collection_schedule.html#GUID-A166D2BC-8ECE-4B11-921D-0D756F827E86
+    # For example '15 Minute' requires a collection to be taken every 15 minutes.
+    # freqType={Minute}{Hour}{Day}{Week}{Weekly}{Month}
+    # freqValue={any integer value for Minute/Hour/Day/Week}{One or more from
+    #            Mon...Sun for Weekly}{One or more from 1;2..31 or Last for Month}
+    - name: Reschedule Collections
+      shell: |
+        . {{ stage }}/emcli_login.sh
+        echo "Setting scheduler frequency for {{ item.1.target_type }} {{ item.0.target_name }} {{ item.1.collection_name }}"
+        {{ emcli }} modify_collection_schedule -targetNames={{ item.0.target_name }} -targetType={{ item.1.target_type }} \
+              -collectionName={{ item.1.collection_name }} \
+              -freqType={{ item.1.collection_attribute_value.split(' ')[1] }}\
+              -freqValue={{ item.1.collection_attribute_value.split(' ')[0] }}\
+              -preview=N -force
+      loop: "{{ oem_targets | product(( all_oem_metrics | flatten_emcli_metrics('schedule') ) + ( host_oem_metrics | flatten_emcli_metrics('schedule') )) }}"
+      when:
+        - item.0.target_type == item.1.target_type
+        - (item.0.target_name == item.1.target_name) or (item.1.target_name == 'all')
+        - item.1.collection_attribute == 'interval'
+      register: reschedule_collections
 
     - name: Setup Database Credentials
       include_tasks: configure_database_credentials.yml
@@ -79,7 +118,10 @@
         database_target_name: "{{ item.0.target_name }}"
 
   always:
-    - name: Remove Threshold File from Stage Area
+    - name: Remove Temporary Files from Stage Area
       file:
-        path: "{{ stage }}/oem_threshold.txt"
+        path: "{{ stage }}/{{ item }}"
         state: absent
+      loop:
+        - oem_threshold.txt
+        - emcli_login.sh
