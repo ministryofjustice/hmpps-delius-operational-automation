@@ -212,6 +212,7 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
+          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_restore_points/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_password_rotation/roles
           $command -i $inventory \
           -e target_dbs=${{ steps.definetargets.outputs.targets }} \

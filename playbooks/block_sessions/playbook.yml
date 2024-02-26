@@ -56,11 +56,17 @@
 
     - debug: var=standbydb2_ip
 
-    # - name: Get ip address of oem server
-    #   shell: getent hosts {{ hostvars[groups['oem_primarydb'][0]]['inventory_hostname'] }} | awk '{print $1}'
-    #   register: oem_ip
+    - name: Get OEM Host Name
+      shell: |
+        {{ emctl_agent }} status agent | grep -E '^Repository URL' | cut -d: -f3 | sed 's/\/\///'
+      become_user: oracle
+      register: getoemhostname
 
-    # - debug: var=oem_ip
+    - name: Get ip address of OEM server
+      shell: getent hosts {{ getoemhostname.stdout }} | awk '{print $1}'
+      register: oem_ip
+
+    - debug: var=oem_ip
 
     - block:
         - name: Accept inbound access on database port 1521
@@ -74,7 +80,7 @@
           with_items:
             - { source: "{{ localhost_ip }}", jump: ACCEPT }
             - { source: "{{ local_ip }}", jump: ACCEPT }
-            # - { source: "{{ oem_ip.stdout }}", jump: ACCEPT }
+            - { source: "{{ oem_ip.stdout }}", jump: ACCEPT }
             - { source: "{{ standbydb1_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb2_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
 
@@ -106,7 +112,7 @@
           with_items:
             - { source: "{{ localhost_ip }}", jump: ACCEPT }
             - { source: "{{ local_ip }}", jump: ACCEPT }
-            #- { source: "{{ oem_ip.stdout }}", jump: ACCEPT }
+            - { source: "{{ oem_ip.stdout }}", jump: ACCEPT }
             - { source: "{{ standbydb1_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb2_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
 

@@ -1,0 +1,50 @@
+---
+- name: Set Secrets Dictionary
+  set_fact:
+    catalog_secretsmanager_passwords:
+      catalog:
+        account_name: "hmpps-oem-{{ aws_environment }}"
+        assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+        secret: "/oracle/database/{{ catalog }}/shared-passwords"
+        users:
+          - rcvcatowner:
+
+- name: Get Account Ids
+  set_fact:
+    account_ids: "{{ lookup('aws_ssm', 'account_ids', region='eu-west-2') }}"
+
+- name: Get Catalog Secrets
+  import_role:
+    name: secretsmanager-passwords
+  vars:
+    secretsmanager_passwords: "{{ catalog_secretsmanager_passwords }}"
+
+- name: Set Environment Variables Required For Shell And Script Modules
+  set_fact:
+    rcvcatowner_password: "{{ secretsmanager_passwords_dict['catalog'].passwords['rcvcatowner'] }}"
+    assume_role_name: "{{ catalog_secretsmanager_passwords['catalog'].assume_role_name }}"
+    secret_account_id: "{{ account_ids[catalog_secretsmanager_passwords['catalog'].account_name] }}"
+    secret: "{{ catalog_secretsmanager_passwords['catalog'].secret }}"
+
+- name: Create File for RMAN Deletion Script
+  tempfile:
+    state: file
+    path: /tmp
+    suffix: .rman
+  register: deletion_script
+
+- name: Create Deletion Script for Orphaned Backup Sets
+  script: create_rman_deletion_script.sh {{ database_primary_sid }} {{ deletion_script.path }}
+  environment:
+    CATALOG: "{{ catalog }}"
+    ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+    SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+    SECRET: "{{ secret }}"
+
+- name: Run Deletion Script for Orphaned Backup Sets
+  script: run_rman_deletion_script.sh {{ database_primary_sid }} {{ deletion_script.path }}
+  environment:
+    CATALOG: "{{ catalog }}"
+    ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+    SECRET_ACCOUNT_ID: "{{ secret_account_id }}"
+    SECRET: "{{ secret }}"
