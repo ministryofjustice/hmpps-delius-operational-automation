@@ -16,10 +16,8 @@ on:
           - "delius-core-prod"
       TargetHost:
         description: "Database target host"
-        required: true
-        type: choice
-        options: 
-          - "delius_primarydb" 
+        type: string
+        default: "delius_primarydb" 
       VerboseOutput: 
         description: "Verbose Output level"
         type: choice
