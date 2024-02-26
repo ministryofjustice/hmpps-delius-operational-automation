@@ -84,8 +84,8 @@
     # https://docs.oracle.com/en/enterprise-manager/cloud-control/enterprise-manager-cloud-control/13.5/emcli/modify_collection_schedule.html#GUID-A166D2BC-8ECE-4B11-921D-0D756F827E86
     # For example '15 Minute' requires a collection to be taken every 15 minutes.
     # freqType={Minute}{Hour}{Day}{Week}{Weekly}{Month}
-    # freqValue={any integer value for Minute/Hour/Day/Week}{One or more from
-    #            Mon...Sun for Weekly}{One or more from 1;2..31 or Last for Month}
+    # freqValue={any integer value for Minute/Hour/Day/Week}{One or more from Mon...Sun for Weekly}
+    # {One or more from 1;2..31 or Last for Month}
     - name: Reschedule Collections
       shell: |
         . {{ stage }}/emcli_login.sh
