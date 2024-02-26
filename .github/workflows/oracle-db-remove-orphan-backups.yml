@@ -1,5 +1,5 @@
 name: "Oracle: Remove Orphaned Backups"
-run-name: "Oracle: github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}-remove-orphaned-backups"
+run-name: "Oracle: ${{ format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}-remove-orphaned-backups"
 on:
   workflow_dispatch:
     inputs:
