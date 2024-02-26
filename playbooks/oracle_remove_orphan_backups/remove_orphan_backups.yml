@@ -4,4 +4,4 @@
   become: yes
   become_user: oracle
   roles:
-     - remove_orphan_backups
+    - remove_orphan_backups
