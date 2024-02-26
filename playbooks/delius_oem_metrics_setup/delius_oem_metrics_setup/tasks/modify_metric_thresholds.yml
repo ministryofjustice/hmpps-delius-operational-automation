@@ -79,7 +79,7 @@
       register: enable_disable_collections
 
     # We change the collection schedule by using the "interval" attribute.  This is not an Oracle attribute but
-    # instead it combines 2 Oracle attributes we have defined here for that purpose, separated by a space.  
+    # instead it combines 2 Oracle attributes we have defined here for that purpose, separated by a space.
     # It takes the form 'freqValue freqType' where freqValue and freqType are Oracle attributes described at:
     # https://docs.oracle.com/en/enterprise-manager/cloud-control/enterprise-manager-cloud-control/13.5/emcli/modify_collection_schedule.html#GUID-A166D2BC-8ECE-4B11-921D-0D756F827E86
     # For example '15 Minute' requires a collection to be taken every 15 minutes.
@@ -100,7 +100,6 @@
         - item.0.target_type == item.1.target_type
         - (item.0.target_name == item.1.target_name) or (item.1.target_name == 'all')
       register: enable_disable_collections
-
 
     - name: Setup Database Credentials
       include_tasks: configure_database_credentials.yml
@@ -123,5 +122,5 @@
         path: "{{ stage }}/{{ item }}"
         state: absent
       loop:
-         - oem_threshold.txt
-         - emcli_login.sh
+        - oem_threshold.txt
+        - emcli_login.sh
