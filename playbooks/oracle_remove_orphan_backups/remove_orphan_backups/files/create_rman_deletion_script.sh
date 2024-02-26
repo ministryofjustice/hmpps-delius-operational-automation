@@ -19,11 +19,8 @@ export PATH=$PATH:/usr/local/bin;
 export ORAENV_ASK=NO ; 
 . oraenv >/dev/null;
 
-if [[ ! -z "$CATALOG" ]] 
-then
-   get_rman_password
-   CATALOG_CONNECT_STRING="connect catalog rcvcatowner/${RMANPASS}@${CATALOG}"
-fi
+get_rman_password
+CATALOG_CONNECT_STRING="connect rcvcatowner/${RMANPASS}@${CATALOG}"
 
 # We can potentially safely remove backupsets for all Orphan incarnations
 # but we limit ourselves to those that are also older than the recovery window
