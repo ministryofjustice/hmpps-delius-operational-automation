@@ -227,6 +227,7 @@
 - name: Count Database OOP Files
   shell: FILENAME={{ source_db_home }}/.opatchauto_storage/$(hostname)/oopsessioninfo.ser && test -e $FILENAME && strings $FILENAME | tail -1 || echo "COMPLETED"
   register: db_oop
+  changed_when: false
 
 - fail:
     msg: "Active OOP Session file exists for {{ source_db_home }}"

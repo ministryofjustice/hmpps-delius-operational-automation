@@ -55,15 +55,16 @@ on:
           - "default"
           - "34773504:p34773504_190000_Linux-x86-64.zip:(19.18)"
           - "35370167:p35370167_190000_Linux-x86-64.zip:(19.20)"
+          - "36031453:p36031453_190000_Linux-x86-64.zip:(19.22)"
       OPatch:
         description: "OPatch Utility to Use (default = use value from environment configuration)"
         required: true
         type: choice
         options: 
           - "default"
-          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.29.zip:(12.2.0.1.29)"
-          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.32.zip:(12.2.0.1.32)"
           - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.36.zip:(12.2.0.1.36)"
+          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.36.zip:(12.2.0.1.39)"
+          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.41.zip:(12.2.0.1.41)"
       AWSSnapshot:
         description: "Number of Days to Keep AWS Snapshot of Primary Database Host"
         required: true
