@@ -40,13 +40,16 @@
             ls -la /github/home
             ls -la /github/home/.ansible
             ls -la /github/home/.ansible/roles
+            echo
+            echo
+            ls -la /github/home/.ansible/roles/delius_oem_metrics_setup
       delegate_to: localhost
       become: no
       run_once: true
       register: link_oem
 
     - debug:
-        var: link_oem
+        var: link_oem.stdout
 
     - name: Update OEM Metrics for Newly Added Targets
       ansible.builtin.include_role:
