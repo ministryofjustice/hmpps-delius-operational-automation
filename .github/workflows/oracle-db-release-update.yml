@@ -46,7 +46,7 @@ on:
         required: true
         type: choice
         options:
-          - "/u01/software/19c/patches"
+          - "/u02/stage"
       ComboPatch:
         description: "Combo Patch to Install (default = use value from environment configuration)"
         required: true
