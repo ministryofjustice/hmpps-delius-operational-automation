@@ -178,12 +178,12 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
-          -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }}
-          -e apply_mode=${{ github.event.inputs.ApplyMode }}
-          -e oracle_patch_directory=${{ github.event.inputs.OraclePatchDirectory }}
-          -e combo_patch_info=${{ github.event.inputs.ComboPatchInfo }}
-          -e opatch_info=${{github.event.inputs.Opatch }}
-          -e "keep_aws_snapshot='${{github.event.inputs.AWSSnapShot }}'"
-          -e high_availability_count=${{ steps.countstandbydbs.outputs.high_availability_count }}
-          -e gi_ru_patch_info=''
+          -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
+          -e apply_mode=${{ github.event.inputs.ApplyMode }} \
+          -e oracle_patch_directory=${{ github.event.inputs.OraclePatchDirectory }} \
+          -e combo_patch_info=${{ github.event.inputs.ComboPatchInfo }} \
+          -e opatch_info=${{github.event.inputs.Opatch }} \
+          -e "keep_aws_snapshot='${{github.event.inputs.AWSSnapShot }}'" \
+          -e high_availability_count=${{ steps.countstandbydbs.outputs.high_availability_count }} \
+          -e gi_ru_patch_info='' \
           -e ojvm_ru_patch_info=''
