@@ -1,5 +1,5 @@
 ---
-block:
+- block:
 
       # EMCLI Login script contains a password so ensure it is not readable by other users
       - name: Copy EMCLI Login scripts
@@ -12,7 +12,7 @@ block:
       # This will be the same as the lifecycle status of the existing targets that they are due to replace.
       - name: Generate Command to List Existing Target Properties
         shell: |
-                . {{ stage }}/emcli_login.sh
+                . {{ stage }}/emcli_login.sh >/dev/null
                 {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -column="TARGET_NAME" -script -noheader | awk '{printf("{{ emcli }} list -resource=\"TargetProperties\" -search=\"TARGET_NAME='"'"'%s'"'"'\" -column=\"PROPERTY_NAME,PROPERTY_VALUE\" -script; ",$1)}'
         register: existing_target_properties
         changed_when: false
@@ -20,7 +20,7 @@ block:
       # We determine lifecycle status based on the most commonly used status for all existing targets on the host
       - name: Get the Lifecycle Status
         shell: |
-              . {{ stage }}/emcli_login.sh
+              . {{ stage }}/emcli_login.sh >/dev/null
               ({{ existing_target_properties.stdout }}) | grep orcl_gtp_lifecycle_status | sort | uniq -c | sort -r -n -k1 | head -1 | awk '{print $NF}'
         register: get_lifecycle_status 
         changed_when: false
@@ -28,7 +28,7 @@ block:
       # We determine Slack Channel based on the most commonly used Slack Channel for all existing targets on the host
       - name: Get the Slack Channel Contact
         shell: |
-              . {{ stage }}/emcli_login.sh
+              . {{ stage }}/emcli_login.sh >/dev/null
               ({{ existing_target_properties.stdout }}) | grep orcl_gtp_contact | sort | uniq -c | sort -r -n -k1 | head -1 | awk '{print $NF}'
         register: get_slack_channel_contact 
         changed_when: false
@@ -51,8 +51,8 @@ block:
       # (Do not delete the Old Oracle Home as that will be decommissioned separately)
       - name: Generate Command to List Existing Oracle Home Properties
         shell: |
-              . {{ stage }}/emcli_login.sh
-              {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader | awk '{printf("{{ emcli }} list -resource=\"TargetProperties\" -search=\"TARGET_NAME='"'"'%s'"'"'\" -column=\"PROPERTY_NAME,PROPERTY_VALUE\" -script; ",$1)}'
+              . {{ stage }}/emcli_login.sh >/dev/null
+              {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader | grep -v 'Synchronized successfully' | awk '{printf("{{ emcli }} list -resource=\"TargetProperties\" -search=\"TARGET_NAME='"'"'%s'"'"'\" -column=\"PROPERTY_NAME,PROPERTY_VALUE\" -script; ",$1)}'
         register: existing_oracle_home_properties
         changed_when: false
 
@@ -62,7 +62,7 @@ block:
 
       - name: Find out if the New Grid Infrastructure Oracle Home target exists
         shell: |
-              . {{ stage }}/emcli_login.sh
+              . {{ stage }}/emcli_login.sh >/dev/null
               {{ get_new_gi_home_cmd }}
         register: get_new_oracle_grid_home_exists 
         changed_when: false
@@ -74,8 +74,8 @@ block:
           # For Grid Infrastructure Home Names we use the Convention OraGIHome_<n>_<hostname> where <n> is a sequential counter
           - name: Get Name of Highest Numbered Existing Grid Infrastructure Homes Matching Naming Convention
             shell: |
-                  . {{ stage }}/emcli_login.sh
-                  {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader |  grep -E "OraGIHome_[[:digit:]]_{{ agent_host }}" | sort -n -k2 -t_ | tail -1
+                  . {{ stage }}/emcli_login.sh >/dev/null
+                  {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader | grep -v 'Synchronized successfully' |  grep -E "OraGIHome_[[:digit:]]_{{ agent_host }}" | sort -n -k2 -t_ | tail -1
             register: highest_gi_home_name
             changed_when: false
 
@@ -94,12 +94,10 @@ block:
                 gi_install_location: "{{ target_gi_home }}"
                 gi_inventory: "{{ oracle_inventory }}"
 
-          - name: Create Oracle Home Target
+          - name: Create Oracle GI Home Target
             shell: |
-                  . {{ stage }}/emcli_login.sh
+                  . {{ stage }}/emcli_login.sh >/dev/null
                   {{ emcli }} add_target -name="{{ gi_home_name }}" -type="oracle_home" -host="{{ agent_host }}" -properties="HOME_TYPE:{{ gi_home_type }};INSTALL_LOCATION:{{ gi_install_location }};INVENTORY:{{ gi_inventory }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }}"
-            environment:
-              SYSMAN_PASSWORD: "{{ sysman_password }}"
 
         when: get_new_oracle_grid_home_exists.stdout_lines[-1] == "0"
 
@@ -123,15 +121,15 @@ block:
       # Create New HAS Target if one does not already exist
       - name: Create New HAS Target
         shell: |
-               . {{ stage }}/emcli_login.sh
-               {{ emcli }} add_target -name="has_{{ agent_host }}" -type="has" -host="{{ agent_host }}" -properties="OracleHome:{{ target_gi_home }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }}"
+               . {{ stage }}/emcli_login.sh >/dev/null
+               {{ emcli }} add_target -name="has_{{ agent_host }}" -type="has" -host="{{ agent_host }}" -properties="OracleHome:{{ target_gi_home }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }}" | tail -1
         when: not ( target_exists | bool )
 
       # Ensure the properties of the HAS target are up to date
       - name: Modify HAS Target
         shell: |
-               . {{ stage }}/emcli_login.sh
-               {{ emcli }} modify_target -name="has_{{ agent_host }}" -type="has" -host="{{ agent_host }}" -properties="OracleHome:{{ oracle_grid_new_oracle_home }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }}"
+               . {{ stage }}/emcli_login.sh >/dev/null
+               {{ emcli }} modify_target -name="has_{{ agent_host }}" -type="has" -host="{{ agent_host }}" -properties="OracleHome:{{ target_gi_home }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }}"
 
 
       #########################################
@@ -144,14 +142,14 @@ block:
 
       - name: Find Out Grid Home of Osm Instance from Cloud Control
         shell:  |
-               . {{ stage }}/emcli_login.sh
+               . {{ stage }}/emcli_login.sh >/dev/null
                {{ emcli }} list -resource="TargetProperties" -search="TARGET_NAME='+ASM_{{ agent_host }}'" -column="PROPERTY_NAME,PROPERTY_VALUE" -script | grep OracleHome | awk '{print $2}'
         changed_when: false
         register: grid_home_in_cloud
 
       - name: Modify Existing ASM Target
         shell: |
-               . {{ stage }}/emcli_login.sh
+               . {{ stage }}/emcli_login.sh >/dev/null
                {{ emcli }} modify_target -name="+ASM_{{ agent_host }}" -type="osm_instance" -properties="OracleHome:{{ target_gi_home }}"
         when: grid_home_in_cloud.stdout != target_gi_home
             
@@ -204,8 +202,8 @@ block:
       # (Do not delete the 11g Oracle Home as that will be decommissioned separately)
       - name: Generate Command to List Existing Oracle Home Properties
         shell: |
-               . {{ stage }}/emcli_login.sh
-               {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader | awk '{printf("{{ emcli }} list -resource=\"TargetProperties\" -search=\"TARGET_NAME='"'"'%s'"'"'\" -column=\"PROPERTY_NAME,PROPERTY_VALUE\" -script; ",$1)}'
+               . {{ stage }}/emcli_login.sh >/dev/null
+               {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader | grep -v 'Synchronized successfully' | awk '{printf("{{ emcli }} list -resource=\"TargetProperties\" -search=\"TARGET_NAME='"'"'%s'"'"'\" -column=\"PROPERTY_NAME,PROPERTY_VALUE\" -script; ",$1)}'
         register: existing_oracle_home_properties
         changed_when: false
 
@@ -215,8 +213,8 @@ block:
 
       - name: Find out if the New Database Oracle Home target exists
         shell: |
-               . {{ stage }}/emcli_login.sh
-              {{ get_new_db_home_cmd }}
+               . {{ stage }}/emcli_login.sh >/dev/null
+               {{ get_new_db_home_cmd }}
         register: get_new_oracle_database_home_exists 
         changed_when: false
 
@@ -227,7 +225,7 @@ block:
           # For Database Infrastructure Home Names we use the Convention OraDBHome_<n>_<hostname> where <n> is a sequential counter
           - name: Get Name of Highest Numbered Existing Database Homes Matching Naming Convention
             shell: |
-                  . {{ stage }}/emcli_login.sh
+                  . {{ stage }}/emcli_login.sh >/dev/null
                   {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader |  grep -E "OraDBHome_[[:digit:]]_{{ agent_host }}" | sort -n -k2 -t_ | tail -1
             register: highest_db_home_name
             changed_when: false
@@ -249,7 +247,7 @@ block:
 
           - name: Create Oracle Home Target
             shell: |
-                  . {{ stage }}/emcli_login.sh
+                  . {{ stage }}/emcli_login.sh >/dev/null
                   {{ emcli }} add_target -name="{{ db_home_name }}" -type="oracle_home" -host="{{ agent_host }}" -properties="HOME_TYPE:{{ db_home_type }};INSTALL_LOCATION:{{ db_install_location }};INVENTORY:{{ db_inventory }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }}"
 
         when: get_new_oracle_database_home_exists.stdout_lines[-1] == "0"
@@ -259,23 +257,23 @@ block:
       # in different environments so we cannot assume which case has been used
       - name: Get Database Target Name
         shell: |
-               . {{ stage }}/emcli_login.sh
-               {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_database'" -column="TARGET_NAME" -script -noheader | awk '{print $1}'
+               . {{ stage }}/emcli_login.sh >/dev/null
+               {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_database'" -column="TARGET_NAME" -script -noheader | grep -v 'Synchronized successfully' | awk '{print $1}'
         register: database_target_name
         changed_when: false
 
       - name: Find Out Oracle Home of Database from Cloud Control
         shell:  |
-               . {{ stage }}/emcli_login.sh
-               {{ emcli }} list -resource="TargetProperties" -search="TARGET_NAME='{{ database_target_name.stdout }}'" -column="PROPERTY_NAME,PROPERTY_VALUE" -script | grep OracleHome | awk '{print $2}'
+               . {{ stage }}/emcli_login.sh >/dev/null
+               {{ emcli }} list -resource="TargetProperties" -search="TARGET_NAME='{{ database_target_name.stdout }}'" -column="PROPERTY_NAME,PROPERTY_VALUE" -script | grep -v 'Synchronized successfully' | grep OracleHome | awk '{print $2}'
         changed_when: false
         register: db_home_in_cloud
 
       - name: Assign Database to New Home
         shell:  |
-                . {{ stage }}/emcli_login.sh
+                . {{ stage }}/emcli_login.sh >/dev/null
                 {{ emcli }} modify_target -name="{{ database_target_name.stdout }}" -type="oracle_database" -properties="OracleHome:{{ target_db_home }}" -on_agent
-        when: not ((db_home_in_cloud.stdout_lines | join(' ')) is search(oracle_database_new_oracle_home))
+        when: not ((db_home_in_cloud.stdout_lines | join(' ')) is search(target_db_home))
 
   always:
     - name: Remove Temporary Files from Stage Area
@@ -284,3 +282,4 @@ block:
         state: absent
       loop:
          - emcli_login.sh
+         - wait_for_target_deletion.sql

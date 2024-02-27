@@ -1,4 +1,5 @@
 ---
+# Run Release Update Patching
 - hosts: "{{ target_hosts }}"
   gather_facts: no
   become: yes
@@ -6,12 +7,18 @@
   roles:
     - oracle_release_update
 
+# Update OEM Targets after Switch Clone Phase of Patching
 - hosts: "{{ target_hosts }}"
   gather_facts: no
   become: yes
   become_user: oracle
-  vars:
-          oracle_grid_new_oracle_home: "{{ hostvars.localhost.oem_gi_home }}"
-          oracle_database_new_oracle_home: "{{ hostvars.localhost.oem_db_home }}"
   roles:
-     - { role: update_oem, when: apply_mode == 'switch-clone' and (hostvars.localhost.agent_connected | bool)}
+     - { role: update_oem, when: apply_mode == 'switch-clone' and (not pingoms.failed | bool)}
+
+# Update OEM Metrics so these apply to any newly added targets
+- hosts: "{{ target_hosts }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+     - { role: ../delius_oem_metrics_setup/delius_oem_metrics_setup, when: apply_mode == 'switch-clone' and (not pingoms.failed | bool)}

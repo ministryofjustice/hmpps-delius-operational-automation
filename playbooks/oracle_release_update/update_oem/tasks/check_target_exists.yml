@@ -3,14 +3,10 @@
 
 - name: Check if Given Target Exists
   shell: |
-        . ~/.bash_profile
-        {{ emcli }} login -username=sysman -password=${SYSMAN_PASSWORD} -force 1>&2
-        {{ emcli }} sync 1>&2
+        . {{ stage }}/emcli_login.sh >/dev/null
         {{ emcli }} get_targets -targets="{{ target_name }}:{{ target_type }}" -script -noheader | wc -l
   register: get_target_exists
   changed_when: false
-  environment:
-          SYSMAN_PASSWORD: "{{ sysman_password }}"
 
 - name: Set if Given Target Exists
   set_fact:

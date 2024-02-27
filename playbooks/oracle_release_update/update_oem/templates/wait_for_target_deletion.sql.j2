@@ -1,14 +1,10 @@
-#!/bin/bash
-
-. ~oracle/.bash_profile
-
-export TARGET_NAME=$1
-
-# When we delete an OEM target it is done asynchronously but we cannot add a new target
-# with the same name until this completes.   Loop for up to 5 minutes waiting for it
-# to go away.  If it has not gone away after 5 minutes release the wait and try to add
-# it anyway.
-sqlplus -s /  as sysdba <<EOF
+/*
+  When we delete an OEM target it is done asynchronously but we cannot add a new target
+  with the same name until this completes.   Loop for up to 5 minutes waiting for it
+  to go away.  If it has not gone away after 5 minutes release the wait and try to add
+  it anyway (i.e. continue without raising an error from the wait; it is possible
+  that the subsequent delete may fail).
+*/
 SET LINES 1000
 SET PAGES 0
 SET FEEDBACK OFF
@@ -24,7 +20,7 @@ BEGIN
       SELECT COUNT(*)
       INTO   l_target_still_exists
       FROM   sysman.mgmt_targets_delete
-      WHERE  target_name = '${TARGET_NAME}'
+      WHERE  target_name = '{{ deletion_target }}'
       AND    delete_complete_time IS NULL
       AND    delete_request_time > SYSDATE-(1/24);
       l_try_counter := l_try_counter + 1;
@@ -33,4 +29,3 @@ BEGIN
 END;
 /
 EXIT
-EOF
