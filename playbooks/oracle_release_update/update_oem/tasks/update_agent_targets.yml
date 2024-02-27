@@ -37,7 +37,6 @@
         set_fact:
           lifecycle_status: "{{ get_lifecycle_status.stdout_lines[-1] | default('Production') }}"
           slack_channel_contact: "{{ get_slack_channel_contact.stdout_lines[-1] | default('#hmpps-oem-alerts') }}"
-
           
       #########################################################
       #
@@ -97,7 +96,7 @@
           - name: Create Oracle GI Home Target
             shell: |
                   . {{ stage }}/emcli_login.sh >/dev/null
-                  {{ emcli }} add_target -name="{{ gi_home_name }}" -type="oracle_home" -host="{{ agent_host }}" -properties="HOME_TYPE:{{ gi_home_type }};INSTALL_LOCATION:{{ gi_install_location }};INVENTORY:{{ gi_inventory }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }}"
+                  {{ emcli }} add_target -name="{{ gi_home_name }}" -type="oracle_home" -host="{{ agent_host }}" -properties="HOME_TYPE:{{ gi_home_type }};INSTALL_LOCATION:{{ gi_install_location }};INVENTORY:{{ gi_inventory }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }};orcl_gtp_line_of_bus:{{ application }}"
 
         when: get_new_oracle_grid_home_exists.stdout_lines[-1] == "0"
 
@@ -122,14 +121,14 @@
       - name: Create New HAS Target
         shell: |
                . {{ stage }}/emcli_login.sh >/dev/null
-               {{ emcli }} add_target -name="has_{{ agent_host }}" -type="has" -host="{{ agent_host }}" -properties="OracleHome:{{ target_gi_home }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }}" | tail -1
+               {{ emcli }} add_target -name="has_{{ agent_host }}" -type="has" -host="{{ agent_host }}" -properties="OracleHome:{{ target_gi_home }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }};orcl_gtp_line_of_bus:{{ application }}" | tail -1
         when: not ( target_exists | bool )
 
       # Ensure the properties of the HAS target are up to date
       - name: Modify HAS Target
         shell: |
                . {{ stage }}/emcli_login.sh >/dev/null
-               {{ emcli }} modify_target -name="has_{{ agent_host }}" -type="has" -host="{{ agent_host }}" -properties="OracleHome:{{ target_gi_home }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }}"
+               {{ emcli }} modify_target -name="has_{{ agent_host }}" -type="has" -host="{{ agent_host }}" -properties="OracleHome:{{ target_gi_home }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }};orcl_gtp_line_of_bus:{{ application }}"
 
 
       #########################################
@@ -186,7 +185,7 @@
       - name: Create New Listener Target
         shell: |
                . {{ stage }}/emcli_login.sh
-               {{ emcli }} add_target -name="{{ listener_name.stdout }}_{{ agent_host }}" -type="oracle_listener" -host="{{ agent_host }}" -properties="LsnrName:{{ listener_name.stdout }};ListenerOraDir:{{ target_gi_home }}/network/admin/;Port:{{ listener_port.stdout }};OracleHome:{{ target_gi_home }};Machine:{{ agent_host }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }}"
+               {{ emcli }} add_target -name="{{ listener_name.stdout }}_{{ agent_host }}" -type="oracle_listener" -host="{{ agent_host }}" -properties="LsnrName:{{ listener_name.stdout }};ListenerOraDir:{{ target_gi_home }}/network/admin/;Port:{{ listener_port.stdout }};OracleHome:{{ target_gi_home }};Machine:{{ agent_host }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }};orcl_gtp_line_of_bus:{{ application }}"
         when: existing_target_name.stdout == ''  or get_target_home_match.stdout != '1'
 
 
@@ -248,7 +247,7 @@
           - name: Create Oracle Home Target
             shell: |
                   . {{ stage }}/emcli_login.sh >/dev/null
-                  {{ emcli }} add_target -name="{{ db_home_name }}" -type="oracle_home" -host="{{ agent_host }}" -properties="HOME_TYPE:{{ db_home_type }};INSTALL_LOCATION:{{ db_install_location }};INVENTORY:{{ db_inventory }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }}"
+                  {{ emcli }} add_target -name="{{ db_home_name }}" -type="oracle_home" -host="{{ agent_host }}" -properties="HOME_TYPE:{{ db_home_type }};INSTALL_LOCATION:{{ db_install_location }};INVENTORY:{{ db_inventory }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }};orcl_gtp_line_of_bus:{{ application }}"
 
         when: get_new_oracle_database_home_exists.stdout_lines[-1] == "0"
 

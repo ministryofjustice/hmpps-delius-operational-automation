@@ -43,10 +43,6 @@
   setup:
       filter: ansible_memory_mb
 
-- name: Get database type
-  set_fact:
-    database_type: "{{ target_hosts.split(',')[0] | regex_replace('(^.*)_.*$','\\1') }}"
-
 # SUPERSET Patch = GI RU + DB RU
 # COMBO Patch = (GI RU + DB RU) + OJVM RU
 
@@ -430,13 +426,13 @@
           name: hmpps-delius-oracledb-ha
           tasks_from: enable-fsfo.yml
         vars:
-          delegation_host: "{{ hostvars[groups[database_type + '_primarydb'][0]]['inventory_hostname'] }}"
-          primary_hostname: "{{ hostvars[groups[database_type + '_primarydb'][0]]['inventory_hostname'] }}"
-          fsfo_mode: "{{ hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') }}"
-          high_availability_count: "{{ database[database_type]['high_availability_count'] }}"
+          delegation_host: "{{ hostvars[primary_host]['inventory_hostname'] }}"
+          primary_hostname: "{{ hostvars[primary_host]['inventory_hostname'] }}"
+          fsfo_mode: "{{ hostvars[primary_host]['fsfo_mode'] | default('disabled') }}"
+          high_availability_count: "{{ high_availability_count[application]] }}"
         when: 
-          - database[database_type]['high_availability_count'] | int > 0
-          - hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
+          - high_availability_count[application] | int > 0
+          - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
           - group_names | select('match','.*_standbydb1') | length > 0 
 
 # Oracle should remove OOP Session Files at the end of the patching but sometimes it does not clean up 
