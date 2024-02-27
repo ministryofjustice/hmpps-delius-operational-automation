@@ -45,6 +45,6 @@
       # Pause Until OEM has Finished Deleting the Target
       # (Otherwise it will fail when we try to add the new target)
       - name: Wait for Existing Target Deletion
-        script: |
+        shell: |
                 . {{ stage }}/emcli_login.sh >/dev/null
                 {{ emcli }} execute_sql -sql="FILE" -input_file="FILE:{{ stage }}/wait_for_target_deletion.sql" -targets="EMREP:oracle_database"
