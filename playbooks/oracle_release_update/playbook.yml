@@ -36,9 +36,17 @@
             pwd
             mkdir -p ~/.ansible/roles
             ln -sf {{ playbook_dir }}/../delius_oem_metrics_setup/delius_oem_metrics_setup ~/.ansible/roles/delius_oem_metrics_setup
+            ls -l
+            ls -la /github/home
+            ls -la /github/home/.ansible
+            ls -la /github/home/.ansible/roles
       delegate_to: localhost
       become: no
       run_once: true
+      register: link_oem
+
+    - debug:
+        var: link_oem
 
     - name: Update OEM Metrics for Newly Added Targets
       ansible.builtin.include_role:
