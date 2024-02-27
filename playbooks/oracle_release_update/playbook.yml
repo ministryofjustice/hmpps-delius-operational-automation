@@ -15,10 +15,24 @@
   roles:
      - { role: update_oem, when: apply_mode == 'switch-clone' and (not pingoms.failed | bool)}
 
-# Update OEM Metrics so these apply to any newly added targets
+# Update OEM Metrics for Newly Added Targets
 - hosts: "{{ target_hosts }}"
   gather_facts: no
   become: yes
   become_user: oracle
-  roles:
-     - { role: ../delius_oem_metrics_setup/delius_oem_metrics_setup, when: apply_mode == 'switch-clone' and (not pingoms.failed | bool)}
+
+  tasks:
+
+    - name: Link OEM Metrics Setup for Use as a Role
+      shell: |
+             ln -s ../delius_oem_metrics_setup/delius_oem_metrics_setup ~/.ansible/roles/delius_oem_metrics_setup
+      delegate_to: localhost
+      become: no
+      run_once: true
+
+    - name: Update OEM Metrics for Newly Added Targets
+      ansible.builtin.include_role:
+          name: delius_oem_metrics_setup
+      when: 
+         - apply_mode == 'switch-clone' 
+         - not pingoms.failed | bool
