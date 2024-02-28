@@ -177,12 +177,13 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           # Link the checked out configuration roles to somewhere Ansible will be able to find them
           ln -svf $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_release_update/roles
+          find $PWD -ls
+          echo
           # Link the OEM Metrics Setup Play to allow it to be used as a role
           ln -svf $PWD/operations/playbook/delius_oem_metrics_setup/delius_oem_metrics_setup $PWD/roles/ansible/roles/delius_oem_metrics_setup
           # List Roles
           ls -l $PWD/operations/playbooks/oracle_release_update/roles
-          echo CONTENT
-          ls -l $PWD/operations/playbooks/oracle_release_update/roles/*
+          find $PWD -ls
           $command -i $inventory \
           -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
           -e apply_mode=${{ github.event.inputs.ApplyMode }} \
