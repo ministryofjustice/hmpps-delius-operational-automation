@@ -36,6 +36,11 @@
             pwd
             mkdir "{{ playbook_dir }}/roles"
             ln -sfv {{ playbook_dir }}/../delius_oem_metrics_setup/delius_oem_metrics_setup {{ playbook_dir }}/roles/delius_oem_metrics_setup
+            echo 
+            ls -l /__w/hmpps-delius-operational-automation/hmpps-delius-operational-automation/operations/playbooks/oracle_release_update/roles/delius_oem_metrics_setup
+            echo 
+            ls -l /__w/hmpps-delius-operational-automation/hmpps-delius-operational-automation/operations/playbooks/oracle_release_update/../delius_oem_metrics_setup/delius_oem_metrics_setup
+            echo
             # ls -l
             # ls -la /github/home
             # ls -la /github/home/.ansible
