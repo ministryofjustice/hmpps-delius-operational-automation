@@ -1,0 +1,94 @@
+name: "LDAP: User expiry"
+on:
+  workflow_dispatch:
+    inputs:
+        environment:
+            required: true
+            type: choice
+            options:
+              - "dev"
+              - "test"
+  workflow_call:
+    
+jobs:
+    deploy:
+        name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}
+        runs-on: ubuntu-latest
+        environment: delius-core-${{ github.event.inputs.environment }}
+        permissions:
+          id-token: write
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v4
+            
+          - name: Configure AWS Credentials
+            uses: aws-actions/configure-aws-credentials@v4
+            with:
+              role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+              role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+              aws-region: "eu-west-2"
+          - name: Set cluster ARN
+            id: set-cluster-arn
+            run: |
+                echo "CLUSTER_ARN=delius-core-${{ github.event.inputs.environment }}-cluster" >> $GITHUB_OUTPUT        
+          - name: Get security groups and subnet ids
+            id: get-ids
+            run: |
+                echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=*${{ github.event.inputs.environment }}-ldap-sg*" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
+                echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-general-private-*" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT          
+
+          - name: Template task def
+            uses: christherama/render-json-template@v1
+            id: render
+            with:
+                # Path to JSON file serving as the template for rendering an output file. Required.
+                json-file-path: docker/ldap-automation/task-def.json
+                # Multi-line string containing key/value pairs of JSON property paths and desired property values
+                field-value-pairs: |
+                    $.containerDefinitions[0].command: ["ldap-automation", "user-expiry"]
+                  
+                    $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-ecs-task-exec"
+                    $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-ecs-task"
+
+                    $.containerDefinitions[0].image: "ghcr.io/ministryofjustice/hmpps-ldap-automation:${{ vars.LDAP_AUTOMATION_IMAGE_TAG }}"
+
+                    $.containerDefinitions[0].containerName: "ldap-automation-task-${{ github.run_id }}"
+
+                    $.containerDefinitions[0].secrets: [{"name": "VAR_LDAP_HOST", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_HOST"}, {"name": "VAR_LDAP_USER", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_PRINCIPAL"}, {"name": "SECRET_LDAP_BIND_PASSWORD", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_BIND_PASSWORD"}]
+
+                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-group": "/ecs/ldap-automation"
+                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-region": "${{secrets.AWS_REGION}}"
+                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-stream-prefix": "${{ github.run_id }}"
+                    
+          - name: Show rendered user service task
+            if: github.ref != 'refs/heads/main'
+            run: cat ${{ steps.render.outputs.rendered-json-file }}
+          - name: Run Standalone ECS Task
+            id: run-task
+            run: |
+              task_definition=$(aws ecs register-task-definition --cli-input-json file://${{ steps.render.outputs.rendered-json-file }})
+              task_definition_arn=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn')
+
+              echo "TASK_DEF_ARN=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn') " >> $GITHUB_OUTPUT
+
+              # Run task and store task id for later use
+              echo "TASK_ID=$(aws ecs run-task --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --task-definition $task_definition_arn --network-configuration "awsvpcConfiguration={subnets=${{ steps.get-ids.outputs.SUBNET_IDS }},securityGroups=${{ steps.get-ids.outputs.SEC_GROUPS }},assignPublicIp=DISABLED}" --launch-type FARGATE --count 1 | jq -r '.tasks[0].taskArn' | cut -d '/' -f 3)" >> $GITHUB_OUTPUT
+          - name: Delete Task Definition
+            run: |
+              aws ecs deregister-task-definition --task-definition ${{steps.run-task.outputs.TASK_DEF_ARN}}
+          - name: Output Cloudwatch Logs
+            run: |
+              task_running=true
+              while [ "$task_running" = true ]; do
+
+                  task_info=$(aws ecs describe-tasks --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --tasks ${{steps.run-task.outputs.TASK_ID}})
+                  last_status=$(echo "$task_info" | jq -r '.tasks[0].lastStatus')
+
+                  if [ "$last_status" == "STOPPED" ]; then
+                      task_running=false
+                  else
+                      sleep 10
+                  fi
+              done
+
+              aws logs tail /ecs/ldap-automation --log-stream-names "ecs/ldap-automation/${{steps.run-task.outputs.TASK_ID}}"
