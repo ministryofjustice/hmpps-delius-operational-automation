@@ -1,0 +1,16 @@
+name: "LDAP: User expiry Cron"
+on:
+    schedule:
+        - cron: "30 3 * * *"  
+    
+jobs:
+   expire-users: 
+    permissions:
+        id-token: write
+        contents: read
+    strategy: 
+        matrix:
+            environment: ["dev"]
+    uses: ./.github/workflows/ldap-user-expiry.yaml
+    with: 
+        environment: ${{matrix.environment}}-preapproved

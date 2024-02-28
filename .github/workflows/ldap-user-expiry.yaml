@@ -9,6 +9,9 @@ on:
               - "dev"
               - "test"
   workflow_call:
+    inputs:
+        environment:
+            type: string
     
 jobs:
     deploy:
