@@ -125,6 +125,8 @@ jobs:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-ec2-facts
             ansible/roles/get-modernisation-platform-facts
