@@ -178,7 +178,7 @@ jobs:
           # Link the checked out configuration roles to somewhere Ansible will be able to find them
           ln -svf $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_release_update/roles
           # Link the OEM Metrics Setup Play to allow it to be used as a role
-          ln -svf $PWD/operations/playbook/delius_oem_metrics_setup/delius_oem_metrics_setup $PWD/operations/playbooks/oracle_release_update/roles
+          ln -svf $PWD/operations/playbook/delius_oem_metrics_setup/delius_oem_metrics_setup $PWD/roles/ansible/roles/delius_oem_metrics_setup
           # List Roles
           ls -l $PWD/operations/playbooks/oracle_release_update/roles
           echo CONTENT
