@@ -1,50 +1,47 @@
-
 ---
-
 # Get name of the existing target for the specified target type
 # We only expect to see 1 HAS target, 1 ASM target and 1 Listener target on a given host (and all shouold be running from the Grid Infrastructure Home)
 - name: Generate Command to Get Existing Target Name
   shell: |
-        . {{ stage }}/emcli_login.sh >/dev/null
-        {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='{{ target_type }}'" -column="TARGET_NAME" -script -noheader
+    . {{ stage }}/emcli_login.sh >/dev/null
+    {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='{{ target_type }}'" -column="TARGET_NAME" -script -noheader
   register: existing_target_name
   changed_when: false
 
 - name: Set Command to Check if Target Home is Current Grid Infrastructure Home
   set_fact:
-      get_target_home_cmd: "{{ emcli }} list -resource=\"TargetProperties\" -search=\"TARGET_NAME='{{ existing_target_name.stdout }}'\" -column=\"PROPERTY_NAME,PROPERTY_VALUE\" -script | grep OracleHome | grep -c {{ target_gi_home }} | cat"
+    get_target_home_cmd: '{{ emcli }} list -resource="TargetProperties" -search="TARGET_NAME=''{{ existing_target_name.stdout }}''" -column="PROPERTY_NAME,PROPERTY_VALUE" -script | grep OracleHome | grep -c {{ target_gi_home }} | cat'
 
 - name: Get the Target Home
   shell: |
-        . {{ stage }}/emcli_login.sh >/dev/null
-         {{ get_target_home_cmd }}
-  register: get_target_home_match 
+    . {{ stage }}/emcli_login.sh >/dev/null
+     {{ get_target_home_cmd }}
+  register: get_target_home_match
   changed_when: false
   when: existing_target_name.stdout != ''
 
 # Delete Existing Target if it is not related to the New Grid Infrastructre Home
 - name: Delete Existing Target
   when:
-     - existing_target_name.stdout != ''
-     - get_target_home_match.stdout != '1'
+    - existing_target_name.stdout != ''
+    - get_target_home_match.stdout != '1'
   block:
+    - name: Delete Target from Repository
+      shell: |
+        . {{ stage }}/emcli_login.sh >/dev/null
+        {{ emcli }} delete_target -name="{{ existing_target_name.stdout }}" -type="{{ target_type }}"
 
-      - name: Delete Target from Repository
-        shell: |
-                . {{ stage }}/emcli_login.sh >/dev/null
-                {{ emcli }} delete_target -name="{{ existing_target_name.stdout }}" -type="{{ target_type }}"
+    - name: Copy SQL Script to Wait for Target Deletion
+      template:
+        src: wait_for_target_deletion.sql.j2
+        dest: "{{ stage }}/wait_for_target_deletion.sql"
+        mode: "0600"
+      vars:
+        deletion_target: "{{ existing_target_name.stdout }}"
 
-      - name: Copy SQL Script to Wait for Target Deletion
-        template:
-          src: wait_for_target_deletion.sql.j2
-          dest: "{{ stage }}/wait_for_target_deletion.sql"
-          mode: "0600"
-        vars:
-           deletion_target: "{{ existing_target_name.stdout }}"
-    
-      # Pause Until OEM has Finished Deleting the Target
-      # (Otherwise it will fail when we try to add the new target)
-      - name: Wait for Existing Target Deletion
-        shell: |
-                . {{ stage }}/emcli_login.sh >/dev/null
-                {{ emcli }} execute_sql -sql="FILE" -input_file="FILE:{{ stage }}/wait_for_target_deletion.sql" -targets="EMREP:oracle_database"
+    # Pause Until OEM has Finished Deleting the Target
+    # (Otherwise it will fail when we try to add the new target)
+    - name: Wait for Existing Target Deletion
+      shell: |
+        . {{ stage }}/emcli_login.sh >/dev/null
+        {{ emcli }} execute_sql -sql="FILE" -input_file="FILE:{{ stage }}/wait_for_target_deletion.sql" -targets="EMREP:oracle_database"

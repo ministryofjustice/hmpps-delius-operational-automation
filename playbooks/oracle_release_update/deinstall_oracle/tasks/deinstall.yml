@@ -1,5 +1,4 @@
 ---
-        
 - name: Detect if {{ deinstall_home }} Still in Use
   script: detect_oracle_home_in_use.sh "{{ deinstall_home }}"
   become: yes
@@ -14,7 +13,7 @@
 - name: Deinstall {{ deinstall_home }} Home
   include: deinstall_oracle_home.yml
   vars:
-      oracle_home: "{{ deinstall_home }}"
+    oracle_home: "{{ deinstall_home }}"
   when: home_exists.stat.exists
 
 - name: Remove {{ deinstall_home }} Software Directory

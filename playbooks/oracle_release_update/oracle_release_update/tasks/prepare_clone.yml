@@ -1,5 +1,4 @@
 ---
-
 - name: Upgrade OPatch
   include: upgrade_opatch.yml
 
@@ -7,13 +6,13 @@
   copy:
     dest: "/tmp/home_map.properties"
     content: |
-              {{ source_home }}={{ target_home }}
+      {{ source_home }}={{ target_home }}
 
 # Allow up to 60 minutes to do analyze - normally < 5 minutes on faster hosts
 # Attempt analysis using the superset patch ID, but if this is not defined then use the Combo patch ID, appending the GI patch ID
 - name: Analyze Existing Home for Patch Conflicts
   shell: |
-          {{ source_home }}/OPatch/opatchauto apply {{ oracle_patch_directory }}/{{ superset_patch_id | default(combo_patch_id + '/' + combo_gi_patch_id) }} -analyze -oh {{ source_home }} -silent /tmp/home_map.properties -outofplace
+    {{ source_home }}/OPatch/opatchauto apply {{ oracle_patch_directory }}/{{ superset_patch_id | default(combo_patch_id + '/' + combo_gi_patch_id) }} -analyze -oh {{ source_home }} -silent /tmp/home_map.properties -outofplace
   register: analyze_db
   changed_when: false
   become: true
@@ -26,7 +25,7 @@
 
 - name: Wait for Analyze to complete
   async_status:
-    jid: '{{ analyze_db.ansible_job_id }}'
+    jid: "{{ analyze_db.ansible_job_id }}"
   register: analyze_existing_home_result
   until: analyze_existing_home_result is finished
   delay: 60
@@ -38,48 +37,47 @@
     ansible_async_dir: /tmp/.ansible_async
 
 - debug:
-     var: analyze_existing_home_result
+    var: analyze_existing_home_result
 
 # OPatch can be used to find any one-off patches we have installed which would conflict with installing the DBRU
 - name: Identify Patch Conflicts
   set_fact:
-      patch_conflicts: "{{ ( analyze_existing_home_result.stdout_lines | select('search','Subset Patch \\d+ which has overlay patches \\[[\\d\\,]+\\] and these overlay patches conflict with Superset Patch') | first | default('') | regex_replace('.*\\[([\\d\\,]+)\\].*','\\1') ).split(',') | default([]) | select() }}"
-    
+    patch_conflicts: "{{ ( analyze_existing_home_result.stdout_lines | select('search','Subset Patch \\d+ which has overlay patches \\[[\\d\\,]+\\] and these overlay patches conflict with Superset Patch') | first | default('') | regex_replace('.*\\[([\\d\\,]+)\\].*','\\1') ).split(',') | default([]) | select() }}"
+
 # We also need to handle superseded patches (treat these as additional conflicts)
 - name: Identify Superseded Patches
   set_fact:
-      patch_conflicts: "{{ patch_conflicts + ( ( analyze_existing_home_result.stdout_lines | select('search','Please rebuild the superset patch \\[\\d+\\] to make sure it supersedes all the relevant patch\\(es\\) \\[[\\d\\,]+\\]\\.') | first | default('') | regex_replace('.*\\(es\\) \\[([\\d\\,]+)\\]\\.','\\1') ).split(',') | default([]) ) | select() }}"
+    patch_conflicts: "{{ patch_conflicts + ( ( analyze_existing_home_result.stdout_lines | select('search','Please rebuild the superset patch \\[\\d+\\] to make sure it supersedes all the relevant patch\\(es\\) \\[[\\d\\,]+\\]\\.') | first | default('') | regex_replace('.*\\(es\\) \\[([\\d\\,]+)\\]\\.','\\1') ).split(',') | default([]) ) | select() }}"
 
 - name: Report Patch Conflicts
-  debug:
-      var=patch_conflicts
+  debug: var=patch_conflicts
 
 # Generate a list of previous DBRUs already installed
 - name: Get Previously Installed DBRUs
   shell: |
-          . ~oracle/.bash_profile
-          {{ source_home }}/OPatch/opatch lsinv | grep "Database Release Update" | awk '{print $NF}' | tr -d '()"'
+    . ~oracle/.bash_profile
+    {{ source_home }}/OPatch/opatch lsinv | grep "Database Release Update" | awk '{print $NF}' | tr -d '()"'
   register: get_previous_dbrus
 
-- name: Set List of Patch IDs Associated with Previous Installed DBRUs 
+- name: Set List of Patch IDs Associated with Previous Installed DBRUs
   set_fact:
-      previous_dbrus: "{{ get_previous_dbrus.stdout_lines }}"
+    previous_dbrus: "{{ get_previous_dbrus.stdout_lines }}"
 
 # Generate a list of all the patch IDs included in the target DBRU
 - name: Get List of Patches included in the DBRU Superset Patch or the Combo Patch GI Patch
   shell: |
-          cd {{ oracle_patch_directory }}/{{ superset_patch_id | default(combo_patch_id + '/' + combo_gi_patch_id) }} 
-          find . -name inventory.xml | xargs -l1 grep -E '<bug description=.*number="' | awk -Fnumber= '{print $2}' | tr -d '"/>'
+    cd {{ oracle_patch_directory }}/{{ superset_patch_id | default(combo_patch_id + '/' + combo_gi_patch_id) }} 
+    find . -name inventory.xml | xargs -l1 grep -E '<bug description=.*number="' | awk -Fnumber= '{print $2}' | tr -d '"/>'
   register: get_dbru_contents
 
 - name: Set List of Patches included in the Superset Patch
   set_fact:
-      dbru_contents: "{{ get_dbru_contents.stdout_lines }}"
+    dbru_contents: "{{ get_dbru_contents.stdout_lines }}"
 
 # Generate a list of all the patch IDs defined in the environment config which are defined as compatible with the target DBRU
 - name: Initialise List of Patches
   set_fact:
-     patch_list: []
+    patch_list: []
 
 - name: Create List of Patches with their Possible Version Compatibilities
   set_fact:
@@ -88,19 +86,18 @@
 
 - name: Initialise List of Patches Compatible with the Target DBRU
   set_fact:
-     dbru_compatible_patches: []
+    dbru_compatible_patches: []
 
 - name: Get Patch IDs Compatible with Target DBRU Version
-  set_fact: 
-      dbru_compatible_patches: "{{ dbru_compatible_patches + [ item.0.patch_id.split('p')[1] ] }}"
-  with_subelements: 
+  set_fact:
+    dbru_compatible_patches: "{{ dbru_compatible_patches + [ item.0.patch_id.split('p')[1] ] }}"
+  with_subelements:
     - "{{ patch_list }}"
     - patch_files
   when: target_version is search('^' + item.1.target_version)
 
 - name: Show DBRU Compatible Patches
-  debug:
-      var=dbru_compatible_patches
+  debug: var=dbru_compatible_patches
 
 # If any conflicting patches are either:
 # (1) Previously installed DBRUs
@@ -111,15 +108,15 @@
 
 - name: Remove Conflicting Patch IDs which Refer to Previous DBRUs
   set_fact:
-      patch_conflicts: "{{ patch_conflicts | difference(previous_dbrus) }}"
+    patch_conflicts: "{{ patch_conflicts | difference(previous_dbrus) }}"
 
 - name: Remove Conflicting Patch IDs Included in DBRU
   set_fact:
-      patch_conflicts: "{{ patch_conflicts | difference(dbru_contents) }}"
+    patch_conflicts: "{{ patch_conflicts | difference(dbru_contents) }}"
 
 - name: Remove Conflicting Patch IDs for Which Replacement Patch Files Are Available
   set_fact:
-      patch_conflicts: "{{ patch_conflicts | difference(dbru_compatible_patches) }}"
+    patch_conflicts: "{{ patch_conflicts | difference(dbru_compatible_patches) }}"
 
 - name: Abort if Conflicting Patches Still Exist
   fail: "The patches {{ patch_conflicts }} conflict with the DBRU and require resolution."
@@ -144,7 +141,7 @@
 # To avoid this we use the ansible_remote_tmp variable to override the default location and write to tmp instead.
 - name: Wait for Prepare Clone
   async_status:
-      jid: "{{ prepare_clone.ansible_job_id }}"
+    jid: "{{ prepare_clone.ansible_job_id }}"
   register: result
   until: result.finished
   retries: 120
@@ -156,8 +153,7 @@
     ansible_async_dir: /tmp/.ansible_async
 
 - name: Show Output of Preparing Clone
-  debug:
-    var=result.stdout
+  debug: var=result.stdout
 
 # *Sometimes* even though the Clone completes (above step), a Session Cookie file is left over with the status of ACTIVE
 # This cause of this is unknown and an SR has been submitted to Oracle.
@@ -165,4 +161,4 @@
 - name: Workaround for Session Cookie Status
   include: session_cookie_workaround.yml
   vars:
-      path_prefix: "{{ source_home }}"
+    path_prefix: "{{ source_home }}"

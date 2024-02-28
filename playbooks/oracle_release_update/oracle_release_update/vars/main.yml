@@ -1,5 +1,4 @@
 ---
-
 oracle_database_19c_oracle_home: /u01/app/oracle/product/19.0.0.0/db
 oracle_database_19_ru_oracle_home: /u01/app/oracle/product/19.11.0.0/db
 oracle_grid_19c_oracle_home: /u01/app/grid/product/19.0.0.0/grid
@@ -10,4 +9,4 @@ oracle_19c_patch_directory: /u01/software/19c/patches
 grid_19c_zip: LINUX.X64_193000_grid_home.zip
 
 database_19c_zip: LINUX.X64_193000_db_home.zip
-database_19c_RU_zip: 
+database_19c_RU_zip:
