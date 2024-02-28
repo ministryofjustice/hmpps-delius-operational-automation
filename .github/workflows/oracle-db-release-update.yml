@@ -180,7 +180,7 @@ jobs:
           find -L operations/playbooks/oracle_release_update/roles
           echo
           # Link the OEM Metrics Setup Play to allow it to be used as a role
-          ln -svf $PWD/operations/playbook/delius_oem_metrics_setup/delius_oem_metrics_setup $PWD/roles/ansible/roles/delius_oem_metrics_setup
+          ln -svf $PWD/operations/playbooks/delius_oem_metrics_setup/delius_oem_metrics_setup $PWD/roles/ansible/roles/delius_oem_metrics_setup
           find -L operations/playbooks/oracle_release_update/roles
           $command -i $inventory \
           -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
