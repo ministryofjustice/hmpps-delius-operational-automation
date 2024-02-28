@@ -1,0 +1,9 @@
+---
+- name: Delete Targets
+  include: delete_agent_targets.yml
+  vars:
+    target_host: "{{ item[0] }}"
+    oracle_home: "{{ item[1] }}"
+  with_nested:
+    - "{{ deletion_targets | default( target_hosts.split(',') ) }}"
+    - ["{{ oracle_grid_oracle_home }}", "{{ oracle_database_oracle_home }}"]

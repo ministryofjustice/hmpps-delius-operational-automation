@@ -28,26 +28,26 @@
 
 - name: Run Patch Installation only When Not Installed
   block:
-    - debug: var=database
-
     # If Installing on Primary Ensure We Disable Active Data Guard on Related Standby
     # (Otherwise Recovery will Abort on that Standby)
     - name: Disable ADG on Standby 1
       include_tasks: disable_adg.yml
       vars:
-        standby_host: "{{ groups[database_type + '_standbydb1'][0] }}"
-        adg_standby_sid: "{{ hostvars[groups[database_type + '_standbydb1'][0]]['database_standby_sid'] }}"
+        standbydb1_group: "{{ primary_host_group | regex_replace('^(.*)_primarydb', '\\1_standbydb1') }}"
+        standby_host: "{{ groups[standbydb1_group][0] }}"
+        adg_standby_sid: "{{ hostvars[standby_host]['database_standby_sid'] }}"
       when:
-        - high_availability_count | int >= 1
+        - high_availability_count[application] | int >= 1
         - database_role == 'primary'
 
     - name: Disable ADG on Standby 2
       include_tasks: disable_adg.yml
       vars:
-        standby_host: "{{ groups[database_type + '_standbydb2'][0] }}"
-        adg_standby_sid: "{{ hostvars[groups[database_type + '_standbydb2'][0]]['database_standby_sid'] }}"
+        standbydb2_group: "{{ primary_host_group | regex_replace('^(.*)_primarydb', '\\1_standbydb2') }}"
+        standby_host: "{{ groups[standbydb2_group][0] }}"
+        adg_standby_sid: "{{ hostvars[standby_host]['database_standby_sid'] }}"
       when:
-        - high_availability_count | int == 2
+        - high_availability_count[application] | int == 2
         - database_role == 'primary'
 
     - name: Shutdown Database for Patching
@@ -72,7 +72,7 @@
         jid: "{{ run_ojvm_patch.ansible_job_id }}"
       register: result
       until: result.finished
-      retries: 40
+      retries: 80
       delay: 30
 
     - name: Startup Primary Database in Upgrade Mode for Datapatch

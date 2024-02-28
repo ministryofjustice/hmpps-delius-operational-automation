@@ -1,5 +1,4 @@
 name: "Oracle: Release Update"
-run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-release-update"
 on:
   workflow_dispatch:
     inputs:
@@ -46,7 +45,7 @@ on:
         required: true
         type: choice
         options:
-          - "/u01/software/19c/patches"
+          - "/u02/stage"
       ComboPatch:
         description: "Combo Patch to Install (default = use value from environment configuration)"
         required: true
@@ -55,15 +54,16 @@ on:
           - "default"
           - "34773504:p34773504_190000_Linux-x86-64.zip:(19.18)"
           - "35370167:p35370167_190000_Linux-x86-64.zip:(19.20)"
+          - "36031453:p36031453_190000_Linux-x86-64.zip:(19.22)"
       OPatch:
         description: "OPatch Utility to Use (default = use value from environment configuration)"
         required: true
         type: choice
         options: 
           - "default"
-          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.29.zip:(12.2.0.1.29)"
-          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.32.zip:(12.2.0.1.32)"
           - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.36.zip:(12.2.0.1.36)"
+          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.36.zip:(12.2.0.1.39)"
+          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.41.zip:(12.2.0.1.41)"
       AWSSnapshot:
         description: "Number of Days to Keep AWS Snapshot of Primary Database Host"
         required: true
@@ -90,6 +90,8 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
+
+run-name: "Oracle: ${{ format('{0}-release-update-{1}',github.event.inputs.TargetEnvironment,tojson(inputs)) }}"
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
@@ -130,21 +132,18 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
-      - name: Install yq
-        uses: dcarbone/install-yq-action@v1.1.1
+      - name: Checkout Role From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
         with:
-            download-compressed: true
-            version: "v4.35.1"
-            force: true
-
-      - name: Count Standby Databases Configured In Ansible Inventory
-        id: countstandbydbs
-        working-directory: ${{ env.inventory }}
-        run: |
-            database_environment="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
-            database_type=$(echo ${{ github.event.inputs.TargetHost }} | cut -d_ -f1)
-            high_availability_count=$(yq .high_availability_count.${database_type} group_vars/${database_environment}_all.yml)
-            echo "high_availability_count=$high_availability_count"
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+                ansible/roles/secretsmanager-passwords
+                ansible/roles/get-ec2-facts
+                ansible/roles/get-modernisation-platform-facts
+          path: roles
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
 
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
@@ -153,6 +152,8 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
                            playbooks/oracle_release_update
+                           playbooks/delius_oem_metrics_setup
+                           common/*
                            ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
@@ -176,13 +177,17 @@ jobs:
       - name: Run Release Update Playbook
         run: |
           export ANSIBLE_CONFIG=$ansible_config
+          # Link the checked out configuration roles to somewhere Ansible will be able to find them
+          ln -svf $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_release_update/roles
+          # Link the OEM Metrics Setup Play to allow it to be used as a role
+          ln -svf $PWD/operations/playbooks/delius_oem_metrics_setup/delius_oem_metrics_setup $PWD/roles/ansible/roles/delius_oem_metrics_setup
           $command -i $inventory \
-          -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }}
-          -e apply_mode=${{ github.event.inputs.ApplyMode }}
-          -e oracle_patch_directory=${{ github.event.inputs.OraclePatchDirectory }}
-          -e combo_patch_info=${{ github.event.inputs.ComboPatchInfo }}
-          -e opatch_info=${{github.event.inputs.Opatch }}
-          -e "keep_aws_snapshot='${{github.event.inputs.AWSSnapShot }}'"
-          -e high_availability_count=${{ steps.countstandbydbs.outputs.high_availability_count }}
-          -e gi_ru_patch_info=''
+          -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
+          -e apply_mode=${{ github.event.inputs.ApplyMode }} \
+          -e oracle_patch_directory=${{ github.event.inputs.OraclePatchDirectory }} \
+          -e combo_patch_info='${{ github.event.inputs.ComboPatch }}' \
+          -e opatch_info='${{github.event.inputs.Opatch }}' \
+          -e "keep_aws_snapshot='${{github.event.inputs.AWSSnapShot }}'" \
+          -e high_availability_count=${{ steps.countstandbydbs.outputs.high_availability_count }} \
+          -e gi_ru_patch_info='' \
           -e ojvm_ru_patch_info=''

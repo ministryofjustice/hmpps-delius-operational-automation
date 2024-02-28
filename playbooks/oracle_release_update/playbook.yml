@@ -1,7 +1,24 @@
 ---
+# Run Release Update Patching
 - hosts: "{{ target_hosts }}"
   gather_facts: no
   become: yes
   become_user: oracle
   roles:
     - oracle_release_update
+
+# Update OEM Targets after Switch Clone Phase of Patching
+- hosts: "{{ target_hosts }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+    - { role: update_oem, when: apply_mode == 'switch-clone' and (not pingoms.failed | bool) }
+
+# Update OEM Metrics for Newly Added Targets
+- hosts: "{{ target_hosts }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+    - { role: "delius_oem_metrics_setup", when: apply_mode == 'switch-clone' and (not pingoms.failed | bool) }

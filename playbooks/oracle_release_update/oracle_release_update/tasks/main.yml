@@ -12,11 +12,6 @@
     apply_mode: prepare-clone
   when: apply_mode is not defined
 
-- name: Set Empty String for GI and OJVM Patches if Not Defined
-  set_fact:
-    gi_ru_patch_info: "{{ '' if (gi_ru_patch_info is not defined) else gi_ru_patch_info }}"
-    ojvm_ru_patch_info: "{{ '' if (ojvm_ru_patch_info is not defined) else ojvm_ru_patch_info }}"
-
 - name: Confirm Apply Mode is Valid
   fail:
     msg: "Invalid Apply Mode {{ apply_mode }}"
@@ -47,21 +42,13 @@
   setup:
     filter: ansible_memory_mb
 
-- name: Get database type
-  set_fact:
-    database_type: "{{ (group_names | select('match','environment_name_.*' + ( project_name | default('UNSET'))  + '.*' + ( simple_environment_name | default('UNSET')) + '.*_dbs$') | first | default('') ).split('_')[-2] | default('') }}"
-
-- name: Show Database Type
-  debug:
-    msg: "database_type={{ database_type }}"
-
 # SUPERSET Patch = GI RU + DB RU
 # COMBO Patch = (GI RU + DB RU) + OJVM RU
 
 # We are only allowed to override the Release Update versions from the configuration file whilst preparing a new Oracle Home if the existing Home is still in use.
 # Otherwise, the value in oracle_software in the hmpps_env_configs must be set correctly.
 - fail:
-    msg: "Overriding Release Update configuration is not supported in switch-clone or apply-ojvm-standby modes.  The correct values must be set in oracle_software in modernisation_platform."
+    msg: "Overriding Release Update configuration is not supported in switch-clone or apply-ojvm-standby modes.  The correct values must be set in oracle_software in hmpps_env_configs."
   when:
     - gi_ru_patch_info not in ['','default'] or ojvm_ru_patch_info not in ['','default'] or opatch_info != 'default' or combo_patch_info not in ['','default']
     - apply_mode != 'prepare-clone'
@@ -161,22 +148,11 @@
     dependencies_bucket_name: "{{ dependencies_bucket.name }}"
   tags: always
 
-- debug:
-    var: keep_aws_snapshot
-
 # Create symlink so that we may use the AWS Snapshot directory as a role
-- name: Create Roles Directory
-  file:
-    dest: ~/.ansible/roles
-    state: directory
-  run_once: true
-  delegate_to: localhost
-  become: no
-
 - name: Link to AWS Snapshot in current repo as a role
   file:
     dest: ~/.ansible/roles/aws-snapshot
-    src: "{{ playbook_dir }}/../../playbooks/oracle_aws_snapshot/aws_snapshot"
+    src: "{{ playbook_dir }}/../../operations/oracle_aws_snapshot/aws_snapshot"
     state: link
   run_once: true
   delegate_to: localhost
@@ -239,6 +215,7 @@
 - name: Count Grid OOP Files
   shell: FILENAME={{ source_gi_home }}/.opatchauto_storage/$(hostname)/oopsessioninfo.ser && test -e $FILENAME && strings $FILENAME | tail -1 || echo "COMPLETED"
   register: gi_oop
+  changed_when: false
 
 - fail:
     msg: "Active OOP Session file exists for {{ source_gi_home }}"
@@ -247,6 +224,7 @@
 - name: Count Database OOP Files
   shell: FILENAME={{ source_db_home }}/.opatchauto_storage/$(hostname)/oopsessioninfo.ser && test -e $FILENAME && strings $FILENAME | tail -1 || echo "COMPLETED"
   register: db_oop
+  changed_when: false
 
 - fail:
     msg: "Active OOP Session file exists for {{ source_db_home }}"
@@ -269,7 +247,7 @@
 
 # Stop disable FSFO to prevent unwanted failover during switch clone on the primary
 # (We also disable FSFO if running prepare-clone on a primary EC2 instance with limited memory, as the load
-#  may be so high as to cause a failover)
+#  nmay be so high as to cause a failover)
 - name: Disable FSFO
   include: stop_fsfo.yml
   when:
@@ -314,6 +292,7 @@
      {{ emctl_agent }} status agent
   ignore_errors: true
   register: oem_agent_running
+  changed_when: false
 
 - name: Stop oem agent
   shell: |
@@ -375,6 +354,10 @@
       script: set_default_rman_channel.sh
       when: not get_default_rman_channel.stdout is search('.*' + target_db_home + '/dbs/osbws.ora.*')
 
+    - name: Upgrade the RMAN Catalog (Catalog Databases Only)
+      include_tasks: upgrade_rman_catalog.yml
+      when: database_primary_sid | default('NO') is search('^.CAT$')
+
 # The OJVM Patch may not be installed onto Standby databases before being applied to Primary
 # Once the primary is ready use the apply-ojvm-standby mode to apply this patch to the standbys
 - name: Install OJVM Release Update
@@ -388,6 +371,7 @@
      {{ emctl_agent }} status agent
   ignore_errors: true
   register: oem_agent_running
+  changed_when: false
 
 - name: Start oem agent
   shell: |
@@ -403,20 +387,6 @@
 - name: Prepare to Update OEM Targets for New Home
   when: apply_mode == 'switch-clone'
   block:
-    - name: Check if inside AWS.
-      uri:
-        url: http://169.254.169.254/latest/meta-data
-        timeout: 20
-      register: aws_uri_check
-      failed_when: false
-      run_once: yes
-
-    - set_fact:
-        is_aws_environment: "{{ aws_uri_check.status == 200 }}"
-      run_once: yes
-      delegate_to: localhost
-      delegate_facts: true
-
     # Check if Oracle Primary OEM Agent is Installed And Communicating with OMS
     - name: Check if Oracle OEM Agent Operating
       shell: |
@@ -426,16 +396,6 @@
       run_once: yes
       ignore_errors: true
       changed_when: false
-
-    - name: Prepare Ansible Controller Variables for OEM Target Update
-      set_fact:
-        oem_gi_home: "{{ target_gi_home }}"
-        oem_db_home: "{{ target_db_home }}"
-        switched_targets: "{{ ansible_play_hosts }}"
-        agent_connected: "{{ not pingoms.failed }}"
-      delegate_to: localhost
-      delegate_facts: true
-      run_once: yes
 
 # Re-Enabling FSFO May Be Done at 3 Points:
 #  (a) After a Switch Clone Completes on a Standby Database
@@ -461,12 +421,13 @@
         name: hmpps-delius-oracledb-ha
         tasks_from: enable-fsfo.yml
       vars:
-        delegation_host: "{{ hostvars[groups[database_type + '_primarydb'][0]]['inventory_hostname'] }}"
-        primary_hostname: "{{ hostvars[groups[database_type + '_primarydb'][0]]['inventory_hostname'] }}"
-        fsfo_mode: "{{ hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') }}"
+        delegation_host: "{{ hostvars[primary_host]['inventory_hostname'] }}"
+        primary_hostname: "{{ hostvars[primary_host]['inventory_hostname'] }}"
+        fsfo_mode: "{{ hostvars[primary_host]['fsfo_mode'] | default('disabled') }}"
+        high_availability_count: "{{ high_availability_count[application]] }}"
       when:
-        - high_availability_count | int > 0
-        - hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
+        - high_availability_count[application] | int > 0
+        - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
         - group_names | select('match','.*_standbydb1') | length > 0
 
 # Oracle should remove OOP Session Files at the end of the patching but sometimes it does not clean up

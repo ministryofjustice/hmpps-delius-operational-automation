@@ -1,0 +1,2 @@
+oracle_patch_directory: /u02/stage
+oracle_inventory: /u01/app/oraInventory

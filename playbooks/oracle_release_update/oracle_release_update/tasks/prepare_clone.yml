@@ -8,7 +8,7 @@
     content: |
       {{ source_home }}={{ target_home }}
 
-# Allow up to 30 minutes to do analyze - normally < 5 minutes on faster hosts
+# Allow up to 60 minutes to do analyze - normally < 5 minutes on faster hosts
 # Attempt analysis using the superset patch ID, but if this is not defined then use the Combo patch ID, appending the GI patch ID
 - name: Analyze Existing Home for Patch Conflicts
   shell: |
@@ -17,18 +17,37 @@
   changed_when: false
   become: true
   become_user: root
+  async: 3600
+  poll: 0
   vars:
-    ansible_aws_ssm_timeout: 1800
+    ansible_remote_tmp: /tmp/.ansible
+    ansible_async_dir: /tmp/.ansible_async
+
+- name: Wait for Analyze to complete
+  async_status:
+    jid: "{{ analyze_db.ansible_job_id }}"
+  register: analyze_existing_home_result
+  until: analyze_existing_home_result is finished
+  delay: 60
+  retries: 60
+  become: true
+  become_user: root
+  vars:
+    ansible_remote_tmp: /tmp/.ansible
+    ansible_async_dir: /tmp/.ansible_async
+
+- debug:
+    var: analyze_existing_home_result
 
 # OPatch can be used to find any one-off patches we have installed which would conflict with installing the DBRU
 - name: Identify Patch Conflicts
   set_fact:
-    patch_conflicts: "{{ ( analyze_db.stdout_lines | select('search','Subset Patch \\d+ which has overlay patches \\[[\\d\\,]+\\] and these overlay patches conflict with Superset Patch') | first | default('') | regex_replace('.*\\[([\\d\\,]+)\\].*','\\1') ).split(',') | default([]) | select() }}"
+    patch_conflicts: "{{ ( analyze_existing_home_result.stdout_lines | select('search','Subset Patch \\d+ which has overlay patches \\[[\\d\\,]+\\] and these overlay patches conflict with Superset Patch') | first | default('') | regex_replace('.*\\[([\\d\\,]+)\\].*','\\1') ).split(',') | default([]) | select() }}"
 
 # We also need to handle superseded patches (treat these as additional conflicts)
 - name: Identify Superseded Patches
   set_fact:
-    patch_conflicts: "{{ patch_conflicts + ( ( analyze_db.stdout_lines | select('search','Please rebuild the superset patch \\[\\d+\\] to make sure it supersedes all the relevant patch\\(es\\) \\[[\\d\\,]+\\]\\.') | first | default('') | regex_replace('.*\\(es\\) \\[([\\d\\,]+)\\]\\.','\\1') ).split(',') | default([]) ) | select() }}"
+    patch_conflicts: "{{ patch_conflicts + ( ( analyze_existing_home_result.stdout_lines | select('search','Please rebuild the superset patch \\[\\d+\\] to make sure it supersedes all the relevant patch\\(es\\) \\[[\\d\\,]+\\]\\.') | first | default('') | regex_replace('.*\\(es\\) \\[([\\d\\,]+)\\]\\.','\\1') ).split(',') | default([]) ) | select() }}"
 
 - name: Report Patch Conflicts
   debug: var=patch_conflicts
@@ -108,7 +127,7 @@
 # This error is avoided if ansible detaches from the session.
 - name: Prepare Clone of {{ source_home }} in {{ target_home }} including DBRU
   shell: "{{ source_home }}/OPatch/opatchauto apply {{ oracle_patch_directory }}/{{ superset_patch_id | default(combo_patch_id + '/' + combo_gi_patch_id) }} -oh {{ source_home }} -silent /tmp/home_map.properties -prepare-clone -force_conflict -logLevel ALL"
-  async: 3600
+  async: 7200
   poll: 0
   register: prepare_clone
   become: yes
@@ -120,14 +139,13 @@
 # Since we run the above async task using become, we must do so with the async_status, otherwise it is unable to locate the job.
 # There appears to be bug in async_status which causes the 2nd and subsequent polling to attempt to create temporary files under /root and failing due to permissions.
 # To avoid this we use the ansible_remote_tmp variable to override the default location and write to tmp instead.
-# Nb: increased retries to 240 as misdsd primarydb install taking longer
 - name: Wait for Prepare Clone
   async_status:
     jid: "{{ prepare_clone.ansible_job_id }}"
   register: result
   until: result.finished
-  retries: 240
-  delay: 30
+  retries: 120
+  delay: 60
   become: yes
   become_user: root
   vars:
