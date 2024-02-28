@@ -91,7 +91,7 @@ on:
         type: string
         default: "main"
 
-run-name: "Oracle: ${{ format('{0}-release-update-{1}-branch-{2}',github.event.inputs.TargetEnvironment,tojson(inputs),github.ref_name) }}"
+run-name: "Oracle: ${{ format('{0}-release-update-{1}',github.event.inputs.TargetEnvironment,tojson(inputs)) }}"
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
