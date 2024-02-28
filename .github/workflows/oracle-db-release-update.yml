@@ -179,6 +179,10 @@ jobs:
           ln -svf $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_release_update/roles
           # Link the OEM Metrics Setup Play to allow it to be used as a role
           ln -svf $PWD/operations/playbook/delius_oem_metrics_setup/delius_oem_metrics_setup $PWD/operations/playbooks/oracle_release_update/roles
+          # List Roles
+          ls -l $PWD/operations/playbooks/oracle_release_update/roles
+          echo CONTENT
+          ls -l $PWD/operations/playbooks/oracle_release_update/roles/*
           $command -i $inventory \
           -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
           -e apply_mode=${{ github.event.inputs.ApplyMode }} \
