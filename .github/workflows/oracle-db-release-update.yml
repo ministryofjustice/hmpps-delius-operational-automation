@@ -191,6 +191,8 @@ jobs:
       - name: Run Release Update Playbook
         run: |
           export ANSIBLE_CONFIG=$ansible_config
+          # Link the checked out configuration roles to somewhere Ansible will be able to find them
+          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_release_update/roles
           $command -i $inventory \
           -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
           -e apply_mode=${{ github.event.inputs.ApplyMode }} \
