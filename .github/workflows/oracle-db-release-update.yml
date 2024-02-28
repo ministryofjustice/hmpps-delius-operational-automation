@@ -152,6 +152,7 @@ jobs:
           sparse-checkout: |
                            playbooks/oracle_release_update
                            playbooks/delius_oem_metrics_setup
+                           common/*
                            ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
