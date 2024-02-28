@@ -1,27 +1,19 @@
 ---
-# # Run Release Update Patching
-# - hosts: "{{ target_hosts }}"
-#   gather_facts: no
-#   become: yes
-#   become_user: oracle
-#   roles:
-#     - oracle_release_update
+# Run Release Update Patching
+- hosts: "{{ target_hosts }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+    - oracle_release_update
 
-# # Update OEM Targets after Switch Clone Phase of Patching
-# - hosts: "{{ target_hosts }}"
-#   gather_facts: no
-#   become: yes
-#   become_user: oracle
-#   roles:
-#      - { role: update_oem, when: apply_mode == 'switch-clone' and (not pingoms.failed | bool)}
-
-# Update OEM Metrics for Newly Added Targets
-# - hosts: "{{ target_hosts }}"
-#   gather_facts: no
-#   become: yes
-#   become_user: oracle
-#   roles:
-#      - { role: "{{ playbook_dir }}/../delius_oem_metrics_setup", when: apply_mode == 'switch-clone' and (not pingoms.failed | bool)}
+# Update OEM Targets after Switch Clone Phase of Patching
+- hosts: "{{ target_hosts }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+     - { role: update_oem, when: apply_mode == 'switch-clone' and (not pingoms.failed | bool)}
 
 # Update OEM Metrics for Newly Added Targets
 - hosts: "{{ target_hosts }}"
@@ -29,51 +21,5 @@
   become: yes
   become_user: oracle
   roles:
-     - { role: delius_oem_metrics_setup }
-
-
-# # Update OEM Metrics for Newly Added Targets
-# - hosts: "{{ target_hosts }}"
-#   gather_facts: no
-#   become: yes
-#   become_user: oracle
-
-#   tasks:
-
-#     - name: Link OEM Metrics Setup for Use as a Role
-#       shell: |
-#             pwd
-#             mkdir "{{ playbook_dir }}/roles"
-#             ln -sfv {{ playbook_dir }}/../delius_oem_metrics_setup/delius_oem_metrics_setup {{ playbook_dir }}/roles/delius_oem_metrics_setup
-#             echo THE LINK
-#             ls -l /__w/hmpps-delius-operational-automation/hmpps-delius-operational-automation/operations/playbooks/oracle_release_update/roles/delius_oem_metrics_setup
-#             echo CONTENTS OF THE LINK
-#             ls -l /__w/hmpps-delius-operational-automation/hmpps-delius-operational-automation/operations/playbooks/oracle_release_update/../delius_oem_metrics_setup/delius_oem_metrics_setup
-#             echo THE END
-#             # ls -l
-#             # ls -la /github/home
-#             # ls -la /github/home/.ansible
-#             # ls -la /github/home/.ansible/roles
-#             # echo
-#             # echo
-#             # ls -la /github/home/.ansible/roles/delius_oem_metrics_setup
-#             # echo
-#             # ls -la /github/home/.ansible/roles/delius_oem_metrics_setup/tasks
-#             # echo
-#             # ls -l /__w/hmpps-delius-operational-automation/hmpps-delius-operational-automation/operations/playbooks/oracle_release_update/../delius_oem_metrics_setup/delius_oem_metrics_setup
-#             # echo
-#             # ls -l /__w/hmpps-delius-operational-automation/hmpps-delius-operational-automation/operations/playbooks/oracle_release_update/../delius_oem_metrics_setup/delius_oem_metrics_setup/tasks
-#       delegate_to: localhost
-#       become: no
-#       run_once: true
-#       register: link_oem
-
-#     - debug:
-#         var: link_oem.stdout
-
-#     - name: Update OEM Metrics for Newly Added Targets
-#       ansible.builtin.include_role:
-#           name: delius_oem_metrics_setup
-#       # when: 
-#       #   - apply_mode == 'switch-clone' 
-#       #   - not pingoms.failed | bool
+     - { role: "delius_oem_metrics_setup", when: apply_mode == 'switch-clone' and (not pingoms.failed | bool)}
+     
