@@ -154,6 +154,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
                            playbooks/oracle_release_update
+                           playbooks/delius_oem_metrics_setup
                            ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
