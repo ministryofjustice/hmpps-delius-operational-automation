@@ -8,10 +8,6 @@ on:
             options:
               - "dev"
               - "test"
-        # Example: username1,role1;role2;role3|username2,role1;role2
-        user-role-list:
-            required: true
-            type: string
   workflow_call:
     
 jobs:
