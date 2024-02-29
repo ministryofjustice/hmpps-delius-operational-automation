@@ -13,4 +13,4 @@ jobs:
             environment: ["dev"]
     uses: ./.github/workflows/ldap-user-expiry.yaml
     with: 
-        environment: delius-core-${{matrix.environment}}-preapproved
+        environment: ${{matrix.environment}}-preapproved
