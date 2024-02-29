@@ -1,0 +1,33 @@
+---
+
+- name: Restart all databases in the current Oracle Home
+  shell: "export ORACLE_HOME={{ oracle_database_oracle_home }}; {{ oracle_database_oracle_home }}/bin/srvctl start home -o {{ oracle_database_oracle_home }} -s {{ oracle_statefile }}"
+
+- name: Remove state file
+  file:
+     path: "{{ oracle_statefile }}"
+     state: absent
+
+- name: Find the name of the Primary Host Group
+  set_fact:
+    primary_host_group: "{{ ( (group_names | select('match','.*_standbydb\\d+')) if (database_standby_sid is defined) else (group_names | select('match','.*_primarydb')) ) | list | first | regex_replace('^(.*)_standbydb\\d+', '\\1_primarydb') }}"
+
+# Now get the primary Hostname
+- name: Get Hostname of Primary
+  set_fact:
+    primary_host: "{{ groups[primary_host_group][0] }}"
+
+# Re-Enable FSFO from Associated Primary
+# (Only run from Primary for each Database Type to avoid competing startups)
+- name: Re-enable FSFO
+  include_role:
+     name: build-ha
+     tasks_from: enable-fsfo.yml
+  vars:
+     delegation_host: "{{ primary_host }}"
+     primary_hostname: "{{ primary_host }}"
+     fsfo_mode: "{{ hostvars[primary_host]['fsfo_mode'] | default('disabled') }}"
+  when: 
+    - high_availability_count[application] | int > 0
+    - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
+    - group_names | select('match','.*_primarydb') | length > 0 

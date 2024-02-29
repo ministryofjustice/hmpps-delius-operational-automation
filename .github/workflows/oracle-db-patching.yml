@@ -1,5 +1,4 @@
 name: "Oracle: Patching"
-run-name: "Oracle: ${{ format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_patching"
 on:
   workflow_dispatch:
     inputs:
@@ -50,7 +49,7 @@ on:
         description: "Verbose Output level"
         type: choice
         options:
-          - ""
+          - " "
           - "-v"
           - "-vv"
           - "-vvv"
@@ -59,6 +58,8 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
+
+run-name: "Oracle: ${{ format('{0}-patching-{1}',github.event.inputs.TargetEnvironment,tojson(inputs)) }}"
 
 # Allow permissions on repository and docker image respectively 
 permissions:
@@ -110,6 +111,18 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
+            repository: ministryofjustice/hmpps-delius-operational-automation
+            sparse-checkout-cone-mode: false
+            sparse-checkout: |
+                             playbooks/oracle_interim_patch
+                             ansible.cfg
+            path: operations
+            ref: ${{ github.event.inputs.SourceCodeVersion }}
+            fetch-depth: 0
+
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
@@ -124,5 +137,4 @@ jobs:
           -e target_host=${{needs.build_target_name.outputs.TargetHost}} \
           -e install_absent_patches=${{ github.event.inputs.InstallAbsentPatches }} \
           -e requested_patch_id=${{ github.event.inputs.PatchId }} \
-          -e only_patch_offline=${{ github.event.inputs.OnlyPatchOffline }} \
-          -e oracle_vars_dir=${{ env.OracleVarsDir }} ${{ github.event.inputs.VerboseOutput }}
+          -e only_patch_offline=${{ github.event.inputs.OnlyPatchOffline }}
