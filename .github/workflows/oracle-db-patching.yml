@@ -133,7 +133,7 @@ jobs:
       - name: Start Oracle Patching
         run: |
           $command -i $inventory \
-          -e target_host=${{needs.build_target_name.outputs.TargetHost}} \
+          -e target_hosts=${{needs.build_target_name.outputs.TargetHost}} \
           -e install_absent_patches=${{ github.event.inputs.InstallAbsentPatches }} \
           -e requested_patch_id=${{ github.event.inputs.PatchId }} \
           -e only_patch_offline=${{ github.event.inputs.OnlyPatchOffline }}
