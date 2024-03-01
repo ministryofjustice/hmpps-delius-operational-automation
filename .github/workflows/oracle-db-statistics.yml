@@ -143,18 +143,17 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      # - name: Install gh
-      #   uses: actions4gh/setup-gh
+      - name: Install gh
+        uses: actions4gh/setup-gh
 
-      # - name: Start Ansible Gather Delius Statistics
-      #   shell: bash
-      #   if: ${{ github.event.inputs.ImportSourceEnvironment == 'None' }}
-      #   run: |
-      #     export ANSIBLE_CONFIG=$ansible_config
-      #     $command -i $inventory \
-      #     -e hosts=${{ steps.preparetargetname.outputs.TargetHost }} \
-      #     -e import_source_environment=${{ github.event.inputs.ImportSourceEnvironment }} \
-      #     -e gather_new_statistics=${{ github.event.inputs.GatherNewStatistics }} \
-      #     -e statistics_identifier=${{ github.event.inputs.StatisticsIdentifier }} \
-      #     -e export_to_s3=${{ github.event.inputs.ExportBackupStatisticsToS3 }} \
-      #     -e parallelism=${{ github.event.inputs.GatherParallelism }} ${{ github.event.inputs.VerboseOutput }}
+      - name: Start Ansible Gather Delius Statistics
+        shell: bash
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          $command -i $inventory \
+          -e hosts=${{ steps.preparetargetname.outputs.TargetHost }} \
+          -e import_source_environment=${{ github.event.inputs.ImportSourceEnvironment }} \
+          -e gather_new_statistics=${{ github.event.inputs.GatherNewStatistics }} \
+          -e statistics_identifier=${{ github.event.inputs.StatisticsIdentifier }} \
+          -e export_to_s3=${{ github.event.inputs.ExportBackupStatisticsToS3 }} \
+          -e parallelism=${{ github.event.inputs.GatherParallelism }} ${{ github.event.inputs.VerboseOutput }}
