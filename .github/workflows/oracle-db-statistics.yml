@@ -143,8 +143,8 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Install gh
-        uses: actions4gh/setup-gh
+      # - name: Install gh
+      #   uses: actions4gh/setup-gh
 
       # - name: Start Ansible Gather Delius Statistics
       #   shell: bash
