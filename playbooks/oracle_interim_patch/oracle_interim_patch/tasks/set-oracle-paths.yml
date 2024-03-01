@@ -1,0 +1,22 @@
+---
+- name: Get ASM Path from OraTab
+  shell: |
+    egrep -e "^\+ASM" /etc/oratab | awk '{print $1}'
+  changed_when: false
+  register: get_asmpath
+
+- name: Set Grid Home and ASM Path Version Component
+  set_fact:
+    oracle_grid_oracle_home: "{{ get_asmpath.stdout_lines[-1] | regex_replace('^\\+ASM:(.*):[N|Y]$','\\1') }}"
+    asm_version_component: "{{ get_asmpath.stdout_lines[-1] | regex_replace('.*/([\\d\\.]+)/.*','\\1') }}"
+
+- name: Get Database Path from OraTab
+  shell: |
+    egrep -e "^{{ database_primary_sid | default(database_standby_sid) }}" /etc/oratab | awk '{print $1}'
+  changed_when: false
+  register: get_databasepath
+
+- name: Set Database Path Version Component
+  set_fact:
+    oracle_database_oracle_home: "{{ get_databasepath.stdout_lines[-1] | regex_replace('^' + database_primary_sid | default(database_standby_sid) + ':(.*):[N|Y]$','\\1') }}"
+    database_version_component: "{{ get_databasepath.stdout_lines[-1] | regex_replace('.*/([\\d\\.]+)/.*','\\1') }}"
