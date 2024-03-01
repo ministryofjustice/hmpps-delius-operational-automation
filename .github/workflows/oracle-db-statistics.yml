@@ -1,0 +1,160 @@
+name: "Oracle: Statisics"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-delius-oracle-statistics"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-pre-prod"
+          - "delius-core-prod"
+      GatherNewStatistics:
+        description: "Gather new statistics for Delius database."
+        type: choice
+        default: "no"
+        options:
+          - "no"
+          - "yes"
+      GatherParallelism:
+        description: "Degree of Parallelism to use for gathering new statistics (ignored if GatherNewStatistics = no)."
+        type: choice
+        default: "2"
+        options: 
+          - "1"
+          - "2"
+          - "4"
+          - "8"
+          - "16"
+          - "32"
+      ExportBackupStatisticsToS3:
+        description: "Use Data Pump to export a backup of the current statistics and copy the file to S3."
+        type: string
+        default: "no"
+        options:
+          - "no"
+          - "yes"
+      StatisticsIdentifier:
+        description: "Optional identifier for Statistics export."
+        type: string
+        default: ""
+      ImportSourceEnvironment:
+        description: "Source environment for import of statistics."
+        default: "None"
+        type: choice
+        options:
+          - "None"
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-pre-prod"
+      VerboseOutput:
+        description: "Verbose Output level"
+        type: choice
+        default: ""
+        options:
+          - ""
+          - "-vv"
+          - "-vvv"
+          - "-vvvv"
+      SourceCodeVersion:
+        description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+env:
+  ansible_config: operations/playbooks/ansible.cfg
+  command: ansible-playbook operations/playbooks/oracle_statistics/oracle_statistics.yml
+  inventory: inventory/ansible
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:          
+  oracle_delius_statistics:
+    name: oracle-delius-statistics
+    environment: ${{ github.event.inputs.TargetEnvironment }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+    timeout-minutes: 1440
+    continue-on-error: false
+    outputs:
+      TargetOemEnvironment: ${{ steps.definetargets.outputs.TargetOemEnvironment }}
+      TargetEnvironmentName: ${{ steps.definetargets.outputs.TargetEnvironmentName }}
+      RotateGroups: ${{ steps.definetargets.outputs.targets }}
+    steps:
+
+      - name: Prepare Target Name
+        id: preparetargetname
+        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT
+
+      - name: Checkout Ansible Playbooks and Roles From hmpps-delius-operation-automation
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oracle_statistics
+            playbooks/ansible.cfg
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/roles/secretsmanager-passwords
+            ansible/roles/get-modernisation-platform-facts
+          path: roles
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      # - name: Install gh
+      #   uses: actions4gh/setup-gh
+
+      # - name: Start Ansible Gather Delius Statistics
+      #   shell: bash
+      #   if: ${{ github.event.inputs.ImportSourceEnvironment == 'None' }}
+      #   run: |
+      #     export ANSIBLE_CONFIG=$ansible_config
+      #     $command -i $inventory \
+      #     -e hosts=${{ steps.preparetargetname.outputs.TargetHost }} \
+      #     -e import_source_environment=${{ github.event.inputs.ImportSourceEnvironment }} \
+      #     -e gather_new_statistics=${{ github.event.inputs.GatherNewStatistics }} \
+      #     -e statistics_identifier=${{ github.event.inputs.StatisticsIdentifier }} \
+      #     -e export_to_s3=${{ github.event.inputs.ExportBackupStatisticsToS3 }} \
+      #     -e parallelism=${{ github.event.inputs.GatherParallelism }} ${{ github.event.inputs.VerboseOutput }}
