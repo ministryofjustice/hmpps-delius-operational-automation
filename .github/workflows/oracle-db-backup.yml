@@ -8,12 +8,12 @@ on:
         required: true
         type: choice
         options:
-          - "delius-core-dev"
-          - "delius-core-test"
-          - "delius-core-training"
-          - "delius-core-stage"
-          - "delius-core-pre-prod"
-          - "delius-core-prod"
+          - "delius-core-dev-preapproved"
+          - "delius-core-test-preapproved"
+          - "delius-core-training-preapproved"
+          - "delius-core-stage-preapproved"
+          - "delius-core-pre-prod-preapproved"
+          - "delius-core-prod-preapproved"
       TargetHost:
         description: "Backup target host"
         required: true
