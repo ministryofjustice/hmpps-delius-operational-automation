@@ -8,6 +8,7 @@ on:
         required: true
         type: choice
         options:
+          - "delius-core-dev-preapproved"
           - "delius-core-dev"
           - "delius-core-test"
           - "delius-core-training"
