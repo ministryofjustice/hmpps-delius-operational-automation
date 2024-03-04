@@ -3,6 +3,8 @@
 - name: Test
   shell: |
     gh workflow run oracle-db-statistics.yml --ref DBA-651 -f TargetEnvironment=delius-core-dev
+  environment:
+    GH_TOKEN: "'{{ lookup('ansible.builtin.env', 'GH_TOKEN') }}'"
   register: start_statistics_export
   delegate_to: localhost
   become: no
