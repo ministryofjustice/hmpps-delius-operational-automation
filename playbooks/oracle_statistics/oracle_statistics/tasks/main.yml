@@ -1,8 +1,11 @@
 ---
 
+- debug:
+    msg: "'{{ lookup('ansible.builtin.env', 'GITHUB_TOKEN') }}'"
+
 - name: Test
   shell: |
-    gh auth login --with-token
+    echo ${GITHUB_TOKEN} | gh auth login --with-token
     gh workflow run oracle-db-statistics.yml --ref DBA-651 -f TargetEnvironment=delius-core-dev
   environment:
     GITHUB_TOKEN: "'{{ lookup('ansible.builtin.env', 'GITHUB_TOKEN') }}'"
