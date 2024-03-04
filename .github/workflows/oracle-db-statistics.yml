@@ -101,7 +101,7 @@ jobs:
         run: |
           name=$(git config --get user.name)
           email=$(git config --get user.email)
-          echo -e $name $email
+          echo -e "$name $email"
           exit 0
 
       - name: Prepare Target Name
