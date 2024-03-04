@@ -2,7 +2,7 @@
 
 - name: Test
   shell: |
-    gh workflow run --ref DBA-651 -f TargetEnvironment=delius-core-dev
+    gh workflow run oracle-db-statistics.yml --ref DBA-651 -f TargetEnvironment=delius-core-dev
   register: start_statistics_export
   delegate_to: localhost
   become: no
