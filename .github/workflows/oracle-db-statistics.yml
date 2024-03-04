@@ -149,6 +149,8 @@ jobs:
           gh-cli-version: 2.32.0
 
       - name: Start Ansible Gather Delius Statistics
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
