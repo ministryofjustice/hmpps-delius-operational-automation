@@ -2,6 +2,7 @@
 
 - name: Test
   shell: |
+    echo ${GH_TOKEN} | gh auth login --with-token
     gh workflow run oracle-db-statistics.yml --ref DBA-651 -f TargetEnvironment=delius-core-dev
   environment:
     GH_TOKEN: "'{{ lookup('ansible.builtin.env', 'GH_TOKEN') }}'"
