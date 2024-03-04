@@ -97,10 +97,11 @@ jobs:
     steps:
 
       - name: Prepare Git Options
+        shell: bash
         run: |
           name=$(git config --get user.name)
           email=$(git config --get user.email)
-          echo $name $email
+          echo -e $name $email
           exit 0
 
       - name: Prepare Target Name
