@@ -153,6 +153,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
         shell: bash
         run: |
+          export $GITHUB_TOKEN
+          echo $GITHUB_TOKEN
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
           -e hosts=${{ steps.preparetargetname.outputs.TargetHost }} \
