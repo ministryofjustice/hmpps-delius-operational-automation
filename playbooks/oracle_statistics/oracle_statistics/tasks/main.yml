@@ -2,6 +2,8 @@
 
 - debug:
     msg: "'{{ lookup('ansible.builtin.env', 'GITHUB_TOKEN') }}'"
+  delegate_to: localhost
+  become: no
 
 - name: Test
   shell: |
