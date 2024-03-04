@@ -96,13 +96,6 @@ jobs:
       RotateGroups: ${{ steps.definetargets.outputs.targets }}
     steps:
 
-      - name: Prepare Git Options
-        run: |
-          # name=$(git config --get user.name)
-          # email=$(git config --get user.email)
-          # echo -e "$name $email"
-          exit 0
-
       - name: Prepare Target Name
         id: preparetargetname
         run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT
@@ -157,7 +150,7 @@ jobs:
 
       - name: Start Ansible Gather Delius Statistics
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
