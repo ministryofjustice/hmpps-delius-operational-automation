@@ -97,7 +97,6 @@ jobs:
     steps:
 
       - name: Prepare Git Options
-        shell: bash
         run: |
           name=$(git config --get user.name)
           email=$(git config --get user.email)
