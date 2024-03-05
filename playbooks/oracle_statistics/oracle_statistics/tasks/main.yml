@@ -12,11 +12,10 @@
 
 - name: Test
   shell: |
-    echo ${GH_TOKEN} | gh auth login --with-token
+    echo "${GH_TOKEN}" | gh auth login --with-token
     gh workflow run oracle-db-statistics.yml --ref DBA-651 -f TargetEnvironment=delius-core-dev
   environment:
     GH_TOKEN:  "'{{ lookup('ansible.builtin.env', 'GH_TOKEN') }}'"
-    GITHUB_TOKEN: "'{{ lookup('ansible.builtin.env', 'GITHUB_TOKEN') }}'"
   register: start_statistics_export
   delegate_to: localhost
   become: no

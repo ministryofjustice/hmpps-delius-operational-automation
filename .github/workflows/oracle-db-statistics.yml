@@ -149,15 +149,9 @@ jobs:
           gh-cli-version: 2.32.0
 
       - name: Start Ansible Gather Delius Statistics
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
         shell: bash
         run: |
-          export $GITHUB_TOKEN
-          export $GH_TOKEN
-          echo $GITHUB_TOKEN
-          echo $GH_TOKEN
+          export GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
           -e hosts=${{ steps.preparetargetname.outputs.TargetHost }} \
