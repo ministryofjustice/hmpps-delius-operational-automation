@@ -34,7 +34,7 @@ on:
           - "32"
       ExportBackupStatisticsToS3:
         description: "Use Data Pump to export a backup of the current statistics and copy the file to S3."
-        type: string
+        type: choice
         default: "no"
         options:
           - "no"
