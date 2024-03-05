@@ -1,22 +1,4 @@
 ---
-
-- debug:
-    msg: "'{{ lookup('ansible.builtin.env', 'GH_TOKEN') }}'"
-  delegate_to: localhost
-  become: no
-
-- name: Test
-  shell: |
-    # echo "${GH_TOKEN}" | gh auth login --with-token
-    gh workflow run oracle-db-statistics.yml --ref DBA-651 -f TargetEnvironment=delius-core-dev
-  environment:
-    GH_TOKEN:  "'{{ lookup('ansible.builtin.env', 'GH_TOKEN') }}'"
-  register: start_statistics_export
-  delegate_to: localhost
-  become: no
-
-- meta: end_play
-
 - name: Set Backup Bucket
   set_fact:
     statistics_backup_bucket: "{{ simple_environment_name }}-oracle-statistics-backup-data"
