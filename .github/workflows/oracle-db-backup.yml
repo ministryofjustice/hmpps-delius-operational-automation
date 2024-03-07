@@ -135,8 +135,8 @@ jobs:
     environment: ${{needs.build_rman_target_name.outputs.TargetEnvironment}}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.38.0
-      options: --user root
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.39.0-beta.0
+      # options: --user root
     timeout-minutes: 1440
     env:
       backup_command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
