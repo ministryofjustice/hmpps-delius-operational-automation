@@ -1,107 +1,22 @@
-- name: Find the Common Terraform Variables File
-  find:
-    paths: "{{ inventory_dir | regex_replace('^(.*)/hmpps-env-configs/.*','\\1') + '/hmpps-env-configs/common' }}"
-    patterns: common.tfvars
-    recurse: no
-  register: common_tfvars_file
-  delegate_to: localhost
-  become: no
-
-- name: Extract AWS Account IDs Data Definition from Common Terraform Variables
-  set_fact:
-     aws_account_ids_data: "{{ (lookup('file',common_tfvars_file.files[0].path).split('}') | select('regex','aws_account_ids') | regex_replace('aws_account_ids\\s*=\\s*{','') | regex_replace('\\\\r','')).split('\\n') }}"
-
-- name: Convert AWS Account IDs Data into Ansible Dictionary
-  set_fact:
-     aws_account_ids: "{{ aws_account_ids | default({}) | combine({(item.split('=')[0] | trim): (item.split('=')[1] | trim | replace('\"','') )}) }}"
-  loop: "{{ aws_account_ids_data }}"
-  when: item is search(".*=.*")
-
-- name: Get Engineering Account IDs from Terraform HCL File
-  set_fact:
-      eng_dev_id: "{{ lookup('file',common_tfvars_file.files[0].path) | replace('\n',' ') | regex_replace('.*(aws_engineering_account_ids = \\{.*?\\}).*','\\1') | regex_replace('.*non-prod\\s+=\\s+\\\"(\\d+)\\\".*','\\1') }}"
-      eng_prod_id: "{{ lookup('file',common_tfvars_file.files[0].path) | replace('\n',' ') | regex_replace('.*(aws_engineering_account_ids = \\{.*?\\}).*','\\1') | regex_replace('.*\\s+prod\\s+=\\s+\\\"(\\d+)\\\".*','\\1') }}"
-
-# The Terraform Environment Names and Ansible Environment Names do not match exactly, so use the Environment ID 
-# to find the name of the import source environment as known to Ansible
-- name: Find the Ansible Zone Files Containing Remote Account ID
-  find:
-    paths: "{{ inventory_dir | regex_replace('^(.*)/hmpps-env-configs/.*','\\1') + '/hmpps-env-configs' }}"
-    patterns: zone_file.yml
-    recurse: yes
-    contains: ".*account_id\\s*:\\s*\\\"+{{ aws_account_ids[import_source_environment] }}\\\".*"
-  register: all_zone_files
-  delegate_to: localhost
-  become: no
-
 - name: Get Remote Environment Name
   set_fact:
-     remote_environment_name: "{{ all_zone_files.files[0].path | regex_replace('^(.*)/hmpps-env-configs/(.*?)/.*','\\2') }}"
-
-- name: Check if AWS Client exists on Ansible Controller
-  shell: aws --version
-  register: aws_cli_exists
-  ignore_errors: true
-  delegate_to: localhost
-  become: no
-
-- name: Install AWS cli
-  shell:  |
-          apt-get update
-          apt install -y awscli
-          apt install -y jq
-  when: aws_cli_exists.rc != 0
-  run_once: true
-  tags: awscli
-  delegate_to: localhost
-  become: no
-
-- name: Get Relevant Bastion for Database Instances in this Environment
-  shell: aws ec2 describe-instances --query "Reservations[].Instances[].Tags[?Key=='bastion_inventory']" --filters "Name=tag:Database,Values=*-db-?" --output text --region "{{ region }}" | sort | uniq -c | sort -n -k1 | tail -1 | awk '{print $3}'
-  environment:
-  register: bastion_inventory
-  changed_when: false
-  delegate_to: localhost
-  become: no
-
-# We need elevated privileges to run RDS commands but we cannot directly assume the Terraform Role in this account (this is not permitted),
-# So instead we assume the corresponding Engineering Terraform account and use this to assume the account specific role
-- community.aws.sts_assume_role:
-    role_arn: "arn:aws:iam::{{ eng_dev_id if bastion_inventory.stdout == 'dev' else eng_prod_id }}:role/terraform"
-    role_session_name: "Statistics-Export-for-{{ import_source_environment }}"
-  register: assumed_engineering_role
-  delegate_to: localhost
-  become: no
-
-- community.aws.sts_assume_role:
-    role_arn: "arn:aws:iam::{{ aws_account_ids[import_source_environment] }}:role/terraform"
-    role_session_name: "Statistics-Export-for-{{ import_source_environment }}"
-    aws_access_key: "{{ assumed_engineering_role.sts_creds.access_key }}"
-    aws_secret_key: "{{ assumed_engineering_role.sts_creds.secret_key }}"
-    security_token: "{{ assumed_engineering_role.sts_creds.session_token }}"
-  register: assumed_role
-  delegate_to: localhost
-  become: no
+     remote_environment_name: "{{ (import_source_environment | upper).split('-')[-1] }}"
 
 # Replace DELIUS_STATS at the start of the StatId with the environment name so the source may be tracked
 - name: Default Statistics Identifier
   set_fact:
-      remote_statistics_identifier: "{{ statid | regex_replace('^(DELIUS_STATS)',(remote_environment_name | replace('-','_') | upper)) }}"
+      remote_statistics_identifier: "{{ statid | regex_replace('^(DELIUS_STATS)', remote_environment_name }}"
 
 # Only check if Statistics have already been exported if a Statistics identifier has been specified
 - name: Check if Named Export {{ remote_statistics_identifier }} of Statistics Already Exists on Remote Bucket
   amazon.aws.s3_object:
-    bucket: "{{ region }}-{{ remote_environment_name }}-oracle-statistics-backup-data"
+    bucket: "{{ remote_environment_name }}-oracle-statistics-backup-data"
     prefix: "datapump/{{ remote_statistics_identifier }}.dmp"
     mode: list
   register: get_already_exists  
   when: statid is defined
   delegate_to: localhost
   become: no
-  environment:
-    AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
-    AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
-    AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
 
 - name: Set Export Already Run if Backup Already Exists on S3
   set_fact:
@@ -116,47 +31,11 @@
 
       - name: Start Statistics Export for {{ remote_environment_name }}
         shell: |
-              aws ssm start-automation-execution --document-name "arn:aws:ssm:{{ region }}:{{ aws_account_ids[import_source_environment] }}:automation-definition/delius-oracle-statistics" --region {{ region }} --parameters "GatherNewStatistics=\"no\",ExportBackupStatisticsToS3=\"yes\",StatisticsIdentifier=\"{{ remote_statistics_identifier }}\"" | jq --raw-output '.AutomationExecutionId'
+            echo
+            # aws ssm start-automation-execution --document-name "arn:aws:ssm:{{ region }}:{{ aws_account_ids[import_source_environment] }}:automation-definition/delius-oracle-statistics" --region {{ region }} --parameters "GatherNewStatistics=\"no\",ExportBackupStatisticsToS3=\"yes\",StatisticsIdentifier=\"{{ remote_statistics_identifier }}\"" | jq --raw-output '.AutomationExecutionId'
         register: start_statistics_export
         delegate_to: localhost
         become: no
-        environment:
-          AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
-          AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
-          AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
-
-      - name: Start Output
-        debug:  var=start_statistics_export
-
-      - name: Set Automation ID
-        set_fact:
-            automation_id: "{{ start_statistics_export.stdout }}"
-
-      - fail:
-          msg: "Audit Propagation CodeBuild failed to start."
-        when: automation_id == ''
-
-      - name: Report Automation ID
-        debug:
-          msg: "Running Database Statistics Export in ({{ remote_environment_name }}).  Automation ID is {{ automation_id }}."
-
-      - name: Wait for Export of Database Statistics
-        shell: |
-              aws ssm describe-automation-step-executions --automation-execution-id "{{ automation_id }}" --region=eu-west-2 --filters "Key=StepName,Values=CheckBuildStatus" | jq --raw-output '.StepExecutions[0].StepStatus'
-        register:  automation_status
-        until: automation_status.stdout == 'Success' or automation_status.stdout == 'Failed'
-        retries: 50
-        delay: 30
-        delegate_to: localhost
-        become: no
-        environment:
-          AWS_ACCESS_KEY_ID: "{{ assumed_role.sts_creds.access_key }}"
-          AWS_SECRET_ACCESS_KEY: "{{ assumed_role.sts_creds.secret_key }}"
-          AWS_SESSION_TOKEN: "{{ assumed_role.sts_creds.session_token }}"
-
-      - fail:
-          msg: "Failed to complete Database Statistics Export.   See Automation ID {{ automation_id }}"
-        when: automation_status.stdout != 'Success'
 
 # We need to get the Canonical ID of the current account to grant permission when copying the remote statistics dump to the local environment
 - name: Get Canonical ID
@@ -167,17 +46,13 @@
 # Now we need to copy the dump file to the current environment (use the engineering terraform role for this as it has access rights to both environments)
 - name: Copy Statistics Dump from {{ remote_environment_name }} to {{ environment_name }}
   shell: |
-         aws s3 cp s3://{{ region }}-{{ remote_environment_name }}-oracle-statistics-backup-data/datapump/{{ remote_statistics_identifier }}.{{ item }} s3://{{ statistics_backup_bucket }}/datapump/{{ remote_statistics_identifier }}.{{ item }} --grants full=id={{ get_canonical_id.stdout }}
+         aws s3 cp s3://{{ remote_environment_name }}-oracle-statistics-backup-data/datapump/{{ remote_statistics_identifier }}.{{ item }} s3://{{ statistics_backup_bucket }}/datapump/{{ remote_statistics_identifier }}.{{ item }} --grants full=id={{ get_canonical_id.stdout }}
   delegate_to: localhost
   become: no
   loop: ['dmp','log']
-  environment:
-    AWS_ACCESS_KEY_ID: "{{ assumed_engineering_role.sts_creds.access_key }}"
-    AWS_SECRET_ACCESS_KEY: "{{ assumed_engineering_role.sts_creds.secret_key }}"
-    AWS_SESSION_TOKEN: "{{ assumed_engineering_role.sts_creds.session_token }}"
 
 # Now we can download the dumpfile into the local database host
-- name: Download {{ remote_environment_name }} Statistics Dump to {{ environment_name }} Database Server
+- name: Download {{ remote_environment_name }} Statistics Dump to {{ simple_environment_name }} Database Server
   amazon.aws.s3_object:
     bucket: "{{ statistics_backup_bucket }}"
     object: "datapump/{{ remote_statistics_identifier }}.{{ item }}"
