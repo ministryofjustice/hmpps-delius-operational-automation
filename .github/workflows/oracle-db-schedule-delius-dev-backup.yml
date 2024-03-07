@@ -19,7 +19,7 @@ jobs:
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
     with:
-      TargetEnvironment: delius-core-dev-preapproved
+      TargetEnvironment: delius-core-dev
       TargetHost: delius_primarydb
       Period: ${{ needs.prepare-parameters.outputs.Period }}
     secrets: inherit
