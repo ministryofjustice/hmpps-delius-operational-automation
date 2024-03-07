@@ -12,7 +12,7 @@ RUN set -ex && apk add --no-cache make git gcc libc-dev curl bash zip && \
   make release
 
 # Stage 2 of multi-stage docker file - build the final image that copies in the plugin built above
-FROM python:3-alpine3.18
+FROM python:3-alpine3.19
 
 LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-webops@digital.justice.gov.uk)" \
   org.opencontainers.image.vendor="Ministry of Justice" \
@@ -22,11 +22,14 @@ LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-w
 
 # Update and add packages
 RUN apk update; \
-  apk add gcc musl-dev python3-dev libffi-dev openssl-dev cargo; \
-  apk add python3-dev py-setuptools build-base libffi-dev openssl-dev openssh-client git make jq bash curl; 
+  apk add gcc musl-dev python3-dev libffi-dev openssl-dev; \
+  apk add python3-dev py-setuptools build-base libffi-dev openssl-dev openssh-client git make jq bash curl;
+
+# Upgrade libexpat with fix to CVE-2023-52425. Step should be removed when we move away from alpine 3.18
+RUN apk upgrade libexpat>2.6.0
 
 # Pip
-RUN pip install -U pip; 
+RUN pip install -U pip;
 COPY requirements.txt requirements.yml ./
 RUN pip install --upgrade -r requirements.txt \
   && ansible-galaxy collection install -r requirements.yml \
