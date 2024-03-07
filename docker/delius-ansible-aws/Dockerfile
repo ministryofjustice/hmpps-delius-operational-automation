@@ -35,4 +35,6 @@ COPY  --from=ssm-builder /go/src/github.com/session-manager-plugin/bin/linux_amd
 
 RUN adduser -D -u 1000 ansible
 
-USER ansible
+# USER ansible
+
+ENTRYPOINT /bin/bash
