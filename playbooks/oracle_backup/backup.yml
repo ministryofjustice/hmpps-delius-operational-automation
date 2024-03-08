@@ -9,12 +9,15 @@
   become_method: sudo
 
   tasks:
+
+    - debug:
+        var: hostvars[inventory_hostname]
+
     - shell: |
              echo $$
-             pstree -p -H $$
-             echo
-             env
       register: get_connection
+      vars:
+         ansible_aws_ssm_region: eu-west-2
 
     - debug:
         msg: get_hostname
