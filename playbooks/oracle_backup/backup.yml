@@ -9,10 +9,6 @@
   become_method: sudo
 
   tasks:
-
-    - debug:
-        var: hostvars[inventory_hostname]
-
     - shell: |
              echo $$
       register: get_connection
