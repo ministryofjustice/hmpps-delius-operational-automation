@@ -9,5 +9,5 @@
   become_method: sudo
 
   tasks:
-      - debug:
-           msg: "Do Nothing"
+    - debug:
+        msg: "NOT RUNNING"
