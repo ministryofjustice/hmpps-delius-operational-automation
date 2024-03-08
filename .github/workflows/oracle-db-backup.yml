@@ -211,6 +211,8 @@ jobs:
           echo ++++++++++++++++++++++++++++++++
           cat ${ANSIBLE_CONFIG}
           echo ++++++++++++++++++++++++++++++++
+          aws sts get-caller-identity
+          echo ++++++++++++++++++++++++++++++++
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $backup_command -i $inventory -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
 
