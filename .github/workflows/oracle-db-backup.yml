@@ -152,6 +152,12 @@ jobs:
     continue-on-error: false
     steps:
 
+      - name: Output Collection
+        shell: bash
+        run: |
+          COLLECT=$(ansible-galaxy collection list community.aws)
+          echo -e $COLLECT
+
       - name: Checkout hmpps-delius-operation-automation
         uses: actions/checkout@v4
         with:
