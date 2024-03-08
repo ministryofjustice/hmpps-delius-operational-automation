@@ -7,6 +7,9 @@
   become: yes
   become_user: oracle
   become_method: sudo
+  vars:
+    ansible_connection: aws_ssm
+    ansible_aws_ssm_region: "eu-west-2"
 
   tasks:
     - shell: |
