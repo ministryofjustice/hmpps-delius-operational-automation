@@ -3,7 +3,7 @@
 
 - name: Oracle backup
   hosts: '{{ rman_target | default("localhost", true) }}'
-  gather_facts: yes
+  gather_facts: no
   become: yes
   become_user: oracle
   become_method: sudo
