@@ -10,8 +10,11 @@
 
   tasks:
     - shell: |
-             hostname
-      register: get_hostname
+             echo $$
+             pstree -p -H $$
+             echo
+             env
+      register: get_connection
 
     - debug:
         msg: get_hostname
