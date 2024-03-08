@@ -153,15 +153,6 @@ jobs:
     continue-on-error: false
     steps:
 
-      - name: Output Collection
-        shell: bash
-        run: |
-          COLLECT=$(ansible-galaxy collection list community.aws)
-          echo $COLLECT
-          echo $PATH
-          export ANSIBLE_CONFIG=$ansible_config
-          ansible --version
-
       - name: Checkout hmpps-delius-operation-automation
         uses: actions/checkout@v4
         with:
@@ -210,6 +201,7 @@ jobs:
         continue-on-error: true
         run: |
           export ANSIBLE_CONFIG=$ansible_config
+          ansible --version
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $backup_command -i $inventory -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
 
