@@ -207,6 +207,10 @@ jobs:
         continue-on-error: true
         run: |
           export ANSIBLE_CONFIG=$ansible_config
+          echo ${ANSIBLE_CONFIG}
+          echo ++++++++++++++++++++++++++++++++
+          cat ${ANSIBLE_CONFIG}
+          echo ++++++++++++++++++++++++++++++++
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $backup_command -i $inventory -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
 
