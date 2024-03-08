@@ -159,6 +159,8 @@ jobs:
           COLLECT=$(ansible-galaxy collection list community.aws)
           echo $COLLECT
           echo $PATH
+          export ANSIBLE_CONFIG=$ansible_config
+          ansible --version
 
       - name: Checkout hmpps-delius-operation-automation
         uses: actions/checkout@v4
