@@ -135,7 +135,7 @@ jobs:
     environment: ${{needs.build_rman_target_name.outputs.TargetEnvironment}}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.40.0-beta.0
       options: --user root
     timeout-minutes: 1440
     env:
@@ -202,6 +202,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ansible --version
+          ansible-galaxy collection list community.aws
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $backup_command -i $inventory -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
 
