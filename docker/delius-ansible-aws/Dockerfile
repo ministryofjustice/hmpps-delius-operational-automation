@@ -21,9 +21,8 @@ LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-w
   org.opencontainers.image.source="https://github.com/ministryofjustice/hmpps-delius-operational-automation"
 
 RUN apk update --no-cache \
-    && apk add gcc musl-dev python3-dev libffi-dev openssl-dev cargo \
-    && apk add python3-dev py-setuptools build-base libffi-dev openssl-dev openssh-client git make jq bash curl \
-    && apk upgrade --no-cache
+    && apk upgrade --no-cache \
+    && apk add gcc musl-dev python3-dev py-setuptools build-base libffi-dev openssl-dev openssh-client git make jq bash curl
 
 # Pip
 RUN pip install -U pip;
