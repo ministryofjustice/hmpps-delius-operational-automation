@@ -39,3 +39,5 @@ RUN adduser -D -u 1000 ansible
 # USER ansible
 
 ENTRYPOINT /bin/bash
+
+ENV PATH=${PATH}:/root/.ansible
