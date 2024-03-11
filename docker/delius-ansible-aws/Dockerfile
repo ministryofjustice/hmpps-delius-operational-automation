@@ -38,4 +38,4 @@ RUN adduser -D -u 1000 ansible
 
 # USER ansible
 
-ENTRYPOINT /bin/bash
+# ENTRYPOINT /bin/bash
