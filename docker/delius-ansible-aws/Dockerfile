@@ -22,7 +22,7 @@ LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-w
 
 RUN apk update --no-cache \
     && apk upgrade --no-cache \
-    && apk add gcc musl-dev python3-dev py-setuptools build-base libffi-dev openssl-dev openssh-client git make jq bash curl
+    && apk add git jq bash curl
 
 # Pip
 RUN pip install -U pip;
