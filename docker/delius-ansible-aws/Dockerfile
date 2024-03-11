@@ -33,7 +33,3 @@ RUN pip install --upgrade -r requirements.txt \
 
 # Install session manager
 COPY  --from=ssm-builder /go/src/github.com/session-manager-plugin/bin/linux_amd64_plugin/session-manager-plugin /usr/local/bin/
-
-RUN adduser -D -u 1000 ansible
-
-USER ansible
