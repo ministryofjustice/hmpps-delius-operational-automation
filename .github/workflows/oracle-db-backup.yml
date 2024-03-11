@@ -136,7 +136,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.40.0
-      options: --user root
     timeout-minutes: 1440
     env:
       backup_command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
