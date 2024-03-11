@@ -22,7 +22,7 @@ LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-w
 
 RUN apk update --no-cache \
     && apk upgrade --no-cache \
-    && apk add git jq bash curl
+    && apk add jq bash
 
 # Pip
 RUN pip install -U pip;
@@ -36,6 +36,4 @@ COPY  --from=ssm-builder /go/src/github.com/session-manager-plugin/bin/linux_amd
 
 RUN adduser -D -u 1000 ansible
 
-# USER ansible
-
-# ENTRYPOINT /bin/bash
+USER ansible
