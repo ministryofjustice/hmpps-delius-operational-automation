@@ -39,7 +39,7 @@ jobs:
     environment: development # hard-coded this while spiking this out
     runs-on: ubuntu-22.04
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.38.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.40.0
 
     steps:
       - name: Checkout Code
