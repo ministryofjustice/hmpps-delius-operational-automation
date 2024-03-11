@@ -36,7 +36,7 @@ jobs:
   # Start deployment container job based on the build delius-ansible-aws image
   deployment:
     name: Test automation task
-    environment: development # hard-coded this while spiking this out
+    environment: delius-core-dev-preapproved # hard-coded this while spiking this out
     runs-on: ubuntu-22.04
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.40.0-beta.1
