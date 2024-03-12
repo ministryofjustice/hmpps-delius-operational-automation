@@ -153,7 +153,7 @@ jobs:
         run: |
           export GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
           export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory \
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e hosts=${{ steps.preparetargetname.outputs.TargetHost }} \
           -e import_source_environment=${{ github.event.inputs.ImportSourceEnvironment }} \
           -e gather_new_statistics=${{ github.event.inputs.GatherNewStatistics }} \
