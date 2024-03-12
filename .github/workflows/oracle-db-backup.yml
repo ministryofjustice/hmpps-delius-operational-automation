@@ -184,7 +184,7 @@ jobs:
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-modernisation-platform-facts
           path: roles
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -201,7 +201,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $backup_command -i $inventory -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
+          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
 
       - name: Start Ansible Backup On First Standby (If Exists) If Primary Backup Failed
         if: ${{ steps.backup.outcome == 'failure' && contains(env.RmanTarget,'primarydb') }}
@@ -211,7 +211,7 @@ jobs:
           then
             export ANSIBLE_CONFIG=$ansible_config
             ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-            $backup_command -i $inventory -e rman_target=${RmanTarget/primarydb/standbydb1} -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
+            $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget/primarydb/standbydb1} -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
           else
             echo "Standby Not Configured"
           fi
@@ -220,12 +220,12 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $validate_command -i $inventory -e rman_target=$RmanTarget -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
+          $validate_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
 
       - name: Start Ansible Delete DBIDs Not In Use
         if: ${{ env.DeleteDefunct == 'yes' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $delete_dbids_command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
+          $delete_dbids_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget $VerboseOutput
           
