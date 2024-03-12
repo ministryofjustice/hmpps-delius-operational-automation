@@ -12,7 +12,7 @@ RUN set -ex && apk add --no-cache make git gcc libc-dev curl bash zip && \
   make release
 
 # Stage 2 of multi-stage docker file - build the final image that copies in the plugin built above
-FROM python:3-alpine3.18
+FROM python:3-alpine3.19
 
 LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-webops@digital.justice.gov.uk)" \
   org.opencontainers.image.vendor="Ministry of Justice" \
@@ -20,13 +20,12 @@ LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-w
   org.opencontainers.image.description="delius-ansible-aws" \
   org.opencontainers.image.source="https://github.com/ministryofjustice/hmpps-delius-operational-automation"
 
-# Update and add packages
-RUN apk update; \
-  apk add gcc musl-dev python3-dev libffi-dev openssl-dev cargo; \
-  apk add python3-dev py-setuptools build-base libffi-dev openssl-dev openssh-client git make jq bash curl; 
+RUN apk update --no-cache \
+    && apk upgrade --no-cache \
+    && apk add jq bash git
 
 # Pip
-RUN pip install -U pip; 
+RUN pip install -U pip;
 COPY requirements.txt requirements.yml ./
 RUN pip install --upgrade -r requirements.txt \
   && ansible-galaxy collection install -r requirements.yml \
@@ -35,15 +34,6 @@ RUN pip install --upgrade -r requirements.txt \
 # Install session manager
 COPY  --from=ssm-builder /go/src/github.com/session-manager-plugin/bin/linux_amd64_plugin/session-manager-plugin /usr/local/bin/
 
-#  Tidy up
-RUN apk del python3-dev build-base py-setuptools libffi-dev openssl-dev; \
-  rm -rf ~/.cache ~/.gems; \
-  rm -rf /var/cache/apk/*; \
-  apk update
+RUN adduser -D -u 1001 ansible
 
-
-RUN adduser -D -u 1000 ansible
-
-# USER ansible
-
-ENTRYPOINT /bin/bash
+USER ansible

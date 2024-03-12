@@ -1,0 +1,8 @@
+---
+# Run Interim Patching
+- hosts: "{{ target_hosts }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+    - oracle_interim_patch
