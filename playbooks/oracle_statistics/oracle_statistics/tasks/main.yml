@@ -61,6 +61,7 @@
 # If we are importing statistics from a remote database (import_source_environment is not "None")
 # then we want to take a backup of the current local statistics before doing so but do not use the
 # same StatId as this will lead to conflicting row - instead add a prefix to the StatId
+
 - name: Define Statistics Identifier for Local Backup Prior to Import
   set_fact:
       statid_for_backup: "{{ statid if (import_source_environment == 'None') else ('BKP_' + ansible_date_time.iso8601_basic_short + '_PRE_' + (import_source_environment | replace('-','_') | upper ))  |  truncate(30,true,'') }}"
@@ -79,7 +80,6 @@
       loop_var: schema
   tags: backup
 
-# If the statistics are to be imported elsewhere (import source environment is not "None"), copy the backup dump to S3
 - name: Export Backup Statistics to S3
   when: export_to_s3 | bool
   block:
@@ -99,9 +99,20 @@
           mode: put
         loop: ['dmp','log']
 
-# If the Import Source Environment is Set then we run a job to pull over the stats from that environment and import them
+      - name: End Play If Exporting From Remote Environment
+        when: import_source_environment != 'None'
+        block:
+
+          - debug: 
+              msg: "Exported Statistics From Remote Environment"
+
+          - meta: end_play
+
 - name: Import Statistics from Other Environment
   include_tasks: import_remote_stats.yml
+  vars:
+    remote_statistics_identifier: "{{ statistics_identifier }}"
+    remote_environment_name: "{{ (import_source_environment | upper).split('-')[-1] }}"
   when: import_source_environment != 'None'
 
 - name: Gather New Statistics
