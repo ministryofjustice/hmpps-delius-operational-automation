@@ -43,8 +43,8 @@
     - name: Set Alfresco URL Specific for this environment
       script: set_alfresco_url.sh
       environment:
-        ALFRESCO_URL: "{{ spg_document_rest_service_public_url }}"
-      when: spg_document_rest_service_public_url !=  ( getalfrescourl.stdout | default('NOT CONFIGURED') )
+        ALFRESCO_URL: "{{ spg_document_rest_service_public_url | trim }}"
+      when: spg_document_rest_service_public_url | trim !=  ( getalfrescourl.stdout | default('NOT CONFIGURED') )
 
     - name: Create Access Control Entry for the Alfresco Host
       script: create_host_ace.sh
