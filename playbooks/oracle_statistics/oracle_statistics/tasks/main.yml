@@ -112,7 +112,7 @@
   include_tasks: import_remote_stats.yml
   vars:
     remote_statistics_identifier: "{{ statistics_identifier }}"
-    remote_environment_name: "{{ (import_source_environment | upper).split('-')[-1] }}"
+    remote_environment_name: "{{ (import_source_environment | lower).split('-')[-1] }}"
   when: import_source_environment != 'None'
 
 - name: Gather New Statistics
