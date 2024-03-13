@@ -1,13 +1,4 @@
-- name: Get Remote Environment Name
-  set_fact:
-     remote_environment_name: "{{ (import_source_environment | upper).split('-')[-1] }}"
-
-# Replace DELIUS_STATS at the start of the StatId with the environment name so the source may be tracked
-- name: Default Statistics Identifier
-  set_fact:
-      remote_statistics_identifier: "{{ statid | regex_replace('^(DELIUS_STATS)', remote_environment_name }}"
-
-# Only check if Statistics have already been exported if a Statistics identifier has been specified
+ # Only check if Statistics have already been exported if a Statistics identifier has been specified
 - name: Check if Named Export {{ remote_statistics_identifier }} of Statistics Already Exists on Remote Bucket
   amazon.aws.s3_object:
     bucket: "{{ remote_environment_name }}-oracle-statistics-backup-data"
@@ -15,8 +6,6 @@
     mode: list
   register: get_already_exists  
   when: statid is defined
-  delegate_to: localhost
-  become: no
 
 - name: Set Export Already Run if Backup Already Exists on S3
   set_fact:
@@ -24,31 +13,10 @@
   when: 
     - statid is defined
     - ('datapump/' + remote_statistics_identifier + '.dmp') in get_already_exists.s3_keys
-  
-- name: Export Remote Statistics if Not Already Done
-  when: not (already_exists | default(false))
-  block:
-
-      - name: Start Statistics Export for {{ remote_environment_name }}
-        shell: |
-            echo
-            # aws ssm start-automation-execution --document-name "arn:aws:ssm:{{ region }}:{{ aws_account_ids[import_source_environment] }}:automation-definition/delius-oracle-statistics" --region {{ region }} --parameters "GatherNewStatistics=\"no\",ExportBackupStatisticsToS3=\"yes\",StatisticsIdentifier=\"{{ remote_statistics_identifier }}\"" | jq --raw-output '.AutomationExecutionId'
-        register: start_statistics_export
-        delegate_to: localhost
-        become: no
-
-# We need to get the Canonical ID of the current account to grant permission when copying the remote statistics dump to the local environment
-- name: Get Canonical ID
-  shell: aws s3api list-buckets --query Owner.ID --output text
-  register: get_canonical_id
-  changed_when: false
          
-# Now we need to copy the dump file to the current environment (use the engineering terraform role for this as it has access rights to both environments)
+# Now we need to copy the dump file to the current environment
 - name: Copy Statistics Dump from {{ remote_environment_name }} to {{ environment_name }}
-  shell: |
-         aws s3 cp s3://{{ remote_environment_name }}-oracle-statistics-backup-data/datapump/{{ remote_statistics_identifier }}.{{ item }} s3://{{ statistics_backup_bucket }}/datapump/{{ remote_statistics_identifier }}.{{ item }} --grants full=id={{ get_canonical_id.stdout }}
-  delegate_to: localhost
-  become: no
+  shell: aws s3 cp s3://{{ remote_environment_name }}-oracle-statistics-backup-data/datapump/{{ remote_statistics_identifier }}.{{ item }} s3://{{ statistics_backup_bucket }}/datapump/{{ remote_statistics_identifier }}.{{ item }} --grants full=id={{ get_canonical_id.stdout }}
   loop: ['dmp','log']
 
 # Now we can download the dumpfile into the local database host
@@ -70,11 +38,11 @@
         . ~/.bash_profile
         impdp \"/ as sysdba\" dumpfile={{ remote_statistics_identifier }}.dmp logfile={{ remote_statistics_identifier }}.import.log directory=DATA_PUMP_DIR tables=DELIUS_USER_SUPPORT.STATISTICS_BACKUP table_exists_action=APPEND
 
-- name: Import Schema Statistics from Backup Table into Data Dictionary using Statid {{ remote_statistics_identifier }}
-  script: import_schema_statistics.sh "{{ schema }}" "{{ remote_statistics_identifier }}"
-  register: import_schema_statistics
-  changed_when: import_schema_statistics.stdout is search('.*Imported.*')
-  loop: "{{ all_schemas | upper }}"
-  loop_control:
-      loop_var: schema
+# - name: Import Schema Statistics from Backup Table into Data Dictionary using Statid {{ remote_statistics_identifier }}
+#   script: import_schema_statistics.sh "{{ schema }}" "{{ remote_statistics_identifier }}"
+#   register: import_schema_statistics
+#   changed_when: import_schema_statistics.stdout is search('.*Imported.*')
+#   loop: "{{ all_schemas | upper }}"
+#   loop_control:
+#       loop_var: schema
   
