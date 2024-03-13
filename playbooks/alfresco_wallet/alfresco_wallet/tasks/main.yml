@@ -321,7 +321,7 @@
 
     - name: Display Alfresco Response
       debug:
-         var: test_connectivity.stdout
+        var: test_connectivity.stdout
 
     - fail:
         msg: "Forbidden URL"
