@@ -317,3 +317,12 @@
     - name: Poll Alfresco from Database to Check Connectivity
       script: test_connectivity.sh
       changed_when: false
+      register: test_connectivity
+
+    - name: Display Alfresco Response
+      debug:
+         var: test_connectivity.stdout
+
+    - fail:
+        msg: "Forbidden URL"
+      when: test_connectivity.stdout is search('.*403 Forbidden.*')
