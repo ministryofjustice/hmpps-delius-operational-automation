@@ -1,18 +1,18 @@
 ---
 - name: Create directory for startup scripts
   file:
-     path: "{{ startup_scripts_dir }}"
-     state: directory
-     owner: "{{ rdbms_service_user.name }}"
-     group: "{{ rdbms_service_user.group }}"
+    path: "{{ startup_scripts_dir }}"
+    state: directory
+    owner: "{{ rdbms_service_user.name }}"
+    group: "{{ rdbms_service_user.group }}"
 
 - name: Install ADG Startup Re-Run Script
   copy:
-     src: rerun_adg_startup.sh
-     dest: "{{ startup_scripts_dir }}"
-     mode: 0700
-     owner: "{{ rdbms_service_user.name }}"
-     group: "{{ rdbms_service_user.group }}"
+    src: rerun_adg_startup.sh
+    dest: "{{ startup_scripts_dir }}"
+    mode: 0700
+    owner: "{{ rdbms_service_user.name }}"
+    group: "{{ rdbms_service_user.group }}"
 
 # Job to attempt to restart ADG database startup if it has failed
 # due to host starting before the primary
