@@ -92,7 +92,7 @@
         tags: backup
 
       - name: Copy Backup Statistics Dump File to S3
-        amazon.aws.aws_s3:
+        amazon.aws.s3_object:
           bucket: "{{ statistics_backup_bucket }}"
           object: "/datapump/{{ statid }}.{{ item }}"
           src: "{{ get_dump_location.stdout | trim }}/statistics_backup.{{ item }}"
