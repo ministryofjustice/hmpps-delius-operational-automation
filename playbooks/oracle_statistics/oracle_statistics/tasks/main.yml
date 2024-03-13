@@ -64,7 +64,7 @@
 
 - name: Define Statistics Identifier for Local Backup Prior to Import
   set_fact:
-      statid_for_backup: "{{ statid if (import_source_environment == 'None') else ('BKP_' + ansible_date_time.iso8601_basic_short + '_PRE_' + (import_source_environment | replace('-','_') | upper ))  |  truncate(30,true,'') }}"
+      statid_for_backup: "{{ statid if (import_source_environment == 'None' or (import_source_environment != 'None' and export_to_s3 | bool ))  else ('BKP_' + ansible_date_time.iso8601_basic_short + '_PRE_' + (import_source_environment | replace('-','_') | upper ))  |  truncate(30,true,'') }}"
 
 - name: Define Statistics Identifier for Local Backup Prior to Gathering
   set_fact:
