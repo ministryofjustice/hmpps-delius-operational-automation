@@ -13,9 +13,15 @@
   when: 
     - statid is defined
     - ('datapump/' + remote_statistics_identifier + '.dmp') in get_already_exists.s3_keys
-         
+
+# We need to get the Canonical ID of the current account to grant permission when copying the remote statistics dump to the local environment
+- name: Get Canonical ID
+  shell: aws s3api list-buckets --query Owner.ID --output text
+  register: get_canonical_id
+  changed_when: false
+
 # Now we need to copy the dump file to the current environment
-- name: Copy Statistics Dump from {{ remote_environment_name }} to {{ environment_name }}
+- name: Copy Statistics Dump from {{ remote_environment_name }} to {{ simple_environment_name }}
   shell: aws s3 cp s3://{{ remote_environment_name }}-oracle-statistics-backup-data/datapump/{{ remote_statistics_identifier }}.{{ item }} s3://{{ statistics_backup_bucket }}/datapump/{{ remote_statistics_identifier }}.{{ item }} --grants full=id={{ get_canonical_id.stdout }}
   loop: ['dmp','log']
 
