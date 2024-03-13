@@ -111,7 +111,7 @@
 - name: Import Statistics from Other Environment
   include_tasks: import_remote_stats.yml
   vars:
-    remote_statistics_identifier: "{{ statistics_identifier }}"
+    remote_statistics_identifier: "{{ statid }}"
     remote_environment_name: "{{ (import_source_environment | lower).split('-')[-1] }}"
   when: import_source_environment != 'None'
 
