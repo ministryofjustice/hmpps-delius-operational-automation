@@ -1,0 +1,24 @@
+---
+- name: Create directory for startup scripts
+  file:
+     path: "{{ startup_scripts_dir }}"
+     state: directory
+     owner: "{{ rdbms_service_user.name }}"
+     group: "{{ rdbms_service_user.group }}"
+
+- name: Install ADG Startup Re-Run Script
+  copy:
+     src: rerun_adg_startup.sh
+     dest: "{{ startup_scripts_dir }}"
+     mode: 0700
+     owner: "{{ rdbms_service_user.name }}"
+     group: "{{ rdbms_service_user.group }}"
+
+# Job to attempt to restart ADG database startup if it has failed
+# due to host starting before the primary
+- name: Create Cron Job to Re-Run ADG Startup a Short Time After Boot
+  ansible.builtin.cron:
+    name: "Rerun ADG Startup after delay if required (if initial startup failed as primary not available)"
+    job: "sleep {{ rerun_adg_startup_delay }} && {{ startup_scripts_dir }}/rerun_adg_startup.sh"
+    special_time: reboot
+    user: "{{ rdbms_service_user.name }}"

@@ -1,0 +1,4 @@
+startup_scripts_dir: /home/oracle/admin/startup_scripts
+
+# Number of seconds after boot that we attempt to restart ADG standby if it is not up
+rerun_adg_startup_delay: 600

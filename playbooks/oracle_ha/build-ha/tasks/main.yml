@@ -136,6 +136,19 @@
     - name: (main) Setup taf service name
       include_tasks: set-taf-service.yml
 
+    # We create a boot cron job on each host which will detect, shortly after startup, if the
+    # hosted database is an ADG Standby and if it is not running.  This situation occurs if the
+    # ADG standby is restarted before the associated primary and cannot fetch the required redo
+    # to make it consistent.  The workaround is a simple delay (to allow the primary to start)
+    # and the attempt to start the standby again.   This scenario is occassionally seen in
+    # modernisation platform since all hosts are started concurrently and the standby may be
+    # up before the primary.
+    # (Note this is installed on all hosts in a data guard system as databases may
+    #  change roles and ADG may be enabled/disabled subsequent to creation)
+    - name: Create Cron Job to Re-Run ADG Startup
+      include_tasks: create_cron_job_to_rerun_adg_startup.yml
+      tags: create_cron_job_to_rerun_adg_startup
+
     # Force to start up in read only mode if ADG is specified in hmpps-env-configs.
     - name: Enable Read-Only
       become: yes
