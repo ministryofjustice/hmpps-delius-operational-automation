@@ -211,3 +211,29 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
+
+      - name: Configure AWS Credentials for Access to OEM Account
+        id: login-aws-oem
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+           role-to-assume: "EC2OracleEnterpriseManagementSecretsRole"
+           role-session-name: "hmpps-delius-operational-automation-oem-access-${{ github.run_number }}"
+           aws-region: "eu-west-2"
+  
+      - name: Get Slack Token
+        uses: aws-actions/aws-secreetsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+                SLACK_TOKEN, /oracle/database/EMREP/shared-passwords
+          parse-json-secrets: true
+
+      # - name: Slack failure notification
+      #   id: slack
+      #   uses: slackapi/slack-github-action@v1.25.0
+      #   with:
+      #       payload: |
+      #         {"blocks":[{"type": "section","text": {"type": "mrkdwn","text": ":no_entry: Failed GitHub Action:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"}]}]}
+      #   env:
+      #       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #       SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      #     if: ${{ failure() }}
