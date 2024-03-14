@@ -1,16 +1,16 @@
- # Only check if Statistics have already been exported if a Statistics identifier has been specified
+# Only check if Statistics have already been exported if a Statistics identifier has been specified
 - name: Check if Named Export {{ remote_statistics_identifier }} of Statistics Already Exists on Remote Bucket
   amazon.aws.s3_object:
     bucket: "{{ remote_environment_name }}-oracle-statistics-backup-data"
     prefix: "datapump/{{ remote_statistics_identifier }}.dmp"
     mode: list
-  register: get_already_exists  
+  register: get_already_exists
   when: statid is defined
 
 - name: Set Export Already Run if Backup Already Exists on S3
   set_fact:
-     already_exists: true
-  when: 
+    already_exists: true
+  when:
     - statid is defined
     - ('datapump/' + remote_statistics_identifier + '.dmp') in get_already_exists.s3_keys
 
@@ -23,7 +23,7 @@
 # Now we need to copy the dump file to the current environment
 - name: Copy Statistics Dump from {{ remote_environment_name }} to {{ simple_environment_name }}
   shell: aws s3 cp s3://{{ remote_environment_name }}-oracle-statistics-backup-data/datapump/{{ remote_statistics_identifier }}.{{ item }} s3://{{ statistics_backup_bucket }}/datapump/{{ remote_statistics_identifier }}.{{ item }} --grants full=id={{ get_canonical_id.stdout }}
-  loop: ['dmp','log']
+  loop: ["dmp", "log"]
 
 # Now we can download the dumpfile into the local database host
 - name: Download {{ remote_environment_name }} Statistics Dump to {{ simple_environment_name }} Database Server
@@ -32,7 +32,7 @@
     object: "datapump/{{ remote_statistics_identifier }}.{{ item }}"
     dest: "{{ get_dump_location.stdout | trim }}/{{ remote_statistics_identifier }}.{{ item }}"
     mode: get
-  loop: ['dmp','log']
+  loop: ["dmp", "log"]
 
 - name: Delete Any Previous Backup Statistics with the Same Statid {{ remote_statistics_identifier }}
   script: remove_existing_statid.sh "{{ remote_statistics_identifier }}"
@@ -41,8 +41,8 @@
 
 - name: Import {{ remote_environment_name }} Statistics Dump to Statistics Backup Table using Statid {{ remote_statistics_identifier }}
   shell: |
-        . ~/.bash_profile
-        impdp \"/ as sysdba\" dumpfile={{ remote_statistics_identifier }}.dmp logfile={{ remote_statistics_identifier }}.import.log directory=DATA_PUMP_DIR tables=DELIUS_USER_SUPPORT.STATISTICS_BACKUP table_exists_action=APPEND
+    . ~/.bash_profile
+    impdp \"/ as sysdba\" dumpfile={{ remote_statistics_identifier }}.dmp logfile={{ remote_statistics_identifier }}.import.log directory=DATA_PUMP_DIR tables=DELIUS_USER_SUPPORT.STATISTICS_BACKUP table_exists_action=APPEND
 
 - name: Import Schema Statistics from Backup Table into Data Dictionary using Statid {{ remote_statistics_identifier }}
   script: import_schema_statistics.sh "{{ schema }}" "{{ remote_statistics_identifier }}"
@@ -50,5 +50,4 @@
   changed_when: import_schema_statistics.stdout is search('.*Imported.*')
   loop: "{{ all_schemas | upper }}"
   loop_control:
-      loop_var: schema
-  
+    loop_var: schema
