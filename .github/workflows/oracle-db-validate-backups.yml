@@ -221,8 +221,8 @@ jobs:
              OEM_ACCOUNT=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
                    jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
                    jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first)
-             OEM_ACCOUNT_NAME=$( echo ${OEM_ACCOUNT} | jq '.key'
-             OEM_ACCOUNT_ID=$( echo ${OEM_ACCOUNT} | jq '.value')
+             OEM_ACCOUNT_NAME=$( echo ${OEM_ACCOUNT} | jq '.key' )
+             OEM_ACCOUNT_ID=$( echo ${OEM_ACCOUNT} | jq '.value' )
              echo ${OEM_ACCOUNT_NAME}
              echo ${OEM_ACCOUNT_ID}
 
