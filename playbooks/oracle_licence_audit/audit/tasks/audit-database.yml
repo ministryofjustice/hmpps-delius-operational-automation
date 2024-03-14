@@ -33,7 +33,7 @@
     echo 'y' | ./cpuq.sh {{ audit_dir }} > /dev/null 2>&1
   register: cpuout
 
-- name: Execute Oracle ReviewLite23.3.sql and rename output directory
+- name: Execute Oracle ReviewLite23.3.sql
   shell:
     cmd: |
       . ~/.bash_profile
@@ -56,6 +56,7 @@
 
 - name: Create database directory on controller
   delegate_to: localhost
+  become: no
   file:
     path: "{{ audit_dir }}/{{ sql_output }}"
     state: directory
@@ -76,6 +77,7 @@
 
 - name: Upload database output directory to S3
   delegate_to: localhost
+  become: no
   shell: |
     export PATH=$PATH:/usr/local/bin
     aws s3 cp {{ audit_dir }} s3://{{ dependencies_bucket.name }}/{{ audit_output }} --recursive --exclude "*" --include "*-db-*"
