@@ -160,8 +160,12 @@ jobs:
           then
             DATE=$(date +"%Y%m%dT%H%M%S")
             ENV=$(echo ${{ github.event.inputs.ImportSourceEnvironment }} | awk -F- '{print $NF}')
-            echo RemoteStatisticsIdentifier="${ENV^^}_${DATE}" >> $GITHUB_OUTPUT
+            RemoteStatisticsIdentifier="${ENV^^}_${DATE}"
+          else
+            RemoteStatisticsIdentifier="${{ github.event.inputs.StatisticsIdentifier }}"
           fi
+          echo RemoteStatisticsIdentifier="${RemoteStatisticsIdentifier}" >> $GITHUB_OUTPUT
+
       - name: Checkout Ansible Playbooks and Roles From hmpps-delius-operation-automation
         uses: actions/checkout@v4
         with:
