@@ -206,6 +206,7 @@ jobs:
           aws-region: "eu-west-2"
 
       - name: Start Ansible Validate Backup
+        id: validate-backup
         run: |
           [[ ! -z ${{ steps.randomizetargethost.outputs.RmanTarget }} ]] && RmanTarget="${{ steps.randomizetargethost.outputs.RmanTarget }}"
           export ANSIBLE_CONFIG=$ansible_config
@@ -214,6 +215,7 @@ jobs:
 
       - name: Configure AWS Credentials for Access to OEM Account
         id: login-aws-oem
+        if: failure()
         uses: aws-actions/configure-aws-credentials@v4
         with:
            role-to-assume: "EC2OracleEnterpriseManagementSecretsRole"
@@ -221,6 +223,7 @@ jobs:
            aws-region: "eu-west-2"
   
       - name: Get Slack Token
+        if: failure()
         uses: aws-actions/aws-secretsmanager-get-secrets@v1
         with:
           secret-ids: |
