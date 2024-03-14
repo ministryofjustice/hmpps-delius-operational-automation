@@ -218,15 +218,17 @@ jobs:
         if: failure()
         run: |
              # Get the Account ID for the associated OEM Account which Holds the Slack Token
-             OEM_ACCOUNT=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
+             OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
                    jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
-                   jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' )
-             OEM_ACCOUNT_NAME=$( echo ${OEM_ACCOUNT} | jq '.key' )
-             OEM_ACCOUNT_ID=$( echo ${OEM_ACCOUNT} | jq '.value' )
-             echo ${OEM_ACCOUNT_NAME}
-             echo ${OEM_ACCOUNT_ID}
-
-
+                   jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
+             ROLE_ARN="arn:aws:iam::${OEM_ACCOUNT_ID}:role/EC2OracleEnterpriseManagementSecretsRole"
+             CREDS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "get-slack-token-for-${{ github.run_number }}"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")
+             export AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
+             export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
+             export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
+             SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
+             SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
+             echo ${SECRET_VALUE}
 
       # - name: Configure AWS Credentials for Access to OEM Account
       #   id: login-aws-oem
