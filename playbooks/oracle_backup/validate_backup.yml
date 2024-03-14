@@ -14,6 +14,16 @@
     - name: Get Passwords
       include_tasks: get_facts.yml
 
+    - name: Who Am I Now?
+      shell: |
+             aws sts get-caller-identity
+      delegate_to: localhost
+      become: no
+      register: whoaminow
+      failed_when: false
+
+    - debug:
+         var: whoaminow
 
     - fail: TESTING ONLY
          msg: "This is a test failure.  Remove this code before deployment"
