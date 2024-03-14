@@ -11,13 +11,13 @@
   # as this will vary between environments
 
   tasks:
+    - name: Get Passwords
+      include_tasks: get_facts.yml
+
 
     - fail: TESTING ONLY
          msg: "This is a test failure.  Remove this code before deployment"
       when: true
-
-    - name: Get Passwords
-      include_tasks: get_facts.yml
 
     - name: Change rman target group name to end with delius_primarydb
       set_fact:
