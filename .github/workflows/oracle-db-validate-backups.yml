@@ -213,12 +213,19 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
 
-      - name: Start Ansible Validate Backup
-        id: who-am-i
+      - name: Get Slack Token
+        id: get-slack-token
         if: failure()
         run: |
-             aws sts get-caller-identity
-             aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first | .value'
+             # Get the Account ID for the associated OEM Account which Holds the Slack Token
+             OEM_ACCOUNT=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
+                   jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
+                   jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first)
+             OEM_ACCOUNT_NAME=$( echo ${OEM_ACCOUNT} | jq '.key'
+             OEM_ACCOUNT_ID=$( echo ${OEM_ACCOUNT} | jq '.value')
+             echo ${OEM_ACCOUNT_NAME}
+             echo ${OEM_ACCOUNT_ID}
+
 
 
       # - name: Configure AWS Credentials for Access to OEM Account
