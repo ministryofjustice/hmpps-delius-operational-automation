@@ -11,6 +11,11 @@
   # as this will vary between environments
 
   tasks:
+
+    - fail: TESTING ONLY
+         msg: "This is a test failure.  Remove this code before deployment"
+      when: true
+
     - name: Get Passwords
       include_tasks: get_facts.yml
 
