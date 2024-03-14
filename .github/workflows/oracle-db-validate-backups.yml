@@ -218,7 +218,7 @@ jobs:
         if: failure()
         uses: aws-actions/configure-aws-credentials@v4
         with:
-           role-to-assume: "EC2OracleEnterpriseManagementSecretsRole"
+           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/EC2OracleEnterpriseManagementSecretsRole"
            role-session-name: "hmpps-delius-operational-automation-oem-access-${{ github.run_number }}"
            aws-region: "eu-west-2"
   
