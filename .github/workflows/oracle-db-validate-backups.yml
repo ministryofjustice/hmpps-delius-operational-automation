@@ -221,7 +221,7 @@ jobs:
            aws-region: "eu-west-2"
   
       - name: Get Slack Token
-        uses: aws-actions/aws-secreetsmanager-get-secrets@v1
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
         with:
           secret-ids: |
                 SLACK_TOKEN, /oracle/database/EMREP/shared-passwords
