@@ -1,0 +1,189 @@
+---
+- name: Set Backup Bucket
+  set_fact:
+    statistics_backup_bucket: "{{ simple_environment_name }}-oracle-statistics-backup-data"
+
+- name: Get Location of Statistics Dump File
+  script: get_dump_location.sh
+  register: get_dump_location
+
+- name: Check Path Defined
+  fail:
+    msg: "Could not find path to dump file."
+  when: get_dump_location | length < 2
+
+- name: Define Schemas for Statistics Gathering
+  set_fact:
+    target_schemas:
+      - DELIUS_APP_SCHEMA
+      - DELIUS_AUDIT_SCHEMA
+
+- name: Generate Quoted List of Schemas
+  set_fact:
+    target_schemas_list: >-
+      {{ ( target_schemas_list | default('') ) + ( '' if (schema_index == 0) else ',' ) + ( item | regex_replace("^(.*)$","'\1'") ) }}
+  loop: "{{ target_schemas }}"
+  loop_control:
+    index_var: schema_index
+
+- name: Find Which of these Schemas Contain Tables or Indexes
+  script: get_populated_schemas.sh "{{ target_schemas_list }}"
+  register: get_populated_schemas
+  changed_when: false
+
+- name: Define Schemas for Statistics Gathering
+  set_fact:
+    all_schemas: "{{ get_populated_schemas.stdout_lines }}"
+
+- name: Set Global Statistics Preferences
+  script: set_global_prefs.sh
+  register: set_global_prefs
+  changed_when: set_global_prefs.stdout is search('.*Changed.*')
+
+- name: Create Statistics Backup Table
+  script: create_stats_backup_table.sh
+  register: get_stats_backup_table
+  changed_when: not get_stats_backup_table.stdout is search('.*table already exists.*')
+  tags: backup
+
+# Use Timestamp as Part of Default Statistics Backup Identifier
+- name: Get Local Time
+  setup:
+    filter: ansible_date_time
+  run_once: yes
+  delegate_to: localhost
+  become: no
+
+- name: Default Statistics Identifier
+  set_fact:
+    statid: "{{ 'DELIUS_STATS_' + ansible_date_time.iso8601_basic_short if ((not statistics_identifier is defined) or (statistics_identifier == '')) else ( statistics_identifier | upper ) }}"
+
+# If we are importing statistics from a remote database (import_source_environment is not "None")
+# then we want to take a backup of the current local statistics before doing so but do not use the
+# same StatId as this will lead to conflicting row - instead add a prefix to the StatId
+
+- name: Define Statistics Identifier for Local Backup Prior to Import
+  set_fact:
+    statid_for_backup: "{{ statid if (import_source_environment == 'None' or (import_source_environment != 'None' and export_to_s3 | bool ))  else ('BKP_' + ansible_date_time.iso8601_basic_short + '_PRE_' + (import_source_environment | replace('-','_') | upper ))  |  truncate(30,true,'') }}"
+
+- name: Define Statistics Identifier for Local Backup Prior to Gathering
+  set_fact:
+    statid_for_backup: "{{ 'BKP_' + ansible_date_time.iso8601_basic_short + '_PRE_GATHERING_STATS' if (gather_new_statistics | default(false) | bool) else statid_for_backup }}"
+
+# We always backup the schema statistics before importing or gathering new statistics in case we need to revert
+- name: Backup Existing Schema Statistics using StatId {{ statid_for_backup }}
+  script: backup_schema_statistics.sh "{{ schema }}" "{{ statid_for_backup }}"
+  register: backup_schema_statistics
+  changed_when: backup_schema_statistics.stdout is search('.*Backed up.*')
+  loop: "{{ all_schemas | upper }}"
+  loop_control:
+    loop_var: schema
+  tags: backup
+
+- name: Export Backup Statistics to S3
+  when: export_to_s3 | bool
+  block:
+    - name: Export Backup Statistics
+      shell: |
+        . ~/.bash_profile
+        expdp \"/ as sysdba\" dumpfile=statistics_backup.dmp logfile=statistics_backup.log reuse_dumpfiles=y directory=DATA_PUMP_DIR tables=DELIUS_USER_SUPPORT.STATISTICS_BACKUP query=\"WHERE statid=\'{{ statid }}\'\"
+      register: export_backup_statistics
+      tags: backup
+
+    - name: Copy Backup Statistics Dump File to S3
+      amazon.aws.s3_object:
+        bucket: "{{ statistics_backup_bucket }}"
+        object: "/datapump/{{ statid }}.{{ item }}"
+        src: "{{ get_dump_location.stdout | trim }}/statistics_backup.{{ item }}"
+        mode: put
+      loop: ["dmp", "log"]
+
+    - name: End Play If Exporting From Remote Environment
+      when: import_source_environment != 'None'
+      block:
+        - debug:
+            msg: "Exported Statistics From Remote Environment"
+
+        - meta: end_play
+
+- name: Import Statistics from Other Environment
+  include_tasks: import_remote_stats.yml
+  vars:
+    remote_statistics_identifier: "{{ statid }}"
+    remote_environment_name: "{{ (import_source_environment | lower).split('-')[-1] }}"
+  when: import_source_environment != 'None'
+
+- name: Gather New Statistics
+  when: gather_new_statistics | default(false) | bool
+  block:
+    - name: Lock Statistics on Tables Changed Recently
+      script: lock_changed_table_stats.sh "{{ schema }}" 28
+      register: lock_changed_table_stats
+      changed_when: not lock_changed_table_stats.stdout is search('.*Statistics Locked on 0 tables.*')
+      loop: "{{ all_schemas | upper }}"
+      loop_control:
+        loop_var: schema
+      tags: statistics
+
+    - name: Lock Statistics on Tables with No Segments
+      script: lock_no_segment_stats.sh "{{ schema }}"
+      register: lock_no_segment_stats
+      changed_when: not lock_no_segment_stats.stdout is search('.*Statistics Locked on 0 tables.*')
+      loop: "{{ all_schemas | upper }}"
+      loop_control:
+        loop_var: schema
+      tags: statistics
+
+    - name: Lock Statistics on Z_ Tables
+      script: lock_z__stats.sh "{{ schema }}"
+      register: lock_z__stats
+      changed_when: not lock_z__stats.stdout is search('.*Statistics Locked on 0 tables.*')
+      loop: "{{ all_schemas | upper }}"
+      loop_control:
+        loop_var: schema
+      tags: statistics
+
+    # Cannot use script module asynchronously
+    - name: Start to Gather New Schema Statistics
+      shell: |
+        . ~/.bash_profile
+          sqlplus -s /nolog <<-EOSQL
+          connect / as sysdba
+          WHENEVER SQLERROR EXIT FAILURE
+          SET FEEDBACK OFF
+          SET SERVEROUT ON
+          BEGIN
+            DBMS_STATS.gather_schema_stats(
+                ownname => '{{ schema }}'
+                ,degree  => {{ parallelism | default(1) | int }}
+                ,no_invalidate => FALSE
+            );
+          END;
+          /
+          EXIT
+          EOSQL
+      register: gather_schema_statistics
+      loop: "{{ all_schemas | upper }}"
+      loop_control:
+        loop_var: schema
+      async: 14400
+      poll: 0
+
+    - name: Wait for Statistics Gathering to finish
+      async_status:
+        jid: "{{ item.ansible_job_id }}"
+      register: wait_for_statistics
+      retries: 400
+      delay: 60
+      until: wait_for_statistics.finished
+      loop: "{{ gather_schema_statistics.results }}"
+      vars:
+        ansible_aws_ssm_timeout: 14400
+
+    - name: Remove Transient Table Statistics Locks
+      script: unlock_table_statistics.sh "{{ item.schema_name }}" "{{ item.table_names | map('dict2items') | list | flatten | map(attribute='key') | map('regex_replace','^(.*)$',"'\1'") | join(",") }}"
+      register: unlock_table_statistics
+      changed_when: not unlock_table_statistics.stdout is search('.*Unlocked 0 table statistics.*')
+      loop: "{{ database_locked_statistics | default([]) }}"
+      loop_control:
+        label: "{{ item.schema_name }}"
