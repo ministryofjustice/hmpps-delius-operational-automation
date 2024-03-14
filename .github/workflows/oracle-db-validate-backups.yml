@@ -213,22 +213,29 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
 
-      - name: Configure AWS Credentials for Access to OEM Account
-        id: login-aws-oem
+      - name: Start Ansible Validate Backup
+        id: who-am-i
         if: failure()
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/EC2OracleEnterpriseManagementSecretsRole"
-           role-session-name: "hmpps-delius-operational-automation-oem-access-${{ github.run_number }}"
-           aws-region: "eu-west-2"
+        run: |
+             aws sts get-caller-identity
+
+
+      # - name: Configure AWS Credentials for Access to OEM Account
+      #   id: login-aws-oem
+      #   if: failure()
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #      role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/EC2OracleEnterpriseManagementSecretsRole"
+      #      role-session-name: "hmpps-delius-operational-automation-oem-access-${{ github.run_number }}"
+      #      aws-region: "eu-west-2"
   
-      - name: Get Slack Token
-        if: failure()
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
-        with:
-          secret-ids: |
-                SLACK_TOKEN, /oracle/database/EMREP/shared-passwords
-          parse-json-secrets: true
+      # - name: Get Slack Token
+      #   if: failure()
+      #   uses: aws-actions/aws-secretsmanager-get-secrets@v1
+      #   with:
+      #     secret-ids: |
+      #           SLACK_TOKEN, /oracle/database/EMREP/shared-passwords
+      #     parse-json-secrets: true
 
       # - name: Slack failure notification
       #   id: slack
