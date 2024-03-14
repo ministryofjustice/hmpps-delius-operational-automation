@@ -25,7 +25,7 @@
     - debug:
          var: whoaminow
 
-    - fail: TESTING ONLY
+    - fail:
          msg: "This is a test failure.  Remove this code before deployment"
       when: true
 
