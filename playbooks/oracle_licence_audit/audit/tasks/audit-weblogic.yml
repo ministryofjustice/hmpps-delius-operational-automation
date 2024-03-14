@@ -4,6 +4,7 @@
 
 - name: List cluster that contain '-cluster' in the name, will only be one
   delegate_to: localhost
+  become: no
   shell: aws ecs list-clusters --region {{ region }} | jq -r '.clusterArns[]' | grep -- "{{ environment_name }}-cluster" | awk -F'/' '{print $NF}'
   register: weblogic_cluster
 
