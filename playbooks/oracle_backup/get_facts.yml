@@ -28,6 +28,7 @@
   set_fact:
     sysman_password: "{{ secretsmanager_passwords_dict['emrep'].passwords['sysman'] }}"
     rcvcatowner_password: "{{ secretsmanager_passwords_dict['catalog'].passwords['rcvcatowner'] }}"
+    getslacktoken: "{{ secretsmanager_passwords_dict['emrep'].passwords['slack_token'] }}"
 
 - name: Catalog Host Name
   when:
@@ -64,7 +65,3 @@
     - name: Setup Slack Configuration
       set_fact:
         slack_channel: "{{ getslackchannel.stdout }}"
-
-    - name: Get Slack Token
-      set_fact:
-        getslacktoken: "{{ lookup('aws_ssm', 'manual-ops-alerts-slack-token', region='eu-west-2') }}"
