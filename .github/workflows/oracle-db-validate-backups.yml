@@ -218,6 +218,7 @@ jobs:
         if: failure()
         run: |
              aws sts get-caller-identity
+             aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first | .value'
 
 
       # - name: Configure AWS Credentials for Access to OEM Account
