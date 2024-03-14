@@ -28,11 +28,11 @@ jobs:
     name: oracle-licence-audit
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     strategy:
       matrix:
-        environment: [delius-core-dev]
-    #,delius-core-test,delius-core-training,delius-core-stage,delius-core-pre-prod,delius-core-prod]
+        environment: [delius-core-dev,delius-core-test]
+    #,delius-core-training,delius-core-stage,delius-core-pre-prod,delius-core-prod]
     environment: ${{ matrix.environment }}
     timeout-minutes: 1440
     continue-on-error: false
@@ -75,24 +75,20 @@ jobs:
         working-directory: ${{ env.inventory }}
         run: |
           targets=""
-          environment="environment_name_$(echo ${{ matrix.environment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
+          prefix="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
           build_targets() {
             databasetype=${1}
-            if [[ -e group_vars/${environment}_${databasetype}_primarydb.yml ]]
+            if [[ -e group_vars/${prefix}_${databasetype}_primarydb.yml ]]
             then
-              high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${environment}_all.yml)
-              [ $high_availability_count -le 2 ] && targets="${targets}${environment}_${databasetype}_primarydb,"
-              [ $high_availability_count -eq 1 ] && targets="${targets}${environment}_${databasetype}_standbydb1,"
-              [ $high_availability_count -eq 2 ] && targets="${targets}${environment}_${databasetype}_standbydb1,${environment}_${databasetype}_standbydb2,"
-              echo
+              targets="${targets}${prefix}_${databasetype}_dbs,"
             fi
+            echo
           }
           build_targets delius
           build_targets mis
           build_targets misboe
           build_targets misdsd
           echo "targets=$targets" >> $GITHUB_OUTPUT
-          echo "allHost=group_vars/${environment}_all" >> $GITHUB_OUTPUT
           if [[ $((${{ strategy.job-index }} + 1 )) -eq  ${{ strategy.job-total }} ]]
           then
             echo "lastjob=true" >> $GITHUB_OUTPUT
@@ -113,12 +109,10 @@ jobs:
           $command -i $inventory \
           -e targets=${{ steps.databasetargets.outputs.targets }} \
           -e environment_name=${{ matrix.environment }} \
-          -e @$inventory/${{ steps.databasetargets.outputs.allHost }}.yml \
           -e audit=yes
 
       - name: Start Ansible Oracle Licence Audit Upload When Last Environment Processed
         if: ${{ steps.databasetargets.outputs.lastjob == 'true' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $command -e upload=yes \
-          -e @$inventory/${{ steps.databasetargets.outputs.allHost }}.yml
+          $command -e upload=yes
