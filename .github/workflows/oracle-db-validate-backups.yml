@@ -213,6 +213,16 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
 
+
+      - name: Configure AWS Credentials to Get Slack Token
+        id: login-aws-to-get-slack-token
+        if: failure()
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+           role-session-name: "hmpps-delius-operational-automation-get-slack-token"
+           aws-region: "eu-west-2"
+
       - name: Get Slack Token
         id: get-slack-token
         if: failure()
