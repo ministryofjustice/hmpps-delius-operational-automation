@@ -35,7 +35,7 @@ jobs:
       matrix:
         environment: [delius-core-dev,delius-core-test]
     #,delius-core-training,delius-core-stage,delius-core-pre-prod,delius-core-prod]
-    environment: ${{ matrix.environment }}
+    environment: ${{ matrix.environment }}-preapproved
     timeout-minutes: 1440
     continue-on-error: true
 
