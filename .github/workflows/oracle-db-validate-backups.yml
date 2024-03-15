@@ -213,17 +213,20 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
 
-
-      - name: Configure AWS Credentials to Get Slack Token
-        id: login-aws-to-get-slack-token
+      - name: Get Slack Token 1
+        id: get-slack-token
         if: failure()
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-           role-session-name: "hmpps-delius-operational-automation-get-slack-token"
-           aws-region: "eu-west-2"
+        run: |
+               ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+               OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
+                     jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
+                     jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
+               SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
+               SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
+               echo ${SECRET_VALUE}
 
-      - name: Get Slack Token
+
+      - name: Get Slack Token 2
         id: get-slack-token
         if: failure()
         run: |
