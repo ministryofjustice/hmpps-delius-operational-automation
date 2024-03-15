@@ -85,4 +85,4 @@
   become: no
   shell: |
     export PATH=$PATH:/usr/local/bin
-    aws s3 cp {{ audit_dir }} s3://{{ dependencies_bucket.name }}/{{ audit_output }} --recursive --exclude "*" --include "*-db-*"
+    aws s3 cp {{ audit_dir }} s3://{{ dependencies_bucket.name }}/{{ audit_output }} --recursive --exclude "*" --include "*-db-*" {{ general_kms_key_option }}

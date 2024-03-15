@@ -14,7 +14,7 @@
 - name: Upload to s3 bucket the zip file
   delegate_to: localhost
   become: no
-  shell: aws s3 cp {{ audit_dir }}/{{ ansible_date_time.date }}/{{ audit_zip_file }} s3://{{ dependencies_bucket.name }}/{{ audit_output }}/{{ audit_zip_file }}
+  shell: aws s3 cp {{ audit_dir }}/{{ ansible_date_time.date }}/{{ audit_zip_file }} s3://{{ dependencies_bucket.name }}/{{ audit_output }}/{{ audit_zip_file }} {{ general_kms_key_option }}
 
 - name: INFORMATION
   debug:
