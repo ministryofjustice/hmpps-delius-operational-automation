@@ -35,7 +35,6 @@
 - name: Only Execute SQL Script If Database Is Running
   when: db.stdout != ''
   block:
-
     - name: Download Oracle ReviewLite23.3.sql from s3
       shell: |
         export PATH=$PATH:/usr/local/bin
@@ -57,7 +56,6 @@
       become_method: sudo
       become_user: oracle
       register: sqlout
-
 
     - name: Create database directory on controller
       delegate_to: localhost
