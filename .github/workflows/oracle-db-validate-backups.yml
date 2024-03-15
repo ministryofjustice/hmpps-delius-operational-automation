@@ -214,7 +214,7 @@ jobs:
           $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
 
       - name: Get Slack Token 1
-        id: get-slack-token
+        id: get-slack-token-1
         if: failure()
         run: |
                ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -227,7 +227,7 @@ jobs:
 
 
       - name: Get Slack Token 2
-        id: get-slack-token
+        id: get-slack-token-2
         if: failure()
         run: |
              ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
