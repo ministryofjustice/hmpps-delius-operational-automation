@@ -218,6 +218,7 @@ jobs:
         if: failure()
         run: |
              ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+             ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/EC2OracleEnterpriseManagementSecretsRole"
              CREDS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "get-slack-token-for-${{ github.run_number }}"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")
              export AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
              export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
@@ -226,7 +227,6 @@ jobs:
              OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
                    jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
                    jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
-             ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/EC2OracleEnterpriseManagementSecretsRole"
              SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
              SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
              echo ${SECRET_VALUE}
