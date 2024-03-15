@@ -31,6 +31,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         environment: [delius-core-dev,delius-core-test]
     #,delius-core-training,delius-core-stage,delius-core-pre-prod,delius-core-prod]
