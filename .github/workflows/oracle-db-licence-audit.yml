@@ -104,7 +104,7 @@ jobs:
           -e audit=yes
 
       - name: Start Ansible Oracle Licence Audit Upload When Last Environment Processed
-        if: ${{ steps.databasetargets.outputs.lastjob == 'true' }}
+        if: ${{ steps.databasetargets.outputs.lastjob != '' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }}
           $command -e upload=yes
