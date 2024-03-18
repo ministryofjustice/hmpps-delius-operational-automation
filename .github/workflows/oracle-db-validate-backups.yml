@@ -86,9 +86,9 @@ jobs:
         id: prepare-slack-channel-name
         run: |
              if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
-                echo "slack_channel=delius-aws-oracle-prod-alerts-test" >> $GITHUB_OUTPUT
+                echo "SlackChannel=delius-aws-oracle-prod-alerts-test" >> $GITHUB_OUTPUT
              else
-                echo "slack_channel=delius-aws-oracle-dev-alerts-test" >> $GITHUB_OUTPUT
+                echo "SlackChannel=delius-aws-oracle-dev-alerts-test" >> $GITHUB_OUTPUT
              fi
 
       - name: Check Restore DateTime Input
@@ -150,6 +150,7 @@ jobs:
     timeout-minutes: 1440
     env:
       RmanTarget: ${{ needs.build_rman_target_name.outputs.RmanTarget }}
+      SlackChannel: ${{ needs.build_rman_target_name.outputs.SlackChannel }}
     continue-on-error: false
     steps:
 
@@ -215,11 +216,6 @@ jobs:
           aws-region: "eu-west-2"
 
 
-      - name: Where Are My Variables?
-        run: |
-            cat $GITHUB_ACTIONS
-            echo "What about ${{ steps.prepare-slack-channel-name.outputs.slack_channel }}"
-
       - name: Start Ansible Validate Backup
         id: validate-backup
         run: |
@@ -247,7 +243,7 @@ jobs:
         if: failure()
         uses: slackapi/slack-github-action@v1.25.0
         with:
-            channel-id: "${{ steps.prepare-slack-channel-name.outputs.slack_channel }}"
+            channel-id: "$SlackChannel"
             payload: |
               {"blocks":[{"type": "section","text": {"type": "mrkdwn","text": ":no_entry: Failed GitHub Action:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"}]}]}
         env:
