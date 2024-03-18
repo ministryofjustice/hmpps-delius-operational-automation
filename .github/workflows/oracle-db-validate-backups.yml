@@ -79,6 +79,7 @@ jobs:
     outputs:
       RmanTarget: ${{ steps.preparermantargetname.outputs.RmanTarget }}
       TargetEnvironment: ${{ steps.preparermantargetname.outputs.TargetEnvironment }}-preapproved
+      SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
     continue-on-error: false
     steps:
 
