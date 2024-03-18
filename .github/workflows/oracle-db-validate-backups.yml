@@ -86,9 +86,9 @@ jobs:
         id: prepare-slack-channel-name
         run: |
              if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
-                echo "slack_channel=delius-aws-oracle-prod-alerts-test" >> $GITHUB_OUTPUTS
+                echo "slack_channel=delius-aws-oracle-prod-alerts-test" >> $GITHUB_OUTPUT
              else
-                echo "slack_channel=delius-aws-oracle-dev-alerts-test" >> $GITHUB_OUTPUTS
+                echo "slack_channel=delius-aws-oracle-dev-alerts-test" >> $GITHUB_OUTPUT
              fi
 
 
