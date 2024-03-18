@@ -222,6 +222,11 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
 
+      - name: Where Are My Variables?
+        run: |
+             cat $GITHUB_ACTIONS
+             echo "What about ${{ steps.prepare-slack-channel-name.outputs.slack_channel }}"
+
       - name: Get Slack Token
         id: get-slack-token
         if: failure()
