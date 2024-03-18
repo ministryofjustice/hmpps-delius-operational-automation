@@ -213,8 +213,8 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
 
-      - name: Get Slack Token 1
-        id: get-slack-token-1
+      - name: Get Slack Token
+        id: get-slack-token
         if: failure()
         run: |
                ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -223,51 +223,16 @@ jobs:
                      jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
                SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
                SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
-               echo ${SECRET_VALUE}
+               #echo ${SECRET_VALUE}
+               SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r 'to_entries[] | select(.key=="slack_token").value')
+               echo "::set-output name=slack_token::${SLACK_TOKEN}"
 
-
-      - name: Get Slack Token 2
-        id: get-slack-token-2
-        if: failure()
-        run: |
-             ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-             ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/EC2OracleEnterpriseManagementSecretsRole"
-             CREDS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "get-slack-token-for-${{ github.run_number }}"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")
-             export AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
-             export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
-             export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
-             # Get the Account ID for the associated OEM Account which Holds the Slack Token
-             OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
-                   jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
-                   jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
-             SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
-             SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
-             echo ${SECRET_VALUE}
-
-      # - name: Configure AWS Credentials for Access to OEM Account
-      #   id: login-aws-oem
-      #   if: failure()
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #      role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/EC2OracleEnterpriseManagementSecretsRole"
-      #      role-session-name: "hmpps-delius-operational-automation-oem-access-${{ github.run_number }}"
-      #      aws-region: "eu-west-2"
-  
-      # - name: Get Slack Token
-      #   if: failure()
-      #   uses: aws-actions/aws-secretsmanager-get-secrets@v1
-      #   with:
-      #     secret-ids: |
-      #           SLACK_TOKEN, /oracle/database/EMREP/shared-passwords
-      #     parse-json-secrets: true
-
-      # - name: Slack failure notification
-      #   id: slack
-      #   uses: slackapi/slack-github-action@v1.25.0
-      #   with:
-      #       payload: |
-      #         {"blocks":[{"type": "section","text": {"type": "mrkdwn","text": ":no_entry: Failed GitHub Action:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"}]}]}
-      #   env:
-      #       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #       SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-      #     if: ${{ failure() }}
+      - name: Slack failure notification
+        id: slack
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+            payload: |
+              {"blocks":[{"type": "section","text": {"type": "mrkdwn","text": ":no_entry: Failed GitHub Action:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"}]}]}
+        env:
+          SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
+          if: ${{ failure() }}
