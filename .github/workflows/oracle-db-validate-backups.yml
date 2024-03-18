@@ -227,7 +227,7 @@ jobs:
                SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r 'to_entries[] | select(.key=="slack_token").value')
                echo "::set-output name=slack_token::${SLACK_TOKEN}"
 
-      - name: Slack failure notification
+      - name: Slack Failure Notification
         id: slack
         uses: slackapi/slack-github-action@v1.25.0
         with:
