@@ -217,6 +217,7 @@ jobs:
         id: get-slack-token
         if: failure()
         run: |
+               set -x
                ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
                OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
                      jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
