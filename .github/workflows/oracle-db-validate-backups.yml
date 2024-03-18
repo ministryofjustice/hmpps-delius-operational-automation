@@ -226,7 +226,7 @@ jobs:
                SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
                #echo ${SECRET_VALUE}
                SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
-               echo "::set-output name=slack_token::${SLACK_TOKEN}"
+               echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
 
       - name: Slack Failure Notification
         id: slack
