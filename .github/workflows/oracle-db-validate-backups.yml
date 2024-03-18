@@ -241,7 +241,7 @@ jobs:
       - name: Slach Channel
         if: failure()
         run: |
-             echo ${{ env.SlackChannel }}
+             env
 
 
       - name: Slack Failure Notification
