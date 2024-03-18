@@ -82,6 +82,16 @@ jobs:
     continue-on-error: false
     steps:
 
+      - name: Prepare Slack Channel Name
+        id: prepare-slack-channel-name
+        run: |
+             if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
+                echo "slack_channel=delius-aws-oracle-prod-alerts-test" >> $GITHUB_OUTPUTS
+             else
+                echo "slack_channel=delius-aws-oracle-dev-alerts-test" >> $GITHUB_OUTPUTS
+             fi
+
+
       - name: Check Restore DateTime Input
         if: ${{ (github.event_name == 'workflow_dispatch') && (github.event.inputs.RestoreDatetime != '') }}
         run: |
@@ -233,6 +243,7 @@ jobs:
         if: failure()
         uses: slackapi/slack-github-action@v1.25.0
         with:
+            channel-id: "${{ steps.get-slack-channel.outputs.slack_channel }}"
             payload: |
               {"blocks":[{"type": "section","text": {"type": "mrkdwn","text": ":no_entry: Failed GitHub Action:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"}]}]}
         env:
