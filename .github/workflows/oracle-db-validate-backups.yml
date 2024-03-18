@@ -239,8 +239,10 @@ jobs:
                echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
 
       - name: Slach Channel
+        if: failure()
         run: |
              echo $SlackChannel
+
 
       - name: Slack Failure Notification
         id: slack
