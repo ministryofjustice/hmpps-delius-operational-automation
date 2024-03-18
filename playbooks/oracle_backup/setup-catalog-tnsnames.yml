@@ -29,7 +29,7 @@
 
 - name: Add catalog connect identifier to {{ oracle_home.stdout }}/network/admin/tnsnames.ora
   blockinfile:
-    backup:
+    backup: true
     insertafter: EOF
     path: "{{ oracle_home.stdout }}/network/admin/tnsnames.ora"
     block: |
