@@ -229,10 +229,10 @@ jobs:
 
       - name: Slack Failure Notification
         id: slack
+        if: failure()
         uses: slackapi/slack-github-action@v1.25.0
         with:
             payload: |
               {"blocks":[{"type": "section","text": {"type": "mrkdwn","text": ":no_entry: Failed GitHub Action:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"}]}]}
         env:
           SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
-          if: ${{ failure() }}
