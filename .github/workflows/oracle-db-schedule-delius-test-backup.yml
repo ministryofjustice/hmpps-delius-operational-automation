@@ -1,7 +1,7 @@
 name: "Oracle: scheduled_delius_core_test_delius_primarydb_database_backup"
 on:
   schedule:
-    - cron: '30 13 16 * 1,2,4,5'
+    - cron: '19 13 * * 1,2,4,5'
     - cron: '30 13 * * 3'
 jobs:
   prepare-parameters:
