@@ -4,29 +4,35 @@
   become_user: root
   become_method: sudo
   gather_facts: yes
+  order: sorted
   tasks:
+    - name: General KMS KEY
+      run_once: yes
+      block:
+        - name: Find General KMS Key Arn From S3 Backup Bucket
+          shell: aws s3api get-bucket-encryption --bucket {{ simple_environment_name }}-oracle-database-backups --output text --query 'ServerSideEncryptionConfiguration.Rules[].ApplyServerSideEncryptionByDefault.KMSMasterKeyID'
+          register: getkmskeyarn
+
+        - name: Set Fact For the KMS Key Option
+          set_fact:
+            general_kms_key_option: "--sse aws:kms --sse-kms-key-id {{ getkmskeyarn.stdout }}"
+
     - name: Run Database Task
       include_role:
         name: audit
         tasks_from: audit-database
       when: audit is defined
 
-- name: Oracle Audit Weblogic
-  hosts: localhost
-  gather_facts: yes
-  tasks:
     - name: Run Weblogic Task
       include_role:
         name: audit
         tasks_from: audit-weblogic
       when: audit is defined
+      run_once: yes
 
-- name: Run Upload To S3
-  hosts: localhost
-  gather_facts: no
-  tasks:
     - name: Run Upload Task
       include_role:
         name: audit
         tasks_from: audit-upload
       when: upload is defined
+      run_once: yes
