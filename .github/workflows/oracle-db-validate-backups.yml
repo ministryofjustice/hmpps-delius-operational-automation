@@ -225,7 +225,7 @@ jobs:
                SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
                SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
                #echo ${SECRET_VALUE}
-               SLACK_TOKEN=$(echo ${SECRET_VALUE} | sed 's/^\"//' | sed 's/\"$//' | jq -r 'to_entries[] | select(.key=="slack_token").value')
+               SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
                echo "::set-output name=slack_token::${SLACK_TOKEN}"
 
       - name: Slack Failure Notification
