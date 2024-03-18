@@ -238,6 +238,10 @@ jobs:
                SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
                echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
 
+      - name: Slach Channel
+        run: |
+             echo $SlackChannel
+
       - name: Slack Failure Notification
         id: slack
         if: failure()
