@@ -8,7 +8,7 @@ on:
     - cron: '20 11 * * TUE'
     - cron: '30 10 * * 3'
 jobs:
-  check_if_scheduled:
+  validate-backups:
     runs-on: ubuntu-latest
     outputs:
         RunNow: ${{ steps.schedule-run.outputs.RunNow }}
