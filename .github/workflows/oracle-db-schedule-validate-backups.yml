@@ -21,7 +21,7 @@ jobs:
             - TargetEnvironment: delius-core-test
               TargetHost: delius_primarydb
               CronSchedule: '20 11 * * TUE'
-    if: github.event.schedule == matrix.CronSchedule
+    if: github.event.schedule == ${{ matrix.TargetEnvironment }}
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
     with:
