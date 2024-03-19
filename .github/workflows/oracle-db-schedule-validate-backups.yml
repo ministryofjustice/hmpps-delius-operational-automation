@@ -1,5 +1,8 @@
 name: "Oracle: Schedule Validate Backups"
 on:
+  push:
+    - branches:
+      - "DBA-662"
   schedule:
     - cron: '30 10 * * 1'
     - cron: '30 10 * * 2'
@@ -14,8 +17,7 @@ jobs:
             - TargetEnvironment: delius-core-dev
             - TargetHost: delius_primarydb
             - CronSchedule: '30 10 * * 2'
-    uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
+    uses: ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
     with:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       TargetHost: ${{ matrix.TargetHost }}
