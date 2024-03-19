@@ -9,6 +9,7 @@ on:
     - cron: '30 10 * * 3'
 jobs:
   validate_backups:
+    runs_on: ubuntu-latest
     strategy:
         matrix:
           include:
@@ -21,7 +22,7 @@ jobs:
             - TargetEnvironment: delius-core-test
               TargetHost: delius_primarydb
               CronSchedule: '20 11 * * TUE'
-              
+
     steps:
       - name: Run Backup Validation
         if: matrix.CronSchedule == github.event.schedule
