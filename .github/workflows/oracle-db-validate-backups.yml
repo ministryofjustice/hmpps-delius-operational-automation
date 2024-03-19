@@ -87,9 +87,9 @@ jobs:
         id: prepare-slack-channel-name
         run: |
              if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
-                echo "SlackChannel=delius-aws-oracle-prod-alerts-test" >> $GITHUB_OUTPUT
+                echo "SlackChannel=delius-aws-oracle-prod-alerts" >> $GITHUB_OUTPUT
              else
-                echo "SlackChannel=delius-aws-oracle-dev-alerts-test" >> $GITHUB_OUTPUT
+                echo "SlackChannel=delius-aws-oracle-dev-alerts" >> $GITHUB_OUTPUT
              fi
 
       - name: Check Restore DateTime Input
