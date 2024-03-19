@@ -26,6 +26,7 @@ jobs:
     steps:
       - name: Show Matrix
         run: |
+            echo "${{ needs.prepare-run-matrix.outputs.matrix }}"
             echo "${{ fromJson(needs.prepare-run-matrix.outputs.matrix)}}"
             echo "${{ fromJson(needs.prepare-run-matrix.outputs.matrix) != '[]' }}"
 
