@@ -20,6 +20,12 @@ jobs:
             - TargetEnvironment: delius-core-dev
               TargetHost: delius_primarydb
               CronSchedule: '20 11 * * TUE'
+            - TargetEnvironment: delius-core-dev
+              TargetHost: delius_standbydb1
+              CronSchedule: '20 11 * * TUE'
+            - TargetEnvironment: delius-core-test
+              TargetHost: delius_standbydb1
+              CronSchedule: '20 11 * * TUE'
     steps:
       - name: Schedule Run
         id: schedule-run
