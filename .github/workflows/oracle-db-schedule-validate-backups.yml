@@ -17,7 +17,7 @@ jobs:
           include:
             - TargetEnvironment: delius-core-dev
               TargetHost: delius_primarydb
-              CronSchedule: '30 10 * * 2'
+              CronSchedule: '10 11 * * 2'
     steps:
       - name: Schedule Run
         id: schedule-run
