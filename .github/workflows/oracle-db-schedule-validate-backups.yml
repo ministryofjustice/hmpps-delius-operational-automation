@@ -8,8 +8,12 @@ on:
     - cron: '20 11 * * TUE'
     - cron: '30 10 * * 3'
 jobs:
-  check_if_scheduled:
+  validate_backups:
     runs-on: ubuntu-latest
+    outputs:
+        RunNow: ${{ steps.schedule-run.outputs.RunNow }}
+        TargetEnvironment: ${{ steps.schedule-run.outputs.TargetEnvironment }}
+        TargetHost: ${{ steps.schedule-run.outputs.TargetHost }}
     strategy:
         matrix:
           include:
@@ -23,15 +27,9 @@ jobs:
               TargetHost: delius_primarydb
               CronSchedule: '20 11 * * TUE'
     steps:
-      - name: Check Run Schedule
-        id: check-run-schedule
-        run: |
-         # [ "${{ github.event.schedule }}" == "${{ matrix.CronSchedule }}" ] && echo "RunNow=true" || echo "RunNow=false" >> $GITHUB_OUTPUT
-         echo "RunNow=true" >> $GITHUB_OUTPUT
-
-      - name: Run Validation
-        id: run-validation
-        if: steps.check-run-schedule.RunNow == 'true'
+      - name: Validate Backups
+        id: validate-backups
+        if: github.event.schedule == matrix.CronSchedule
         uses:
           ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
         with:
