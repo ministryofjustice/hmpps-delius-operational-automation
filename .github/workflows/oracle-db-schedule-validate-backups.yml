@@ -22,7 +22,7 @@ jobs:
 
   validate:
     needs: prepare-run-matrix
-    if: ${{ fromJson(needs.matrix_prep.outputs.matrix) != [] }}
+    if: fromJson(needs.matrix_prep.outputs.matrix) != []
     strategy:
       matrix: ${{ fromJson(needs.matrix_prep.outputs.matrix) }}
     name: Validate
