@@ -24,9 +24,7 @@ jobs:
         run: |
           [ "${{ github.event.schedule }}" == ${{ matrix.CronSchedule }} ] && echo "RunNow=true" || "RunNow=false" >> $GITHUB_OUTPUT
   run-workflow-call:
-    env:
-      RunNow: ${{ needs.check_if_scheduled.outputs.RunNow }}
-    if: ${{ env.RunNow }} == 'true'
+    if: ${{ needs.check_if_scheduled.outputs.RunNow }} == 'true'
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
     with:
