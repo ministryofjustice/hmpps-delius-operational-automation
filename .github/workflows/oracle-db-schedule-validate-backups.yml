@@ -10,6 +10,8 @@ on:
 jobs:
   check_if_scheduled:
     runs-on: ubuntu-latest
+    outputs:
+        RunNow: ${{ steps.schedule-run.outputs.RunNow }}
     strategy:
         matrix:
           include:
