@@ -18,10 +18,11 @@ jobs:
         uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
           inputFile: '.github/workflows/oracle-db-validate-backups-schedule.json'
-          filter: '[?CronSchedule!=`${{ github.event.schedule }}`]'
+          filter: '[?CronSchedule==`${{ github.event.schedule }}`]'
 
   validate:
     needs: prepare-run-matrix
+    if: ${{ fromJson(needs.prepare-run-matrix.outputs.matrix) != '[]' }}
     strategy:
       matrix: ${{fromJson(needs.prepare-run-matrix.outputs.matrix)}}
     name: Validate
