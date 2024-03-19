@@ -26,7 +26,7 @@ jobs:
   run-workflow-call:
     if: ${{ needs.check_if_scheduled.outputs.RunNow }} == 'true'
     uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@main
     with:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       TargetHost: ${{ matrix.TargetHost }}
