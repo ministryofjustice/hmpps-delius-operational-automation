@@ -78,9 +78,19 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       RmanTarget: ${{ steps.preparermantargetname.outputs.RmanTarget }}
-      TargetEnvironment: ${{ steps.preparermantargetname.outputs.TargetEnvironment }}
+      TargetEnvironment: ${{ steps.preparermantargetname.outputs.TargetEnvironment }}-preapproved
+      SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
     continue-on-error: false
     steps:
+
+      - name: Prepare Slack Channel Name
+        id: prepare-slack-channel-name
+        run: |
+             if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
+                echo "SlackChannel=delius-aws-oracle-prod-alerts" >> $GITHUB_OUTPUT
+             else
+                echo "SlackChannel=delius-aws-oracle-dev-alerts" >> $GITHUB_OUTPUT
+             fi
 
       - name: Check Restore DateTime Input
         if: ${{ (github.event_name == 'workflow_dispatch') && (github.event.inputs.RestoreDatetime != '') }}
@@ -141,6 +151,7 @@ jobs:
     timeout-minutes: 1440
     env:
       RmanTarget: ${{ needs.build_rman_target_name.outputs.RmanTarget }}
+      SlackChannel: ${{ needs.build_rman_target_name.outputs.SlackChannel }}
     continue-on-error: false
     steps:
 
@@ -176,7 +187,7 @@ jobs:
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-modernisation-platform-facts
           path: roles
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
           fetch-depth: 0
 
       - name: Install yq
@@ -206,8 +217,33 @@ jobs:
           aws-region: "eu-west-2"
 
       - name: Start Ansible Validate Backup
+        id: validate-backup
         run: |
           [[ ! -z ${{ steps.randomizetargethost.outputs.RmanTarget }} ]] && RmanTarget="${{ steps.randomizetargethost.outputs.RmanTarget }}"
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $command -i $inventory -e rman_target=$RmanTarget $VerboseOutput
+
+      - name: Get Slack Token
+        id: get-slack-token
+        if: failure()
+        run: |
+               ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+               OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
+                     jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
+                     jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
+               SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
+               SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
+               SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
+               echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: Slack Failure Notification
+        id: slack
+        if: failure()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+            channel-id: "${{ env.SlackChannel }}"
+            payload: |
+              {"icon_emoji":"broken_record","text":"Failed Backup Validation","blocks":[{"type": "section","text": {"type": "mrkdwn","text": ":no_entry: Failed Backup Validation:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
+        env:
+          SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
