@@ -20,6 +20,14 @@ jobs:
           inputFile: '.github/workflows/oracle-db-validate-backups-schedule.json'
           filter: '[?CronSchedule==`${{ github.event.schedule }}`]'
 
+  report:
+    runs-on: ubuntu-latest
+    needs: prepare-run-matrix
+    steps:
+      - name: Show Matrix
+        run: |
+            echo "${{ fromJson(needs.prepare-run-matrix.outputs.matrix) != '[]' }}"
+
   validate:
     needs: prepare-run-matrix
     if: ${{ fromJson(needs.prepare-run-matrix.outputs.matrix) != '[]' }}
