@@ -8,28 +8,25 @@ on:
     - cron: '20 11 * * TUE'
     - cron: '30 10 * * 3'
 jobs:
-  validate-backups:
+  matrix_prep:
     runs-on: ubuntu-latest
     outputs:
-        RunNow: ${{ steps.schedule-run.outputs.RunNow }}
-        TargetEnvironment: ${{ steps.schedule-run.outputs.TargetEnvironment }}
-        TargetHost: ${{ steps.schedule-run.outputs.TargetHost }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        uses: JoshuaTheMiller/conditional-build-matrix@v2
+        with:
+          inputFile: '.github/workflows/oracle-db-validate-backups-schedule.json'
+          filter: '[?CronSchedule==`${{ github.event.schedule }}`]'
+
+  validate:
+    needs: matrix_prep
     strategy:
-        matrix:
-          schedules:
-            - TargetEnvironment: delius-core-dev
-              TargetHost: delius_primarydb
-              CronSchedule: '20 11 * * TUE'
-            - TargetEnvironment: delius-core-dev
-              TargetHost: delius_standbydb1
-              CronSchedule: '20 11 * * TUE'
-            - TargetEnvironment: delius-core-test
-              TargetHost: delius_primarydb
-              CronSchedule: '20 11 * * TUE'
-          exclude:
-            - schedules: ${{ CronSchedule != github.event.schedule }}
+      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
+    name: Validate
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
     with:
-      TargetEnvironment: ${{ matrix.schedules.TargetEnvironment }}
-      TargetHost: ${{ matrix.schedules.TargetHost }}
+      TargetEnvironment: ${{ matrix.TargetEnvironment }}
+      TargetHost: ${{ matrix.TargetHost }}
