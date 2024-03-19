@@ -8,7 +8,7 @@ on:
     - cron: '20 11 * * TUE'
     - cron: '30 10 * * 3'
 jobs:
-  matrix_prep:
+  prepare-run-matrix:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -18,12 +18,13 @@ jobs:
         uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
           inputFile: '.github/workflows/oracle-db-validate-backups-schedule.json'
-          filter: '[?CronSchedule!=`${{ github.event.schedule }}`]'
+          filter: '[?CronSchedule==`${{ github.event.schedule }}`]'
 
   validate:
-    needs: matrix_prep
+    needs: prepare-run-matrix
+    if: ${{ fromJson(needs.matrix_prep.outputs.matrix) != [] }}
     strategy:
-      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
+      matrix: ${{ fromJson(needs.matrix_prep.outputs.matrix) }}
     name: Validate
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
