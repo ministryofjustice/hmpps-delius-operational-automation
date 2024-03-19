@@ -9,11 +9,6 @@ on:
     - cron: '30 10 * * 3'
 jobs:
   validate_backups:
-    runs-on: ubuntu-latest
-    outputs:
-        RunNow: ${{ steps.schedule-run.outputs.RunNow }}
-        TargetEnvironment: ${{ steps.schedule-run.outputs.TargetEnvironment }}
-        TargetHost: ${{ steps.schedule-run.outputs.TargetHost }}
     strategy:
         matrix:
           include:
