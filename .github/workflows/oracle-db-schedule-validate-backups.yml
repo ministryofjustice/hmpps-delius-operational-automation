@@ -1,4 +1,4 @@
-name: "Oracle: schedule_validate_backups"
+name: "Oracle: Schedule Validate Backups"
 on:
   push:
     branches:
