@@ -23,7 +23,7 @@ jobs:
   validate:
     needs: prepare-run-matrix
     strategy:
-      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
+      matrix: ${{fromJson(needs.prepare-run-matrix.outputs.matrix)}}
     name: Validate
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
