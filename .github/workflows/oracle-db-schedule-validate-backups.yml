@@ -41,7 +41,7 @@ jobs:
 
   validate:
     needs: prepare-run-matrix
-    if: ${{ fromJson(needs.prepare-run-matrix.outputs.matrix) != '[]' }}
+    if: ${{ fromJson(needs.prepare-run-matrix.outputs.matrix) != '{"include":[]}' }}
     strategy:
       matrix: ${{fromJson(needs.prepare-run-matrix.outputs.matrix)}}
     name: Validate
