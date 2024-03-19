@@ -1,0 +1,116 @@
+
+- name: Pre database duplicate tasks
+  hosts: '{{ duplicate_target }}'
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+      
+    - name: Store readonly passwords
+      include_tasks: ../delius_users/playbook.yml
+      vars: 
+        action_type: "store"
+      when: duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
+
+    - name: Export Automatic Workload Repository (AWR)
+      include_tasks: ../awr_export/playbook.yml
+
+    # - name: Trigger GitHub Actions workflow to switch probation integration services to read-only mode
+    #   when: environment_name == 'delius-pre-prod' and duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
+    #   shell: |
+    #     token=$(aws ssm get-parameter --name '/delius-pre-prod/delius/probation-integration/github/token' --region {{ region }} --output text --with-decryption --query Parameter.Value)
+    #     curl -fsSL -X POST -H 'Accept: application/vnd.github+json' -H "Authorization: token $token" \
+    #       --data '{"ref": "main", "inputs": {"action": "enable", "environment": "preprod"}}' \
+    #       https://api.github.com/repos/ministryofjustice/hmpps-probation-integration-services/actions/workflows/readonly.yml/dispatches
+    #   environment:
+    #     environment_name: "{{ environment_name }}"
+
+- name: Export dfi schmeas only for STGMIS
+  import_playbook: dfi-schemas.yml 
+  vars:
+      action: "export"
+  when: 
+    - duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'mis'
+    - database_primary_sid | regex_search('STGMIS.*$')
+
+- name: Keep delius datasets required
+  import_playbook: delius-datasets.yml 
+  vars:
+    action: "keep"
+  when:
+    - duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
+
+# Allow jobs during the blackout so the Audited Interaction archival job may run
+- name: Start database monitoring blackout
+  import_playbook: ../oem-blackout/playbook.yml 
+  vars:
+     target: "{{ duplicate_target.split('_')[0] + '_dbs' }}"  
+     action: "start" 
+     object_type: "all" 
+     blackout: "DUPLICATE_{{ environment_name }}" 
+     duration: "" 
+     allow_jobs: true
+
+# If FSFO is enabled then disable it for the refresh, to avoid any attempt to failover when the old primary
+# database is removed.   This will be automatically reinstated when the HA Build step runs later.
+- name: Disable Data Guard FSFO
+  hosts: '{{ duplicate_target }}'
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+
+      - name: Get Fast-Start Failover Status
+        shell: |
+              . ~/.bash_profile
+              dgmgrl -silent / "show configuration;" | awk -F: '/Fast-Start Failover/{print $2}'
+        register: get_fast_start_failover
+        changed_when: false
+
+      - name: Disble Fast-Start Failover
+        shell: |
+                . ~/.bash_profile
+                dgmgrl -silent / "disable fast_start failover"
+        when:
+            - ( get_fast_start_failover.stdout | trim ) not in ['','Disabled']
+
+# Block incoming sessions and kill existing sessions to ensure no further activity prior to the duplicate starting
+# (Only required for Delius, to ensure that any auditable activity has been preserved)
+
+- name: Block all database sessions
+  import_playbook: ../block-sessions/playbook.yml 
+  vars:
+    target_host: "{{ duplicate_target }}"  
+    action: "block" 
+  when: duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
+    
+# Propagate remaining Audited Interaction Data from the database prior to deletion
+# if an audited_interaction_repo has been defined within this environment
+# (May be skipped if source database is corrupt or unavailable although this should not normally be done)
+# - name: Disable Audited Interaction Replication Tasks
+#   hosts: '{{ duplicate_target }}'
+#   gather_facts: no
+#   become: yes
+#   become_user: oracle
+
+#   tasks:
+
+#     - name: Stop Audited Interaction Replication Prior to Duplication
+#       block:
+
+#             - name: Process HCL File to Get Account IDs
+#               include_tasks: ../ansible_controller/read_hcl.yml
+
+#             - name: Setup Ansible Controller
+#               include: ../ansible_controller/prepare_ansible_controller.yml
+#               become: no
+
+#             # This task will do nothing if there are no DMS Migration Tasks
+#             - name: Stop Audited Interaction Replication Prior to Duplication
+#               include_tasks: ../../../../engineering/operations/playbooks/oracle_dms_for_audit/oracle_dms_for_audit/tasks/stop_tasks_ssm_automation.yml
+
+#       when:
+#         - duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
+#         - not ( skip_audited_interaction_archival | bool )

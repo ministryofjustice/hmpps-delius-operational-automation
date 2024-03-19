@@ -1,0 +1,253 @@
+
+- name: Setup Oracle database parameters, autotasks and post tasks
+  hosts: "{{ duplicate_target }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+
+    # Get the Delius Slack token or the Alfresco Slack token if it does not exist
+    # This is used to send warnings about issues encountered during the duplicate
+    # which require fixing but are not serious enough to abort the job.
+    - name: Get Slack Token
+      shell: aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value
+      register: getslacktoken
+      changed_when: false
+
+    # In most cases we are duplicating an ASM-based database to ASM.
+    # However, if we duplicate from a file system based database (non-ASM)
+    # then the resultant files will be in ASM and referenced by a number
+    # of aliases.   It makes things easier and more standard if we
+    # reference these files directly instead of via aliases.
+    # The following script handles this change.   
+    # It will find nothing to change on databases duplicated from ASM.
+    - name: Remove Aliases Created by non-ASM to ASM Duplication
+      script: remove_asm_aliases.sh
+      register: remove_asm_aliases
+      changed_when: remove_asm_aliases.stdout is search('.*ALTER.*')
+      vars:
+        ansible_aws_ssm_timeout: 3600
+
+    # In case we have duplicated from a lower RU database, run datapatch to update
+    # (Will take no action if no release update patches required)
+    # Occassionally we might encounter ORA-54 if run with database open, so use upgrade mode
+    - name: Shutdown Primary Database
+      include: shutdown_database.yml    
+
+    - name: Startup Primary Database in Upgrade Mode for Datapatch
+      script: startup_database_upgrade.sh
+
+    # Datapatch can occassionally fail when previous OJVM patch is rolled back.   However the replacement patch is
+    # then normally installed successfully.   Fix from Oracle if this happens is to simply re-run datapatch so
+    # we allow up to 3 retries to complete without errors.
+    - name: Run Datapatch on Primary
+      shell: |
+          . ~/.bash_profile
+          cd ${ORACLE_HOME}/OPatch
+          ./datapatch -verbose
+      register: datapatch
+      retries: 3
+      delay: 1
+      until: datapatch.rc == 0
+      async: 1800
+      poll: 60
+      failed_when: datapatch.rc !=0 or datapatch.stdout is search('command failed with errors')
+
+    - name: Show Datapatch Output
+      debug:  var=datapatch.stdout_lines
+
+    - name: Shutdown Primary Database
+      include: shutdown_database.yml    
+
+    - name: Startup Database for Normal Use
+      include: startup_database.yml   
+
+    # Note that parameters required target_host and auto-tasks requires target_host*S*
+    - name: Setup Environment Specific Oracle Parameters
+      include_role: 
+        name: hmpps-oracledb-parameters
+      vars: 
+        target_host: "{{ duplicate_target }}"
+
+    - name: Setup Environment Specific Oracle Auto Tasks
+      include_role: 
+        name: hmpps-oracledb-autotasks
+      vars: 
+        target_hosts: "{{ duplicate_target }}"
+
+    - name: Restart Audited Interaction Replication
+      when:  duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
+      block:
+
+        - name: Process HCL File to Get Account IDs
+          include: ../ansible_controller/read_hcl.yml
+          run_once: true
+
+        - name: Setup Ansible Controller
+          include: ../ansible_controller/prepare_ansible_controller.yml
+          run_once: true
+          become: no
+
+        # This task will do nothing if there are no DMS Migration Tasks
+        - name: Restart Audited Interaction Replication
+          include_tasks: ../../../../engineering/operations/playbooks/oracle_dms_for_audit/oracle_dms_for_audit/tasks/restart_tasks_ssm_automation.yml
+          when: is_aws_environment | default(true)
+
+        - name: Set Status of Audited Interaction Replication Jobs
+          script: audited_interaction_scheduler_jobs.sh
+
+    # Although the new database would be registered automatically during the next backup, we do the registration
+    # now in advance as this allows us to backup any archive logs which may be required to support a restore point
+    # before the first backup has been taken.
+    - name: Register Database with RMAN Catalog
+      include: register_with_rman.yml
+
+    - block:
+
+        - name: Update objects
+          include_tasks: ../delius_objects/playbook.yml
+
+        # Use a directory from the current repo as a role for Audited Interaction Preservation
+        - name: Create Local Roles Directory
+          file:
+              path: ~/.ansible/roles
+              state: directory
+          delegate_to: localhost
+          become: no
+
+        - name: Link to Oracle DMS for Audit in current repo as a role
+          file:
+            dest: ~/.ansible/roles/oracle-dms-for-audit
+            src: "{{ playbook_dir }}/../oracle_dms_for_audit/oracle_dms_for_audit"
+            state: link
+          run_once: true
+          delegate_to: localhost
+          become: no
+
+        - name: Disable Update of USER_ Table Where Audited Interaction Data to be Preserved
+          include_role: 
+             name: oracle-dms-for-audit
+             tasks_from: disable_user_update.yml
+          when: audited_interaction_client | default(false)
+          
+        - name: Create and restore delius users
+          include_tasks: ../delius_users/playbook.yml
+          vars: 
+            action_type: "all"
+
+        - name: Create Delius gdpr_pool database user
+          include_tasks: ../delius_gdpr/playbook.yml
+
+        - name: Deploy CFO Daily Extract
+          include_tasks: ../cfo_extract/playbook.yml
+
+        - name: Link to alfresco_wallet in current repo as a role
+          file:
+              dest: ~/.ansible/roles/alfresco-wallet
+              src: "{{ playbook_dir }}/../alfresco_wallet/alfresco_wallet"
+              state: link
+          run_once: true
+          delegate_to: localhost
+          become: no
+
+        - name: Setup Alfresco Wallet and ACL
+          include_role: 
+              name: alfresco-wallet
+          vars:
+              certificate_dict: {}
+
+        # If a problem has occurred refreshing Alfresco it may not be up and running at this point.
+        # Send a warning by Slack but do not abort the duplicate.
+        - name: Notify on Alfresco Server Error
+          community.general.slack:
+            token: "{{ getslacktoken.stdout }}"
+            msg: "Alfresco configuration failed on {{ inventory_hostname }}.  The response from the Alfresco server was {{ check_alfresco_url.msg | default('unknown') }}.  Ignoring errors and continuing with duplication tasks."
+            channel: "#delius-aws-oracle-dev-alerts"
+            username: 'Delius Database Duplicate on {{ inventory_hostname }}'
+            icon_emoji: ':sign-warning:'
+          delegate_to: localhost
+          become: no
+          ignore_errors: true
+          when:
+            - alfresco_host != 'NOT CONFIGURED'
+            - check_alfresco_url.failed
+
+      when: duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
+
+# We ignore any errors during the database uplift as these can be resolved afterwards
+# and this is preferable to leaving the duplicate only partially completed.
+- name: 'Uplift database'
+  import_playbook: ../../../delius-core/playbooks/deploy-application.yml
+  when: duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
+  vars:
+     deploy_rbac: false
+     ldap_hosts: 'none'
+     db_ha_counts: {'delius': {'high_availability_count': 0}, 'mis': {'high_availability_count': 0}}
+     deploy_application: false
+     deploy_database: true
+     create_restore_point: false
+     ignore_pdm_uplift_errors: true
+  tags: deploy_application
+
+- name: Notify If Uplift Error
+  import_playbook: notify-on-uplift-error.yml
+  when: duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
+  tags: deploy_application
+
+# The database uplift should already have unblocked the listener but we do it again
+# just in case that step had failed
+- name: 'Unblock listener'
+  import_playbook: unblock_listener.yml 
+  vars:
+     target_host: "{{ duplicate_target }}"
+
+- name: 'Setup Oracle Statspack'
+  import_playbook: ../oracle_statspack/install_statspack.yml 
+  vars:
+     hosts: "{{ duplicate_target }}"
+
+- name: Create mis database links if required
+  hosts: '{{ duplicate_target }}'
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+
+    - name: create database links
+      include_tasks: ../mis_database_links/playbook.yml 
+      when: duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'mis'
+
+- name: Import dfi schemas only for STGMIS
+  import_playbook: dfi-schemas.yml 
+  vars:
+     action: "import"
+  when: 
+    - duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'mis'
+    - database_primary_sid | regex_search('STGMIS.*$')
+
+- name: Copy delius datasets required
+  import_playbook: delius-datasets.yml
+  vars:
+    action: "copy"
+  when:
+    - duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
+
+- name: Re-enable probation integration updates
+  hosts: '{{ duplicate_target }}'
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+    - name: Trigger GitHub Actions workflow to switch probation integration services back to read-write mode
+      shell: |
+        environment_name=$(. ~/.bash_profile && . /etc/environment && echo $HMPPS_ENVIRONMENT)
+        if [ "$environment_name" == 'delius-pre-prod' ]; then
+          token=$(aws ssm get-parameter --name '/delius-pre-prod/delius/probation-integration/github/token' --region {{ region }} --output text --with-decryption --query Parameter.Value)
+          curl -fsSL -X POST -H 'Accept: application/vnd.github+json' -H "Authorization: token $token" \
+            --data '{"ref": "main", "inputs": {"action": "disable", "environment": "preprod"}}' \
+            https://api.github.com/repos/ministryofjustice/hmpps-probation-integration-services/actions/workflows/readonly.yml/dispatches
+        fi
+      when: duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'

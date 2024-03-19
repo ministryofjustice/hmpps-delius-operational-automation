@@ -1,0 +1,81 @@
+- name: Manage whether standby databases are created
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  tasks:
+
+    - name: Initialise variables on localhost to be used elewhere
+      set_fact:
+        type: "{{ duplicate_target | regex_replace('(^.*)_.*$','\\1') }}"
+        primary_host: "nohost"
+        standby_host: "nohost"
+        create_standby: false
+        ha_count: 0
+        fsfo_observer_target: "disabled"
+
+    - name: Set facts if delius
+      set_fact:
+        primary_host: "delius_primarydb"
+        standby_host: "delius_standbydb1"
+        create_standby: true
+        ha_count: "{{ database.delius.high_availability_count | int }}"
+        fsfo_observer_target: "{{ hostvars[groups['delius_primarydb'][0]]['fsfo_mode']  | default('disabled') | lower }}"
+      when: database.delius.high_availability_count | int >= 1 and type == 'delius'
+
+    - name: Set facts if mis
+      set_fact:
+        primary_host: "mis_primarydb"
+        standby_host: "mis_standbydb1"
+        create_standby: true
+        ha_count: "{{ database.mis.high_availability_count | int }}"
+        fsfo_observer_target: "{{ hostvars[groups['mis_primarydb'][0]]['fsfo_mode']  | default('disabled') | lower }}"
+      when: database.mis.high_availability_count | int >= 1 and type == 'mis'
+
+    - name: Set facts if misboe
+      set_fact:
+        primary_host: "misboe_primarydb"
+        standby_host: "misboe_standbydb1"
+        create_standby: true
+        ha_count: "{{ database.misboe.high_availability_count | int }}"
+        fsfo_observer_target: "{{ hostvars[groups['misboe_primarydb'][0]]['fsfo_mode']  | default('disabled') | lower }}"
+      when: database.misboe.high_availability_count | int >= 1 and type == 'misboe'
+
+    - name: Set facts if misdsd
+      set_fact:
+        primary_host: "misdsd_primarydb"
+        standby_host: "misdsd_standbydb1"
+        create_standby: true
+        ha_count: "{{ database.misdsd.high_availability_count | int }}"
+        fsfo_observer_target: "{{ hostvars[groups['misdsd_primarydb'][0]]['fsfo_mode']  | default('disabled') | lower }}"
+      when: database.misdsd.high_availability_count | int >= 1 and type == 'misdsd'
+
+- name: Create standby database
+  import_playbook: build-ha.yml 
+  vars:
+      primary: "{{ hostvars['localhost']['primary_host'] }}" 
+      standby: "{{ hostvars['localhost']['standby_host'] }}" 
+      method: "{{ procedure | default() }}" 
+      ssm_option: "{{ ssm_parameter | default() }}" 
+      high_availability_count: "{{ hostvars['localhost']['ha_count'] }}" 
+      fsfo_mode: "{{ hostvars['localhost']['fsfo_observer_target'] }}" 
+      standby_number: 1 
+  when:  hostvars['localhost']['create_standby']
+
+- name: Update ssm parameter only when no standby databases to be created
+  hosts: "{{ duplicate_target }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  gather_facts: no
+  tasks:
+
+    - debug: var=hostvars['localhost']['create_standby']
+
+    - debug: var=ssm_parameter
+
+    - name: Update ssm parameter to not required
+      shell: |
+        . /etc/environment 
+        aws ssm put-parameter --region ${REGION} --value "NotRequiredHA" --name "{{ ssm_parameter }}" --overwrite --type String
+      when: not hostvars['localhost']['create_standby'] and ssm_parameter is defined and ssm_parameter | length > 0

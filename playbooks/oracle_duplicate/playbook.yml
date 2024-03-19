@@ -1,0 +1,60 @@
+# This playbook is only used when running from the command line.  If running using an SSM
+# document each of the steps would be run individually inside the document.
+- name: RMAN Pre Duplicate
+  import_playbook: rman-pre-duplicate.yml
+
+- name: RMAN duplicate
+  import_playbook: rman-duplicate.yml 
+  vars:
+     duplicate_target: "{{ duplicate_target }}"
+     source_db: "{{ source_db }}" 
+     s3_source_bucket: "{{ s3_source_bucket }}" 
+     restore_datetime: "{{ restore_datetime }}"
+
+- name: RMAN Post Duplicate
+  import_playbook: rman-post-duplicate.yml
+
+- name: 'Create Delius standby 1'
+  import_playbook: build-ha.yml
+  vars:
+     primary: "delius_primarydb" 
+     standby: "delius_standbydb1" 
+     standby_number: 1
+     high_availability_count: "{{ database.delius.high_availability_count }}"
+  when: (duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius') and (database.delius.high_availability_count|int >= 1)
+
+- name: 'Create Delius standby 2'
+  import_playbook: build-ha.yml 
+  vars:
+     primary: "delius_primarydb" 
+     standby: "delius_standbydb2" 
+     standby_number: 2
+     high_availability_count: "{{ database.delius.high_availability_count }}"
+  when: (duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius') and (database.delius.high_availability_count|int >= 2)
+
+- name: 'Create Mis standby 1'
+  import_playbook: build-ha.yml 
+  vars:
+     primary: "mis_primarydb" 
+     standby: "mis_standbydb1" 
+     standby_number: 1
+     high_availability_count: "{{ database.mis.high_availability_count }}"
+  when: (duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'mis') and (database.mis.high_availability_count|int >= 1)
+
+- name: 'Create Mis standby 2'
+  import_playbook: build-ha.yml 
+  vars:
+     primary: "mis_primarydb" 
+     standby: "mis_standbydb2" 
+     standby_number: 2
+     high_availability_count: "{{ database.mis.high_availability_count }}"
+  when: (duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'mis') and (database.mis.high_availability_count|int >= 2)
+ 
+- name: Stop database monitoring blackout
+  import_playbook: ../oem-blackout/playbook.yml
+  vars:
+     target: "{{ duplicate_target.split('_')[0] + '_dbs' }}"
+     action: "{{ stop }}"
+     object_type: "{{ all }}"
+     blackout: "DUPLICATE_{{ environment_name }}"
+     duration: ""

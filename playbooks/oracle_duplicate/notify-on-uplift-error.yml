@@ -1,0 +1,71 @@
+
+- name: Send Notification if the Uplift Had Errors
+  hosts: "{{ duplicate_target }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+
+      # Get the Delius Slack token or the Alfresco Slack token if it does not exist
+    - name: Get Slack Token
+      shell: aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value
+      register: getslacktoken
+      changed_when: false
+
+    # Report Any Errors with Uplift but do not let this abort the duplication
+    # Ignore any log files created more than 90 minutes ago
+    - name: Get Location of Uplift Log
+      find:
+         paths: "/u01/software/scripts/uplift/{{ ndelius_version }}/install/log"
+         use_regex: yes
+         patterns: ['^nDelius_Install_\d{12}.log$']
+         age: -90m
+      register: uplift_log_files
+
+    # Do not abort if sending the notification fails
+    - name: Send log not found notification message via Slack
+      community.general.slack:
+        token: "{{ getslacktoken.stdout }}"
+        msg: "Could not find ND Uplift log file for {{ inventory_hostname }}.  Ignoring and continuing with duplication tasks."
+        channel: "#delius-aws-oracle-dev-alerts"
+        username: 'Delius Database Duplicate on {{ inventory_hostname }}'
+        icon_emoji: ':sign-warning:'
+      when: uplift_log_files.matched == 0
+      delegate_to: localhost
+      become: no
+      ignore_errors: true
+
+    - name: Check Log File for Errors
+      when: uplift_log_files.matched > 0
+      block:
+
+          - name: Get latest file
+            set_fact:
+              latest_uplift_log_file: "{{ uplift_log_files.files | sort(attribute='mtime') | last }}"
+
+          # Find errors in the log file
+          - name: Check Log File for Errors
+            lineinfile:
+              path: "{{ latest_uplift_log_file.path }}"
+              regexp: 'error messages have been found within'
+              state: absent
+            check_mode: yes
+            changed_when: false
+            register: log_error_check
+
+          - debug:
+               var=log_error_check
+
+          # Do not abort if sending the notification fails
+          - name: Send error notification message via Slack
+            community.general.slack:
+              token: "{{ getslacktoken.stdout }}"
+              msg: "ND Uplift Database failed during duplicate to {{ inventory_hostname }}.  Ignoring errors and continuing with duplication tasks."
+              channel: "#delius-aws-oracle-dev-alerts"
+              username: 'Delius Database Duplicate on {{ inventory_hostname }}'
+              icon_emoji: ':sign-warning:'
+            when: log_error_check.found | default(false)
+            delegate_to: localhost
+            become: no
+            ignore_errors: true
