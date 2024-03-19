@@ -13,7 +13,7 @@ jobs:
     outputs:
         RunNow: ${{ steps.schedule-run.outputs.RunNow }}
         TargetEnvironment: ${{ steps.schedule-run.outputs.TargetEnvironment }}
-        TargetHost: ${{ steps.schedule-run.TargetHost }}
+        TargetHost: ${{ steps.schedule-run.outputs.TargetHost }}
     strategy:
         matrix:
           include:
@@ -26,8 +26,8 @@ jobs:
         run: |
          # [ "${{ github.event.schedule }}" == "${{ matrix.CronSchedule }}" ] && echo "RunNow=true" || echo "RunNow=false" >> $GITHUB_OUTPUT
          echo "RunNow=true" >> $GITHUB_OUTPUT
-         echo "TargetEnvironment=${{ matrix.TargetEnvironment }}"  >> $GITHUB_OUTPUT
-         echo "TargetHost=${{ matrix.TargetHost }}"  >> $GITHUB_OUTPUT
+         echo "TargetEnvironment=${{ matrix.TargetEnvironment }}" >> $GITHUB_OUTPUT
+         echo "TargetHost=${{ matrix.TargetHost }}" >> $GITHUB_OUTPUT
 
   run-workflow-call:
     needs: check_if_scheduled
