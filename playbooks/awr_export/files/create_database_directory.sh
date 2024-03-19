@@ -1,0 +1,17 @@
+#!/bin/bash
+
+. ~/.bash_profile
+
+DATA_PUMP_DIR=${ORACLE_BASE}/admin/${ORACLE_SID}/dpdump
+mkdir -p ${DATA_PUMP_DIR}
+
+sqlplus -s / as sysdba <<EOF
+
+WHENEVER SQLERROR EXIT FAILURE
+SET FEEDBACK OFF
+SET HEADING OFF
+SET PAGES 0
+
+CREATE OR REPLACE DIRECTORY data_pump_dir AS '${DATA_PUMP_DIR}';
+
+EOF
