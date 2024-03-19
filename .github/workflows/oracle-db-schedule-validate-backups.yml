@@ -16,13 +16,13 @@ jobs:
         matrix:
           include:
             - TargetEnvironment: delius-core-dev
-            - TargetHost: delius_primarydb
-            - CronSchedule: '30 10 * * 2'
+              TargetHost: delius_primarydb
+              CronSchedule: '30 10 * * 2'
     steps:
       - name: Schedule Run
         id: schedule-run
         run: |
-          [ "${{ github.event.schedule }}" == ${{ matrix.CronSchedule }} ] && echo "RunNow=true" || "RunNow=false" >> $GITHUB_OUTPUT
+          [ "${{ github.event.schedule }}" == "${{ matrix.CronSchedule }}" ] && echo "RunNow=true" || echo "RunNow=false" >> $GITHUB_OUTPUT
   run-workflow-call:
     if: ${{ needs.check_if_scheduled.outputs.RunNow }} == 'true'
     uses:
