@@ -37,3 +37,4 @@ jobs:
     with:
       TargetEnvironment: ${{ needs.check_if_scheduled.outputs.TargetEnvironment }}
       TargetHost: ${{ needs.check_if_scheduled.outputs.TargetHost }}
+    secrets: inherit
