@@ -5,7 +5,7 @@ on:
        - "DBA-662"
   schedule:
     - cron: '30 10 * * 1'
-    - cron: '15 11 * * 2'
+    - cron: '20 11 * * TUE'
     - cron: '30 10 * * 3'
 jobs:
   check_if_scheduled:
@@ -17,7 +17,7 @@ jobs:
           include:
             - TargetEnvironment: delius-core-dev
               TargetHost: delius_primarydb
-              CronSchedule: '15 11 * * 2'
+              CronSchedule: '20 11 * * TUE'
     steps:
       - name: Schedule Run
         id: schedule-run
