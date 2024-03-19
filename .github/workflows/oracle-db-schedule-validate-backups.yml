@@ -10,10 +10,6 @@ on:
 jobs:
   check_if_scheduled:
     runs-on: ubuntu-latest
-    outputs:
-        RunNow: ${{ steps.schedule-run.outputs.RunNow }}
-        TargetEnvironment: ${{ steps.schedule-run.outputs.TargetEnvironment }}
-        TargetHost: ${{ steps.schedule-run.outputs.TargetHost }}
     strategy:
         matrix:
           include:
@@ -24,23 +20,20 @@ jobs:
               TargetHost: delius_standbydb1
               CronSchedule: '20 11 * * TUE'
             - TargetEnvironment: delius-core-test
-              TargetHost: delius_standbydb1
+              TargetHost: delius_primarydb
               CronSchedule: '20 11 * * TUE'
     steps:
-      - name: Schedule Run
-        id: schedule-run
+      - name: Check Run Schedule
+        id: check-run-schedule
         run: |
          # [ "${{ github.event.schedule }}" == "${{ matrix.CronSchedule }}" ] && echo "RunNow=true" || echo "RunNow=false" >> $GITHUB_OUTPUT
          echo "RunNow=true" >> $GITHUB_OUTPUT
-         echo "TargetEnvironment=${{ matrix.TargetEnvironment }}" >> $GITHUB_OUTPUT
-         echo "TargetHost=${{ matrix.TargetHost }}" >> $GITHUB_OUTPUT
 
-  run-workflow-call:
-    needs: check_if_scheduled
-    if: needs.check_if_scheduled.outputs.RunNow == 'true'
-    uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
-    with:
-      TargetEnvironment: ${{ needs.check_if_scheduled.outputs.TargetEnvironment }}
-      TargetHost: ${{ needs.check_if_scheduled.outputs.TargetHost }}
-    secrets: inherit
+      - name: Run Validation
+        id: run-validation
+        if: steps.check-run-schedule.RunNow == 'true'
+        uses:
+          ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
+        with:
+          TargetEnvironment: ${{ matrix.TargetEnvironment }}
+          TargetHost: ${{ matrix.TargetHost }}
