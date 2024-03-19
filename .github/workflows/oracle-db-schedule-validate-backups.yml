@@ -22,6 +22,7 @@ jobs:
       - name: Schedule Run
         id: schedule-run
         run: |
+          [ "${{ github.event.schedule }}" == "${{ matrix.CronSchedule }}" ] && echo "RunNow=true" || echo "RunNow=false"
           [ "${{ github.event.schedule }}" == "${{ matrix.CronSchedule }}" ] && echo "RunNow=true" || echo "RunNow=false" >> $GITHUB_OUTPUT
   run-workflow-call:
     if: ${{ needs.check_if_scheduled.outputs.RunNow }} == 'true'
