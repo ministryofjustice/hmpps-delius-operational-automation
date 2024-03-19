@@ -16,7 +16,7 @@ jobs:
         TargetHost: ${{ steps.schedule-run.outputs.TargetHost }}
     strategy:
         matrix:
-          include:
+          schedules:
             - TargetEnvironment: delius-core-dev
               TargetHost: delius_primarydb
               CronSchedule: '20 11 * * TUE'
@@ -26,8 +26,10 @@ jobs:
             - TargetEnvironment: delius-core-test
               TargetHost: delius_primarydb
               CronSchedule: '20 11 * * TUE'
-    steps:
-      - name: Schedule Run
-        id: schedule-run
-        run: |
-              echo "${{ matrix }}"
+          exclude:
+            - schedules: ${{ CronSchedule != github.event.schedule }}
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
+    with:
+      TargetEnvironment: ${{ matrix.schedules.TargetEnvironment }}
+      TargetHost: ${{ matrix.schedules.TargetHost }}
