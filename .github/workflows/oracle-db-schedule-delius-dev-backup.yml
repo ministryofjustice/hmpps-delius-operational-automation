@@ -20,7 +20,7 @@ jobs:
   run-workflow-call:
     needs: prepare-parameters
     uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@DBA-662-BACKUP-DEBUG
     with:
       TargetEnvironment: delius-core-dev
       TargetHost: delius_primarydb
