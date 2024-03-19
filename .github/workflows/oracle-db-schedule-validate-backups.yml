@@ -1,0 +1,25 @@
+name: "Oracle: schedule_validate_backups"
+on:
+  push:
+    branches:
+       - "DBA-662"
+  schedule:
+    - cron: '30 10 * * 1'
+    - cron: '30 10 * * 2'
+    - cron: '30 10 * * 3'
+jobs:
+  prepare-parameters:
+    runs-on: ubuntu-latest
+    strategy:
+        matrix:
+          include:
+            - TargetEnvironment: delius-core-dev
+            - TargetHost: delius_primarydb
+            - CronSchedule: '30 10 * * 2'
+  run-workflow-call:
+    if: github.event.schedule == ${{ matrix.CronSchedule }}
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
+    with:
+      TargetEnvironment: ${{ matrix.TargetEnvironment }}
+      TargetHost: ${{ matrix.TargetHost }}
