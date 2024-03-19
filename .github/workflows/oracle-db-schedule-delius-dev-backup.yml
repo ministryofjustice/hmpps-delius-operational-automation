@@ -1,5 +1,8 @@
 name: "Oracle: scheduled_delius_core_dev_delius_primarydb_database_backup"
 on:
+  push:
+    branches:
+      - "DBA-662-BACKUP-DEBUG"
   schedule:
     - cron: '30 08 * * 1,2,4,5'
     - cron: '30 08 * * 3'
