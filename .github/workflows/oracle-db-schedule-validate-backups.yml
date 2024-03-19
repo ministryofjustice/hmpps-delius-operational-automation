@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: set-matrix
-        uses: JoshuaTheMiller/conditional-build-matrix@v2
+        uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
           inputFile: '.github/workflows/oracle-db-validate-backups-schedule.json'
           filter: '[?CronSchedule==`${{ github.event.schedule }}`]'
