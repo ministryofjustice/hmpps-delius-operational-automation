@@ -1,7 +1,7 @@
 name: "Oracle: Schedule Validate Backups"
 on:
   push:
-    - branches:
+    branches:
       - "DBA-662"
   schedule:
     - cron: '30 10 * * 1'
