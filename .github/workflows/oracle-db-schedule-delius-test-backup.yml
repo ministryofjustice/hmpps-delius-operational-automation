@@ -1,8 +1,8 @@
 name: "Oracle: scheduled_delius_core_test_delius_primarydb_database_backup"
 on:
   schedule:
-    - cron: '* 07 * * 1,2,4,5'
-    - cron: '* 07 * * 3'
+    - cron: '0 7 * * 1,2,4,5'
+    - cron: '0 7 * * 3'
 jobs:
   prepare-parameters:
     runs-on: ubuntu-latest
