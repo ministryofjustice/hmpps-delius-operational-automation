@@ -132,8 +132,7 @@ jobs:
           then
             TargetHost="${{ github.event.inputs.TargetHost }}"
             TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
-          elif [[ "${{ github.event_name }}" == "schedule" ]]
-          then
+          else
             TargetHost="${{ inputs.TargetHost }}"
             TargetEnvironment="${{ inputs.TargetEnvironment }}"
           fi;
@@ -198,7 +197,7 @@ jobs:
           force: true
 
       - name: Randomize TargetHost If Specified
-        if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')  && contains( env.RmanTarget,'Random') }}
+        if: ${{ contains( env.RmanTarget,'Random') }}
         working-directory: ${{ env.inventory }}
         id: randomizetargethost
         run: |

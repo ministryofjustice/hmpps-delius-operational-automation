@@ -33,7 +33,7 @@ jobs:
     needs: check_if_scheduled
     if: needs.check_if_scheduled.outputs.RunNow == 'true'
     uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@main
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
     with:
       TargetEnvironment: ${{ needs.check_if_scheduled.outputs.TargetEnvironment }}
       TargetHost: ${{ needs.check_if_scheduled.outputs.TargetHost }}
