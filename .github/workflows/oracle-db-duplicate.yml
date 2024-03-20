@@ -1,6 +1,9 @@
 name: "Oracle: Database Duplicate"
 run-name: "Oracle: ${{ format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}-database-duplicate"
 on:
+  push:
+    branches:
+      - "DBA-666"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
