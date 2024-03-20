@@ -11,7 +11,7 @@ jobs:
   prepare-run-matrix:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      scheduled_matrix: ${{ steps.filter-validate-schedule.outputs.scheduling_matrix }}
     steps:
       - name: Checkout Validate Backups Schedule
         uses: actions/checkout@v4
@@ -24,9 +24,27 @@ jobs:
           #ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
 
-      - name: Report Backup Schedule
-        id: report-backup-schedule
+      - name: Filter Validate Schedule
+        id: filter-validate-schedule
         run: |
              # cat operations/.github/workflows/oracle-db-validate-backups-schedule.json
              SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule!="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-validate-backups-schedule.json | jq '{include: .}')
-             echo ${SCHEDULED_JSON}
+             echo "scheduling_matrix="${SCHEDULED_JSON} >> $GITHUB_OUTPUT
+
+  validate-backup:
+  needs: prepare-run-matrix
+  if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
+  steps:
+     - name: Report
+       id: report-run
+       run: |
+            echo "Want to Run ${{ needs.prepare-run-matrix.outputs.matrix }} "
+
+  no-validate-backup:
+    needs: prepare-run-matrix
+    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix == '{"include":[]}' }}
+    steps:
+        - name: No Report
+          id: report-no-run
+          run: |
+              echo "Do not want to Run ${{ needs.prepare-run-matrix.outputs.matrix }} "
