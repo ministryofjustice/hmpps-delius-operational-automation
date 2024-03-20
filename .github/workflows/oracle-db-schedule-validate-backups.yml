@@ -39,6 +39,7 @@ jobs:
         id: report-run
         run: |
               echo "Scheduling Validation for these targets: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }}"
+              echo "Running ${{ needs.prepare-run-matrix.outputs.scheduled_matrix.TargetEnvironment }} on ${{ needs.prepare-run-matrix.outputs.scheduled_matrix.TargetHost }}"
 
   report-no-validate-backup:
     needs: prepare-run-matrix
