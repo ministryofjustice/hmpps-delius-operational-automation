@@ -1,5 +1,8 @@
 name: "Oracle: Schedule Validate Backups"
 on:
+  push:
+    branches:
+      - "DBA-662"
   schedule:
     - cron: '30 10 * * WED'
     - cron: '20 11 * * WED'
@@ -16,6 +19,13 @@ jobs:
         with:
           inputFile: '.github/workflows/oracle-db-validate-backups-schedule.json'
           filter: '[?CronSchedule==`${{ github.event.schedule }}`]'
+
+  report:
+    steps:
+      - name: Show JSON
+        id: show-json
+        run: |
+             echo ${{ needs.prepare-run-matrix.outputs.matrix }}
 
   validate-backup:
     needs: prepare-run-matrix
