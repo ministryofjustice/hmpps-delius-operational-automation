@@ -33,6 +33,7 @@ jobs:
 
   validate-backup:
     needs: prepare-run-matrix
+    runs-on: ubuntu-latest
     if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
     steps:
       - name: Report
@@ -42,6 +43,7 @@ jobs:
 
   no-validate-backup:
     needs: prepare-run-matrix
+    runs-on: ubuntu-latest
     if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix == '{"include":[]}' }}
     steps:
         - name: No Report
