@@ -72,7 +72,7 @@ permissions:
 jobs:          
   oracle-rman-pre-duplicate:
     name: oracle-rman-pre-duplicate
-    environment: ${{ github.event.inputs.TargetEnvironment }}
+    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
@@ -189,13 +189,15 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          $ansible_playbook_directory/rman-pre-duplicate.yml -i $inventory \
+          $ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
           -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} \
           -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
   slack-notification:
     if: failure() || cancelled()
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     needs: ['oracle-rman-pre-duplicate']
     steps:
 
