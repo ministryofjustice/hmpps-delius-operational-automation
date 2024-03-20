@@ -28,5 +28,5 @@ jobs:
         id: report-backup-schedule
         run: |
              # cat operations/.github/workflows/oracle-db-validate-backups-schedule.json
-             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-validate-backups-schedule.json | jq '{include: .}')
+             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule!="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-validate-backups-schedule.json | jq '{include: .}')
              echo ${SCHEDULED_JSON}
