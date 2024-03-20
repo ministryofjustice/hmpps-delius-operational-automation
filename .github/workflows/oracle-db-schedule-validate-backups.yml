@@ -27,7 +27,7 @@ jobs:
       - name: Filter Validate Schedule
         id: filter-validate-schedule
         run: |
-             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-validate-backups-schedule.json | jq '{include: .}')
+             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule!="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-validate-backups-schedule.json | jq '{include: .}')
              echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   report-validate-backup:
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
     steps:
-      - name: Report
+      - name: Report Validations to Run
         id: report-run
         run: |
               echo "Scheduling Validation for these targets: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }}"
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix == '{"include":[]}' }}
     steps:
-        - name: No Report
+        - name: Report Nothing to Do
           id: report-no-run
           run: |
               echo "No targets scheduled for validation run."
