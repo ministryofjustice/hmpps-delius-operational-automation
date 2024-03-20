@@ -1,9 +1,6 @@
 name: "Oracle: Database Duplicate"
 run-name: "Oracle: ${{ format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}-database-duplicate"
 on:
-  push:
-    branches:
-      - "DBA-666"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
@@ -193,8 +190,8 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
           $ansible_playbook_directory/rman-pre-duplicate.yml -i $inventory \
-          -e duplicate_target={{ steps.preparation.outputs.DuplicateTarget }} \
-          -e skip_audited_interaction_archival={{ github.event.inputs.SkipAudit }}
+          -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} \
+          -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
   slack-notification:
     if: failure() || cancelled()
