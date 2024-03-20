@@ -185,7 +185,7 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Start Ansible Oracle RMAN Pre-duplicate
+      - name: Start Ansible Oracle RMAN Pre Duplicate
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
@@ -193,10 +193,15 @@ jobs:
           $ansible_playbook_directory/rman-pre-duplicate.yml -i $inventory \
           -e duplicate_target={{ steps.preparation.outputs.DuplicateTarget }} \
           -e skip_audited_interaction_archival={{ github.event.inputs.SkipAudit }}
-    
+
+  slack-notification:
+    if: failure() || cancelled()
+    runs-on: ubuntu-latest
+    needs: ['oracle-rman-pre-duplicate']
+    steps:
+
       - name: Get Slack Token
         id: get-slack-token
-        if: failure()
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
@@ -209,7 +214,6 @@ jobs:
 
       - name: Slack Failure Notification
         id: slack
-        if: failure()
         uses: slackapi/slack-github-action@v1.25.0
         with:
             channel-id: "${{ env.SlackChannel }}"
