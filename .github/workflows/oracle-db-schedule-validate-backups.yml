@@ -32,13 +32,13 @@ jobs:
              echo "scheduling_matrix="${SCHEDULED_JSON} >> $GITHUB_OUTPUT
 
   validate-backup:
-  needs: prepare-run-matrix
-  if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
-  steps:
-     - name: Report
-       id: report-run
-       run: |
-            echo "Want to Run ${{ needs.prepare-run-matrix.outputs.matrix }} "
+    needs: prepare-run-matrix
+    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
+    steps:
+      - name: Report
+        id: report-run
+        run: |
+              echo "Want to Run ${{ needs.prepare-run-matrix.outputs.matrix }} "
 
   no-validate-backup:
     needs: prepare-run-matrix
