@@ -80,6 +80,8 @@ jobs:
     continue-on-error: true
     outputs:
       SlackChannel: ${{ steps.preparation.outputs.SlackChannel }}
+      DuplicateTarget: ${{ steps.preparation.outputs.DuplicateTarget }}
+      JobId: ${{ github.job }}
     steps:
 
       - name: Output Input Parameters
@@ -92,6 +94,7 @@ jobs:
           RestoreDatetime: ${{ github.event.inputs.RestoreDatetime }}\n\
           SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
           SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
+          exit 1
 
       - name: Prepare Duplicate Target Name and Slack Channel Name
         id: preparation
@@ -190,7 +193,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          $ansible_playbook_directory/rman-pre-duplicate1.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          $ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
           -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} \
           -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
@@ -249,11 +252,15 @@ jobs:
                           },
                           {
                             "type": "mrkdwn",
-                            "text": "*Job:*\n${{ github.job }}"
+                            "text": "*Job:*\n${{ needs.*.outputs.JobId }}"
                           },
                           {
                             "type": "mrkdwn",
                             "text": "*Repo:*\n${{ github.repository }}"
+                          },
+                          {
+                            "type": "mrkdwn",
+                            "text": "*Duplicate Target:*\n${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}"
                           }
                         ]
                     }  
