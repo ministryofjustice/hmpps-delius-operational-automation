@@ -29,7 +29,7 @@ jobs:
         run: |
              # cat operations/.github/workflows/oracle-db-validate-backups-schedule.json
              SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-validate-backups-schedule.json | jq '{include: .}')
-             echo "scheduling_matrix="${SCHEDULED_JSON} >> $GITHUB_OUTPUT
+             echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   validate-backup:
     needs: prepare-run-matrix
