@@ -77,7 +77,7 @@ jobs:
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 1440
-    continue-on-error: true
+    continue-on-error: false
     outputs:
       SlackChannel: ${{ steps.preparation.outputs.SlackChannel }}
       DuplicateTarget: ${{ steps.preparation.outputs.DuplicateTarget }}
@@ -198,8 +198,7 @@ jobs:
           -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
   slack-notification:
-    #if: always() && ${{ contains(needs.*.result, 'failure') }}
-    if: ${{ contains(needs.*.result, 'success') }}
+    if: always() && ${{ contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
