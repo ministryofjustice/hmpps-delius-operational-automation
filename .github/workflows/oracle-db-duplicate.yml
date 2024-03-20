@@ -80,6 +80,7 @@ jobs:
     continue-on-error: false
     outputs:
       SlackChannel: ${{ steps.preparation.outputs.SlackChannel }}
+      Status: ${{ job.status }}
     steps:
 
       - name: Output Input Parameters
@@ -147,6 +148,7 @@ jobs:
             playbooks/awr_export
             playbooks/block_sessions
             playbooks/oem_blackout
+            common/*
             playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
@@ -194,12 +196,20 @@ jobs:
           -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
   slack-notification:
-    if: failure() || cancelled()
+    if: ${{ job.oracle-rman-pre-duplicate.outputs.Status == 'failure' ||  job.oracle-rman-pre-duplicate.outputs.Status == 'cancelled' }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     needs: ['oracle-rman-pre-duplicate']
     steps:
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
 
       - name: Get Slack Token
         id: get-slack-token
