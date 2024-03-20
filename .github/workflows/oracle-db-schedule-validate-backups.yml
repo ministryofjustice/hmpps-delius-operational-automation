@@ -39,7 +39,7 @@ jobs:
       - name: Report
         id: report-run
         run: |
-              echo "Want to Run ${{ needs.prepare-run-matrix.outputs.matrix }} "
+              echo "Want to Run ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }} "
 
   no-validate-backup:
     needs: prepare-run-matrix
@@ -49,4 +49,4 @@ jobs:
         - name: No Report
           id: report-no-run
           run: |
-              echo "Do not want to Run ${{ needs.prepare-run-matrix.outputs.matrix }} "
+              echo "Do not want to Run ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }} "
