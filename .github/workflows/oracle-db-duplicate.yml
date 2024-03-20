@@ -216,6 +216,7 @@ jobs:
 
       - name: Get Slack Token
         id: get-slack-token
+        shell: bash
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
@@ -225,6 +226,8 @@ jobs:
           SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
           SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
           echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
+
+          [ "${{ needs.oracle-rman-pre-duplicate.result }}" == "failure" ] && echo "jobid=${{ needs.oracle-rman-pre-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
 
       - name: Slack Failure Notification
         id: slack
@@ -252,7 +255,7 @@ jobs:
                           },
                           {
                             "type": "mrkdwn",
-                            "text": "*Job:*\n${{ needs.*.outputs.JobId }}"
+                            "text": "*Job:*\n${{ steps.get-slack-token.outputs.jobid }}"
                           },
                           {
                             "type": "mrkdwn",
