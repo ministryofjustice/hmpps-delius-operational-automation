@@ -53,7 +53,7 @@ jobs:
       matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
     name: Validate Backup
     uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@main
     with:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       TargetHost: ${{ matrix.TargetHost }}
