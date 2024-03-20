@@ -4,9 +4,9 @@ on:
     branches:
        - "DBA-662"
   schedule:
-    - cron: '30 10 * * WED'
-    - cron: '20 11 * * WED'
-    - cron: '30 12 * * WED'
+    - cron: '30 11 * * WED'
+    - cron: '20 12 * * WED'
+    - cron: '30 13 * * WED'
 jobs:
   prepare-run-matrix:
     runs-on: ubuntu-latest
@@ -27,11 +27,10 @@ jobs:
       - name: Filter Validate Schedule
         id: filter-validate-schedule
         run: |
-             # cat operations/.github/workflows/oracle-db-validate-backups-schedule.json
              SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-validate-backups-schedule.json | jq '{include: .}')
              echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
-  validate-backup:
+  report-validate-backup:
     needs: prepare-run-matrix
     runs-on: ubuntu-latest
     if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
@@ -39,9 +38,9 @@ jobs:
       - name: Report
         id: report-run
         run: |
-              echo "Want to Run ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }} "
+              echo "Scheduling Validation for these targets: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }}"
 
-  no-validate-backup:
+  report-no-validate-backup:
     needs: prepare-run-matrix
     runs-on: ubuntu-latest
     if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix == '{"include":[]}' }}
@@ -49,4 +48,16 @@ jobs:
         - name: No Report
           id: report-no-run
           run: |
-              echo "Do not want to Run ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }} "
+              echo "No targets scheduled for validation run."
+
+  validate-backup:
+    needs: prepare-run-matrix
+    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
+    strategy:
+      matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
+    name: Validate Backup
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
+    with:
+      TargetEnvironment: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix.TargetEnvironment }}
+      TargetHost: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix.TargetHost }}
