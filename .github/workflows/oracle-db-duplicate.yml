@@ -80,7 +80,6 @@ jobs:
     continue-on-error: true
     outputs:
       SlackChannel: ${{ steps.preparation.outputs.SlackChannel }}
-      Status: ${{ job.status }}
     steps:
 
       - name: Output Input Parameters
@@ -228,7 +227,7 @@ jobs:
         id: slack
         uses: slackapi/slack-github-action@v1.25.0
         with:
-            channel-id: "${{ env.SlackChannel }}"
+            channel-id: "${{ needs.oracle-rman-pre-duplicate.outputs.SlackChannel }}"
             payload: |
               { 
                 "icon_emoji":"broken_record",
