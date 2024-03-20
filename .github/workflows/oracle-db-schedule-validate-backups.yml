@@ -13,21 +13,17 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
-      - id: set-matrix
-        uses: JoshuaTheMiller/conditional-build-matrix@81b51eb8d89e07b86404934b5fecde1cea1163a5 # v.0.38.0
+      - name: Checkout Validate Backups Schedule
+        uses: actions/checkout@v4
         with:
-          inputFile: '.github/workflows/oracle-db-validate-backups-schedule.json'
-          filter: '[?CronSchedule==`${{ github.event.schedule }}`]'
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+             .github/workflows/oracle-db-validate-backups-schedule.json
+          path: operations
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          fetch-depth: 0
 
-  validate-backup:
-    needs: prepare-run-matrix
-    if: ${{ needs.prepare-run-matrix.outputs.matrix != '{"include":[]}' }}
-    strategy:
-      matrix: ${{fromJson(needs.prepare-run-matrix.outputs.matrix)}}
-    name: Validate Backup
-    uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
-    with:
-      TargetEnvironment: ${{ matrix.TargetEnvironment }}
-      TargetHost: ${{ matrix.TargetHost }}
+      - name: Report Backup Schedule
+        id: report-backup-schedule
+        run: |
+             cat operations/oracle-db-validate-backups-schedule.json

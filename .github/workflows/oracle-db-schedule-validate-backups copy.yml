@@ -1,0 +1,33 @@
+name: "Oracle: Schedule Validate Backups"
+on:
+  push:
+    branches:
+       - "DBA-662"
+  schedule:
+    - cron: '30 10 * * WED'
+    - cron: '20 11 * * WED'
+    - cron: '30 12 * * WED'
+jobs:
+  prepare-run-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        uses: JoshuaTheMiller/conditional-build-matrix@81b51eb8d89e07b86404934b5fecde1cea1163a5 # v.0.38.0
+        with:
+          inputFile: '.github/workflows/oracle-db-validate-backups-schedule.json'
+          filter: '[?CronSchedule==`${{ github.event.schedule }}`]'
+
+  validate-backup:
+    needs: prepare-run-matrix
+    if: ${{ needs.prepare-run-matrix.outputs.matrix != '{"include":[]}' }}
+    strategy:
+      matrix: ${{fromJson(needs.prepare-run-matrix.outputs.matrix)}}
+    name: Validate Backup
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
+    with:
+      TargetEnvironment: ${{ matrix.TargetEnvironment }}
+      TargetHost: ${{ matrix.TargetHost }}
