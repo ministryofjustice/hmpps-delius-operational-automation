@@ -27,4 +27,4 @@ jobs:
       - name: Report Backup Schedule
         id: report-backup-schedule
         run: |
-             find . 
+             cat operations/.github/workflows/oracle-db-validate-backups-schedule.json
