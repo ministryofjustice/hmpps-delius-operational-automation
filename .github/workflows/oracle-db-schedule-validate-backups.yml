@@ -1,12 +1,9 @@
 name: "Oracle: Schedule Validate Backups"
 on:
-  push:
-    branches:
-       - "DBA-662"
   schedule:
-    - cron: '30 11 * * WED'
-    - cron: '20 12 * * WED'
-    - cron: '30 13 * * WED'
+    - cron: '20 14 * * WED'
+    - cron: '20 15 * * WED'
+    - cron: '20 16 * * WED'
 jobs:
   prepare-run-matrix:
     runs-on: ubuntu-latest
@@ -20,27 +17,26 @@ jobs:
           sparse-checkout: |
              .github/workflows/oracle-db-validate-backups-schedule.json
           path: operations
-          ref: "DBA-662"
-          #ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
 
       - name: Filter Validate Schedule
         id: filter-validate-schedule
         run: |
-             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule!="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-validate-backups-schedule.json | jq '{include: .}')
+             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-validate-backups-schedule.json | jq '{include: .}')
              echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
-  report-validate-backup:
+  report-schedule-validate-backup:
     needs: prepare-run-matrix
     runs-on: ubuntu-latest
     if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
     steps:
-      - name: Report Validations to Run
+      - name: Report Validations Scheduled to Run
         id: report-run
         run: |
-              echo "Scheduling Validation for these targets: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }}"
+              echo "Running Validation of Backups for these targets: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }}"
  
-  report-no-validate-backup:
+  report-no-scheduled-validate-backup:
     needs: prepare-run-matrix
     runs-on: ubuntu-latest
     if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix == '{"include":[]}' }}
