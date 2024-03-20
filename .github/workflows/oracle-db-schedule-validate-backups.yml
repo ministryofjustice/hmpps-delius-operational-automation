@@ -18,7 +18,7 @@ jobs:
         uses: JoshuaTheMiller/conditional-build-matrix@81b51eb8d89e07b86404934b5fecde1cea1163a5 # v.0.38.0
         with:
           inputFile: '.github/workflows/oracle-db-validate-backups-schedule.json'
-          filter: '[?CronSchedule!=`${{ github.event.schedule }}`]'
+          filter: '[?CronSchedule==`${{ github.event.schedule }}`]'
 
   validate-backup:
     needs: prepare-run-matrix
