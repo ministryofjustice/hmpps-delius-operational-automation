@@ -4,9 +4,9 @@ on:
     branches:
        - "DBA-662"
   schedule:
-    - cron: '30 10 * * 1'
-    - cron: '20 11 * * TUE'
-    - cron: '30 10 * * 3'
+    - cron: '30 10 * * WED'
+    - cron: '20 11 * * WED'
+    - cron: '30 12 * * WED'
 jobs:
   prepare-run-matrix:
     runs-on: ubuntu-latest
@@ -15,36 +15,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: set-matrix
-        uses: JoshuaTheMiller/conditional-build-matrix@main
+        uses: JoshuaTheMiller/conditional-build-matrix@8ef1aa49326ac801f8c5979033ed8cf815d6ef92 # v.0.38.0
         with:
           inputFile: '.github/workflows/oracle-db-validate-backups-schedule.json'
           filter: '[?CronSchedule==`${{ github.event.schedule }}`]'
 
-  report:
-    runs-on: ubuntu-latest
-    needs: prepare-run-matrix
-    steps:
-      - name: Show Matrix
-        run: |
-            echo "${{ needs.prepare-run-matrix.outputs.matrix }} == '{include:[]}'"
-            echo "${{ needs.prepare-run-matrix.outputs.matrix }}"
-            echo "${{ fromJson(needs.prepare-run-matrix.outputs.matrix)}}"
-            echo "${{ fromJson(needs.prepare-run-matrix.outputs.matrix) != '[]' }}"
-      - name: Is Empty
-        if: needs.prepare-run-matrix.outputs.matrix == '{"include":[]}'
-        run: |
-             echo "Is Empty"
-      - name: Is Full
-        if: needs.prepare-run-matrix.outputs.matrix != '{"include":[]}'
-        run: |
-             echo "Is Full"
-
-  validate:
+  validate-backup:
     needs: prepare-run-matrix
     if: ${{ needs.prepare-run-matrix.outputs.matrix != '{"include":[]}' }}
     strategy:
       matrix: ${{fromJson(needs.prepare-run-matrix.outputs.matrix)}}
-    name: Validate
+    name: Validate Backup
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@DBA-662
     with:
