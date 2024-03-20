@@ -7,10 +7,18 @@
 
   tasks:
 
+  - name: Set Variable For OEM Secrets
+    set_fact:
+      oem_secretsmanager_passwords:
+        emrep:
+          account_name: "hmpps-oem-{{ aws_environment }}"
+          assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+          secret: "/oracle/database/EMREP/shared-passwords"
+          users:
+            - slack_token:
+
   - name: Get Slack Token
-    shell: aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value
-    register: getslacktoken
-    changed_when: false
+    include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
 
   - block:
 
@@ -22,7 +30,7 @@
 
       - name: Send error notification message via Slack
         community.general.slack:
-          token: "{{ getslacktoken.stdout }}"
+          token: "{{ slack_token }}"
           msg: "Keeping Delius dataset failed.  Ignoring errors and continuing with duplication tasks."
           channel: "#delius-aws-oracle-dev-alerts"
           username: 'Delius Database Duplicate on {{ inventory_hostname }}'
@@ -47,7 +55,7 @@
 
       - name: Send error notification message via Slack
         community.general.slack:
-          token: "{{ getslacktoken.stdout }}"
+          token: "{{ slack_token }}"
           msg: "Copying Delius dataset failed.  Ignoring errors and continuing with duplication tasks."
           channel: "#delius-aws-oracle-dev-alerts"
           username: 'Delius Database Duplicate on {{ inventory_hostname }}'
