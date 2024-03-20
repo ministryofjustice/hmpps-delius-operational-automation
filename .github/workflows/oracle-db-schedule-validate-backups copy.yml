@@ -21,6 +21,7 @@ jobs:
           filter: '[?CronSchedule==`${{ github.event.schedule }}`]'
 
   report:
+    needs: prepare-run-matrix
     steps:
       - name: Show JSON
         id: show-json
