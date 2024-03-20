@@ -15,6 +15,7 @@
 - name: Set password facts
   set_fact:
     oem_sysman_password: "{{ secretsmanager_passwords_dict['emrep'].passwords['sysman'] }}"
+    slack_token: "{{ secretsmanager_passwords_dict['emrep'].passwords['slack_token'] }}"
   no_log: true
 
 - name: Check parameters
@@ -22,6 +23,7 @@
     db_all_variables_set: true
   when:
     - oem_sysman_password|length > 0
+    - slack_token|length > 0
 
 - name: Fail if missing parameters
   fail:
