@@ -92,15 +92,15 @@ update_ssm_parameter_status () {
   # We can only change the status of the run
   STATUS=$1
   MESSAGE=$2
-  info "Updating SSM Parameter ${SSM_PARAMETER} status to ${STATUS}"
-  aws ssm put-parameter --name "${SSM_PARAMETER}/status" --type String --overwrite --value "$STATUS"
-  aws ssm put-parameter --name "${SSM_PARAMETER}/status_message" --type String --overwrite --value "$MESSAGE"
+  info "Updating SSM Parameter ${SSM_PARAMETER_PREFIX}/status to ${STATUS}"
+  aws ssm put-parameter --name "${SSM_PARAMETER_PREFIX}/status" --type String --overwrite --value "$STATUS"
+  aws ssm put-parameter --name "${SSM_PARAMETER_PREFIX}/status_message" --type String --overwrite --value "$MESSAGE"
 }
 
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
-  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "ERROR" "$1"
+  [[ ! -z "$SSM_PARAMETER_PREFIX" ]] && update_ssm_parameter "ERROR" "$1"
   exit $ERROR_STATUS
 }
 
@@ -676,8 +676,8 @@ then
    ENABLE_TRACE="trace $RMANTRCFILE"
 fi
 
-if [[ ! -z "$SSM_PARAMETER" ]]; then
-   info "Runtime status updates will be written to: $SSM_PARAMETER"
+if [[ ! -z "$SSM_PARAMETER_PREFIX" ]]; then
+   info "Runtime status updates will be written to: $SSM_PARAMETER_PREFIX/status"
    update_ssm_parameter "RUNNING" "Running $*"
 fi
 
@@ -696,7 +696,7 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
-[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "SUCCESS" "Completed without errors"
+[[ ! -z "$SSM_PARAMETER_PREFIX" ]] && update_ssm_parameter "SUCCESS" "Completed without errors"
 info "Completes successfully"
 
 # Exit with success status if no error found
