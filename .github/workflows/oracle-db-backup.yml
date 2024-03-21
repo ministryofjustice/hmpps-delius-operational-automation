@@ -196,7 +196,7 @@ jobs:
         run: |
             STATUS=$(aws ssm get-parameter \
                          --region ${AWS_REGION} \
-                         --name "/oracle-backups/$RmanTarget/status" 2>&1)
+                         --name "/oracle-backups/$RmanTarget/status" 2>&1) || true
             [[ $STATUS =~ ParameterNotFound ]] && STATUS="Initial" 
             echo "Status: $STATUS"
 
