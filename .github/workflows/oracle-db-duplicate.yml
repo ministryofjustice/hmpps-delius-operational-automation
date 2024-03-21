@@ -198,12 +198,11 @@ jobs:
           -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
   slack-notification:
-    if: always() && ${{ contains(needs.*.result, 'failure') }}
+    if: ${{ failure() }} # always() && ${{ contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    needs:
-      - oracle-rman-pre-duplicate
+    needs: [oracle-rman-pre-duplicate]
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     steps:
 
@@ -228,7 +227,10 @@ jobs:
           SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
           echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
 
-          [ "${{ needs.oracle-rman-pre-duplicate.result }}" == "failure" ] && echo "jobid=${{ needs.oracle-rman-pre-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
+          if [[ "${{ needs.oracle-rman-pre-duplicate.result }}" == "failure" ]]
+          then
+            echo "jobid=${{ needs.oracle-rman-pre-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Slack Failure Notification
         id: slack
