@@ -22,18 +22,6 @@ export SUCCESS_STATUS=0
 export WARNING_STATUS=1
 export ERROR_STATUS=9
 
-update_ssm_parameter() {
-    VALUE=$1
-    info "Update ssm duplicate parameter if specified"
-    if [[ ! -z ${SSM_PARAMETER} && "${SSM_PARAMETER}" != "UNSPECIFIED" ]]
-    then  
-      . /etc/environment
-      aws ssm put-parameter --region ${REGION} --value "${VALUE}" --name "${SSM_PARAMETER}" --overwrite --type String || error "Updating ssm duplicate parameter"
-    fi
-}
-
-trap "update_ssm_parameter Failed" ERR EXIT
-
 #
 #  If the restore datetime is not specified then we look up the highest SCN for backed up
 #  archive logs in the RMAN catalog and use that.   NB: if no target date or SCN is
@@ -45,7 +33,7 @@ usage () {
   echo ""
   echo "Usage:"
   echo ""
-  echo "  $THISSCRIPT -d <target db> -s <source db> -c <catalog db> -t <restore datetime> [ -p <ssm parameter> ] [ -f <spfile parameters> ] [-l]"
+  echo "  $THISSCRIPT -d <target db> -s <source db> -c <catalog db> -t <restore datetime> [ -f <spfile parameters> ] [-l]"
   echo ""
   echo "where"
   echo ""
@@ -54,7 +42,6 @@ usage () {
   echo "  catalog db        = rman repository"
   echo "  restore datetime  = optional date time of production backup to restore from"
   echo "                      format [YYMMDDHH24MISS]"
-  echo "  ssm parameter     = ssm parameter name to be updated"
   echo "  spfile parameters = extra spfile set parameters"
   echo "  -l                = use local disk backup only (do not allocate sbt channels)"
   echo ""
@@ -91,7 +78,33 @@ set_ora_env () {
   unset LD_LIBRARY_PATH
   export NLS_DATE_FORMAT=YYMMDDHH24MI
 }
- 
+
+get_catalog_connection () {
+  # Determine the rman password depending where the catalog database resides
+  if [[ ! ${CATALOG_DB} =~ ^\(DESCRIPTION.* ]]
+  then
+    ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+    ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/EC2OracleEnterpriseManagementSecretsRole"
+    SESSION="catalog-ansible"
+    SECRET_ACCOUNT_ID=$(aws ssm get-parameters --with-decryption --name account_ids | jq -r .Parameters[].Value |  jq -r 'with_entries(if (.key|test("hmpps-oem.*$")) then ( {key: .key, value: .value}) else empty end)' | jq -r 'to_entries|.[0].value' )
+    CREDS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION}"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")
+    export AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
+    export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
+    export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
+    SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:/oracle/database/${CATALOG_DB}/shared-passwords"
+    RMANUSER=rcvcatowner
+    RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
+  else
+    REGION=eu-west-2
+    SSMNAME="/${ENVIRONMENT}/${APPLICATION}/oracle-db-operation/rman/rman_password"
+    RMANUSER=rman19c
+    RMANPASS=`aws ssm get-parameters --region ${REGION} --with-decryption --name ${SSMNAME} | jq -r '.Parameters[].Value'`
+  fi
+  [ -z ${RMANPASS} ] && error "Password for rman catalog does not exist"
+  CATALOG_CONNECT=${RMANUSER}/${RMANPASS}@"${CATALOG_DB}"
+  CONNECT_TO_CATALOG=$(echo "connect catalog $CATALOG_CONNECT;")
+}
+
 validate () {
   ACTION=$1
   case "$ACTION" in
@@ -112,16 +125,7 @@ validate () {
              then
                error "Catalog not specified, please specify catalog db"
              else
-               . /etc/environment
-               SSMNAME="/${HMPPS_ENVIRONMENT}/${APPLICATION}/oracle-db-operation/rman/rman_password"
-               if [[ ${TARGET_DB} =~ .*OEM ]]
-               then
-                 SSMNAME="/${HMPPS_ENVIRONMENT}/${APPLICATION}/rman-database/db/rman_password"
-               fi 
-               RMANPASS=`aws ssm get-parameters --region ${REGION} --with-decryption --name ${SSMNAME} | jq -r '.Parameters[].Value'`
-               [ -z ${RMANPASS} ] && error "Password for rman in aws parameter store ${SSMNAME} does not exist"
-               CATALOG_CONNECT=rman19c/${RMANPASS}@$CATALOG_DB
-               CONNECT_TO_CATALOG=$(echo "connect catalog $CATALOG_CONNECT;")						
+               get_catalog_connection
              fi
              info "Catalog ok"
              ;;
@@ -239,9 +243,13 @@ EOF
   done
   get_source_db_rman_details
   echo "  duplicate database ${SOURCE_DB} dbid ${DBID} to ${TARGET_DB}" >> $RMANDUPLICATECMDFILE
-  echo "  spfile parameter_value_convert ('${SOURCE_DB}','${TARGET_DB}','${source_db}','${target_db}')" >> $RMANDUPLICATECMDFILE
-  echo "    set db_file_name_convert='+DATA/${SOURCE_DB}','+DATA/${TARGET_DB}'" >> $RMANDUPLICATECMDFILE
-  echo "    set log_file_name_convert='+DATA/${SOURCE_DB}','+DATA/${TARGET_DB}','+FLASH/${SOURCE_DB}','+FLASH/${TARGET_DB}'" >> $RMANDUPLICATECMDFILE
+  echo "  spfile " >> $RMANDUPLICATECMDFILE
+  if [[ "${source_db}" != "${target_db}" ]]
+  then
+    echo "    parameter_value_convert ('${SOURCE_DB}','${TARGET_DB}','${source_db}','${target_db}')" >> $RMANDUPLICATECMDFILE
+    echo "    set db_file_name_convert='+DATA/${SOURCE_DB}','+DATA/${TARGET_DB}'" >> $RMANDUPLICATECMDFILE
+    echo "    set log_file_name_convert='+DATA/${SOURCE_DB}','+DATA/${TARGET_DB}','+FLASH/${SOURCE_DB}','+FLASH/${TARGET_DB}'" >> $RMANDUPLICATECMDFILE
+  fi
   echo "    set fal_server=''" >> $RMANDUPLICATECMDFILE
   echo "    set log_archive_config=''" >> $RMANDUPLICATECMDFILE
   echo "    set log_archive_dest_2=''" >> $RMANDUPLICATECMDFILE
@@ -252,6 +260,11 @@ EOF
     do
       echo "    set ${PARAM}" >> $RMANDUPLICATECMDFILE
     done
+  fi
+  # Source database and target database maybe the same name. Introduce nofilenamecheck to avoid rman failures.
+  if [[ "${source_db}" == "${target_db}" ]]
+  then
+    echo "  nofilenamecheck " >> $RMANDUPLICATECMDFILE
   fi
   if [ "${DATETIME}" != "LATEST" ]
   then
@@ -332,50 +345,48 @@ function exists_in_list() {
 
 restore_db_passwords () {
 
-  info "Looking up passwords to in aws ssm parameter to restore by sourcing /etc/environment"
-  . /etc/environment
+  info "Looking up passwords to in aws ssm secrets to restore"
+  INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+  APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=application" --query 'Tags[0].Value' --output text)
+  ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=environment-name" --query 'Tags[0].Value' --output text)
+  DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=delius-environment" --query 'Tags[0].Value' --output text)
   SYSTEMDBUSERS=(sys system dbsnmp)
-  if [ "$HMPPS_ROLE" = "delius" ]
+  if [ "$APPLICATION" = "delius" ]
   then
-    DBUSERS+=(delius_app_schema delius_pool delius_analytics_platform gdpr_pool delius_audit_dms_pool mms_pool)
-    # Add Probation Integration Services by looking up the Usernames by their path in the SSM Parameter Store (there may be several of these)
-    # Note that the name contains hyphens in the parameter store, but the actual DB account uses underscores in place of these
-    SSMNAME="/${HMPPS_ENVIRONMENT}/${APPLICATION}/probation-integration/"
-    PROBATION_INTEGRATION_USERS=$(aws ssm get-parameters-by-path --region ${REGION} --path ${SSMNAME} --recursive --query 'Parameters[?contains(Name,`db-username`) == `true`].[Name]' --output text  | awk -F/ '{print $(NF-1)}'  | tr '-' '_' | paste -sd ' ')
-    DBUSERS+=( ${PROBATION_INTEGRATION_USERS[@]} )
-  elif [ "$HMPPS_ROLE" = "mis" ]
+    APPLICATION_USERS=(delius_app_schema delius_pool delius_analytics_platform gdpr_pool delius_audit_dms_pool mms_pool)
+    # Add Probation Integration Services by looking up the Usernames by their path in the AWS Secrets (there may be several of these)
+    # We suppress any lookup errors for integration users as these may not exist
+    PROBATION_INTEGRATION_USERS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-integration-passwords --query SecretString --output text 2>/dev/null | jq -r 'keys | join(" ")')
+  elif [ "$APPLICATION" = "delius-mis" ]
   then
-    DBUSERS+=(mis_landing ndmis_abc ndmis_cdc_subscriber ndmis_loader ndmis_working ndmis_data)
-    DBUSERS+=(dfimis_landing dfimis_abc dfimis_subscriber dfimis_data dfimis_working dfimis_loader)
+    APPLICATION_USERS=(mis_landing ndmis_abc ndmis_cdc_subscriber ndmis_loader ndmis_working ndmis_data)
+    APPLICATION_USERS+=(dfimis_landing dfimis_abc dfimis_subscriber dfimis_data dfimis_working dfimis_loader)
   fi
+  DBUSERS+=(${APPLICATION_USERS[@]} ${PROBATION_INTEGRATION_USERS[@]} )
+  SECRET_PREFIX="${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}"
 
   info "Change password for all db users"
   DBUSERS+=( ${SYSTEMDBUSERS[@]} )
   for USER in ${DBUSERS[@]}
   do
-    SUFFIX=${USER}_password
-    for SYSTEMDBUSER in ${SYSTEMDBUSERS[@]}
-    do
-      if [ "${USER}" = "${SYSTEMDBUSER}" ]
-      then
-        SUFFIX=oradb_${USER}_password
-        break
-      fi
-    done
-    # Pattern for AWS Parameter Store path for Probation Integration Users differs from other Oracle user accounts
-    if [[ "$HMPPS_ROLE" == "delius" && $(exists_in_list "${USER}" " " "${PROBATION_INTEGRATION_USERS[*]}" ) == "Found" ]];
+    # Pattern for AWS Secrets path for Probation Integration Users differs from other Oracle user accounts
+    if [[ "$APPLICATION" == "delius" && $(exists_in_list "${USER}" " " "${PROBATION_INTEGRATION_USERS[*]}" ) == "Found" ]];
     then
-       SSMNAME="/${HMPPS_ENVIRONMENT}/${APPLICATION}/probation-integration/${USER//_/-}/db-password"
+      TYPE="integration"
+    elif [[ $(exists_in_list "${USER}" " " "${APPLICATION_USERS[*]}" ) == "Found" ]];
+    then
+      TYPE="application"
     else
-       SSMNAME="/${HMPPS_ENVIRONMENT}/${APPLICATION}/${HMPPS_ROLE}-database/db/${SUFFIX}"
+      TYPE="dba"
     fi
-    USERPASS=`aws ssm get-parameters --region ${REGION} --with-decryption --name ${SSMNAME} | jq -r '.Parameters[].Value'`
+    SECRET_ID="${SECRET_PREFIX}-${TYPE}-passwords"
+    USERPASS=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} --query SecretString --output text | jq -r ".${USER}")
     # Ignore absense of Audit Preservation and Probation Integration Users as they may not exist in all environments
-    if [[ -z ${USERPASS} && $(exists_in_list "${USER}" " " "delius_audit_dms_pool ${PROBATION_INTEGRATION_USERS[*]}") != "Found" ]];
+    if [[ -z ${USERPASS} && $(exists_in_list "${USER}" " " "delius_audit_pool ${PROBATION_INTEGRATION_USERS[*]}") != "Found" ]];
     then
-       info "Password for $USER in aws parameter store ${SSMNAME} does not exist"
+       info "Password for $USER in AWS Secret  ${SECRET_ID} does not exist"
     fi
-    if [[ -z ${USERPASS} && $(exists_in_list "${USER}" " " "delius_audit_dms_pool ${PROBATION_INTEGRATION_USERS[*]}") == "Found" ]];
+    if [[ -z ${USERPASS} && $(exists_in_list "${USER}" " " "delius_audit_pool ${PROBATION_INTEGRATION_USERS[*]}") == "Found" ]];
     then
        info "$USER not configured in this environment - skipping"
     else
@@ -405,12 +416,80 @@ EOF
 
 }
 
+recreate_temporary_tablespaces () {
+
+info "Recreate temporary tablespaces with no tempfiles"
+
+sqlplus -s / as sysdba << EOF
+
+declare
+
+l_default_temporary_tablespace database_properties.property_value%type;
+
+begin
+
+  select property_value
+  into l_default_temporary_tablespace
+  from database_properties 
+  where property_name = 'DEFAULT_TEMP_TABLESPACE';
+
+  for t in (select s.name,
+                  count(*) no_tempfiles
+            from v\$tempfile f
+            join v\$tablespace s ON s.ts# = f.ts#
+            where f.name = '+DATA'
+            group by s.name)
+  loop
+
+    if t.no_tempfiles > 0
+    then
+      if t.name = l_default_temporary_tablespace
+      then
+        execute immediate q'[create temporary tablespace duptemp tempfile '+data']';
+        execute immediate 'alter database default temporary tablespace duptemp';
+      end if;
+      execute immediate 'drop tablespace '||t.name;
+      for n in 1..t.no_tempfiles
+      loop
+        if n = 1
+        then
+          execute immediate 'create temporary tablespace '||t.name||q'[ tempfile '+DATA']';
+        else
+          execute immediate 'alter tablespace '||t.name||q'[ add tempfile '+DATA']';
+        end if;
+      end loop;
+    end if;
+    if t.name = l_default_temporary_tablespace
+    then
+      execute immediate 'alter database default temporary tablespace '||t.name;
+      execute immediate 'drop tablespace duptemp including contents and datafiles';
+    end if;
+  end loop;
+
+end;
+/
+exit
+
+EOF
+}
+
+run_datapatch() {
+    info "Run datapatch"
+    cd ${ORACLE_HOME}/OPatch
+    ./datapatch >/dev/null 2>&1
+    [ $? -ne 0 ] && error "Running datapatch"
+}
+
 post_actions () {
   add_spfile_asm
   enable_bct
   restore_db_passwords
   # Ensure the archive deletion policy is set correctly for the primary database
   configure_rman_archive_deletion_policy
+  # Ensure the tempfiles for temporary exist other wise recreate the temporary tablespace
+  recreate_temporary_tablespaces
+  # Run datapatch in case the source db is at lower release update level
+  run_datapatch
 }
 
 # ------------------------------------------------------------------------------
@@ -423,7 +502,6 @@ info "Retrieving arguments"
 
 TARGET_DB=UNSPECIFIED
 DATETIME=LATEST
-SSM_PARAMETER=UNSPECIFIED
 SPFILE_PARAMETERS=UNSPECIFIED
 while getopts "d:s:c:t:p:f:l" opt
 do
@@ -432,17 +510,16 @@ do
     s) SOURCE_DB=$OPTARG ;;
     c) CATALOG_DB=$OPTARG ;;
     t) DATETIME=${OPTARG} ;;
-    p) SSM_PARAMETER=${OPTARG} ;;
     f) SPFILE_PARAMETERS=${OPTARG} ;;
     l) LOCAL_DISK_BACKUP=TRUE ;;
     *) usage ;;
   esac
 done
+
 info "Target         = $TARGET_DB"
 info "Source         = $SOURCE_DB"
 info "Catalog db     = $CATALOG_DB"
 info "Restore Datetime = ${DATETIME}"
-info "SSM parameter    = ${SSM_PARAMETER}"
 [[ "${LOCAL_DISK_BACKUP}" == "TRUE" ]] && info "Local Disk Backup = ENABLED"
 target_db=$(echo "${TARGET_DB}" | tr '[:upper:]' '[:lower:]')
 source_db=$(echo "${SOURCE_DB}" | tr '[:upper:]' '[:lower:]')
@@ -454,30 +531,43 @@ validate targetdb
 validate catalog
 validate datetime
 
-info "Get compatible value before shutting down"
-V_PARAMETER=v\$parameter
-if ! X=`sqlplus -s / as sysdba <<EOF
-   whenever sqlerror exit 1
-   set feedback off heading off verify off echo off
-   select 'COMPATIBLE_VALUE='||value 
-   from $V_PARAMETER
-   where name='compatible';
-   exit;
-EOF
-`
+# info "Get compatible value before shutting down"
+# V_PARAMETER=v\$parameter
+# if ! X=`sqlplus -s / as sysdba <<EOF
+#    whenever sqlerror exit 1
+#    set feedback off heading off verify off echo off
+#    select 'COMPATIBLE_VALUE='||value 
+#    from $V_PARAMETER
+#    where name='compatible';
+#    exit;
+# EOF
+# `
+# then
+  #  info "Cannot determine compatible value from database; falling back to most recently logged value"
+  #  COMPATIBLE_VALUE=$( egrep -E "^[[:space:]]+compatible" $ORACLE_BASE/diag/rdbms/${ORACLE_SID}/${ORACLE_SID}/trace/alert_${ORACLE_SID}.log $ORACLE_BASE/diag/rdbms/${ORACLE_SID,,}/${ORACLE_SID}/trace/alert_${ORACLE_SID}.log | tail -1 | sed 's/"//g' | awk '{print $NF}'  )
+# else
+#    eval $X
+# fi
+# [ -z $COMPATIBLE_VALUE ] && error "Cannot determine compatible value"
+
+if [ "${SPFILE_PARAMETERS}" != "UNSPECIFIED" ]
 then
-   info "Cannot determine compatible value from database; falling back to most recently logged value"
-   COMPATIBLE_VALUE=$( egrep -E "^[[:space:]]+compatible" $ORACLE_BASE/diag/rdbms/${ORACLE_SID}/${ORACLE_SID}/trace/alert_${ORACLE_SID}.log $ORACLE_BASE/diag/rdbms/${ORACLE_SID,,}/${ORACLE_SID}/trace/alert_${ORACLE_SID}.log | tail -1 | sed 's/"//g' | awk '{print $NF}'  )
-else
-   eval $X
+  for PARAM in ${SPFILE_PARAMETERS[@]}
+  do
+    if [[ ${PARAM} =~ compatible.* ]]
+    then  
+      COMPATIBLE=${PARAM//\'/}
+    fi
+  done
 fi
-[ -z $COMPATIBLE_VALUE ] && error "Cannot determine compatible value"
-info "Compatible    = ${COMPATIBLE_VALUE}"
 
 info "Shutdown ${TARGET_DB}"
   sqlplus -s / as sysdba <<EOF
   shutdown abort;
 EOF
+
+info "Modify database using Server Control with correct spfile location"
+srvctl modify database -d ${TARGET_DB} -p "+DATA/${TARGET_DB}/spfile${TARGET_DB}.ora"
 
 remove_asm_directory DATA ${TARGET_DB}
 remove_asm_directory FLASH ${TARGET_DB}
@@ -498,7 +588,7 @@ fi
 DUPLICATEPFILE=${ORACLE_HOME}/dbs/init${TARGET_DB}_duplicate.ora
 info "Create ${DUPLICATEPFILE} pfile"
 echo "db_name=${TARGET_DB}" > ${DUPLICATEPFILE}
-echo "compatible=${COMPATIBLE_VALUE}" >> ${DUPLICATEPFILE}
+echo "${COMPATIBLE}" >> ${DUPLICATEPFILE}
 
 info "Place ${TARGET_DB} in nomount mode"
 if ! sqlplus -s / as sysdba << EOF
@@ -523,9 +613,6 @@ info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANDUPLICATELOGFILE>/dev/null 2>&1 && error "Rman Duplicate reported errors" || info "RMAN Duplicate Completed successfully"
 info "Perform post actions"
 post_actions
-
-sleep 10
-update_ssm_parameter Duplicated
 
 # Exit with success status if no error found
 trap "" ERR EXIT
