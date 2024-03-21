@@ -62,10 +62,10 @@
             catalog_options: "-n Y -c {{ catalog }}"
           when: (catalog is defined)
 
-        - name: Set SSM Status Parameter to use for update of status flags when variable is not null
+        - name: Set SSM Status Parameter Prefix to use for update of status flags when variable is not null
           set_fact:
-             ssm_parameter: "-s {{ status_parameter}}"
-          when: (status_parameter is defined)
+             ssm_parameter: "-s {{ ssm_parameter_prefix }}"
+          when: (ssm_parameter_prefix is defined)
 
         - name: Set backup duration target when variable is not null
           set_fact:

@@ -43,7 +43,7 @@ usage () {
   echo "                                              [ -a min archivelog sequence,max archivelog sequence ] "
   echo "                                              [ -l <comma separated list of datafiles to backup> ] "
   echo "                                              [ -g <target db global name> ]"
-  echo "                                              [ -s <SSM Parameter for updating runtime status>]"
+  echo "                                              [ -s <SSM Parameter Prefix for updating runtime status>]"
   echo ""
   echo "where"
   echo ""
@@ -66,6 +66,8 @@ usage () {
   echo "     -a and -l are mutually exclusive.  If you wish to backup a range of archivelogs and some datafiles then call the script twice "
   echo "     with the respective parameters."
   echo ""
+  echo "  The SSM parameter prefix optionally specified with -s is used to determine the path for storing the phase, "
+  echo "     status, and status messages for a backup run by appending /phase, /status or /status_message respectively."
 
   exit $ERROR_STATUS
 }
@@ -85,15 +87,20 @@ warning () {
   echo "WARNING : $THISSCRIPT : $T : $1"
 }
 
-update_ssm_parameter () {
-  info "Updating SSM Parameter ${SSM_PARAMETER} to $1"
-  aws ssm put-parameter --name "${SSM_PARAMETER}" --type String --overwrite --value "$1"
+update_ssm_parameter_status () {
+  # We do not change the backup phase within this script - it is always BACKUP
+  # We can only change the status of the run
+  STATUS=$1
+  MESSAGE=$2
+  info "Updating SSM Parameter ${SSM_PARAMETER} status to ${STATUS}"
+  aws ssm put-parameter --name "${SSM_PARAMETER}/status" --type String --overwrite --value "$STATUS"
+  aws ssm put-parameter --name "${SSM_PARAMETER}/status_message" --type String --overwrite --value "$MESSAGE"
 }
 
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
-  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error - $1"
+  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "ERROR" "$1"
   exit $ERROR_STATUS
 }
 
@@ -612,7 +619,7 @@ do
     a) ARCHIVELOGS=$OPTARG ;;
     l) DATAFILES=$OPTARG ;;
     g) TARGET_DB_NAME=$OPTARG ;;
-    s) SSM_PARAMETER=$OPTARG ;;
+    s) SSM_PARAMETER_PREFIX=$OPTARG ;;
     *) usage ;;
   esac
 done
@@ -671,7 +678,7 @@ fi
 
 if [[ ! -z "$SSM_PARAMETER" ]]; then
    info "Runtime status updates will be written to: $SSM_PARAMETER"
-   update_ssm_parameter "Running - Main Backup Script"
+   update_ssm_parameter "RUNNING" "Running $*"
 fi
 
 touch $RMANCMDFILE
@@ -689,7 +696,7 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
-[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Success"
+[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "SUCCESS" ""
 info "Completes successfully"
 
 # Exit with success status if no error found
