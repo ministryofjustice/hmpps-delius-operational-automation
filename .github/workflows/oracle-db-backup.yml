@@ -195,8 +195,8 @@ jobs:
         id: check-backup-run-status
         run: |
             STATUS=$(aws ssm get-parameter \
-                         --region eu-west-2 \
-                         --name "/oracle-backups/$environment/$RmanTarget/status")
+                         --region ${AWS_REGION} \
+                         --name "/oracle-backups/$RmanTarget/status")
             echo "Status: $STATUS"
 
       - name: Start Ansible Backup On Primary
