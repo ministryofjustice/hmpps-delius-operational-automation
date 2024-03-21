@@ -62,6 +62,11 @@
             catalog_options: "-n Y -c {{ catalog }}"
           when: (catalog is defined)
 
+        - name: Set SSM Status Parameter to use for update of status flags
+          set_fact:
+             ssm_parameter: "-s {{ status_parameter}}"
+          when: (status_parameter is defined)
+
         - name: Set backup duration target when variable is not null
           set_fact:
             duration_options: "-m {{ rman_level_0_backup_duration_target }}"
@@ -133,16 +138,16 @@
 
         - name: Create RMAN Command
           set_fact:
-            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }}"
+            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ ssm_parameter | default() }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }}"
 
         - name: Show RMAN Command
           debug:
             msg: "About to run:  {{ rman_command }}"
 
-        - name: Running RMAN script
+        - name: Running RMAN script in Background
           shell: "{{ rman_command }}"
           async: "{{ allowable_duration|default(28800) }}"
-          poll: 60
+          poll: 0
           environment:
             ASSUME_ROLE_NAME: "{{ secretsmanager_passwords['catalog'].assume_role_name | default() }}"
             SECRET_ACCOUNT_ID: "{{ account_ids[secretsmanager_passwords['catalog'].account_name] | default() }}"

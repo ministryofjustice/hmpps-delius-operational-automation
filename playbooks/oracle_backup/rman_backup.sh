@@ -43,6 +43,7 @@ usage () {
   echo "                                              [ -a min archivelog sequence,max archivelog sequence ] "
   echo "                                              [ -l <comma separated list of datafiles to backup> ] "
   echo "                                              [ -g <target db global name> ]"
+  echo "                                              [ -s <SSM Parameter for updating runtime status>]"
   echo ""
   echo "where"
   echo ""
@@ -69,6 +70,7 @@ usage () {
   exit $ERROR_STATUS
 }
 
+
 info () {
   T=`date +"%D %T"`
   echo "INFO : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
@@ -83,9 +85,14 @@ warning () {
   echo "WARNING : $THISSCRIPT : $T : $1"
 }
 
+update_ssm_parameter () {
+  aws ssm put-parameter --name "${SSM_PARAMETER}" --type String --overwrite --value "$1"
+}
+
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
+  update_ssm_parameter "Error - $THISSCRIPT : $T : $1"
   exit $ERROR_STATUS
 }
 
@@ -586,7 +593,7 @@ MINIMIZE_LOAD=UNSPECIFIED
 TRACE_FILE=N
 ARCHIVELOGS=UNSPECIFIED
 DATAFILES=UNSPECIFIED
-while getopts "d:t:b:f:i:n:m:u:c:e:a:l:g:p:" opt
+while getopts "d:t:b:f:i:n:m:u:c:e:a:l:g:p:s:" opt
 do
   case $opt in
     d) TARGET_DB_SID=$OPTARG ;;
@@ -602,6 +609,7 @@ do
     a) ARCHIVELOGS=$OPTARG ;;
     l) DATAFILES=$OPTARG ;;
     g) TARGET_DB_NAME=$OPTARG ;;
+    s) SSM_PARAMETER=$OPTARG ;;
     *) usage ;;
   esac
 done
@@ -658,6 +666,10 @@ then
    ENABLE_TRACE="trace $RMANTRCFILE"
 fi
 
+if [[ ! -z "$SSM_PARAMETER" ]]; then
+   info "Runtime status updates will be written to: $SSM_PARAMETER"
+fi
+
 touch $RMANCMDFILE
 info "Create rman tags and format"
 create_tag_format
@@ -673,6 +685,7 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
+update_ssm_parameter "Success"
 info "Completes successfully"
 
 # Exit with success status if no error found
