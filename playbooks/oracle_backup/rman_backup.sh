@@ -668,9 +668,9 @@ then
 fi
 
 
-echo "ARN: $ASSUME_ROLE_NAME"
-echo "SAI: $SECRET_ACCOUNT_ID"
-echo "SECRET: $SECRET"
+info "ARN: $ASSUME_ROLE_NAME"
+info "SAI: $SECRET_ACCOUNT_ID"
+info "SECRET: $SECRET"
 
 
 if [[ ! -z "$SSM_PARAMETER" ]]; then
