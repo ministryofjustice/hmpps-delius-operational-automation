@@ -199,7 +199,7 @@ jobs:
             [[ $STATUS =~ ParameterNotFound ]] && STATUS="Initial"
             echo "Backup Status: $STATUS"
             [[ $STATUS == "Running" ]] && echo "Backup is already running on this host.  Multiple concurrent runs are not allowed." && exit 1
-            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" --type SecureString --overwrite \
+            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" --type String --overwrite \
                 --value "Running" --description "Runtime status for RMAN backups running on the $RmanTarget host" \
                 
       - name: Start Ansible Backup On Primary
