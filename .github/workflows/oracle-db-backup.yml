@@ -124,14 +124,6 @@ jobs:
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
 
-      - name: Check Backup Run Status
-        id: check-backup-run-status
-        run: |
-             STATUS=$(aws ssm get-parameter \
-                       --region eu-west-2 \
-                       --name "/oracle-backups/${{ steps.preparermantargetname.outputs.TargetEnvironment }}/${{ steps.preparermantargetname.outputs.RmanTarget }}/status")
-             echo "Status: $STATUS"
-
   # Start deployment container job based on the build delius-ansible-aws image
   deployment:
     name: oracle-backup
@@ -198,6 +190,14 @@ jobs:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
+
+      - name: Check Backup Run Status
+        id: check-backup-run-status
+        run: |
+            STATUS=$(aws ssm get-parameter \
+                         --region eu-west-2 \
+                         --name "/oracle-backups/$environment/$RmanTarget/status")
+            echo "Status: $STATUS"
 
       - name: Start Ansible Backup On Primary
         id: backup
