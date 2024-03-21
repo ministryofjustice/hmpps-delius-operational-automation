@@ -203,7 +203,7 @@ jobs:
                echo "Backup is already running on this host.  Multiple concurrent runs are not allowed."
                exit 100
             fi
-            aws put-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" \
+            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" \
                 --value "Running" --overwrite --description "Runtime status for RMAN backups running on the $RmanTarget host" \
                 --data-type SecureString
 
