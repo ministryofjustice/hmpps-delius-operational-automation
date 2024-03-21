@@ -112,11 +112,13 @@ get_rman_password () {
   ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ASSUME_ROLE_NAME}"
   SESSION="catalog-ansible"
   CREDS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION}"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")
-  local AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
-  local AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
-  local AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
+  # Avoid exporting the AWS_* variables as we only need to change the role for fetching the RMAN password.
+  # The existing role should continue to be used for other functionality.  Therefore only use AWS_* variables within the subshell.
+  export RMAN_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
+  export RMAN_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
+  export RMAN_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
   SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:${SECRET}"
-  RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
+  RMANPASS=$(AWS_ACCESS_KEY_ID=$RMAN_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$RMAN_SECRET_ACCESS_KEY AWS_SESSION_TOKEN=$RMAN_SESSION_TOKEN aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
 }
 
 validate () {
