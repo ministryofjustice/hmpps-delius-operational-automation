@@ -93,7 +93,7 @@ update_ssm_parameter () {
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
-  update_ssm_parameter "Error - $1"
+  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error - $1"
   exit $ERROR_STATUS
 }
 
@@ -669,6 +669,7 @@ fi
 
 if [[ ! -z "$SSM_PARAMETER" ]]; then
    info "Runtime status updates will be written to: $SSM_PARAMETER"
+   update_ssm_parameter "Running - Main Backup Script"
 fi
 
 touch $RMANCMDFILE
@@ -686,7 +687,7 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
-update_ssm_parameter "Success"
+[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Success"
 info "Completes successfully"
 
 # Exit with success status if no error found
