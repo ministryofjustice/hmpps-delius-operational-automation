@@ -18,6 +18,13 @@ on:
         options:
           - "delius_primarydb"
           - "mis_primarydb"
+      SourceLegacy:
+        description: "Duplicate From AWS Legacy"
+        type: choice
+        default: "no"
+        options:
+          - "no"
+          - "yes"
       SourceDb: 
         description: "Source database to duplicate"
         type: choice
@@ -90,6 +97,7 @@ jobs:
         run: |
           echo -e "TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}\n\
           TargetHost: ${{ github.event.inputs.TargetHost }}\n\
+          SourceLegacy: ${{ github.event.inputs.SourceLegacy }}\n\
           SourceDb: ${{ github.event.inputs.SourceDb }}\n\
           S3SourceBucket: ${{ github.event.inputs.S3SourceBucket }}\n\
           RestoreDatetime: ${{ github.event.inputs.RestoreDatetime }}\n\
@@ -250,7 +258,12 @@ jobs:
           then
             extra_vars="-e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }}"
           else
-            extra_vars=""
+            if [[ "${{ github.event.inputs.SourceLegacy }}" == "yes" ]]
+            then
+              extra_vars="-e source_legacy=yes"
+            else
+              extra_vars=""
+            fi
           fi
           export ANSIBLE_CONFIG=$ansible_config
           echo "$ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
