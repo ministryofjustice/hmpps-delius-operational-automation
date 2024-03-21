@@ -13,7 +13,6 @@
         action_type: "store"
       when:
         - duplicate_target | regex_search('.*_delius_primarydb')
-        - aws_environment | regex_search('preproduction')
 
     - name: Export Automatic Workload Repository (AWR)
       include_tasks: ../awr_export/playbook.yml
