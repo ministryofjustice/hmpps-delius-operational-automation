@@ -62,7 +62,7 @@
             catalog_options: "-n Y -c {{ catalog }}"
           when: (catalog is defined)
 
-        - name: Set SSM Status Parameter to use for update of status flags
+        - name: Set SSM Status Parameter to use for update of status flags when variable is not null
           set_fact:
              ssm_parameter: "-s {{ status_parameter}}"
           when: (status_parameter is defined)
