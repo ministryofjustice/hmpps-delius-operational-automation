@@ -195,7 +195,7 @@ jobs:
         id: check-and-set-backup-run-status
         shell: bash
         run: |
-            STATUS=$(aws ssm get-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" 2>&1) || true
+            STATUS=$(aws ssm get-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" --query "Parameter.Value" --output text 2>&1) || true
             [[ $STATUS =~ ParameterNotFound ]] && STATUS="Initial"
             echo "Backup Status: $STATUS"
             [[ $STATUS == "Running" ]] && echo "Backup is already running on this host.  Multiple concurrent runs are not allowed." && exit 1
