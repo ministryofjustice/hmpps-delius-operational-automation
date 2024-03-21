@@ -86,13 +86,14 @@ warning () {
 }
 
 update_ssm_parameter () {
+  info "Updating SSM Parameter ${SSM_PARAMETER} to $1"
   aws ssm put-parameter --name "${SSM_PARAMETER}" --type String --overwrite --value "$1"
 }
 
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
-  update_ssm_parameter "Error - $THISSCRIPT : $T : $1"
+  update_ssm_parameter "Error - $1"
   exit $ERROR_STATUS
 }
 
