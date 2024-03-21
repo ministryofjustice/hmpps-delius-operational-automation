@@ -128,6 +128,7 @@ jobs:
         id: check-backup-run-status
         run: |
              STATUS=$(aws ssm get-parameter \
+                       --region eu-west-2 \
                        --name "/oracle-backups/${{ steps.preparermantargetname.outputs.TargetEnvironment }}/${{ steps.preparermantargetname.outputs.RmanTarget }}/status")
              echo "Status: $STATUS"
 
