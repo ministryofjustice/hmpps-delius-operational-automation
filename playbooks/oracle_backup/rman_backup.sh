@@ -43,7 +43,7 @@ usage () {
   echo "                                              [ -a min archivelog sequence,max archivelog sequence ] "
   echo "                                              [ -l <comma separated list of datafiles to backup> ] "
   echo "                                              [ -g <target db global name> ]"
-  echo "                                              [ -s <SSM Parameter Prefix for updating runtime status>]"
+  echo "                                              [ -s <SSM Parameter Path where Runtime details are written>]"
   echo ""
   echo "where"
   echo ""
@@ -66,8 +66,8 @@ usage () {
   echo "     -a and -l are mutually exclusive.  If you wish to backup a range of archivelogs and some datafiles then call the script twice "
   echo "     with the respective parameters."
   echo ""
-  echo "  The SSM parameter prefix optionally specified with -s is used to determine the path for storing the phase, "
-  echo "     status, and status messages for a backup run by appending /phase, /status or /status_message respectively."
+  echo "  The SSM parameter path optionally specified with -s is used to identify the path for storing the phase, "
+  echo "     status, and status messages for a backup held in a JSON string at this location."
 
   exit $ERROR_STATUS
 }
@@ -92,15 +92,16 @@ update_ssm_parameter () {
   # We can only change the status of the run
   STATUS=$1
   MESSAGE=$2
-  info "Updating SSM Parameter ${SSM_PARAMETER_PREFIX}/status to ${STATUS}"
-  aws ssm put-parameter --name "${SSM_PARAMETER_PREFIX}/status" --type String --overwrite --value "$STATUS"
-  aws ssm put-parameter --name "${SSM_PARAMETER_PREFIX}/status_message" --type String --overwrite --value "$MESSAGE"
+  info "Updating SSM Parameter ${SSM_PARAMETER_PREFIX} Status to ${STATUS}"
+  SSM_VALUE=$(aws ssm get-parameter --name "${SSM_PARAMETER}" --output json)
+  NEW_SSM_VALUE=$(echo ${SSM_VALUE} | jq '.Status="$STATUS"' | jq '.Message="$MESSAGE"')
+  aws ssm put-parameter --name "${SSM_PARAMETER}" --type String --overwrite --value "${NEW_SSM_VALUE}"
 }
 
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
-  [[ ! -z "$SSM_PARAMETER_PREFIX" ]] && update_ssm_parameter "ERROR" "$1"
+  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "ERROR" "$1"
   exit $ERROR_STATUS
 }
 
@@ -619,7 +620,7 @@ do
     a) ARCHIVELOGS=$OPTARG ;;
     l) DATAFILES=$OPTARG ;;
     g) TARGET_DB_NAME=$OPTARG ;;
-    s) SSM_PARAMETER_PREFIX=$OPTARG ;;
+    s) SSM_PARAMETER=$OPTARG ;;
     *) usage ;;
   esac
 done
@@ -676,8 +677,8 @@ then
    ENABLE_TRACE="trace $RMANTRCFILE"
 fi
 
-if [[ ! -z "$SSM_PARAMETER_PREFIX" ]]; then
-   info "Runtime status updates will be written to: $SSM_PARAMETER_PREFIX/status"
+if [[ ! -z "$SSM_PARAMETER" ]]; then
+   info "Runtime status updates will be written to: $SSM_PARAMETER"
    update_ssm_parameter "RUNNING" "Running $*"
 fi
 
@@ -696,7 +697,7 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
-[[ ! -z "$SSM_PARAMETER_PREFIX" ]] && update_ssm_parameter "SUCCESS" "Completed without errors"
+[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "SUCCESS" "Completed without errors"
 info "Completes successfully"
 
 # Exit with success status if no error found

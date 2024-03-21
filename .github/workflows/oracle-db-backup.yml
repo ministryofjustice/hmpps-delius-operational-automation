@@ -144,7 +144,7 @@ jobs:
       EnableTrace: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.EnableTrace || 'no' }}"
       VerboseOutput: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
       RmanTarget: "${{needs.build_rman_target_name.outputs.RmanTarget}}"
-      SSMParameterPrefix: "/oracle-backups/${{needs.build_rman_target_name.outputs.RmanTarget}}"
+      SSMParameter: "/oracle-backups/${{needs.build_rman_target_name.outputs.RmanTarget}}"
       ansible_config: operations/playbooks/ansible.cfg
     continue-on-error: false
     steps:
@@ -192,21 +192,18 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Check And Set Backup Run Phase
-        id: check-and-set-backup-run-phase
+      - name: Check And Set Backup Runtime
+        id: check-and-set-backup-runtime
         shell: bash
         run: |
-            PHASE=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameterPrefix/phase" --query "Parameter.Value" --output text 2>&1) || true
-            [[ $PHASE =~ ParameterNotFound ]] && STATUS="Initial"
+            RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text 2>&1) || true
+            [[ $RUNTIME =~ ParameterNotFound ]] && RUNTIME="{}"
+            PHASE=$(echo $RUNTIME | jq -r '.Phase')
             echo "Backup Phase: $PHASE"
-            # Initialize the Backup Phase and Status for this RMAN Backup Target
-            [[ $STATUS =~ ^INACTIVE ]] && echo "Backup is already active on this host.  Multiple concurrent runs are not allowed." && exit 1
-            aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameterPrefix/phase" --type String --overwrite \
-                --value "BACKUP" --description "Runtime phase for RMAN backups running on the $RmanTarget host"
-            aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameterPrefix/status" --type String --overwrite \
-                --value "INITIALIZING" --description "Runtime status for RMAN backups running on the $RmanTarget host"
-            aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameterPrefix/status_message" --type String --overwrite \
-                --value "Running on $RmanTarget" --description "Runtime status message for RMAN backups running on the $RmanTarget host"
+            # Initialize the Backup Status for this RMAN Backup Target
+            [[ $PHASE =~ ^INACTIVE ]] && echo "Backup is already active on this host.  Multiple concurrent runs are not allowed." && exit 1
+            aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite \
+                --value "{\"Phase\":\"Backup\",\"Status\":\"Initializing\",\"Message\",\"Running on $RmanTarget\"}" --description "Runtime phase and status details of RMAN backups running on the $RmanTarget host"
 
       - name: Start Ansible Backup On Primary
         id: backup
@@ -214,7 +211,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace -e ssm_parameter_prefix=$SSMParameterPrefix $VerboseOutput
+          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter $VerboseOutput
 
       # - name: Start Ansible Backup On First Standby (If Exists) If Primary Backup Failed
       #   if: ${{ steps.backup.outcome == 'failure' && contains(env.RmanTarget,'primarydb') }}
