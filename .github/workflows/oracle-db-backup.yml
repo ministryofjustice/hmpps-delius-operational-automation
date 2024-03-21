@@ -191,14 +191,21 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Check Backup Run Status
-        id: check-backup-run-status
+      - name: Check And Set Backup Run Status
+        id: check-and-set-backup-run-status
         run: |
-            STATUS=$(aws ssm get-parameter \
-                         --region ${AWS_REGION} \
-                         --name "/oracle-backups/$RmanTarget/status" 2>&1) || true
-            [[ $STATUS =~ ParameterNotFound ]] && STATUS="Initial" 
-            echo "Status: $STATUS"
+            STATUS=$(aws ssm get-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" 2>&1) || true
+            if [[ $STATUS =~ ParameterNotFound ]]; then
+               STATUS="Initial"
+            fi
+            echo "Backup Status: $STATUS"
+            if [[ $STATUS == "Running" ]]; then
+               echo "Backup is already running on this host.  Multiple concurrent runs are not allowed."
+               exit 100
+            fi
+            aws put-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" \
+                --value "Running" --overwrite --description "Runtime status for RMAN backups running on the $RmanTarget host" \
+                --data-type SecureString
 
       - name: Start Ansible Backup On Primary
         id: backup
