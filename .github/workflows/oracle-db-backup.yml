@@ -144,6 +144,7 @@ jobs:
       EnableTrace: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.EnableTrace || 'no' }}"
       VerboseOutput: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
       RmanTarget: "${{needs.build_rman_target_name.outputs.RmanTarget}}"
+      StatusParameter: "/oracle-backups/${{needs.build_rman_target_name.outputs.RmanTarget}}/status"
       ansible_config: operations/playbooks/ansible.cfg
     continue-on-error: false
     steps:
@@ -195,11 +196,11 @@ jobs:
         id: check-and-set-backup-run-status
         shell: bash
         run: |
-            STATUS=$(aws ssm get-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" --query "Parameter.Value" --output text 2>&1) || true
+            STATUS=$(aws ssm get-parameter --region ${AWS_REGION} --name "$StatusParameter" --query "Parameter.Value" --output text 2>&1) || true
             [[ $STATUS =~ ParameterNotFound ]] && STATUS="Initial"
             echo "Backup Status: $STATUS"
             [[ $STATUS == "Running" ]] && echo "Backup is already running on this host.  Multiple concurrent runs are not allowed." && exit 1
-            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" --type String --overwrite \
+            aws ssm put-parameter --region ${AWS_REGION} --name "$StatusParameter" --type String --overwrite \
                 --value "Running" --description "Runtime status for RMAN backups running on the $RmanTarget host" \
                 
       - name: Start Ansible Backup On Primary
@@ -208,31 +209,31 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
+          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace -e status_parameter=$StatusParameter $VerboseOutput
 
-      - name: Start Ansible Backup On First Standby (If Exists) If Primary Backup Failed
-        if: ${{ steps.backup.outcome == 'failure' && contains(env.RmanTarget,'primarydb') }}
-        shell: bash
-        run: |
-          if [[ -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml ]]
-          then
-            export ANSIBLE_CONFIG=$ansible_config
-            ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-            $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget/primarydb/standbydb1} -e daily_weekly=$Period -e enable_trace=$EnableTrace $VerboseOutput
-          else
-            echo "Standby Not Configured"
-          fi
+      # - name: Start Ansible Backup On First Standby (If Exists) If Primary Backup Failed
+      #   if: ${{ steps.backup.outcome == 'failure' && contains(env.RmanTarget,'primarydb') }}
+      #   shell: bash
+      #   run: |
+      #     if [[ -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml ]]
+      #     then
+      #       export ANSIBLE_CONFIG=$ansible_config
+      #       ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
+      #       $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget/primarydb/standbydb1} -e daily_weekly=$Period -e enable_trace=$EnableTrace -e status_parameter=$StatusParameter $VerboseOutput
+      #     else
+      #       echo "Standby Not Configured"
+      #     fi
 
-      - name: Start Ansible Validate And Fix Absent Chunks
-        run: |
-          export ANSIBLE_CONFIG=$ansible_config
-          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $validate_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
+      # - name: Start Ansible Validate And Fix Absent Chunks
+      #   run: |
+      #     export ANSIBLE_CONFIG=$ansible_config
+      #     ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
+      #     $validate_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
 
-      - name: Start Ansible Delete DBIDs Not In Use
-        if: ${{ env.DeleteDefunct == 'yes' }}
-        run: |
-          export ANSIBLE_CONFIG=$ansible_config
-          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $delete_dbids_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget $VerboseOutput
+      # - name: Start Ansible Delete DBIDs Not In Use
+      #   if: ${{ env.DeleteDefunct == 'yes' }}
+      #   run: |
+      #     export ANSIBLE_CONFIG=$ansible_config
+      #     ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
+      #     $delete_dbids_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget $VerboseOutput
           
