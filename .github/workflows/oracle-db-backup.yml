@@ -193,20 +193,15 @@ jobs:
 
       - name: Check And Set Backup Run Status
         id: check-and-set-backup-run-status
+        shell: bash
         run: |
             STATUS=$(aws ssm get-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" 2>&1) || true
-            if [[ $STATUS =~ ParameterNotFound ]]; then
-               STATUS="Initial"
-            fi
+            [[ $STATUS =~ ParameterNotFound ]] && STATUS="Initial"
             echo "Backup Status: $STATUS"
-            if [[ $STATUS == "Running" ]]; then
-               echo "Backup is already running on this host.  Multiple concurrent runs are not allowed."
-               exit 100
-            fi
-            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" \
+            [[ $STATUS == "Running" ]] && echo "Backup is already running on this host.  Multiple concurrent runs are not allowed." && exit 1
+            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" --type SecureString --overwrite \
                 --value "Running" --description "Runtime status for RMAN backups running on the $RmanTarget host" \
-                --type SecureString --overwrite
-
+                
       - name: Start Ansible Backup On Primary
         id: backup
         continue-on-error: true
