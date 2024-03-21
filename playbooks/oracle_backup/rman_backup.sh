@@ -87,7 +87,7 @@ warning () {
   echo "WARNING : $THISSCRIPT : $T : $1"
 }
 
-update_ssm_parameter_status () {
+update_ssm_parameter () {
   # We do not change the backup phase within this script - it is always BACKUP
   # We can only change the status of the run
   STATUS=$1
