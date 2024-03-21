@@ -196,7 +196,8 @@ jobs:
         run: |
             STATUS=$(aws ssm get-parameter \
                          --region ${AWS_REGION} \
-                         --name "/oracle-backups/$RmanTarget/status")
+                         --name "/oracle-backups/$RmanTarget/status" 2>&1)
+            [[ $STATUS =~ ParameterNotFound ]] && STATUS="Initial" 
             echo "Status: $STATUS"
 
       - name: Start Ansible Backup On Primary
