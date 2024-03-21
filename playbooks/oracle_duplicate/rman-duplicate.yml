@@ -134,7 +134,7 @@
       - name: Running RMAN script
         shell: "{{ run_rman_script }} &> /home/oracle/admin/rman_scripts/rman_duplicate_script_$( date +%Y%m%d%H%M ).log"
         async: 57600
-        poll: "{{ 30 if (run_rman_in_foreground | default(false)) else 0 }}"
+        poll: 300
         args:
           executable: /bin/bash
         register: duplicate_cmd_output
@@ -146,8 +146,8 @@
           jid: "{{ duplicate_cmd_output.ansible_job_id }}"
         register: duplicate_cmd_output_result
         until: duplicate_cmd_output_result.finished
-        delay: 300
-        retries: 72
+        delay: 120
+        retries: 120
         become: yes
         become_user: oracle
         when: catalog_tns is defined
