@@ -112,9 +112,9 @@ get_rman_password () {
   ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ASSUME_ROLE_NAME}"
   SESSION="catalog-ansible"
   CREDS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION}"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")
-  export AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
-  export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
-  export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
+  local AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
+  local AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
+  local AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
   SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:${SECRET}"
   RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
 }
@@ -666,12 +666,6 @@ then
    info "Enabing RMAN Debug Trace File"
    ENABLE_TRACE="trace $RMANTRCFILE"
 fi
-
-
-info "ARN: $ASSUME_ROLE_NAME"
-info "SAI: $SECRET_ACCOUNT_ID"
-info "SECRET: $SECRET"
-
 
 if [[ ! -z "$SSM_PARAMETER" ]]; then
    info "Runtime status updates will be written to: $SSM_PARAMETER"
