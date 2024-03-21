@@ -93,7 +93,7 @@ update_ssm_parameter () {
   STATUS=$1
   MESSAGE=$2
   info "Updating SSM Parameter ${SSM_PARAMETER_PREFIX} Status to ${STATUS}"
-  SSM_VALUE=$(aws ssm get-parameter --name "${SSM_PARAMETER}" --output json)
+  SSM_VALUE=$(aws ssm get-parameter --name "${SSM_PARAMETER}" --query "Parameter.Value" --output json)
   NEW_SSM_VALUE=$(echo ${SSM_VALUE} | jq '.Status="$STATUS"' | jq '.Message="$MESSAGE"')
   aws ssm put-parameter --name "${SSM_PARAMETER}" --type String --overwrite --value "${NEW_SSM_VALUE}"
 }
@@ -101,7 +101,7 @@ update_ssm_parameter () {
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
-  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "ERROR" "$1"
+  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error" "$1"
   exit $ERROR_STATUS
 }
 
@@ -679,7 +679,7 @@ fi
 
 if [[ ! -z "$SSM_PARAMETER" ]]; then
    info "Runtime status updates will be written to: $SSM_PARAMETER"
-   update_ssm_parameter "RUNNING" "Running $*"
+   update_ssm_parameter "Running" "Running $*"
 fi
 
 touch $RMANCMDFILE
@@ -697,7 +697,7 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
-[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "SUCCESS" "Completed without errors"
+[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Success" "Completed without errors"
 info "Completes successfully"
 
 # Exit with success status if no error found
