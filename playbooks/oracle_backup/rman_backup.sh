@@ -696,7 +696,7 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
-[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "SUCCESS" ""
+[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "SUCCESS" "Completed without errors"
 info "Completes successfully"
 
 # Exit with success status if no error found

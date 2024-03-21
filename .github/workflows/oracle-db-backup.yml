@@ -206,7 +206,7 @@ jobs:
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameterPrefix/status" --type String --overwrite \
                 --value "INITIALIZING" --description "Runtime status for RMAN backups running on the $RmanTarget host"
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameterPrefix/status_message" --type String --overwrite \
-                --value "" --description "Runtime status message for RMAN backups running on the $RmanTarget host"
+                --value "Running on $RmanTarget" --description "Runtime status message for RMAN backups running on the $RmanTarget host"
 
       - name: Start Ansible Backup On Primary
         id: backup
