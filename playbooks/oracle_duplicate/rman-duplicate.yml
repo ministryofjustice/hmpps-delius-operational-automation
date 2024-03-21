@@ -15,7 +15,13 @@
   - name: Exit if rman catalog not specified
     fail:
       msg: "No rman catalog specified...exiting"
-    when: catalog is not defined
+    when: catalog is not defined and catalog_tns is not defined
+
+  - name: Set S3 Source Bucket And Catalog If Duplicating From Legacy On Lower Environments
+    set_fact:
+      s3_source_bucket: "{{ s3_source_bucket if (source_legacy == 'yes') else db_backup_s3_bucket_name }}"
+      catalog: "{{ catalog_tns if (source_legacy == 'yes') else catalog }}"
+    when: aws_environment | regex_search('development|test')
 
   - name: Check s3 bucket is accessible
     block:
@@ -129,8 +135,23 @@
         shell: "{{ run_rman_script }} &> /home/oracle/admin/rman_scripts/rman_duplicate_script_$( date +%Y%m%d%H%M ).log"
         async: 57600
         poll: "{{ 30 if (run_rman_in_foreground | default(false)) else 0 }}"
+        args:
+          executable: /bin/bash
         register: duplicate_cmd_output
+        become: yes
+        become_user: oracle
+
+      - name: Wait for RMAN duplicate to complete only in lower environments for migration
+        ansible.builtin.async_status:
+          jid: "{{ duplicate_cmd_output.ansible_job_id }}"
+        register: duplicate_cmd_output_result
+        until: duplicate_cmd_output_result.finished
+        delay: 300
+        retries: 72
+        become: yes
+        become_user: oracle
+        when: catalog_tns is defined
 
       - name: Report Run Output
         debug:
-            msg: var=duplicate_cmd_output.stdout
+          msg: "{{ duplicate_cmd_output }}"
