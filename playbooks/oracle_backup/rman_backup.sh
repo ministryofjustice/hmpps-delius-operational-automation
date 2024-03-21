@@ -667,6 +667,12 @@ then
    ENABLE_TRACE="trace $RMANTRCFILE"
 fi
 
+
+echo "ARN: $ASSUME_ROLE_NAME"
+echo "SAI: $SECRET_ACCOUNT_ID"
+echo "SECRET: $SECRET"
+
+
 if [[ ! -z "$SSM_PARAMETER" ]]; then
    info "Runtime status updates will be written to: $SSM_PARAMETER"
    update_ssm_parameter "Running - Main Backup Script"
