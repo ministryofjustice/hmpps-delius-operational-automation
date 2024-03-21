@@ -11,10 +11,13 @@
       include_tasks: "{{ playbook_dir }}/../delius_users/playbook.yml"
       vars: 
         action_type: "store"
-      when: duplicate_target | regex_search('.*_delius_primarydb')
+      when:
+        - duplicate_target | regex_search('.*_delius_primarydb')
+        - aws_environment | regex_search('preproduction')
 
     - name: Export Automatic Workload Repository (AWR)
       include_tasks: ../awr_export/playbook.yml
+      when: aws_environment | regex_search('preproduction')
 
     # - name: Trigger GitHub Actions workflow to switch probation integration services to read-only mode
     #   when: environment_name == 'delius-pre-prod' and duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
@@ -40,6 +43,7 @@
     action: "keep"
   when:
     - duplicate_target | regex_search('.*_delius_primarydb')
+    - aws_environment | regex_search('preproduction')
 
 # Allow jobs during the blackout so the Audited Interaction archival job may run
 - name: Start database monitoring blackout
