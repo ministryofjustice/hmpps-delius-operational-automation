@@ -96,6 +96,9 @@ get_catalog_connection () {
     RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
   else
     REGION=eu-west-2
+    INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+    APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=application" --query 'Tags[0].Value' --output text)
+    ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=environment-name" --query 'Tags[0].Value' --output text)
     SSMNAME="/${ENVIRONMENT}/${APPLICATION}/oracle-db-operation/rman/rman_password"
     RMANUSER=rman19c
     RMANPASS=`aws ssm get-parameters --region ${REGION} --with-decryption --name ${SSMNAME} | jq -r '.Parameters[].Value'`
@@ -530,25 +533,6 @@ info "Execute $THISUSER bash profile"
 validate targetdb
 validate catalog
 validate datetime
-
-# info "Get compatible value before shutting down"
-# V_PARAMETER=v\$parameter
-# if ! X=`sqlplus -s / as sysdba <<EOF
-#    whenever sqlerror exit 1
-#    set feedback off heading off verify off echo off
-#    select 'COMPATIBLE_VALUE='||value 
-#    from $V_PARAMETER
-#    where name='compatible';
-#    exit;
-# EOF
-# `
-# then
-  #  info "Cannot determine compatible value from database; falling back to most recently logged value"
-  #  COMPATIBLE_VALUE=$( egrep -E "^[[:space:]]+compatible" $ORACLE_BASE/diag/rdbms/${ORACLE_SID}/${ORACLE_SID}/trace/alert_${ORACLE_SID}.log $ORACLE_BASE/diag/rdbms/${ORACLE_SID,,}/${ORACLE_SID}/trace/alert_${ORACLE_SID}.log | tail -1 | sed 's/"//g' | awk '{print $NF}'  )
-# else
-#    eval $X
-# fi
-# [ -z $COMPATIBLE_VALUE ] && error "Cannot determine compatible value"
 
 if [ "${SPFILE_PARAMETERS}" != "UNSPECIFIED" ]
 then
