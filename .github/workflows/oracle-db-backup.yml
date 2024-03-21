@@ -197,13 +197,13 @@ jobs:
         shell: bash
         run: |
             RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text 2>&1) || true
-            [[ $RUNTIME =~ ParameterNotFound ]] && RUNTIME="{}"
+            [[ $RUNTIME =~ ParameterNotFound ]] && RUNTIME="{\"Phase\":\"Initial\",\"Status\":\"Inactive\",\"Message\":\"Runtime not initialized\"}"
             PHASE=$(echo $RUNTIME | jq -r '.Phase')
             echo "Backup Phase: $PHASE"
             # Initialize the Backup Status for this RMAN Backup Target
-            [[ $PHASE =~ ^Inactive ]] && echo "Backup is already active on this host.  Multiple concurrent runs are not allowed." && exit 1
+            [[ $PHASE !~ ^Inactive ]] && echo "Backup is already active on this host.  Multiple concurrent runs are not allowed." && exit 1
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite \
-                --value "{\"Phase\":\"Backup\",\"Status\":\"Initializing\":\"Message\",\"Running on $RmanTarget\"}" --description "Runtime phase and status details of RMAN backups running on the $RmanTarget host"
+                --value "{\"Phase\":\"Backup\",\"Status\":\"Initializing\",\"Message\":\"Running on $RmanTarget\"}" --description "Runtime phase and status details of RMAN backups running on the $RmanTarget host"
 
       - name: Start Ansible Backup On Primary
         id: backup
