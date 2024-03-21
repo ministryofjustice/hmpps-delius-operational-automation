@@ -204,8 +204,8 @@ jobs:
                exit 100
             fi
             aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-backups/$RmanTarget/status" \
-                --value "Running" --overwrite --description "Runtime status for RMAN backups running on the $RmanTarget host" \
-                --data-type SecureString
+                --value "Running" --description "Runtime status for RMAN backups running on the $RmanTarget host" \
+                --type SecureString --overwrite
 
       - name: Start Ansible Backup On Primary
         id: backup
