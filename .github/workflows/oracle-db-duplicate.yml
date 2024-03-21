@@ -303,6 +303,9 @@ jobs:
           if [[ "${{ needs.oracle-rman-pre-duplicate.result }}" == "failure" ]]
           then
             echo "jobid=${{ needs.oracle-rman-pre-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.oracle-rman-duplicate.result }}" == "failure" ]]
+          then
+            echo "jobid=${{ needs.oracle-rman-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Slack Failure Notification
