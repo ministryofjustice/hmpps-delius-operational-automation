@@ -1,0 +1,17 @@
+[
+    {
+        "TargetEnvironment":"delius-core-dev",
+        "TargetHost":"delius_primarydb",
+        "CronSchedule":"20 14 * * WED"
+    },
+    {
+        "TargetEnvironment":"delius-core-dev",
+        "TargetHost":"delius_standbydb1",
+        "CronSchedule":"20 15 * * WED"
+    },
+    {
+        "TargetEnvironment":"delius-core-test",
+        "TargetHost":"delius_primarydb",
+        "CronSchedule":"20 16 * * WED"
+    }
+]
