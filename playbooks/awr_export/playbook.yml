@@ -1,0 +1,51 @@
+# Skip export of AWS Data if the database is not available
+- name: Check diagnostics pack is enabled
+  script: check_diagnostic_enabled.sh
+  register: check_diagnostics_enabled
+  changed_when: false
+  failed_when: (check_diagnostics_enabled.rc > 0) and ('ORA-01034' not in check_diagnostics_enabled.stdout)
+
+- name: Set diagnostics enabled flag
+  set_fact:
+    diagnostics_enabled: "{{ ('NONE' not in check_diagnostics_enabled.stdout) and ('NOT OPEN' not in check_diagnostics_enabled.stdout) and ('ORA-01034' not in check_diagnostics_enabled.stdout) }}"
+
+- block:
+    - name: Get dbid
+      script: get_dbid.sh
+      register: get_dbid
+      changed_when: false
+
+    - name: Get start awr snap id
+      script: get_min_snapshot_id.sh
+      register: min_snap_id
+      changed_when: false
+
+    - name: Get end awr snap id
+      script: get_max_snapshot_id.sh
+      register: max_snap_id
+      changed_when: false
+
+    - name: Get the Time
+      setup:
+        filter: ansible_date_time
+
+    - name: Create data pump database directory
+      script: create_database_directory.sh
+
+    - name: Run awr export script
+      script: export_awr.sh
+      environment:
+        DBID: "{{ get_dbid.stdout }}"
+        BEGIN_SNAP: "{{ min_snap_id.stdout }}"
+        END_SNAP: "{{ max_snap_id.stdout }}"
+        DIRECTORY_NAME: "DATA_PUMP_DIR"
+        FILE_NAME: "AWR_EXPORT_{{ ansible_date_time.iso8601_basic_short }}"
+      vars:
+        ansible_aws_ssm_timeout: 1800
+      register: export_awr_output
+
+    - name: Assert awr report finished correctly
+      assert:
+        that: export_awr_output.stdout is search('.*End of AWR Extract.*')
+
+  when: diagnostics_enabled
