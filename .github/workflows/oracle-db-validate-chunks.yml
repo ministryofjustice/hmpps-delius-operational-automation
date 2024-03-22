@@ -3,7 +3,7 @@ run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{
 on:
   push:
     branches:
-      - "DBA-662"
+      - "DBA-667"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
