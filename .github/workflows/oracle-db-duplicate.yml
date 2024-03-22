@@ -354,6 +354,18 @@ jobs:
       JobId: ${{ github.job }}
     steps:
 
+      - name: Checkout Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
       - name: Install yq
         uses: dcarbone/install-yq-action@v1.1.1
         with:
@@ -425,7 +437,7 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
           -e primary=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} \
-          -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
+          -e standby=${{ steps.standbydbsconfigured.outputs.standbydb2Host }} \
           -e method=build \
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
