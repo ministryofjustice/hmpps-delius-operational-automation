@@ -1,5 +1,4 @@
 ---
-
 - name: Get Account Ids
   set_fact:
     account_ids: "{{ lookup('aws_ssm', 'account_ids', region='eu-west-2') }}"
@@ -14,8 +13,8 @@
     SECRET: "/oracle/database/{{ catalog }}/shared-passwords"
   register: register_database
   failed_when:
-       - register_database.rc | int > 0
-       - not register_database.stdout is search(".*RMAN-20002.*")
+    - register_database.rc | int > 0
+    - not register_database.stdout is search(".*RMAN-20002.*")
   changed_when:
-       - register_database.rc | int == 0
-       - register_database is search(".*database registered in recovery catalog.*")
+    - register_database.rc | int == 0
+    - register_database is search(".*database registered in recovery catalog.*")

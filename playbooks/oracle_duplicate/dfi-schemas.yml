@@ -1,19 +1,17 @@
 ---
 - name: Export or import dfi schemas
-  hosts: '{{ duplicate_target }}'
+  hosts: "{{ duplicate_target }}"
   gather_facts: no
   become: yes
   become_user: oracle
 
   tasks:
-
     - block:
-
         - name: Export dfi schemas
           script: dfi_schemas.sh {{ action }}
           register: export_dfischemas
           vars:
-             ansible_aws_ssm_timeout: 1800
+            ansible_aws_ssm_timeout: 1800
 
         - name: Assert dfi schemas export successful
           assert:
@@ -22,12 +20,11 @@
       when: action == 'export'
 
     - block:
-
         - name: Import dfi schemas
           script: dfi_schemas.sh {{ action }}
           register: import_dfischemas
           vars:
-             ansible_aws_ssm_timeout: 1800
+            ansible_aws_ssm_timeout: 1800
 
         - name: Assert dfi schemas import successful
           assert:

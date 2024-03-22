@@ -1,5 +1,4 @@
 ---
-
 # If Uplift Job failed then access to the Oracle Listener Port will still be blocked.
 # During an unattended duplication this should not prevent downstream operations from
 # proceeding, so we unblock this port.
@@ -9,12 +8,11 @@
   become: yes
   become_user: root
   tasks:
-
     - name: Re-enable inbound access on database port
       iptables:
         chain: INPUT
         protocol: tcp
-        source: '!127.0.0.1'
+        source: "!127.0.0.1"
         destination_port: 1521
         jump: REJECT
         state: absent
