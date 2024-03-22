@@ -1,18 +1,17 @@
 ---
-# Note that there are no separate RMAN password parameters for MIS: The Delius parameter is used for all databases.
-- name: Get RMAN password
-  shell: ". /etc/environment && aws ssm get-parameters --region ${REGION} --with-decryption --name /${HMPPS_ENVIRONMENT}/${APPLICATION}/oracle-db-operation/rman/rman_password | jq -r '.Parameters[].Value'"
-  changed_when: false
-  register: rman_password
-  no_log: true
+
+- name: Get Account Ids
+  set_fact:
+    account_ids: "{{ lookup('aws_ssm', 'account_ids', region='eu-west-2') }}"
 
 # Ignore RMAN-20002 when database has already been registered
 - name: Register Database with RMAN Catalog
-  shell: |
-         . ~/.bash_profile
-         echo "register database;" | rman target / catalog rman19c/${PASSWORD}@{{ catalog }}
+  script: register_with_rman.sh "{{ database_primary_sid }}"
   environment:
-     PASSWORD: "{{ rman_password.stdout }}"
+    CATALOG: "{{ catalog }}"
+    ASSUME_ROLE_NAME: "EC2OracleEnterpriseManagementSecretsRole"
+    SECRET_ACCOUNT_ID: "{{ account_ids['hmpps-oem-' + aws_environment] }}"
+    SECRET: "/oracle/database/{{ catalog }}/shared-passwords"
   register: register_database
   failed_when:
        - register_database.rc | int > 0
