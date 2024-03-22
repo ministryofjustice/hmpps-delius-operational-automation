@@ -288,6 +288,13 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/oracle_duplicate
+            playbooks/oracle_parameters
+            playbooks/oracle_autotasks
+            playbooks/delius_users
+            playbooks/delius_gdpr
+            playbooks/cfo_extract
+            playbooks/alfresco_wallet
+            plauybooks/oracle_statspack
             playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
@@ -369,6 +376,9 @@ jobs:
           elif [[ "${{ needs.oracle-rman-duplicate.result }}" == "failure" ]]
           then
             echo "jobid=${{ needs.oracle-rman-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.oracle-rman-post-duplicate.result }}" == "failure" ]]
+          then
+            echo "jobid=${{ needs.oracle-rman-post-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Slack Failure Notification
