@@ -483,6 +483,9 @@ jobs:
           elif [[ "${{ needs.oracle-rman-post-duplicate.result }}" == "failure" ]]
           then
             echo "jobid=${{ needs.oracle-rman-post-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.oracle-build-ha.result }}" == "failure" ]]
+          then
+            echo "jobid=${{ needs.oracle-build-ha.outputs.JobId }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Slack Failure Notification
