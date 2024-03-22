@@ -681,7 +681,7 @@ fi
 
 if [[ ! -z "$SSM_PARAMETER" ]]; then
    info "Runtime status updates will be written to: $SSM_PARAMETER"
-   update_ssm_parameter "Running" "Running $*"
+   update_ssm_parameter "Running" "Running $0 $*"
 fi
 
 touch $RMANCMDFILE
