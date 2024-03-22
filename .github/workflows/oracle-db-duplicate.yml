@@ -201,9 +201,9 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          echo "$ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          $ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
           -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} \
-          -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}"
+          -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
   oracle-rman-duplicate:
     name: oracle-rman-duplicate
@@ -266,8 +266,8 @@ jobs:
             fi
           fi
           export ANSIBLE_CONFIG=$ansible_config
-          echo "$ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars}"
+          $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars}
 
   oracle-rman-post-duplicate:
     name: oracle-rman-post-duplicate
@@ -338,8 +338,8 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          echo "$ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}"
+          $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}
 
   oracle-build-ha:
     name: oracle-build-ha
