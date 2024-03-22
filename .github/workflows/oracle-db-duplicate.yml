@@ -338,15 +338,106 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}
+          echo "$ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}"
+
+  oracle-build-ha:
+    name: oracle-build-ha
+    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+    needs: [oracle-rman-pre-duplicate,oracle-rman-duplicate,oracle-rman-post-duplicate]
+    timeout-minutes: 1440
+    continue-on-error: false
+    outputs:
+      JobId: ${{ github.job }}
+    steps:
+
+      - name: Install yq
+        uses: dcarbone/install-yq-action@v1.1.1
+        with:
+          download-compressed: true
+          version: "v4.35.1"
+          force: true
+
+      - name: Check Standbydb's Configured In Ansible Inventory
+        id: standbydbsconfigured
+        working-directory: ${{ env.inventory }}
+        run: |
+          database_type=$(echo ${{ github.event.inputs.TargetHost }} | cut -d_ -f1)
+          database_environment=$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} | awk -F_${{ github.event.inputs.TargetHost }} '{print $1}')
+          high_availability_count=$(yq .high_availability_count.${database_type} group_vars/${database_environment}_all.yml)
+          if [[ ${high_availability_count} -eq 0 ]]
+          then
+            echo "No standbydb's configured"
+            exit 0
+          fi
+          if [[ ${high_availability_count} -ge 1 ]]
+          then
+            echo "standbydb1Host=$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} | sed 's/primarydb/standbydb1/')"  >> $GITHUB_OUTPUT
+          fi
+          if [[ ${high_availability_count} -eq 2 ]]
+          then
+            echo "standbydb2Host=$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} | sed 's/primarydb/standbydb2/')" >> $GITHUB_OUTPUT
+          fi
+          echo "high_availability_count=${high_availability_count}" >> $GITHUB_OUTPUT
+
+          fsfo_mode=$(yq '.fsfo_mode' group_vars/${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}.yml)
+          [ "$fsfo_mode" == "null" ] && echo 'fsfo_mode="disabled"' >> $GITHUB_OUTPUT || echo "fsfo_mode=$fsfo_mode" >> $GITHUB_OUTPUT
+
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oracle_ha
+            playbooks/ansible.cfg
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      - name: Build High Availability Standby 1 Database
+        if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          $command -i $inventory \
+          -e primary=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} \
+          -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
+          -e method=build \
+          -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
+          -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
+          -e standby_number=1 \
+          -e primary_source_type=active
+
+      - name: Build High Availability Standby 2 Database
+        if: ${{ steps.standbydbsconfigured.outputs.standbydb2Host != '' }}
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          $command -i $inventory \
+          -e primary=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} \
+          -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
+          -e method=build \
+          -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
+          -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
+          -e standby_number=2 \
+          -e primary_source_type=active
 
   slack-notification:
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    needs: [oracle-rman-pre-duplicate,oracle-rman-duplicate,oracle-rman-post-duplicate]
+    needs: [oracle-rman-pre-duplicate,oracle-rman-duplicate,oracle-rman-post-duplicate,oracle-build-ha]
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     steps:
 
