@@ -1,0 +1,111 @@
+---
+
+  - name: Gather facts with filter
+    setup:
+        filter: ansible_dns
+
+  # Delius databases use DATA_PUMP_DIR for export and import of statistics
+  - name: Ensure DATA_PUMP_DIR points to database-specific directory
+    shell:
+      cmd: |
+        . ~/.bash_profile
+        sqlplus -s / as sysdba << EOF
+          CREATE OR REPLACE DIRECTORY data_pump_dir
+          AS '${ORACLE_BASE}/admin/{{ database_primary_sid }}/dpdump';
+        EOF
+
+  # We cannot run a new CFO extract without the previous one being end dated
+  - name: Ensure Any In-Progress CFO Extracts are Marked Done
+    shell:
+      cmd: |
+        . ~/.bash_profile
+        sqlplus -s / as sysdba << EOF
+          UPDATE delius_cfo.cfo_extract_log
+          SET    process_end_date = SYSDATE
+          WHERE  process_end_date IS NULL;
+          COMMIT;
+        EOF
+
+  - name: Update spg_control table with spg and aflresco url's
+    shell: 
+      cmd: |
+        . ~/.bash_profile
+        sqlplus -s / as sysdba << EOF
+          whenever sqlerror exit failure
+          set pages 0 head off lines 1000 feed off
+
+          update delius_app_schema.spg_control
+          set value_string=regexp_replace(value_string,'delius-jms\.[a-z\-]+\.','delius-jms.{{ environment_name }}.')
+          where control_code = 'BROKEROB';
+
+          update delius_app_schema.spg_control
+          set value_string=regexp_replace(value_string,'(alfresco\.)(.*?)(/.*$)','\1{{simple_environment_name}}.{{project_name}}.{{ ansible_dns.search[0] }}\3')
+          where control_code = 'ALFURL';
+
+          -- Set finished status for SPG Outbound messages in transit at time of clone
+          -- to avoid attempting resend against the production instance name
+          update delius_app_schema.pdt_thread
+          set status=3,
+              finish_date=SYSDATE
+          where status=1;
+
+        EOF
+    changed_when: false
+    register: sql_result
+
+  - name: Check if update failed
+    fail:
+      msg: "Update of spg_control table failed" 
+    when: sql_result.rc != 0
+    
+
+  - name: Reset CRN Sequence After Environment Refresh
+    shell: 
+      cmd: |
+        . ~/.bash_profile
+        sqlplus -s / as sysdba << EOF
+          whenever sqlerror exit failure
+          set pages 0 head off lines 1000 feed off
+
+          ALTER SESSION SET CURRENT_SCHEMA=delius_app_schema;
+
+          -- ===============================================================
+          --  NDelius
+          -- ===============================================================
+          -- 
+          --  Filename:  reset_crn_sequence.sql
+          --  Purpose :  This is script is to be used after a Pre-Prod refresh to reset the OFFENDER_CRN_SEQ sequence
+          --             back to 1000 and to change the CRN_PREFIX parameter to 'W'
+          --  Author  :  Unilink Limited
+          -- 
+          --  Change History:
+          -- 
+          --  Version Date        Who              Description
+          --  ------- ----------- ------------ ------------------------------------------------------------------------------
+          --    1.00  28-APR-2023 D Reid      #DST-14405 Investigate CRN prefix letter that have no CRNs in Prod
+          -- ================================================================================================================
+          --
+          DECLARE
+              last_val NUMBER;
+          BEGIN
+                  SELECT (OFFENDER_CRN_SEQ.nextval)-1000 INTO last_val FROM DUAL;
+                  EXECUTE IMMEDIATE 'ALTER SEQUENCE OFFENDER_CRN_SEQ INCREMENT BY -' || last_val || ' MINVALUE 1000';
+                  SELECT OFFENDER_CRN_SEQ.nextval INTO last_val FROM DUAL;
+                  EXECUTE IMMEDIATE 'ALTER SEQUENCE OFFENDER_CRN_SEQ INCREMENT BY 1 MINVALUE 1000';
+          END;
+          /
+          UPDATE ND_PARAMETER
+          SET ND_VALUE = ASCII('W')
+          WHERE ND_PARAMETER = 'CRN_PREFIX'
+          /
+          COMMIT
+          /
+
+        EOF
+    changed_when: false
+    register: sql_result
+
+  - name: Check if update failed
+    fail:
+      msg: "Update of CRN Sequence failed" 
+    when: sql_result.rc != 0
