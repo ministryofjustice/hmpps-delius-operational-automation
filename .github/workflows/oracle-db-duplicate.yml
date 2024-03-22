@@ -294,7 +294,7 @@ jobs:
             playbooks/delius_gdpr
             playbooks/cfo_extract
             playbooks/alfresco_wallet
-            plauybooks/oracle_statspack
+            playbooks/oracle_statspack
             playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
