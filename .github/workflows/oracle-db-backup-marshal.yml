@@ -1,5 +1,5 @@
 name: "Oracle: Backup Marshal"
-run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.Period, github.event.inputs.TargetHost) }}_database_backup_marshal"
+run-name: "Oracle: Backup Marshal"
 on:
   workflow_dispatch:
     inputs:
@@ -30,8 +30,8 @@ jobs:
       - name: Read Current Backup Runtime Information into JSON Variable
         id: get-runtime-info
         run: |
-            SSM_PARAMETER_PATHS=$(aws ssm describe-parameters --query 'Parameters[*].Name' --region ${AWS_REGION} --parameter-filters "Key=Name,Option=BeginsWith,Values=/oracle-backups/" --output text)
-            SSM_PARAMETER_VALUES=$(aws ssm get-parameters --names ${SSM_PARAMETER_PATHS} --query "Parameters[*].Value" --region ${AWS_REGION} --output text)
+            SSM_PARAMETER_PATHS=$(aws ssm describe-parameters --query 'Parameters[*].Name' --parameter-filters "Key=Name,Option=BeginsWith,Values=/oracle-backups/" --output text)
+            SSM_PARAMETER_VALUES=$(aws ssm get-parameters --names ${SSM_PARAMETER_PATHS} --query "Parameters[*].Value" --output text)
             # The following logic determines what needs to be done next:
             # (1) Successful Backups may now proceed to Chunk Validation
             VALIDATE_CHUNKS=$(echo $SSM_PARAMETER_VALUES | jq 'select (.FixAbsentChunks == "yes" and .Phase == "Backup" and .Status == "Success" and (.RmanTarget | contains("primarydb")))' | jq -s '.' | jq '{include: .}')
