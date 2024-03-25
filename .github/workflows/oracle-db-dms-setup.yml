@@ -61,7 +61,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 1440
     continue-on-error: false
     steps:
@@ -113,7 +113,7 @@ jobs:
       - name: Start Ansible DMS Setup
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory \
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e read_host=${{ steps.preparetargetname.outputs.TargetHost }} \
           -e include_analytics_platform=${{ github.events.inputs.IncludeAnalyticsPlatform }} \
           -e include_audited_interaction=${{ github.events.inputs.IncludeAuditedInteraction }}
