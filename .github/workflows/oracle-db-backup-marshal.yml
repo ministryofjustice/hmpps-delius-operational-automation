@@ -6,30 +6,31 @@ on:
     - cron: '20 14 * * WED'
     - cron: '20 15 * * WED'
     - cron: '20 16 * * WED'
-    jobs:
-      prepare-run-matrix:
-        runs-on: ubuntu-latest
-        outputs:
-          validate_chunks_matrix: ${{ steps.prepare-next-steps.outputs.validate_chunks_matrix }}
-        steps: Read Current Backup Runtime Information into JSON Variable
-          - name: prepare-next-steps
-            id: find-successful-backups
-            run: |
-                SSM_PARAMETER_PATHS=$(aws ssm describe-parameters --query 'Parameters[*].Name' --region ${AWS_REGION} --parameter-filters "Key=Name,Option=BeginsWith,Values=/oracle-backups/" --output text)
-                SSM_PARAMETER_VALUES=$(aws ssm get-parameters --names ${SSM_PARAMETER_PATHS} --query "Parameters[*].Value" --region ${AWS_REGION} --output text)
-                # The following logic determines what needs to be done next:
-                # (1) Successful Backups may now proceed to Chunk Validation
-                VALIDATE_CHUNKS=$(echo $SSM_PARAMETER_VALUES | jq 'select (.FixAbsentChunks == "yes" and .Phase == "Backup" and .Status == "Success" and (.RmanTarget | contains("primarydb")))' | jq -s '.' | jq '{include: .}')
-                echo "validate_chunks_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
-      validate-chunks:
-        needs: prepare-run-matrix
-        if: ${{ needs.prepare-run-matrix.outputs.validate_chunks_matrix != '{"include":[]}' }}
-        strategy:
-          matrix: ${{fromJson(needs.prepare-run-matrix.outputs.validate_chunks_matrix)}}
-        name: Validate Chunks
-        uses:
-          ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@main
-        with:
-          TargetEnvironment: ${{ matrix.TargetEnvironment }}
-          TargetHost: ${{ matrix.TargetHost }}
+  jobs:
+    prepare-run-matrix:
+      runs-on: ubuntu-latest
+      outputs:
+        validate_chunks_matrix: ${{ steps.prepare-next-steps.outputs.validate_chunks_matrix }}
+      steps: Read Current Backup Runtime Information into JSON Variable
+        - name: prepare-next-steps
+          id: find-successful-backups
+          run: |
+              SSM_PARAMETER_PATHS=$(aws ssm describe-parameters --query 'Parameters[*].Name' --region ${AWS_REGION} --parameter-filters "Key=Name,Option=BeginsWith,Values=/oracle-backups/" --output text)
+              SSM_PARAMETER_VALUES=$(aws ssm get-parameters --names ${SSM_PARAMETER_PATHS} --query "Parameters[*].Value" --region ${AWS_REGION} --output text)
+              # The following logic determines what needs to be done next:
+              # (1) Successful Backups may now proceed to Chunk Validation
+              VALIDATE_CHUNKS=$(echo $SSM_PARAMETER_VALUES | jq 'select (.FixAbsentChunks == "yes" and .Phase == "Backup" and .Status == "Success" and (.RmanTarget | contains("primarydb")))' | jq -s '.' | jq '{include: .}')
+              echo "validate_chunks_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
+
+    validate-chunks:
+      needs: prepare-run-matrix
+      if: ${{ needs.prepare-run-matrix.outputs.validate_chunks_matrix != '{"include":[]}' }}
+      strategy:
+        matrix: ${{fromJson(needs.prepare-run-matrix.outputs.validate_chunks_matrix)}}
+      name: Validate Chunks
+      uses:
+        ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-validate-backups.yml@main
+      with:
+        TargetEnvironment: ${{ matrix.TargetEnvironment }}
+        TargetHost: ${{ matrix.TargetHost }}
