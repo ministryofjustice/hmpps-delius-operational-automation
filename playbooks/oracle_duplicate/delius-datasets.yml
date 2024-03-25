@@ -1,68 +1,63 @@
 ---
 - name: Delius User Datasets
-  hosts: '{{ duplicate_target }}'
+  hosts: "{{ duplicate_target }}"
   gather_facts: no
   become: yes
   become_user: oracle
 
   tasks:
+    - name: Set Variable For OEM Secrets
+      set_fact:
+        oem_secretsmanager_passwords:
+          emrep:
+            account_name: "hmpps-oem-{{ aws_environment }}"
+            assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+            secret: "/oracle/database/EMREP/shared-passwords"
+            users:
+              - slack_token:
 
-  - name: Set Variable For OEM Secrets
-    set_fact:
-      oem_secretsmanager_passwords:
-        emrep:
-          account_name: "hmpps-oem-{{ aws_environment }}"
-          assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
-          secret: "/oracle/database/EMREP/shared-passwords"
-          users:
-            - slack_token:
+    - name: Get Slack Token
+      include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
 
-  - name: Get Slack Token
-    include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
+    - block:
+        - name: Keep copy of data required for stub users
+          script: keep_datasets.sh
+          register: keep_datasets
 
-  - block:
+      rescue:
+        - name: Send error notification message via Slack
+          community.general.slack:
+            token: "{{ slack_token }}"
+            msg: "Keeping Delius dataset failed.  Ignoring errors and continuing with duplication tasks."
+            channel: "#delius-aws-oracle-dev-alerts"
+            username: "Delius Database Duplicate on {{ inventory_hostname }}"
+            icon_emoji: ":sign-warning:"
+          when: keep_datasets.rc != 0
+          delegate_to: localhost
+          become: no
+          ignore_errors: true
 
-      - name: Keep copy of data required for stub users
-        script: keep_datasets.sh
-        register: keep_datasets
+      when: action == 'keep'
 
-    rescue:
+    - block:
+        - name: Copy data required for stub users
+          script: copy_datasets.sh
+          register: copy_datasets
 
-      - name: Send error notification message via Slack
-        community.general.slack:
-          token: "{{ slack_token }}"
-          msg: "Keeping Delius dataset failed.  Ignoring errors and continuing with duplication tasks."
-          channel: "#delius-aws-oracle-dev-alerts"
-          username: 'Delius Database Duplicate on {{ inventory_hostname }}'
-          icon_emoji: ':sign-warning:'
-        when: keep_datasets.rc != 0
-        delegate_to: localhost
-        become: no
-        ignore_errors: true
+        - name: Output copy results
+          debug: var=copy_datasets.stdout
 
-    when: action == 'keep'
+      rescue:
+        - name: Send error notification message via Slack
+          community.general.slack:
+            token: "{{ slack_token }}"
+            msg: "Copying Delius dataset failed.  Ignoring errors and continuing with duplication tasks."
+            channel: "#delius-aws-oracle-dev-alerts"
+            username: "Delius Database Duplicate on {{ inventory_hostname }}"
+            icon_emoji: ":sign-warning:"
+          when: copy_datasets.rc != 0
+          delegate_to: localhost
+          become: no
+          ignore_errors: true
 
-  - block:
-  
-      - name: Copy data required for stub users
-        script: copy_datasets.sh
-        register: copy_datasets
-
-      - name: Output copy results
-        debug: var=copy_datasets.stdout
-
-    rescue:
-
-      - name: Send error notification message via Slack
-        community.general.slack:
-          token: "{{ slack_token }}"
-          msg: "Copying Delius dataset failed.  Ignoring errors and continuing with duplication tasks."
-          channel: "#delius-aws-oracle-dev-alerts"
-          username: 'Delius Database Duplicate on {{ inventory_hostname }}'
-          icon_emoji: ':sign-warning:'
-        when: copy_datasets.rc != 0
-        delegate_to: localhost
-        become: no
-        ignore_errors: true
-
-    when: action == 'copy'
+      when: action == 'copy'

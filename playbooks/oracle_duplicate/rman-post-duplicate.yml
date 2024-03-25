@@ -1,4 +1,3 @@
-
 - name: Setup Oracle database parameters, autotasks and post tasks
   hosts: "{{ duplicate_target }}"
   gather_facts: no
@@ -6,7 +5,6 @@
   become_user: oracle
 
   tasks:
-
     # This is used to send warnings about issues encountered during the duplicate
     # which require fixing but are not serious enough to abort the job.
     - name: Set Variable For OEM Secrets
@@ -27,7 +25,7 @@
     # then the resultant files will be in ASM and referenced by a number
     # of aliases.   It makes things easier and more standard if we
     # reference these files directly instead of via aliases.
-    # The following script handles this change.   
+    # The following script handles this change.
     # It will find nothing to change on databases duplicated from ASM.
     - name: Remove Aliases Created by non-ASM to ASM Duplication
       script: remove_asm_aliases.sh
@@ -50,9 +48,9 @@
     # we allow up to 3 retries to complete without errors.
     - name: Run Datapatch on Primary
       shell: |
-          . ~/.bash_profile
-          cd ${ORACLE_HOME}/OPatch
-          ./datapatch -verbose
+        . ~/.bash_profile
+        cd ${ORACLE_HOME}/OPatch
+        ./datapatch -verbose
       register: datapatch
       retries: 3
       delay: 1
@@ -62,22 +60,22 @@
       failed_when: datapatch.rc !=0 or datapatch.stdout is search('command failed with errors')
 
     - name: Show Datapatch Output
-      debug:  var=datapatch.stdout_lines
+      debug: var=datapatch.stdout_lines
 
     - name: Shutdown Primary Database
-      include_tasks: shutdown_database.yml  
+      include_tasks: shutdown_database.yml
 
     - name: Startup Database for Normal Use
       include_tasks: startup_database.yml
 
     - name: Setup Environment Specific Oracle Parameters
-      import_role: 
+      import_role:
         name: "{{ playbook_dir }}/../oracle_parameters/set_oracle_parameters"
       vars:
         target_host: "{{ duplicate_target }}"
 
     - name: Setup Environment Specific Oracle Auto Tasks
-      import_role: 
+      import_role:
         name: "{{ playbook_dir }}/../oracle_autotasks/configure_oracle_autotasks"
       vars:
         target_host: "{{ duplicate_target }}"
@@ -87,7 +85,6 @@
     #   block:
     #    TO BE DEVELOPED
 
-
     # Although the new database would be registered automatically during the next backup, we do the registration
     # now in advance as this allows us to backup any archive logs which may be required to support a restore point
     # before the first backup has been taken.
@@ -95,16 +92,15 @@
       include_tasks: register_with_rman.yml
 
     - block:
-
         # - name: Update objects
         #   include_tasks: ../delius_objects/playbook.yml
 
         # Use a directory from the current repo as a role for Audited Interaction Preservation
         # TO BE DEVELOPED
-          
+
         - name: Create and restore delius users
           include_tasks: ../delius_users/playbook.yml
-          vars: 
+          vars:
             action_type: "all"
 
         - name: Create Delius gdpr_pool database user
@@ -114,10 +110,10 @@
           include_tasks: ../cfo_extract/playbook.yml
 
         - name: Setup Alfresco Wallet and ACL
-          include_role: 
-              name: "{{ playbook_dir }}/../alfresco_wallet/alfresco_wallet"
+          include_role:
+            name: "{{ playbook_dir }}/../alfresco_wallet/alfresco_wallet"
           vars:
-              certificate_dict: {}
+            certificate_dict: {}
 
         # If a problem has occurred refreshing Alfresco it may not be up and running at this point.
         # Send a warning by Slack but do not abort the duplicate.
@@ -126,8 +122,8 @@
             token: "{{ slack_token }}"
             msg: "Alfresco configuration failed on {{ inventory_hostname }}.  The response from the Alfresco server was {{ check_alfresco_url.msg | default('unknown') }}.  Ignoring errors and continuing with duplication tasks."
             channel: "#delius-aws-oracle-dev-alerts"
-            username: 'Delius Database Duplicate on {{ inventory_hostname }}'
-            icon_emoji: ':sign-warning:'
+            username: "Delius Database Duplicate on {{ inventory_hostname }}"
+            icon_emoji: ":sign-warning:"
           delegate_to: localhost
           become: no
           ignore_errors: true
@@ -159,33 +155,32 @@
 
 # The database uplift should already have unblocked the listener but we do it again
 # just in case that step had failed
-- name: 'Unblock listener'
-  import_playbook: unblock_listener.yml 
+- name: "Unblock listener"
+  import_playbook: unblock_listener.yml
   vars:
-     target_host: "{{ duplicate_target }}"
+    target_host: "{{ duplicate_target }}"
 
-- name: 'Setup Oracle Statspack'
-  import_playbook: ../oracle_statspack/playbook.yml 
+- name: "Setup Oracle Statspack"
+  import_playbook: ../oracle_statspack/playbook.yml
   vars:
-     target_hosts: "{{ duplicate_target }}"
+    target_hosts: "{{ duplicate_target }}"
 
 - name: Create mis database links if required
-  hosts: '{{ duplicate_target }}'
+  hosts: "{{ duplicate_target }}"
   gather_facts: no
   become: yes
   become_user: oracle
 
   tasks:
-
     - name: create database links
-      include_tasks: ../mis_database_links/playbook.yml 
+      include_tasks: ../mis_database_links/playbook.yml
       when: duplicate_target | regex_search('.*_mis_primarydb')
 
 - name: Import dfi schemas only for STGMIS
-  import_playbook: dfi-schemas.yml 
+  import_playbook: dfi-schemas.yml
   vars:
-     action: "import"
-  when: 
+    action: "import"
+  when:
     - duplicate_target | regex_search('.*_mis_primarydb')
     - database_primary_sid | regex_search('STGMIS.*$')
 
@@ -195,7 +190,6 @@
     action: "copy"
   when:
     - duplicate_target | regex_search('.*_delius_primarydb')
-
 # - name: Re-enable probation integration updates
 #   hosts: '{{ duplicate_target }}'
 #   gather_facts: no

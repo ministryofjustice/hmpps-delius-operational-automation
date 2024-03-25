@@ -10,7 +10,6 @@
     diagnostics_enabled: "{{ ('NONE' not in check_diagnostics_enabled.stdout) and ('NOT OPEN' not in check_diagnostics_enabled.stdout) and ('ORA-01034' not in check_diagnostics_enabled.stdout) }}"
 
 - block:
-
     - name: Get dbid
       script: get_dbid.sh
       register: get_dbid

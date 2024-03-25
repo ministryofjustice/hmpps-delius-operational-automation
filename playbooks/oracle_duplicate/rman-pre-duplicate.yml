@@ -1,15 +1,13 @@
-
 - name: Pre database duplicate tasks
-  hosts: '{{ duplicate_target }}'
+  hosts: "{{ duplicate_target }}"
   gather_facts: no
   become: yes
   become_user: oracle
 
   tasks:
-      
     - name: Store readonly passwords
       include_tasks: "{{ playbook_dir }}/../delius_users/playbook.yml"
-      vars: 
+      vars:
         action_type: "store"
       when:
         - duplicate_target | regex_search('.*_delius_primarydb')
@@ -29,15 +27,15 @@
     #     environment_name: "{{ environment_name }}"
 
 - name: Export dfi schmeas only for STGMIS
-  import_playbook: dfi-schemas.yml 
+  import_playbook: dfi-schemas.yml
   vars:
-      action: "export"
-  when: 
+    action: "export"
+  when:
     - duplicate_target | regex_search('.*_mis_primarydb$')
     - database_primary_sid | regex_search('STGMIS.*$')
 
 - name: Keep delius datasets required
-  import_playbook: delius-datasets.yml 
+  import_playbook: delius-datasets.yml
   vars:
     action: "keep"
   when:
@@ -48,36 +46,35 @@
 - name: Start database monitoring blackout
   import_playbook: ../oem_blackout/playbook.yml
   vars:
-     target: "{{ duplicate_target.split('_primarydb')[0] + '_dbs' }}"
-     action: "start" 
-     object_type: "all" 
-     blackout: "DUPLICATE_{{ environment_name }}" 
-     duration: "" 
-     allow_jobs: true
+    target: "{{ duplicate_target.split('_primarydb')[0] + '_dbs' }}"
+    action: "start"
+    object_type: "all"
+    blackout: "DUPLICATE_{{ environment_name }}"
+    duration: ""
+    allow_jobs: true
 
 # If FSFO is enabled then disable it for the refresh, to avoid any attempt to failover when the old primary
 # database is removed.   This will be automatically reinstated when the HA Build step runs later.
 - name: Disable Data Guard FSFO
-  hosts: '{{ duplicate_target }}'
+  hosts: "{{ duplicate_target }}"
   gather_facts: no
   become: yes
   become_user: oracle
 
   tasks:
+    - name: Get Fast-Start Failover Status
+      shell: |
+        . ~/.bash_profile
+        dgmgrl -silent / "show configuration;" | awk -F: '/Fast-Start Failover/{print $2}'
+      register: get_fast_start_failover
+      changed_when: false
 
-      - name: Get Fast-Start Failover Status
-        shell: |
-              . ~/.bash_profile
-              dgmgrl -silent / "show configuration;" | awk -F: '/Fast-Start Failover/{print $2}'
-        register: get_fast_start_failover
-        changed_when: false
-
-      - name: Disble Fast-Start Failover
-        shell: |
-                . ~/.bash_profile
-                dgmgrl -silent / "disable fast_start failover"
-        when:
-            - ( get_fast_start_failover.stdout | trim ) not in ['','Disabled']
+    - name: Disble Fast-Start Failover
+      shell: |
+        . ~/.bash_profile
+        dgmgrl -silent / "disable fast_start failover"
+      when:
+        - ( get_fast_start_failover.stdout | trim ) not in ['','Disabled']
 
 # Block incoming sessions and kill existing sessions to ensure no further activity prior to the duplicate starting
 # (Only required for Delius, to ensure that any auditable activity has been preserved)
@@ -85,10 +82,9 @@
 - name: Block all database sessions
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: "{{ duplicate_target }}"  
-    action: "block" 
+    target_host: "{{ duplicate_target }}"
+    action: "block"
   when: duplicate_target |  regex_search('.*_delius_primarydb')
-    
 # Propagate remaining Audited Interaction Data from the database prior to deletion
 # if an audited_interaction_repo has been defined within this environment
 # (May be skipped if source database is corrupt or unavailable although this should not normally be done)
