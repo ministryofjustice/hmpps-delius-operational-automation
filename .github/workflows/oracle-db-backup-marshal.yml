@@ -2,15 +2,33 @@ name: "Oracle: Backup Marshal"
 run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.Period, github.event.inputs.TargetHost) }}_database_backup_marshal"
 on:
   workflow_dispatch:
+    inputs:
+      VerboseOutput: 
+        description: "Verbose Output level"
+        type: choice
+        options:
+          - ""
+          - "-v"
+          - "-vv"
+          - "-vvv"
+          - "-vvvv"
+      SourceCodeVersion:
+        description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
 
   jobs:
     prepare-run-matrix:
       runs-on: ubuntu-latest
       outputs:
         validate_chunks_matrix: ${{ steps.prepare-next-steps.outputs.validate_chunks_matrix }}
-      steps: Read Current Backup Runtime Information into JSON Variable
-        - name: prepare-next-steps
-          id: find-successful-backups
+      steps: 
+        - name: Read Current Backup Runtime Information into JSON Variable
+          id: get-runtime-info
           run: |
               SSM_PARAMETER_PATHS=$(aws ssm describe-parameters --query 'Parameters[*].Name' --region ${AWS_REGION} --parameter-filters "Key=Name,Option=BeginsWith,Values=/oracle-backups/" --output text)
               SSM_PARAMETER_VALUES=$(aws ssm get-parameters --names ${SSM_PARAMETER_PATHS} --query "Parameters[*].Value" --region ${AWS_REGION} --output text)
