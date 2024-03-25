@@ -27,6 +27,14 @@ jobs:
     outputs:
       validate_chunks_matrix: ${{ steps.prepare-next-steps.outputs.validate_chunks_matrix }}
     steps: 
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "oracle-backup-marshal-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
       - name: Read Current Backup Runtime Information into JSON Variable
         id: get-runtime-info
         run: |
