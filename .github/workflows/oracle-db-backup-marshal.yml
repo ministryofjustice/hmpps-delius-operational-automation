@@ -2,10 +2,6 @@ name: "Oracle: Backup Marshal"
 run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.Period, github.event.inputs.TargetHost) }}_database_backup_marshal"
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '20 14 * * WED'
-    - cron: '20 15 * * WED'
-    - cron: '20 16 * * WED'
 
   jobs:
     prepare-run-matrix:
