@@ -11,14 +11,6 @@ on:
             required: true
             type: choice
             options:
-              - "gdpr-api"
-              - "gdpr-ui"
-              - "merge-api"
-              - "merge-ui"
-              - "newtech"
-              - "pdf-creation"
-              - "pwd-manager"
-              - "user-management"
               - "weblogic"
               - "weblogic-eis"
         image-tag:
