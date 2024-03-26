@@ -32,7 +32,7 @@ jobs:
     name: Get Environments
     runs-on: ubuntu-latest
     outputs:
-       scheduled_matrix: ${{ steps.generate-matrix.outputs.environment_maxtrix }}
+       environment_matrix: ${{ steps.generate-matrix.outputs.environment_maxtrix }}
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     continue-on-error: false
