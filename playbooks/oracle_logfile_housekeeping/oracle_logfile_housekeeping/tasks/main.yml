@@ -1,9 +1,9 @@
 ---
 - name: Get Log Retention Policy from ADRCI
-  include: get_longp_policy.yml
+  include_tasks: get_longp_policy.yml
 
 - name: Get Text Alert Log Locations
-  include: get_alert_log_locations.yml
+  include_tasks: get_alert_log_locations.yml
 
 - name: Install Logrotate Configuration for Text Alert Logs
   template:
@@ -11,7 +11,7 @@
     dest: /etc/logrotate.d/oracle_alert
 
 - name: Get Text Listener Log Locations
-  include: get_listener_log_locations.yml
+  include_tasks: get_listener_log_locations.yml
 
 - name: Deinstall Non-Monthly Anacron Configuration for XML Listener Log
   file:

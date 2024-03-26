@@ -53,7 +53,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 1440
     env:
       command: ansible-playbook operations/ansible/roles/oracle-db-autotasks/configure_oracle_autotasks.yml
@@ -93,5 +93,5 @@ jobs:
           aws-region: "eu-west-2"
 
       - name: Configure Oracle Autotasks
-        run: $command -i $inventory -e target_hosts=${{needs.build_target_name.outputs.TargetHost}}
+        run: $command -i $inventory --e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e target_hosts=${{needs.build_target_name.outputs.TargetHost}}
           

@@ -45,7 +45,7 @@ DECLARE
         IF NOT db_link_exists (p_db_link)
         THEN
             l_sql := 'CREATE DATABASE LINK '||p_db_link||
-                     ' CONNECT TO ${DB_USER} IDENTIFIED BY ${DB_PASS} USING '||
+                     ' CONNECT TO ${DB_USER} IDENTIFIED BY "${DB_PASS}" USING '||
                      ''''||p_db_unique_name||'''';
 
             EXECUTE IMMEDIATE l_sql;

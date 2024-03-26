@@ -69,7 +69,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 1440
     env:
       command: ansible-playbook operations/playbooks/delius_oem_metrics_setup/playbook.yml
@@ -128,4 +128,4 @@ jobs:
             export ANSIBLE_CONFIG=$ansible_config
             # Link the checked out configuration roles to somewhere Ansible will be able to find them
             ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/delius_oem_metrics_setup/roles
-            $command -i $inventory -e target=${{needs.build_target_name.outputs.TargetHost}} ${{ github.event.inputs.VerboseOutput }}
+            $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e target=${{needs.build_target_name.outputs.TargetHost}} ${{ github.event.inputs.VerboseOutput }}
