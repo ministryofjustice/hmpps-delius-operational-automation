@@ -1,6 +1,9 @@
 name: "Oracle: Backup Marshal"
 run-name: "Oracle: Backup Marshal"
 on:
+  push:
+    branches:
+      - "DBA-667"
   workflow_dispatch:
     inputs:
       VerboseOutput: 
