@@ -1,9 +1,6 @@
 name: "Oracle: Backup Marshal"
 run-name: "Oracle: Backup Marshal"
 on:
-  push:
-    branches:
-      - "DBA-667"
   workflow_dispatch:
     inputs:
       VerboseOutput: 
@@ -31,9 +28,11 @@ permissions:
   id-token: write  # This is required for requesting the JWT
 
 jobs:
-  deployment:
+  collate-environments:
     name: Get Environments
     runs-on: ubuntu-latest
+    outputs:
+       scheduled_matrix: ${{ steps.generate-matrix.outputs.environment_maxtrix }}
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     continue-on-error: false
@@ -49,12 +48,14 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
 
-      - name: List environments
+      - name: Generate Matrix for All Environments
+        id: generate-matrix
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          python operations/playbooks/oracle_backup/files/list_github_environments.py
+          ENVIRONMENTS=$(python operations/playbooks/oracle_backup/files/list_github_environments.py | grep -E "-preapproved$")
+          echo "environment_matrix="$(echo $ENVIRONMENTS | jq -sR 'split("\n") | map(select(. != ""))') >> $GITHUB_OUTPUT
 
 
 # jobs:
@@ -75,15 +76,32 @@ jobs:
 #           role-session-name: "oracle-backup-marshal-${{ github.run_number }}"
 #           aws-region: "eu-west-2"
 
-      # - name: Read Current Backup Runtime Information into JSON Variable
-      #   id: get-runtime-info
-      #   run: |
-      #       SSM_PARAMETER_PATHS=$(aws ssm describe-parameters --query 'Parameters[*].Name' --parameter-filters "Key=Name,Option=BeginsWith,Values=/oracle-backups/" --output text)
-      #       SSM_PARAMETER_VALUES=$(aws ssm get-parameters --names ${SSM_PARAMETER_PATHS} --query "Parameters[*].Value" --output text)
-      #       # The following logic determines what needs to be done next:
-      #       # (1) Successful Backups may now proceed to Chunk Validation
-      #       VALIDATE_CHUNKS=$(echo $SSM_PARAMETER_VALUES | jq 'select (.FixAbsentChunks == "yes" and .Phase == "Backup" and .Status == "Success" and (.RmanTarget | contains("primarydb")))' | jq -s '.' | jq '{include: .}')
-      #       echo "validate_chunks_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
+  get-runtime-info:
+      name: Get Runtime Info
+      runs-on: ubuntu-latest
+      needs: collate-environments
+      strategy:
+        matrix:
+          value: ${{fromJson(needs.collate-environments.outputs.environment_matrix)}}
+      environment: ${{ matrix.environment }}
+      container:
+        image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      continue-on-error: false
+      steps:
+
+            - name: Read Current Backup Runtime Information into JSON Variable
+              id: read-runtime-info
+              run: |
+                  SSM_PARAMETER_PATHS=$(aws ssm describe-parameters --query 'Parameters[*].Name' --parameter-filters "Key=Name,Option=BeginsWith,Values=/oracle-backups/" --output text)
+                  SSM_PARAMETER_VALUES=$(aws ssm get-parameters --names ${SSM_PARAMETER_PATHS} --query "Parameters[*].Value" --output text)
+                  echo $SSM_PARAMETER_PATHS
+                  echo $SSM_PARAMETER_VALUES
+
+
+  # # The following logic determines what needs to be done next:
+  # # (1) Successful Backups may now proceed to Chunk Validation
+  # VALIDATE_CHUNKS=$(echo $SSM_PARAMETER_VALUES | jq 'select (.FixAbsentChunks == "yes" and .Phase == "Backup" and .Status == "Success" and (.RmanTarget | contains("primarydb")))' | jq -s '.' | jq '{include: .}')
+  # echo "validate_chunks_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   # validate-chunks:
   #   needs: prepare-run-matrix
