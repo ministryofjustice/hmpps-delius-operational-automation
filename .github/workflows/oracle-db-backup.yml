@@ -199,7 +199,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-artifact
-          path: artifact/ß
+          path: artifact/
 
       - name: Check And Set Backup Runtime
         id: check-and-set-backup-runtime
