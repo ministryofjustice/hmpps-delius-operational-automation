@@ -54,7 +54,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          python operations/list_github_environments.py
+          python operations/playbooks/oracle_backup/files/list_github_environments.py
 
 
 # jobs:
