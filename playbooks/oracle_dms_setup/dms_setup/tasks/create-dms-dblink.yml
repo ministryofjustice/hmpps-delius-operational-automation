@@ -131,7 +131,7 @@
       connect {{ dms_user }}/${DMS_PASSWORD}
 
       CREATE DATABASE LINK awsdms_dblink
-      CONNECT TO {{ dms_user }} IDENTIFIED BY ${DMS_PASSWORD}
+      CONNECT TO {{ dms_user }} IDENTIFIED BY "${DMS_PASSWORD}"
       USING '{{ delius_primary_sid | upper }}';
 
       connect / as sysdba
