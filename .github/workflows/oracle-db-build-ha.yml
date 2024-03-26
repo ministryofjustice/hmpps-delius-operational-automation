@@ -165,7 +165,7 @@ jobs:
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory \
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
           -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
           -e method=${{ github.event.inputs.Procedure }} \
@@ -178,7 +178,7 @@ jobs:
         if: ${{ steps.standbydbsconfigured.outputs.standbydb2Host != '' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory \
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e primary=${{ steps.prepareinventorynames.outputs.primaryHost }} \
           -e standby=${{ steps.standbydbsconfigured.outputs.standbydb2Host }} \
           -e method=${{ github.event.inputs.Procedure }} \

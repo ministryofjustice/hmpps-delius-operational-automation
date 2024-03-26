@@ -94,5 +94,5 @@ jobs:
       - name: Run Logfile Housekeeping Playbook
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory \
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }}
