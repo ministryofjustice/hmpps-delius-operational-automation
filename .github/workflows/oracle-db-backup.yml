@@ -191,16 +191,6 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Generate Artifact
-        id: generate-artifact
-        run: mkdir -p artifact && echo "Hello World" > artifact/hello.txt
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-artifact
-          path: artifact/
-
       - name: Check And Set Backup Runtime
         id: check-and-set-backup-runtime
         shell: bash
