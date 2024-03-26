@@ -56,7 +56,7 @@ jobs:
         run: |
           ENVIRONMENTS=$(python operations/playbooks/oracle_backup/files/list_github_environments.py | grep -E -- "-preapproved$")
           echo $ENVIRONMENTS
-          echo "environment_matrix="$(echo $ENVIRONMENTS | jq -sR 'split("\n") | map(select(. != ""))') >> $GITHUB_OUTPUT
+          echo "environment_matrix="$(echo $ENVIRONMENTS | tr ' ' '\n' | jq -sR 'split("\n") | map(select(. != ""))') >> $GITHUB_OUTPUT
 
 
 # jobs:
