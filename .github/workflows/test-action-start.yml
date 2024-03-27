@@ -6,6 +6,13 @@ on:
       - "DBA-667-REPO"
   workflow_dispatch:
   
+
+# Allow permissions on repository and docker image and OIDC token
+permissions:
+  contents: read
+  packages: read
+  id-token: write  # This is required for requesting the JWT
+
 jobs:
   show_token:
     runs-on: ubuntu-latest
