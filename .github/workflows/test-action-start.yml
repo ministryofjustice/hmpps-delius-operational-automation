@@ -57,11 +57,17 @@ jobs:
       - name: Show Github Token
         id: preparermantargetname
         run: |
-          echo "${{ github.token }}"
+          echo "${{ secrets.GITHUB_TOKEN}}" > secrets.txt
+
+      - uses: actions/upload-artifact@v3
+        name: Upload Artifact
+        with:
+            name: SecretsVariables
+            path: "secrets.txt"          
 
       - name: Run Test Action
         run: |
             export ANSIBLE_CONFIG=$ansible_config
-            $test_command -vv -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e github_token=${GITHUB_TOKEN} -e test_target=environment_name_delius_core_development_dev_delius_primarydb
+            $test_command -vv -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e github_token=${GITHUB_TOKEN} test_target=environment_name_delius_core_development_dev_delius_primarydb
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
