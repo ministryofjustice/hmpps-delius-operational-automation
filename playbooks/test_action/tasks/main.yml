@@ -8,5 +8,5 @@
   tasks:
     - name: Show Token
       shell: |
-             echo "1: ${GITHUB_TOKEN}"
+             echo "1: {{ lookup('env','GITHUB_TOKEN') }}"
              echo "2: {{ github_token }}"
