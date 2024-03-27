@@ -20,6 +20,8 @@ jobs:
     env:
       test_command: ansible-playbook operations/playbooks/test_action/tasks/main.yml
       inventory: inventory/ansible
+    container:
+        image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
