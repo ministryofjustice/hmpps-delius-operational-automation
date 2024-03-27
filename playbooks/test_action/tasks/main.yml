@@ -8,4 +8,5 @@
   tasks:
     - name: Show Token
       shell: |
-             echo ${GITHUB_TOKEN}
+             echo "1: ${GITHUB_TOKEN}"
+             echo "2: {{ github_token }}"
