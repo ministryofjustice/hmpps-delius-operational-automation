@@ -60,4 +60,4 @@ jobs:
       - name: Run Test Action
         run: |
             export ANSIBLE_CONFIG=$ansible_config
-            $test_command -vv -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e test_target=environment_name_delius_core_development_delius_primarydb
+            $test_command -vv -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e test_target=environment_name_delius_core_development_dev_delius_primarydb
