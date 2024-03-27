@@ -42,8 +42,7 @@ then
   [ "${SYSUMF_PASSWORD}" == "null" ] && ADD_PASSWORD="${DBA_PASSWORDS/\}/,\"sysumf\":\"${DB_PASS}\"\}}"
   # User exists in secret with no password
   [ -z ${SYSUMF_PASSWORD} ] && ADD_PASSWORD=$(echo $DBA_PASSWORDS | sed 's/\(^.*\)\("sysumf":\)\(""\)\(.*$\)/\1\2"'${DB_PASS}'"\4/')
-  aws secretsmanager update-secret --secret-id ${SECRET_ID} --secret-string ${ADD_PASSWORD}
-
+  aws secretsmanager update-secret --secret-id ${SECRET_ID} --secret-string "${ADD_PASSWORD}"
 else
     DB_PASS=${SYSUMF_PASSWORD}
 fi
