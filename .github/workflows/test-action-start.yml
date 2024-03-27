@@ -1,0 +1,16 @@
+name: "Test: Action Start"
+run-name: "Test: Action Start"
+on:
+  push:
+    branches:
+      - "DBA-667-REPO"
+  workflow_dispatch:
+  
+jobs:
+  show_token:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show Github Token
+        id: preparermantargetname
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN}}"
