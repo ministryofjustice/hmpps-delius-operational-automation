@@ -35,6 +35,10 @@ on:
         options: 
           - "daily"
           - "weekly"
+      BackupStandbyOnPrimaryFailure:
+        description: "Retry the backup on the standby if primary backup fails"
+        type: boolean
+        default: true
       FixAbsentChunks:
         description: "Validate and fix absent S3 missing backup chunks"
         type: choice
@@ -49,6 +53,10 @@ on:
         options: 
           - "yes"
           - "no"
+      ParametersJSON:
+        description: "JSON parameters for backup job (overrides any other specified inputs)"
+        type: string
+        required: false
       EnableTrace:
         description: "Enable RMAN trace for debugging"
         required: false
@@ -95,6 +103,9 @@ on:
         type: string
         default: "no"
 
+  repository_dispatch:
+    types: ["oracle-db-backup-success","oracle-db-backup-failure"]
+
 # Allow permissions on repository and docker image and OIDC token
 permissions:
   contents: read
@@ -111,15 +122,24 @@ jobs:
       - name: Prepare Rman Target
         id: preparermantargetname
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
+          if [[ -z "${{ github.event.inputs.ParametersJSON }}" ]];
           then
-            TargetHost="${{ github.event.inputs.TargetHost }}"
-            TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
-          elif [[ "${{ github.event_name }}" == "schedule" ]]
-          then
-            TargetHost="${{ inputs.TargetHost }}"
-            TargetEnvironment="${{ inputs.TargetEnvironment }}"
-          fi;
+              if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
+              then
+                TargetHost="${{ github.event.inputs.TargetHost }}"
+                TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
+              elif [[ "${{ github.event_name }}" == "schedule" ]]
+              then
+                TargetHost="${{ inputs.TargetHost }}"
+                TargetEnvironment="${{ inputs.TargetEnvironment }}"
+              elif [[ "${{ github.event_name }}" == "repository_dispatch" ]] && [[ "${{ github.event.action}}" == "oracle-db-backup-failure" ]]
+              then
+                echo "Payload: ${{ github.event.client_payload }}"
+              fi
+          else
+             echo "JSON: ${{ github.event.inputs.ParametersJSON }}"
+             exit 123
+          fi
           RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
@@ -205,37 +225,10 @@ jobs:
                 --value "{\"Phase\":\"Backup\",\"Status\":\"Initializing\",\"Message\":\"Running on $RmanTarget\",\"TargetEnvironment\":\"$TargetEnvironment\",\"RmanTarget\":\"$RmanTarget\",\"FixAbsentChunks\":\"$FixAbsentChunks\",\"VerboseOutput\":\"$VerboseOutput\"}" \
                 --description "Runtime phase and status details of RMAN backups running on the $RmanTarget host"
 
-      # - name: Start Ansible Backup On Primary
-      #   id: backup
-      #   continue-on-error: true
-      #   run: |
-      #     export ANSIBLE_CONFIG=$ansible_config
-      #     ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-      #     $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter $VerboseOutput
-
-      # - name: Start Ansible Backup On First Standby (If Exists) If Primary Backup Failed
-      #   if: ${{ steps.backup.outcome == 'failure' && contains(env.RmanTarget,'primarydb') }}
-      #   shell: bash
-      #   run: |
-      #     if [[ -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml ]]
-      #     then
-      #       export ANSIBLE_CONFIG=$ansible_config
-      #       ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-      #       $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget/primarydb/standbydb1} -e daily_weekly=$Period -e enable_trace=$EnableTrace -e status_parameter=$StatusParameter $VerboseOutput
-      #     else
-      #       echo "Standby Not Configured"
-      #     fi
-
-      # - name: Start Ansible Validate And Fix Absent Chunks
-      #   run: |
-      #     export ANSIBLE_CONFIG=$ansible_config
-      #     ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-      #     $validate_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
-
-      # - name: Start Ansible Delete DBIDs Not In Use
-      #   if: ${{ env.DeleteDefunct == 'yes' }}
-      #   run: |
-      #     export ANSIBLE_CONFIG=$ansible_config
-      #     ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-      #     $delete_dbids_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget $VerboseOutput
-          
+      - name: Start Ansible Backup On Primary
+        id: backup
+        continue-on-error: true
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
+          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$Period -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter $VerboseOutput

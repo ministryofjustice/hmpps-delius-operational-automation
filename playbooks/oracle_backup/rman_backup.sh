@@ -44,6 +44,7 @@ usage () {
   echo "                                              [ -l <comma separated list of datafiles to backup> ] "
   echo "                                              [ -g <target db global name> ]"
   echo "                                              [ -s <SSM Parameter Path where Runtime details are written>]"
+  echo "                                              [ -r <github repository for sending repository dispatch events>] "
   echo ""
   echo "where"
   echo ""
@@ -65,6 +66,11 @@ usage () {
   echo "  If -a or -l is NOT specified then a full backup of the database and all archivelogs not already backed up is performed."
   echo "     -a and -l are mutually exclusive.  If you wish to backup a range of archivelogs and some datafiles then call the script twice "
   echo "     with the respective parameters."
+  echo "  "
+  echo "  If -r is specified then a repository must be specified for sending GitHub actions repository dispatch events."
+  echo "      This would typically be ministryofjustice/hmpps-delius-operational-automation and is used for triggering"
+  echo "      any follow-on GitHub actions necessary upon succesful or unsuccessful completion."
+  echo "  "
   echo ""
   echo "  The SSM parameter path optionally specified with -s is used to identify the path for storing the phase, "
   echo "     status, and status messages for a backup held in a JSON string at this location."
@@ -72,6 +78,73 @@ usage () {
   exit $ERROR_STATUS
 }
 
+
+function generate_jwt()
+{
+# Get a JSON Web Token to authenicate against the HMPPS Bot.
+# The HMPPS bot can provide exchange this for a GtHub Token for action GitHub workflows.
+
+BOT_APP_ID=$(aws ssm get-parameter --name "/github/hmpps_bot_app_id" --query "Parameter.Value" --with-decryption --output text)
+BOT_PRIVATE_KEY=$(aws ssm get-parameter --name "/github/hmpps_bot_priv_key" --query "Parameter.Value" --with-decryption --output text)
+
+# Define expiry time for JWT
+NOW=$(date +%s)
+INITIAL=$((${NOW} - 60)) # Issues 60 seconds in the past
+EXPIRY=$((${NOW} + 600)) # Expires 10 minutes in the future
+
+b64enc() { openssl base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n'; }
+
+HEADER_JSON='{
+    "typ":"JWT",
+    "alg":"RS256"
+}'
+# Header encode
+HEADER=$( echo -n "${HEADER_JSON}" | b64enc )
+
+PAYLOAD_JSON='{
+    "iat":'"${INITIAL}"',
+    "exp":'"${EXPIRY}"',
+    "iss":'"${BOT_APP_ID}"'
+}'
+# Payload encode
+PAYLOAD=$( echo -n "${PAYLOAD_JSON}" | b64enc )
+
+# Signature
+HEADER_PAYLOAD="${HEADER}"."${PAYLOAD}"
+SIGNATURE=$(
+    openssl dgst -sha256 -sign <(echo -n "${BOT_PRIVATE_KEY}") \
+    <(echo -n "${HEADER_PAYLOAD}") | b64enc
+)
+
+# Create JWT
+JWT="${HEADER_PAYLOAD}"."${SIGNATURE}"
+printf '%s\n' "$JWT"
+}
+
+function get_github_token()
+{
+# Generate JSON Web Token to authenticate to HMPPS Bot
+JWT=$(generate_jwt)
+# Fetch Installation ID for App in target Repository
+BOT_INSTALL_ID=$(aws ssm get-parameter --name "/github/hmpps_bot_installation_id" --query "Parameter.Value" --with-decryption --output text)
+GITHUB_TOKEN=$(curl --request POST --url "https://api.github.com/app/installations/${BOT_INSTALL_ID}/access_tokens" --header "Accept: application/vnd.github+json" --header "Authorization: Bearer $JWT" --header "X-GitHub-Api-Version: 2022-11-28")
+printf '%s\n' "$GITHUB_TOKEN"
+}
+
+function github_repository_dispatch()
+{
+EVENT_TYPE=$1
+GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
+curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data "{\"event_type\": \"${EVENT_TYPE}\"}" ${REPOSITORY_DISPATCH}
+RC=$?
+if [[ $RC -ne 0 ]]; then
+      # We cannot use the error function for dispatch failures as it contains its own dispatch call   
+      T=`date +"%D %T"`
+      echo "ERROR : $THISSCRIPT : $T : Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}" | tee -a ${RMANOUTPUT}
+      update_ssm_parameter "Error" "Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}"
+      exit 1
+fi
+}
 
 info () {
   T=`date +"%D %T"`
@@ -95,13 +168,14 @@ update_ssm_parameter () {
   info "Updating SSM Parameter ${SSM_PARAMETER} Status to ${STATUS}"
   SSM_VALUE=$(aws ssm get-parameter --name "${SSM_PARAMETER}" --query "Parameter.Value" --output text)
   NEW_SSM_VALUE=$(echo ${SSM_VALUE} | jq --arg STATUS "$STATUS" '.Status=$STATUS' | jq -r --arg MESSAGE "$MESSAGE" '.Message=$MESSAGE')
-  aws ssm put-parameter --name "${SSM_PARAMETER}" --type String --overwrite --value "${NEW_SSM_VALUE}"
+  aws ssm put-parameter --name "${SSM_PARAMETER}" --type String --overwrite --value "${NEW_SSM_VALUE}" 1>&2
 }
 
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
   [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error" "$1"
+  [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository dispatch "my-backup-error"
   exit $ERROR_STATUS
 }
 
@@ -585,7 +659,6 @@ EOF
   [ $? -ne 0 ] && error "Unable to enable block change tracking"
 }
 
-
 # ------------------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------------------
@@ -604,7 +677,7 @@ MINIMIZE_LOAD=UNSPECIFIED
 TRACE_FILE=N
 ARCHIVELOGS=UNSPECIFIED
 DATAFILES=UNSPECIFIED
-while getopts "d:t:b:f:i:n:m:u:c:e:a:l:g:p:s:" opt
+while getopts "d:t:b:f:i:n:m:u:c:e:a:l:g:p:s:r:" opt
 do
   case $opt in
     d) TARGET_DB_SID=$OPTARG ;;
@@ -621,6 +694,7 @@ do
     l) DATAFILES=$OPTARG ;;
     g) TARGET_DB_NAME=$OPTARG ;;
     s) SSM_PARAMETER=$OPTARG ;;
+    r) REPOSITORY_DISPATCH=$OPTARG ;;
     *) usage ;;
   esac
 done
@@ -682,6 +756,11 @@ if [[ ! -z "$SSM_PARAMETER" ]]; then
    update_ssm_parameter "Running" "Running $0 $*"
 fi
 
+if [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
+   REPOSITORY_DISPATCH="https://api.github.com/repos/${REPOSITORY_DISPATCH}/dispatches"
+   info "GitHub Actions Repository Dispatch Events will be sent to : $REPOSITORY_DISPATCH"
+fi
+
 touch $RMANCMDFILE
 info "Create rman tags and format"
 create_tag_format
@@ -698,6 +777,7 @@ info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
 [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Success" "Completed without errors"
+[[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "my-event-type"
 info "Completes successfully"
 
 # Exit with success status if no error found
