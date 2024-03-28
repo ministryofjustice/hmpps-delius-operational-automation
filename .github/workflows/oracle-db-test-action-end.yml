@@ -1,0 +1,16 @@
+name: "Oracle: Action End"
+run-name: "Oracle: Action End"
+on:
+  push:
+    branches:
+      - "DBA-667-REPO"
+  repository_dispatch:
+    types: [my-event-type]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run a one-line script
+        run: echo "The event type is ${{ github.event.action }}."  
