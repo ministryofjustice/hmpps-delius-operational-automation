@@ -46,13 +46,6 @@ on:
         options: 
           - "yes"
           - "no"
-      DeleteDefunct:
-        description:  "Delete backups for DBIDs no longer in use"
-        type: choice
-        default: "no"
-        options: 
-          - "yes"
-          - "no"
       ParametersJSON:
         description: "JSON parameters for backup job (overrides any other specified inputs)"
         type: string
@@ -97,11 +90,6 @@ on:
         description: "Is this a daily or weekly backup?"
         required: true
         type: string
-      DeleteDefunct:
-        description:  "Delete backups for DBIDs no longer in use"
-        required: false
-        type: string
-        default: "no"
 
   repository_dispatch:
     types: ["oracle-db-backup-success","oracle-db-backup-failure"]
@@ -158,7 +146,6 @@ jobs:
       inventory: inventory/ansible
       Period: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.Period || (github.event_name == 'schedule' && inputs.Period ))  }}"
       FixAbsentChunks: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.FixAbsentChunks || 'yes' }}"
-      DeleteDefunct: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.DeleteDefunct || (github.event_name == 'schedule' && inputs.DeleteDefunct )) }}"
       EnableTrace: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.EnableTrace || 'no' }}"
       VerboseOutput: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.VerboseOutput || '' }}"
       RmanTarget: "${{needs.build_rman_target_name.outputs.RmanTarget}}"
