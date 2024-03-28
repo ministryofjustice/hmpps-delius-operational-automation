@@ -1,5 +1,5 @@
-name: "Test: Action End"
-run-name: "Test: Action End"
+name: "Oracle: Action End"
+run-name: "Oracle: Action End"
 on:
   push:
     branches:
