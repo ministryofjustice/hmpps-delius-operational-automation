@@ -1,0 +1,19 @@
+name: "Test: Action End"
+run-name: "Test: Action End"
+on:
+  push:
+    branches:
+      - "DBA-667-REPO"
+  repository_dispatch:
+    types: [my-event-type]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run a one-line script
+        run: echo "The event type is ${{ github.event.action }}."  
