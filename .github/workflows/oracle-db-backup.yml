@@ -126,7 +126,7 @@ jobs:
               fi
           else
              echo "JSON: ${{ github.event.inputs.ParametersJSON }}"
-             PARAMETERS_JSON=$(echo ${{ github.event.inputs.ParametersJSON }})
+             PARAMETERS_JSON=$(echo "${{ github.event.inputs.ParametersJSON }}")
              TargetHost=$(echo ${PARAMETERS_JSON} | jq -r '.target_host')
              echo "TargetHost: $TargetHost"
              TargetEnvironment=$(echo ${PARAMETERS_JSON} | jq -r '.target_environment')
