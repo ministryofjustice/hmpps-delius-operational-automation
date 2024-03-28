@@ -45,7 +45,7 @@ DECLARE
         IF NOT db_link_exists (p_db_link)
         THEN
             l_sql := 'CREATE DATABASE LINK '||p_db_link||
-                     ' CONNECT TO ${DB_USER} IDENTIFIED BY ${DB_PASS} USING '||
+                     ' CONNECT TO ${DB_USER} IDENTIFIED BY "${DB_PASS}" USING '||
                      ''''||p_db_unique_name||'''';
 
             EXECUTE IMMEDIATE l_sql;
@@ -55,13 +55,13 @@ DECLARE
     --
 BEGIN
 
-    SELECT UPPER(db_unique_name)
+    SELECT db_unique_name
     INTO l_primary_db_unique_name
     FROM v\$archive_dest_status
     WHERE database_mode = 'OPEN'
     AND type = 'LOCAL';
 
-    SELECT UPPER(db_unique_name)
+    SELECT db_unique_name
     INTO l_adg_db_unique_name
     FROM v\$archive_dest_status
     WHERE database_mode IN ('OPEN_READ-ONLY')

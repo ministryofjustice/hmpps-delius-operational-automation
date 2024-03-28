@@ -23,7 +23,7 @@
     - name: Run Backup Job
       shell: |
         set -o pipefail
-        aws backup start-backup-job --backup-vault-name {{ get_backup_vault.stdout }} --resource-arn arn:aws:ec2:{{ region }}:{{ caller_info.account }}:instance/{{ backup_hostname }} --iam-role-arn arn:aws:iam::{{ caller_info.account }}:role/service-role/AWSBackupDefaultServiceRole  --lifecycle DeleteAfterDays={{ delete_after_days | default(7) }} --region {{ region }} | jq -r '.BackupJobId'
+        aws backup start-backup-job --backup-vault-name {{ get_backup_vault.stdout }} --resource-arn arn:aws:ec2:{{ region }}:{{ caller_info.account }}:instance/{{ backup_hostname }} --iam-role-arn arn:aws:iam::{{ caller_info.account }}:role/service-role/AWSBackupDefaultServiceRole --lifecycle DeleteAfterDays={{ delete_after_days | default(7) }} --region {{ region }} | jq -r '.BackupJobId'
       register: start_backup_job
       args:
         executable: /bin/bash

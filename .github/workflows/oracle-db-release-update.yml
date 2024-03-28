@@ -109,7 +109,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.1
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 1440
     continue-on-error: false
     steps:
@@ -184,7 +184,7 @@ jobs:
           ln -svf $PWD/operations/playbooks/oracle_interim_patch/oracle_interim_patch $PWD/roles/ansible/roles/oracle_interim_patch
           # Link the OEM Metrics Setup Play to allow it to be used as a role
           ln -svf $PWD/operations/playbooks/delius_oem_metrics_setup/delius_oem_metrics_setup $PWD/roles/ansible/roles/delius_oem_metrics_setup
-          $command -i $inventory \
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
           -e apply_mode=${{ github.event.inputs.ApplyMode }} \
           -e oracle_patch_directory=${{ github.event.inputs.OraclePatchDirectory }} \
