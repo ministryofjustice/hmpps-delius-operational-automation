@@ -8,7 +8,6 @@ on:
         required: true
         type: choice
         options:
-          - "delius-core-dev"
           - "delius-core-test"
           - "delius-core-stage"
           - "delius-core-pre-prod"
@@ -31,6 +30,7 @@ on:
         default: ""
         options:
           - ""
+          - "DMDNDA"
           - "PRDNDA"
           - "PRDMIS"
       S3SourceBucket: 
@@ -39,6 +39,7 @@ on:
         default: ""
         options:
           - ""
+          - "dev-oracle-database-backups"
           - "prod-oracle-database-backups"
       RestoreDatetime:
         description: Restore datetime from source database, format [YYMMDDHH24MISS]"
@@ -87,8 +88,9 @@ jobs:
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
-      SlackChannel: ${{ steps.preparation.outputs.SlackChannel }}
       DuplicateTarget: ${{ steps.preparation.outputs.DuplicateTarget }}
+      SourceOemEnvironment: ${{ steps.preparation.outputs.SourceOemEnvironment }}
+      TargetOemEnvironment: ${{ steps.preparation.outputs.TargetOemEnvironment }}
       JobId: ${{ github.job }}
     steps:
 
@@ -104,15 +106,38 @@ jobs:
           SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
           SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
 
-      - name: Prepare Duplicate Target Name and Slack Channel Name
+      - name: Prepare Duplicate Target Name and OEM Source And Target Environment (Non Legacy)
         id: preparation
         shell: bash
         run: |
-          echo "DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
-          if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
-            echo "SlackChannel=delius-aws-oracle-prod-alerts" >> $GITHUB_OUTPUT
-          else
-            echo "SlackChannel=delius-aws-oracle-dev-alerts" >> $GITHUB_OUTPUT
+          echo "DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event.inputs.SourceLegacy }}" == "no" ]]
+          then
+
+            case ${{ github.event.inputs.S3SourceBucket }} in
+              dev-oracle-database-backups)
+                SourceOemEnvironment=development
+                ;;
+              prod-oracle-database-backups)
+                SourceOemEnvironment=production
+                ;;
+            esac
+
+            echo "SourceOemEnvironment=hmpps-oem-${SourceOemEnvironment}" >> $GITHUB_OUTPUT
+
+            case $(echo ${{ github.event.inputs.TargetEnvironment }} | awk -F- '{print $NF}') in
+              dev)
+                TargetOemEnvironment=development
+                ;;
+              test)
+                TargetOemEnvironment=test
+                ;;
+              stage|prod)
+                TargetOemEnvironment=production
+                ;;
+            esac
+            echo "TargetOemEnvironment=hmpps-oem-${TargetOemEnvironment}" >> $GITHUB_OUTPUT
+
           fi
 
       - name: Check Restore DateTime Input
@@ -205,13 +230,88 @@ jobs:
           -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} \
           -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
-  oracle-rman-duplicate:
-    name: oracle-rman-duplicate
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+  oracle-rman-export-schema:
+    if: ${{ github.event.inputs.SourceLegacy == 'no' }}
+    needs: [oracle-rman-pre-duplicate]
+    name: oracle-rman-export-schema
+    environment: ${{ needs.oracle-rman-pre-duplicate.outputs.SourceOemEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    needs: [oracle-rman-pre-duplicate]
+    timeout-minutes: 1440
+    continue-on-error: false
+    outputs:
+      SourceCatalogDb: ${{ steps.preparation.outputs.SourceCatalogDb }}
+      SourceDbBackupS3BucketName: ${{ steps.preparation.outputs.SourceDbBackupS3BucketName }}
+      ExportName: ${{ steps.preparation.outputs.ExportName }}
+      JobId: ${{ github.job }}
+    steps:
+
+      - name: Checkout hmpps-delius-operation-automation
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oracle_duplicate
+            playbooks/ansible.cfg
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Install yq
+        uses: dcarbone/install-yq-action@v1.1.1
+        with:
+          download-compressed: true
+          version: "v4.35.1"
+          force: true
+
+     - name: Prepare RMAN Export Name
+        working-directory: ${{ env.inventory }}
+        id: preparation
+        shell: bash
+        run: |
+          OemTarget=environment_name_$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.SourceOemEnvironment }} | sed 's/-/_') >> $GITHUB_OUTPUT
+          SourceCatalogDb=$(yq .db_configs.RCVCAT.rcvcat_db_name group_vars/environment_name_${OemTarget}.yml)  >> $GITHUB_OUTPUT
+          SourceDbBackupS3BucketName=$(yq .db_backup_s3_bucket_name group_vars/environment_name_${OemTarget}.yml)  >> $GITHUB_OUTPUT
+          ExportName=RCVCATOWNER_${SourceCatalogDb} >> $GITHUB_OUTPUT
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      - name: Start Ansible RMAN Export
+        shell: bash
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          $ansible_playbook_directory/rman-export-import.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          -e oem_target=${{ steps.preparation.outputs.OemTarget }}
+          -e action=export \
+          -e export_name=${{ steps.preparation.outputs.ExportName }}
+
+  oracle-rman-import-schema:
+    if: ${{ github.event.inputs.SourceLegacy == 'no' }}
+    needs: [oracle-rman-pre-duplicate,oracle-rman-import-schema]
+    name: oracle-rman-export-schema
+    environment: ${{ needs.oracle-rman-pre-duplicate.outputs.TargetOemEnvironment }}-preapproved
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -241,131 +341,6 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
-      - name: Configure AWS Credentials
-        id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
-          aws-region: "eu-west-2"
-
-      - name: Start Ansible Oracle RMAN Duplicate
-        shell: bash
-        run: |
-          # Only pass extra variables source_db and s3_source_bucket if NOT duplicating from AWS legacy
-          # These variables shall be picked up from Ansible Inventory
-          if [[ ! "${{ github.event.inputs.TargetEnvironment }}" =~ ^.*(-dev|-test)$ ]]
-          then
-            extra_vars="-e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }}"
-          else
-            if [[ "${{ github.event.inputs.SourceLegacy }}" == "yes" ]]
-            then
-              extra_vars="-e source_legacy=yes"
-            else
-              extra_vars=""
-            fi
-          fi
-          export ANSIBLE_CONFIG=$ansible_config
-          $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars}
-
-  oracle-rman-post-duplicate:
-    name: oracle-rman-post-duplicate
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    needs: [oracle-rman-pre-duplicate,oracle-rman-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            playbooks/oracle_duplicate
-            playbooks/oracle_parameters
-            playbooks/oracle_autotasks
-            playbooks/delius_users
-            playbooks/delius_gdpr
-            playbooks/cfo_extract
-            playbooks/alfresco_wallet
-            playbooks/oracle_statspack
-            common/*
-            playbooks/ansible.cfg
-          path: operations
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
-          fetch-depth: 0
-
-      - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
-        with:
-          repository: ministryofjustice/modernisation-platform-configuration-management
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            ansible/hosts
-            ansible/group_vars
-          path: inventory
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
-          fetch-depth: 0
-
-      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
-        with:
-          repository: ministryofjustice/modernisation-platform-configuration-management
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            ansible/roles/secretsmanager-passwords
-            ansible/roles/get-modernisation-platform-facts
-          path: roles
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
-          fetch-depth: 0
-
-      - name: Configure AWS Credentials
-        id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
-          aws-region: "eu-west-2"
-
-      - name: Start Ansible Oracle RMAN Post Duplicate
-        shell: bash
-        run: |
-          export ANSIBLE_CONFIG=$ansible_config
-          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}
-
-  oracle-build-ha:
-    name: oracle-build-ha
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    needs: [oracle-rman-pre-duplicate,oracle-rman-duplicate,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Checkout Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
-        with:
-          repository: ministryofjustice/modernisation-platform-configuration-management
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            ansible/hosts
-            ansible/group_vars
-          path: inventory
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
-          fetch-depth: 0
-
       - name: Install yq
         uses: dcarbone/install-yq-action@v1.1.1
         with:
@@ -373,43 +348,12 @@ jobs:
           version: "v4.35.1"
           force: true
 
-      - name: Check Standbydb's Configured In Ansible Inventory
-        id: standbydbsconfigured
+     - name: Prepare OEM Target Name
         working-directory: ${{ env.inventory }}
-        run: |
-          database_type=$(echo ${{ github.event.inputs.TargetHost }} | cut -d_ -f1)
-          database_environment=$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} | awk -F_${{ github.event.inputs.TargetHost }} '{print $1}')
-          high_availability_count=$(yq .high_availability_count.${database_type} group_vars/${database_environment}_all.yml)
-          if [[ ${high_availability_count} -eq 0 ]]
-          then
-            echo "No standbydb's configured"
-            exit 0
-          fi
-          if [[ ${high_availability_count} -ge 1 ]]
-          then
-            echo "standbydb1Host=$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} | sed 's/primarydb/standbydb1/')"  >> $GITHUB_OUTPUT
-          fi
-          if [[ ${high_availability_count} -eq 2 ]]
-          then
-            echo "standbydb2Host=$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} | sed 's/primarydb/standbydb2/')" >> $GITHUB_OUTPUT
-          fi
-          echo "high_availability_count=${high_availability_count}" >> $GITHUB_OUTPUT
-
-          fsfo_mode=$(yq '.fsfo_mode' group_vars/${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}.yml)
-          [ "$fsfo_mode" == "null" ] && echo 'fsfo_mode="disabled"' >> $GITHUB_OUTPUT || echo "fsfo_mode=$fsfo_mode" >> $GITHUB_OUTPUT
-
-      - name: Checkout From hmpps-delius-operational-automation
-        uses: actions/checkout@v4
-        with:
-          repository: ministryofjustice/hmpps-delius-operational-automation
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            playbooks/oracle_ha
-            playbooks/ansible.cfg
-          path: operations
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
-          fetch-depth: 0
-
+        id: preparation
+        shell: bash
+        run: OemTarget=environment_name_$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.TargetOemEnvironment }} | sed 's/-/_') >> $GITHUB_OUTPUT
+        
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
@@ -418,116 +362,340 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Build High Availability Standby 1 Database
-        if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
-        run: |
-          export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory \
-          -e primary=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} \
-          -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
-          -e method=build \
-          -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
-          -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
-          -e standby_number=1 \
-          -e primary_source_type=active
-
-      - name: Build High Availability Standby 2 Database
-        if: ${{ steps.standbydbsconfigured.outputs.standbydb2Host != '' }}
-        run: |
-          export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory \
-          -e primary=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} \
-          -e standby=${{ steps.standbydbsconfigured.outputs.standbydb2Host }} \
-          -e method=build \
-          -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
-          -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
-          -e standby_number=2 \
-          -e primary_source_type=active
-
-  slack-notification:
-    if: ${{ failure() }}
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    needs: [oracle-rman-pre-duplicate,oracle-rman-duplicate,oracle-rman-post-duplicate,oracle-build-ha]
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
-    steps:
-
-      - name: Configure AWS Credentials
-        id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
-          aws-region: "eu-west-2"
-
-      - name: Get Slack Token
-        id: get-slack-token
+      - name: Start Ansible RMAN Import
         shell: bash
         run: |
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
-                jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
-                jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
-          SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
-          SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
-          SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
-          echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
+          export ANSIBLE_CONFIG=$ansible_config
+          $ansible_playbook_directory/rman-export-import.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          -e oem_target=${{ steps.preparation.outputs.OemTarget }} \
+          -e action=import \
+          -e export_name=${{ needs.oracle-rman-import-schema.outputs.ExportName }} \
+          -e source_catalog_db=${{ needs.oracle-rman-import-schema.outputs.SourceCatalogDb }} \
+          -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-import-schema.outputs.SourceDbBackupS3BucketName }} 
 
-          if [[ "${{ needs.oracle-rman-pre-duplicate.result }}" == "failure" ]]
-          then
-            echo "jobid=${{ needs.oracle-rman-pre-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ needs.oracle-rman-duplicate.result }}" == "failure" ]]
-          then
-            echo "jobid=${{ needs.oracle-rman-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ needs.oracle-rman-post-duplicate.result }}" == "failure" ]]
-          then
-            echo "jobid=${{ needs.oracle-rman-post-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ needs.oracle-build-ha.result }}" == "failure" ]]
-          then
-            echo "jobid=${{ needs.oracle-build-ha.outputs.JobId }}" >> $GITHUB_OUTPUT
-          fi
+  # oracle-rman-duplicate:
+  #   name: oracle-rman-duplicate
+  #   environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+  #   needs: [oracle-rman-pre-duplicate]
+  #   timeout-minutes: 1440
+  #   continue-on-error: false
+  #   outputs:
+  #     JobId: ${{ github.job }}
+  #   steps:
 
-      - name: Slack Failure Notification
-        id: slack
-        uses: slackapi/slack-github-action@v1.25.0
-        with:
-            channel-id: "${{ needs.oracle-rman-pre-duplicate.outputs.SlackChannel }}"
-            payload: |
-              { 
-                "icon_emoji":"broken_record",
-                "text":"Failed RMAN Duplicate",
-                "blocks":[
-                  {
-                    "type": "section",
-                    "text": 
-                    {
-                      "type": "mrkdwn",
-                      "text": ":no_entry: Failed RMAN Duplicate:"}
-                    },
-                    {
-                      "type": "section",
-                      "fields":[
-                          {
-                            "type": "mrkdwn",
-                            "text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"
-                          },
-                          {
-                            "type": "mrkdwn",
-                            "text": "*Job:*\n${{ steps.get-slack-token.outputs.jobid }}"
-                          },
-                          {
-                            "type": "mrkdwn",
-                            "text": "*Repo:*\n${{ github.repository }}"
-                          },
-                          {
-                            "type": "mrkdwn",
-                            "text": "*Duplicate Target:*\n${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}"
-                          }
-                        ]
-                    }  
-                  ]
-                }
-        env:
-          SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
+  #     - name: Checkout hmpps-delius-operation-automation
+  #       uses: actions/checkout@v4
+  #       with:
+  #         sparse-checkout-cone-mode: false
+  #         sparse-checkout: |
+  #           playbooks/oracle_duplicate
+  #           playbooks/ansible.cfg
+  #         path: operations
+  #         ref: ${{ github.event.inputs.SourceCodeVersion }}
+  #         fetch-depth: 0
+
+  #     - name: Checkout modernisation-platform-configuration-management
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: ministryofjustice/modernisation-platform-configuration-management
+  #         sparse-checkout-cone-mode: false
+  #         sparse-checkout: |
+  #           ansible/hosts
+  #           ansible/group_vars
+  #         path: inventory
+  #         ref: ${{ github.event.inputs.SourceConfigVersion }}
+  #         fetch-depth: 0
+
+  #     - name: Configure AWS Credentials
+  #       id: login-aws
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+  #         role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+  #         aws-region: "eu-west-2"
+
+  #     - name: Start Ansible Oracle RMAN Duplicate
+  #       shell: bash
+  #       run: |
+  #         # Only pass extra variables source_db and s3_source_bucket if NOT duplicating from AWS legacy
+  #         # These variables shall be picked up from Ansible Inventory
+  #         if [[ ! "${{ github.event.inputs.TargetEnvironment }}" =~ ^.*(-dev|-test)$ ]]
+  #         then
+  #           extra_vars="-e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }}"
+  #         else
+  #           if [[ "${{ github.event.inputs.SourceLegacy }}" == "yes" ]]
+  #           then
+  #             extra_vars="-e source_legacy=yes"
+  #           else
+  #             extra_vars=""
+  #           fi
+  #         fi
+  #         export ANSIBLE_CONFIG=$ansible_config
+  #         $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+  #         -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars}
+
+  # oracle-rman-post-duplicate:
+  #   name: oracle-rman-post-duplicate
+  #   environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+  #   needs: [oracle-rman-pre-duplicate,oracle-rman-duplicate]
+  #   timeout-minutes: 1440
+  #   continue-on-error: false
+  #   outputs:
+  #     JobId: ${{ github.job }}
+  #   steps:
+
+  #     - name: Checkout hmpps-delius-operation-automation
+  #       uses: actions/checkout@v4
+  #       with:
+  #         sparse-checkout-cone-mode: false
+  #         sparse-checkout: |
+  #           playbooks/oracle_duplicate
+  #           playbooks/oracle_parameters
+  #           playbooks/oracle_autotasks
+  #           playbooks/delius_users
+  #           playbooks/delius_gdpr
+  #           playbooks/cfo_extract
+  #           playbooks/alfresco_wallet
+  #           playbooks/oracle_statspack
+  #           common/*
+  #           playbooks/ansible.cfg
+  #         path: operations
+  #         ref: ${{ github.event.inputs.SourceCodeVersion }}
+  #         fetch-depth: 0
+
+  #     - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: ministryofjustice/modernisation-platform-configuration-management
+  #         sparse-checkout-cone-mode: false
+  #         sparse-checkout: |
+  #           ansible/hosts
+  #           ansible/group_vars
+  #         path: inventory
+  #         ref: ${{ github.event.inputs.SourceConfigVersion }}
+  #         fetch-depth: 0
+
+  #     - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: ministryofjustice/modernisation-platform-configuration-management
+  #         sparse-checkout-cone-mode: false
+  #         sparse-checkout: |
+  #           ansible/roles/secretsmanager-passwords
+  #           ansible/roles/get-modernisation-platform-facts
+  #         path: roles
+  #         ref: ${{ github.event.inputs.SourceConfigVersion }}
+  #         fetch-depth: 0
+
+  #     - name: Configure AWS Credentials
+  #       id: login-aws
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+  #         role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+  #         aws-region: "eu-west-2"
+
+  #     - name: Start Ansible Oracle RMAN Post Duplicate
+  #       shell: bash
+  #       run: |
+  #         export ANSIBLE_CONFIG=$ansible_config
+  #         ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
+  #         $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+  #         -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}
+
+  # oracle-build-ha:
+  #   name: oracle-build-ha
+  #   environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+  #   needs: [oracle-rman-pre-duplicate,oracle-rman-duplicate,oracle-rman-post-duplicate]
+  #   timeout-minutes: 1440
+  #   continue-on-error: false
+  #   outputs:
+  #     JobId: ${{ github.job }}
+  #   steps:
+
+  #     - name: Checkout Inventory From modernisation-platform-configuration-management
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: ministryofjustice/modernisation-platform-configuration-management
+  #         sparse-checkout-cone-mode: false
+  #         sparse-checkout: |
+  #           ansible/hosts
+  #           ansible/group_vars
+  #         path: inventory
+  #         ref: ${{ github.event.inputs.SourceConfigVersion }}
+  #         fetch-depth: 0
+
+  #     - name: Install yq
+  #       uses: dcarbone/install-yq-action@v1.1.1
+  #       with:
+  #         download-compressed: true
+  #         version: "v4.35.1"
+  #         force: true
+
+  #     - name: Check Standbydb's Configured In Ansible Inventory
+  #       id: standbydbsconfigured
+  #       working-directory: ${{ env.inventory }}
+  #       run: |
+  #         database_type=$(echo ${{ github.event.inputs.TargetHost }} | cut -d_ -f1)
+  #         database_environment=$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} | awk -F_${{ github.event.inputs.TargetHost }} '{print $1}')
+  #         high_availability_count=$(yq .high_availability_count.${database_type} group_vars/${database_environment}_all.yml)
+  #         if [[ ${high_availability_count} -eq 0 ]]
+  #         then
+  #           echo "No standbydb's configured"
+  #           exit 0
+  #         fi
+  #         if [[ ${high_availability_count} -ge 1 ]]
+  #         then
+  #           echo "standbydb1Host=$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} | sed 's/primarydb/standbydb1/')"  >> $GITHUB_OUTPUT
+  #         fi
+  #         if [[ ${high_availability_count} -eq 2 ]]
+  #         then
+  #           echo "standbydb2Host=$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} | sed 's/primarydb/standbydb2/')" >> $GITHUB_OUTPUT
+  #         fi
+  #         echo "high_availability_count=${high_availability_count}" >> $GITHUB_OUTPUT
+
+  #         fsfo_mode=$(yq '.fsfo_mode' group_vars/${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}.yml)
+  #         [ "$fsfo_mode" == "null" ] && echo 'fsfo_mode="disabled"' >> $GITHUB_OUTPUT || echo "fsfo_mode=$fsfo_mode" >> $GITHUB_OUTPUT
+
+  #     - name: Checkout From hmpps-delius-operational-automation
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: ministryofjustice/hmpps-delius-operational-automation
+  #         sparse-checkout-cone-mode: false
+  #         sparse-checkout: |
+  #           playbooks/oracle_ha
+  #           playbooks/ansible.cfg
+  #         path: operations
+  #         ref: ${{ github.event.inputs.SourceCodeVersion }}
+  #         fetch-depth: 0
+
+  #     - name: Configure AWS Credentials
+  #       id: login-aws
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+  #         role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+  #         aws-region: "eu-west-2"
+
+  #     - name: Build High Availability Standby 1 Database
+  #       if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
+  #       run: |
+  #         export ANSIBLE_CONFIG=$ansible_config
+  #         $command -i $inventory \
+  #         -e primary=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} \
+  #         -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
+  #         -e method=build \
+  #         -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
+  #         -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
+  #         -e standby_number=1 \
+  #         -e primary_source_type=active
+
+  #     - name: Build High Availability Standby 2 Database
+  #       if: ${{ steps.standbydbsconfigured.outputs.standbydb2Host != '' }}
+  #       run: |
+  #         export ANSIBLE_CONFIG=$ansible_config
+  #         $command -i $inventory \
+  #         -e primary=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} \
+  #         -e standby=${{ steps.standbydbsconfigured.outputs.standbydb2Host }} \
+  #         -e method=build \
+  #         -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
+  #         -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
+  #         -e standby_number=2 \
+  #         -e primary_source_type=active
+
+  # slack-notification:
+  #   if: ${{ failure() }}
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+  #   needs: [oracle-rman-pre-duplicate,oracle-rman-duplicate,oracle-rman-post-duplicate,oracle-build-ha]
+  #   environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+  #   steps:
+
+  #     - name: Configure AWS Credentials
+  #       id: login-aws
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+  #         role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+  #         aws-region: "eu-west-2"
+
+  #     - name: Get Slack Token
+  #       id: get-slack-token
+  #       shell: bash
+  #       run: |
+  #         ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  #         OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
+  #               jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
+  #               jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
+  #         SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
+  #         SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
+  #         SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
+  #         echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
+
+  #         if [[ "${{ needs.oracle-rman-pre-duplicate.result }}" == "failure" ]]
+  #         then
+  #           echo "jobid=${{ needs.oracle-rman-pre-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
+  #         elif [[ "${{ needs.oracle-rman-duplicate.result }}" == "failure" ]]
+  #         then
+  #           echo "jobid=${{ needs.oracle-rman-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
+  #         elif [[ "${{ needs.oracle-rman-post-duplicate.result }}" == "failure" ]]
+  #         then
+  #           echo "jobid=${{ needs.oracle-rman-post-duplicate.outputs.JobId }}" >> $GITHUB_OUTPUT
+  #         elif [[ "${{ needs.oracle-build-ha.result }}" == "failure" ]]
+  #         then
+  #           echo "jobid=${{ needs.oracle-build-ha.outputs.JobId }}" >> $GITHUB_OUTPUT
+  #         fi
+
+  #     - name: Slack Failure Notification
+  #       id: slack
+  #       uses: slackapi/slack-github-action@v1.25.0
+  #       with:
+  #           channel-id: "delius-aws-oracle-dev-alerts"
+  #           payload: |
+  #             { 
+  #               "icon_emoji":"broken_record",
+  #               "text":"Failed RMAN Duplicate",
+  #               "blocks":[
+  #                 {
+  #                   "type": "section",
+  #                   "text": 
+  #                   {
+  #                     "type": "mrkdwn",
+  #                     "text": ":no_entry: Failed RMAN Duplicate:"}
+  #                   },
+  #                   {
+  #                     "type": "section",
+  #                     "fields":[
+  #                         {
+  #                           "type": "mrkdwn",
+  #                           "text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"
+  #                         },
+  #                         {
+  #                           "type": "mrkdwn",
+  #                           "text": "*Job:*\n${{ steps.get-slack-token.outputs.jobid }}"
+  #                         },
+  #                         {
+  #                           "type": "mrkdwn",
+  #                           "text": "*Repo:*\n${{ github.repository }}"
+  #                         },
+  #                         {
+  #                           "type": "mrkdwn",
+  #                           "text": "*Duplicate Target:*\n${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }}"
+  #                         }
+  #                       ]
+  #                   }  
+  #                 ]
+  #               }
+  #       env:
+  #         SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
           
