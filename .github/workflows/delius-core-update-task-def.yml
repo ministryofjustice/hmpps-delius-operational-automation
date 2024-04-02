@@ -46,7 +46,7 @@ jobs:
             run: |
               latest_task_def_arn=$(aws ecs describe-services --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --services delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}} --query 'services[0].taskDefinition' --output text)
               latest_task_def=$(aws ecs describe-task-definition --task-definition $latest_task_def_arn )
-              latest_task_def=$(echo -n $latest_task_def | base64 )
+              latest_task_def=$(echo -n $latest_task_def | base64 -w 0 )
               echo "latest_task_def is $latest_task_def"
               echo "latest_task_def=$latest_task_def" >> $GITHUB_OUTPUT
 
@@ -54,13 +54,13 @@ jobs:
             id: modify-task-definition
             run: |
               container_def_image="${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-${{ github.event.inputs.service-name}}-ecr-repo:${{ github.event.inputs.image-tag }}"
-              echo "latest task def is $( echo ${{ steps.get-task-definition.outputs.latest_task_def }} | base64 -d )"
-              new_task_def=$(echo "${{ steps.get-task-definition.outputs.latest_task_def }}" | base64 -d | jq '.taskDefinition | .containerDefinitions[0].image = "$container_def_image"' | base64)
+              echo "latest task def is $( echo ${{ steps.get-task-definition.outputs.latest_task_def }} | base64 -w 0 -d )"
+              new_task_def=$(echo "${{ steps.get-task-definition.outputs.latest_task_def }}" | base64 -w 0 -d | jq '.taskDefinition | .containerDefinitions[0].image = "$container_def_image"' | base64 -w 0)
               echo "new_task_def is $new_task_def"
               echo "new_task_def=$new_task_def" >> $GITHUB_OUTPUT
 
           - name: Register new task definition
             id: register-task-definition
             run: |
-              new_task_def_escaped=$(echo "${{ steps.modify-task-definition.outputs.new_task_def }}" | base64 -d | jq --raw-output @sh)
+              new_task_def_escaped=$(echo "${{ steps.modify-task-definition.outputs.new_task_def }}" | base64 -w 0 -d | jq --raw-output @sh)
               registered_task_definition=$(aws ecs register-task-definition --cli-input-json $new_task_def_escaped)
