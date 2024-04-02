@@ -49,13 +49,40 @@ jobs:
               latest_task_def=$(echo -n $latest_task_def | base64 -w 0 )
               echo "latest_task_def is $latest_task_def"
               echo "latest_task_def=$latest_task_def" >> $GITHUB_OUTPUT
+          
+          - name: Parse latest task def
+            id: parse-task-def
+            run: |
+              latest_task_def=$(echo "${{ steps.get-task-definition.outputs.latest_task_def }}")
+
+              parsed_task_def=$(echo "$latest_task_def" | jq '{
+                family: .taskDefinition.family,
+                taskRoleArn: .taskDefinition.taskRoleArn,
+                executionRoleArn: .taskDefinition.executionRoleArn,
+                networkMode: .taskDefinition.networkMode,
+                containerDefinitions: .taskDefinition.containerDefinitions,
+                volumes: .taskDefinition.volumes,
+                placementConstraints: .taskDefinition.placementConstraints,
+                requiresCompatibilities: .taskDefinition.requiresCompatibilities,
+                cpu: .taskDefinition.cpu,
+                memory: .taskDefinition.memory,
+                tags: .taskDefinition.tags,
+                pidMode: .taskDefinition.pidMode,
+                ipcMode: .taskDefinition.ipcMode,
+                proxyConfiguration: .taskDefinition.proxyConfiguration,
+                inferenceAccelerators: .taskDefinition.inferenceAccelerators,
+                ephemeralStorage: .taskDefinition.ephemeralStorage,
+                runtimePlatform: .taskDefinition.runtimePlatform
+              }')
+
+              echo "parsed_task_def=$parsed_task_def" >> $GITHUB_OUTPUT
 
           - name: Modify task definition JSON
             id: modify-task-definition
             run: |
               container_def_image="${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-${{ github.event.inputs.service-name}}-ecr-repo:${{ github.event.inputs.image-tag }}"
-              echo "latest task def is $( echo ${{ steps.get-task-definition.outputs.latest_task_def }} | base64 -w 0 -d )"
-              new_task_def=$(echo -n "${{ steps.get-task-definition.outputs.latest_task_def }}" | base64 -w 0 -d | jq '.taskDefinition | .containerDefinitions[0].image = "$container_def_image"' | base64 -w 0)
+              echo "latest task def is $( echo ${{ steps.get-task-definition.outputs.parsed_task_def }} | base64 -w 0 -d )"
+              new_task_def=$(echo -n "${{ steps.get-task-definition.outputs.parsed_task_def }}" | base64 -w 0 -d | jq '.taskDefinition | .containerDefinitions[0].image = "$container_def_image"' | base64 -w 0)
               echo "new_task_def=$new_task_def" >> $GITHUB_OUTPUT
 
           - name: Register new task definition
