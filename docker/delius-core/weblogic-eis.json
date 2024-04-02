@@ -1,0 +1,248 @@
+{
+    "taskDefinitionArn": "arn:aws:ecs:eu-west-2:326912278139:task-definition/delius-core-dev-weblogic-eis:7",
+    "containerDefinitions": [
+        {
+            "name": "weblogic-eis",
+            "image": "374269020027.dkr.ecr.eu-west-2.amazonaws.com/delius-core-weblogic-eis-ecr-repo:5.7.6",
+            "cpu": 1024,
+            "memory": 2048,
+            "portMappings": [
+                {
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "TZ",
+                    "value": "Europe/London"
+                },
+                {
+                    "name": "DMS_OFFICE_URI_PORT",
+                    "value": "443"
+                },
+                {
+                    "name": "JDBC_MAX_CAPACITY",
+                    "value": "100"
+                },
+                {
+                    "name": "MERGE_URL",
+                    "value": "todo"
+                },
+                {
+                    "name": "AWS_XRAY_TRACING_NAME",
+                    "value": "weblogic-eis"
+                },
+                {
+                    "name": "DMS_PROTOCOL",
+                    "value": "https"
+                },
+                {
+                    "name": "JDBC_CONNECTION_POOL_MIN_CAPACITY",
+                    "value": "10"
+                },
+                {
+                    "name": "DMS_HOST",
+                    "value": "todo"
+                },
+                {
+                    "name": "COOKIE_SECURE",
+                    "value": "true"
+                },
+                {
+                    "name": "USERMANAGEMENT_URL",
+                    "value": "/umt/"
+                },
+                {
+                    "name": "DELIUS_API_URL",
+                    "value": "todo"
+                },
+                {
+                    "name": "LDAP_PORT",
+                    "value": "389"
+                },
+                {
+                    "name": "GDPR_URL",
+                    "value": "/gdpr/ui/homepage"
+                },
+                {
+                    "name": "DMS_OFFICE_URI_HOST",
+                    "value": "todo"
+                },
+                {
+                    "name": "JDBC_CONNECTION_POOL_MAX_CAPACITY",
+                    "value": "100"
+                },
+                {
+                    "name": "DMS_PORT",
+                    "value": "443"
+                },
+                {
+                    "name": "JDBC_USERNAME",
+                    "value": "delius_pool"
+                },
+                {
+                    "name": "USER_MEM_ARGS",
+                    "value": "-XX:MaxRAMPercentage=90.0"
+                },
+                {
+                    "name": "NDELIUS_CLIENT_ID",
+                    "value": "NDelius"
+                },
+                {
+                    "name": "USER_CONTEXT",
+                    "value": "ou=Users,dc=moj,dc=com"
+                },
+                {
+                    "name": "OTEL_RESOURCE_ATTRIBUTES",
+                    "value": "service.name=weblogic-eis,service.namespace=delius-core-dev"
+                },
+                {
+                    "name": "PASSWORD_RESET_URL",
+                    "value": "todo"
+                },
+                {
+                    "name": "LOG_LEVEL_NDELIUS",
+                    "value": "INFO"
+                },
+                {
+                    "name": "JDBC_INITIAL_CAPACITY",
+                    "value": "10"
+                },
+                {
+                    "name": "LDAP_HOST",
+                    "value": "ldap-dev-nlb-7667124ead573c5a.elb.eu-west-2.amazonaws.com"
+                },
+                {
+                    "name": "MERGE_API_URL",
+                    "value": "todo"
+                },
+                {
+                    "name": "ELASTICSEARCH_URL",
+                    "value": "/newTech"
+                },
+                {
+                    "name": "JDBC_MIN_CAPACITY",
+                    "value": "50"
+                },
+                {
+                    "name": "JDBC_DRIVER",
+                    "value": "oracle.jdbc.OracleDriver"
+                },
+                {
+                    "name": "EIS_USER_CONTEXT",
+                    "value": "cn=EISUsers,ou=Users,dc=moj,dc=com"
+                },
+                {
+                    "name": "MERGE_OAUTH_URL",
+                    "value": "todo"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "secrets": [
+                {
+                    "name": "JDBC_PASSWORD",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/delius-core-dev/JDBC_PASSWORD"
+                },
+                {
+                    "name": "JDBC_URL",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/delius-core-dev/JDBC_URL"
+                },
+                {
+                    "name": "LDAP_CREDENTIAL",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/delius-core-dev/LDAP_BIND_PASSWORD"
+                },
+                {
+                    "name": "LDAP_PRINCIPAL",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/delius-core-dev/LDAP_PRINCIPAL"
+                },
+                {
+                    "name": "MERGE_SECRET",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/delius-core-dev/merge_api_client_secret"
+                },
+                {
+                    "name": "PDFCREATION_SECRET",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/dev/delius/newtech/web/params_secret_key"
+                },
+                {
+                    "name": "USERMANAGEMENT_SECRET",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/dev/delius/umt/umt/delius_secret"
+                }
+            ],
+            "readonlyRootFilesystem": false,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "dev-weblogic-eis",
+                    "awslogs-region": "eu-west-2",
+                    "awslogs-stream-prefix": "dev-weblogic-eis"
+                }
+            }
+        }
+    ],
+    "family": "delius-core-dev-weblogic-eis",
+    "taskRoleArn": "arn:aws:iam::326912278139:role/dev-weblogic-eis-ecs-task",
+    "executionRoleArn": "arn:aws:iam::326912278139:role/dev-weblogic-eis-ecs-task-exec",
+    "networkMode": "awsvpc",
+    "revision": 7,
+    "volumes": [],
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.task-iam-role"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "ecs.capability.secrets.ssm.environment-variables"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        }
+    ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2",
+        "FARGATE"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "1024",
+    "memory": "2048",
+    "registeredAt": "2024-02-12T19:39:49.332Z",
+    "registeredBy": "arn:aws:sts::326912278139:assumed-role/MemberInfrastructureAccess/aws-go-sdk-1707766787006334168",
+    "tags": [
+        {
+            "key": "Environment",
+            "value": "dev"
+        },
+        {
+            "key": "Namespace",
+            "value": "delius-core"
+        },
+        {
+            "key": "Name",
+            "value": "delius-core-dev-weblogic-eis"
+        }
+    ]
+}

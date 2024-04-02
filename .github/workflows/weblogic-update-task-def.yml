@@ -1,0 +1,67 @@
+name: Weblogic ECS - Update Task Definition
+on:
+  workflow_dispatch:
+    inputs:
+        environment:
+            required: true
+            type: choice
+            options:
+              - "dev"
+        service-name:
+            required: true
+            type: choice
+            options:
+              - "weblogic"
+              - "weblogic-eis"
+        image-tag:
+            required: false
+            type: string
+            default: 'latest'
+            
+jobs:
+    deploy:
+        name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}
+        runs-on: ubuntu-latest
+        environment: delius-core-${{ github.event.inputs.environment }}
+        permissions:
+          id-token: write
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v4
+            
+          - name: Configure AWS Credentials
+            uses: aws-actions/configure-aws-credentials@v4
+            with:
+              role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+              role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+              aws-region: "eu-west-2"
+          - name: Set cluster ARN
+            id: set-cluster-arn
+            run: |
+                echo "CLUSTER_ARN=delius-core-${{ github.event.inputs.environment }}-cluster" >> $GITHUB_OUTPUT
+          - name: Get security groups and subnet ids
+            id: get-ids
+            run: |
+                echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ecs-service-${{github.event.inputs.service-name}}-${{ github.event.inputs.environment }}" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
+                echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-general-private-*" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
+
+          - name: Get latest ECS task definition
+            id: get-task-definition
+            run: |
+              latest_task_definition_arn=$(aws ecs describe-services --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --services delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}} --query 'services[0].taskDefinition' --output text)
+              task_definition=$(aws ecs describe-task-definition --task-definition $latest_task_definition_arn)
+              echo "::set-output name=get-task-definition::$task_definition"
+
+          - name: Modify task definition JSON
+            id: modify-task-definition
+            run: |
+              container_def_image="${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-${{github.event.inputs.service-name}}-ecr-repo:${{ github.event.inputs.image-tag }}"
+              modified_task_definition=$(echo "${{ steps.get-task-definition.outputs.task-definition}}" | jq '.taskDefinition | .containerDefinitions[0].image = "$container_def_image"')
+              echo "::set-output name=modified-task-definition::$modified_task_definition"
+
+          - name: Register modified task definition
+            id: register-task-definition
+            run: |
+              modified_task_definition_escaped=$(echo "${{ steps.modify-task-definition.outputs.modified-task-definition }}" | jq --raw-output @sh)
+              registered_task_definition=$(aws ecs register-task-definition --cli-input-json $modified_task_definition_escaped)
+              echo "::set-output name=registered-task-definition::$registered_task_definition"

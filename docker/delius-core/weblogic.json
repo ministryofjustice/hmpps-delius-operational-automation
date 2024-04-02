@@ -1,0 +1,136 @@
+{
+    "taskDefinitionArn": "arn:aws:ecs:eu-west-2:326912278139:task-definition/delius-core-dev-weblogic:23",
+    "containerDefinitions": [
+        {
+            "name": "weblogic",
+            "image": "374269020027.dkr.ecr.eu-west-2.amazonaws.com/delius-core-weblogic-ecr-repo:5.7.6",
+            "cpu": 1024,
+            "memory": 4096,
+            "portMappings": [
+                {
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "LDAP_PORT",
+                    "value": "389"
+                },
+                {
+                    "name": "LDAP_HOST",
+                    "value": "ldap-dev-nlb-7667124ead573c5a.elb.eu-west-2.amazonaws.com"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "secrets": [
+                {
+                    "name": "EIS_USER_CONTEXT",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/delius-core/dev/EIS_USER_CONTEXT"
+                },
+                {
+                    "name": "JDBC_PASSWORD",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/delius-core-dev/JDBC_PASSWORD"
+                },
+                {
+                    "name": "JDBC_URL",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/delius-core-dev/JDBC_URL"
+                },
+                {
+                    "name": "LDAP_CREDENTIAL",
+                    "valueFrom": "arn:aws:secretsmanager:eu-west-2:326912278139:secret:delius-core-dev-openldap-bind-password-CagKSo"
+                },
+                {
+                    "name": "LDAP_PRINCIPAL",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/delius-core-dev/LDAP_PRINCIPAL"
+                },
+                {
+                    "name": "TEST_MODE",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/delius-core/dev/TEST_MODE"
+                },
+                {
+                    "name": "USER_CONTEXT",
+                    "valueFrom": "arn:aws:ssm:eu-west-2:326912278139:parameter/delius-core/dev/USER_CONTEXT"
+                }
+            ],
+            "readonlyRootFilesystem": false,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "dev-weblogic",
+                    "awslogs-region": "eu-west-2",
+                    "awslogs-stream-prefix": "dev-weblogic"
+                }
+            }
+        }
+    ],
+    "family": "delius-core-dev-weblogic",
+    "taskRoleArn": "arn:aws:iam::326912278139:role/dev-weblogic-ecs-task",
+    "executionRoleArn": "arn:aws:iam::326912278139:role/dev-weblogic-task-exec",
+    "networkMode": "awsvpc",
+    "revision": 23,
+    "volumes": [],
+    "status": "INACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "ecs.capability.secrets.asm.environment-variables"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.task-iam-role"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "ecs.capability.secrets.ssm.environment-variables"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        }
+    ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2",
+        "FARGATE"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "1024",
+    "memory": "4096",
+    "registeredAt": "2024-01-23T17:34:37.607Z",
+    "deregisteredAt": "2024-02-01T19:06:14.370Z",
+    "registeredBy": "arn:aws:sts::326912278139:assumed-role/MemberInfrastructureAccess/aws-go-sdk-1706031072133935738",
+    "tags": [
+        {
+            "key": "Environment",
+            "value": "dev"
+        },
+        {
+            "key": "Namespace",
+            "value": "delius-core"
+        },
+        {
+            "key": "Name",
+            "value": "delius-core-dev-weblogic"
+        }
+    ]
+}
