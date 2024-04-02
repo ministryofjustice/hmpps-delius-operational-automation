@@ -157,7 +157,7 @@ jobs:
              echo "TargetHost: $TargetHost"
              TargetEnvironment=$(echo ${PARAMETERS_JSON} | jq -r '.target_environment')
              echo "TargetEnvironment: $TargetEnvironment"
-             BackupStatus=$(echo ${PARAMETERS_JSON} | jq -r '.backup_status // starting')
+             BackupStatus=$(echo ${PARAMETERS_JSON} | jq -r '.backup_status // "starting"')
              if [[ "$BackupStatus" == "failed" ]];
              then
                 BackupStandbyOnPrimaryFailure=$(echo ${PARAMETERS_JSON} | jq -r '.backup_standby_on_primary_failure')
