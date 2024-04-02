@@ -39,11 +39,6 @@ jobs:
             id: set-cluster-arn
             run: |
                 echo "CLUSTER_ARN=delius-core-${{ github.event.inputs.environment }}-cluster" >> $GITHUB_OUTPUT
-          - name: Get security groups and subnet ids
-            id: get-ids
-            run: |
-                echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ecs-service-${{github.event.inputs.service-name}}-${{ github.event.inputs.environment }}" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
-                echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-general-private-*" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
 
           - name: Get latest ECS task definition
             id: get-task-definition
