@@ -55,7 +55,7 @@ jobs:
           - name: Modify task definition JSON
             id: modify-task-definition
             run: |
-              container_def_image="${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-${{ github.event.inputs.service-name}}-ecr-repo:${{ github.event.inputs.image-tag }}"
+              container_def_image="${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-${{ github.event.inputs.service-name }}-ecr-repo:${{ github.event.inputs.image-tag }}"
               new_task_definition=$(echo "${{ steps.get-task-definition.outputs.LATEST_TASK_DEFINITION }}" | jq '.taskDefinition | .containerDefinitions[0].image = "$container_def_image"')
               echo "NEW_TASK_DEFINITION=$new_task_definition" >> $GITHUB_OUTPUT
 
