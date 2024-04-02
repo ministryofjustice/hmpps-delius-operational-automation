@@ -46,7 +46,7 @@ jobs:
             run: |
               latest_task_def_arn=$(aws ecs describe-services --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --services delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}} --query 'services[0].taskDefinition' --output text)
               latest_task_def=$(aws ecs describe-task-definition --task-definition $latest_task_def_arn )
-              latest_task_def=$(echo -n latest_task_def | base64 )
+              latest_task_def=$(echo -n $latest_task_def | base64 )
               echo "latest_task_def is $latest_task_def"
               echo "latest_task_def=$latest_task_def" >> $GITHUB_OUTPUT
 
