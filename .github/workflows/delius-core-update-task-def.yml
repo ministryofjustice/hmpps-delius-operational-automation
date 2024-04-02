@@ -66,14 +66,7 @@ jobs:
                 placementConstraints: .taskDefinition.placementConstraints,
                 requiresCompatibilities: .taskDefinition.requiresCompatibilities,
                 cpu: .taskDefinition.cpu,
-                memory: .taskDefinition.memory,
-                tags: .taskDefinition.tags,
-                pidMode: .taskDefinition.pidMode,
-                ipcMode: .taskDefinition.ipcMode,
-                proxyConfiguration: .taskDefinition.proxyConfiguration,
-                inferenceAccelerators: .taskDefinition.inferenceAccelerators,
-                ephemeralStorage: .taskDefinition.ephemeralStorage,
-                runtimePlatform: .taskDefinition.runtimePlatform
+                memory: .taskDefinition.memory
               }')
               
               parsed_task_def=$(echo -n "$parsed_task_def" | jq ".containerDefinitions[0].image = \"$container_def_image\"" | base64 -w 0)
