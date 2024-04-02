@@ -349,10 +349,10 @@ jobs:
           force: true
 
       - name: Prepare OEM Target Name
-          working-directory: ${{ env.inventory }}
-          id: preparation
-          shell: bash
-          run: OemTarget=environment_name_$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.TargetOemEnvironment }} | sed 's/-/_') >> $GITHUB_OUTPUT
+        working-directory: ${{ env.inventory }}
+        id: preparation
+        shell: bash
+        run: OemTarget=environment_name_$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.TargetOemEnvironment }} | sed 's/-/_') >> $GITHUB_OUTPUT
         
       - name: Configure AWS Credentials
         id: login-aws
