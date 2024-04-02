@@ -56,7 +56,8 @@ jobs:
                     $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}}-ecs-task-exec"
                     $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}}-ecs-task"
                     $.family: "delius-core-${{ github.event.inputs.environment }}-${{ github.event.inputs.service-name }}"
-                  
+
+                    $.containerDefinitions[0].name: "${{ github.event.inputs.service-name }}"
                     $.containerDefinitions[0].image: "${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-${{github.event.inputs.service-name}}-ecr-repo:${{ github.event.inputs.image-tag }}"
                     $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-group": "${{ github.event.inputs.environment }}-${{ github.event.inputs.service-name }}"
                     $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-region": "${{secrets.AWS_REGION}}"
