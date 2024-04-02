@@ -351,7 +351,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $ansible_playbook_directory/rman-export-import.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e oem_target=${{ steps.preparation.outputs.OemTarget }} \
+          -e oem_target=${{ env.OemTarget }} \
           -e action=import \
           -e export_name=${{ needs.oracle-rman-import-schema.outputs.ExportName }} \
           -e source_catalog_db=${{ needs.oracle-rman-import-schema.outputs.SourceCatalogDb }} \
