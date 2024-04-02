@@ -47,7 +47,6 @@ jobs:
               latest_task_def_arn=$(aws ecs describe-services --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --services delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}} --query 'services[0].taskDefinition' --output text)
               latest_task_def=$(aws ecs describe-task-definition --task-definition $latest_task_def_arn )
               latest_task_def=$(echo -n $latest_task_def | base64 -w 0 )
-              echo "latest_task_def is $latest_task_def"
               echo "latest_task_def=$latest_task_def" >> $GITHUB_OUTPUT
           
           - name: Parse & modify latest task def
@@ -77,5 +76,4 @@ jobs:
             id: register-task-definition
             run: |
               new_task_def=$(echo -n "${{ steps.parse-task-def.outputs.parsed_task_def }}" | base64 -w 0 -d )
-              echo "new_task_def is $new_task_def "
               registered_task_definition=$(aws ecs register-task-definition --cli-input-json "$new_task_def")
