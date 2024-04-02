@@ -117,6 +117,8 @@ jobs:
       VerboseOutput: ${{ steps.preparermantargetname.outputs.VerboseOutput }}
       SourceCodeVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
+      Inputs: ${{ steps.preparermantargetname.outputs.Inputs }}
+      SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
     steps:
       - name: Prepare Rman Target
         id: preparermantargetname
@@ -180,6 +182,15 @@ jobs:
           echo "BackupError=$BackupError" >> $GITHUB_OUTPUT
           echo "Inputs=$Inputs" >> $GITHUB_OUTPUT
 
+      - name: Prepare Slack Channel Name
+        id: prepare-slack-channel-name
+        run: |
+               if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
+                  echo "SlackChannel=delius-aws-oracle-prod-alerts" >> $GITHUB_OUTPUT
+               else
+                  echo "SlackChannel=delius-aws-oracle-dev-alerts" >> $GITHUB_OUTPUT
+               fi
+
   # Start deployment container job based on the build delius-ansible-aws image
   deployment:
     name: oracle-backup
@@ -205,6 +216,7 @@ jobs:
       SourceCodeVersion:  "${{needs.build_rman_target_name.outputs.SourceCodeVersion}}"
       SourceConfigVersion:  "${{needs.build_rman_target_name.outputs.SourceConfigVersion}}"
       Inputs:  "${{needs.build_rman_target_name.outputs.Inputs}}"
+      SlackChannel: ${{ needs.build_rman_target_name.outputs.SlackChannel }}
       ansible_config: operations/playbooks/ansible.cfg
     continue-on-error: false
     steps:
