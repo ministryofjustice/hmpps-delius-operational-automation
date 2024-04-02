@@ -282,7 +282,7 @@ jobs:
         id: preparation
         shell: bash
         run: |
-          OemTarget=environment_name_$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.SourceOemEnvironment }} | sed 's/-/_') >> $GITHUB_OUTPUT
+          OemTarget=environment_name_$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.SourceOemEnvironment }} | sed 's/-/_/') >> $GITHUB_OUTPUT
           SourceCatalogDb=$(yq .db_configs.RCVCAT.rcvcat_db_name group_vars/environment_name_${OemTarget}.yml)  >> $GITHUB_OUTPUT
           SourceDbBackupS3BucketName=$(yq .db_backup_s3_bucket_name group_vars/environment_name_${OemTarget}.yml)  >> $GITHUB_OUTPUT
           ExportName=RCVCATOWNER_${SourceCatalogDb} >> $GITHUB_OUTPUT
@@ -353,7 +353,7 @@ jobs:
         id: preparation
         shell: bash
         run: |
-          OemTarget=environment_name_$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.TargetOemEnvironment }} | sed 's/-/_') >> $GITHUB_OUTPUT
+          OemTarget=environment_name_$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.TargetOemEnvironment }} | sed 's/-/_/') >> $GITHUB_OUTPUT
         
       - name: Configure AWS Credentials
         id: login-aws
