@@ -35,6 +35,7 @@ jobs:
               role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
               role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
               aws-region: "eu-west-2"
+
           - name: Set cluster ARN
             id: set-cluster-arn
             run: |
@@ -45,17 +46,17 @@ jobs:
             run: |
               latest_task_definition_arn=$(aws ecs describe-services --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --services delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}} --query 'services[0].taskDefinition' --output text)
               latest_task_definition=$(aws ecs describe-task-definition --task-definition $latest_task_definition_arn)
-              echo "LATEST_TASK_DEFINITION=$latest_task_definition" >> $GITHUB_OUTPUT
+              echo "::set-output name=get-task-definition::$latest_task_definition"
 
           - name: Modify task definition JSON
             id: modify-task-definition
             run: |
               container_def_image="${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-${{ github.event.inputs.service-name}}-ecr-repo:${{ github.event.inputs.image-tag }}"
-              new_task_definition=$(echo "${{ steps.get-task-definition.outputs.LATEST_TASK_DEFINITION }}" | jq '.taskDefinition | .containerDefinitions[0].image = "$container_def_image"')
-              echo "NEW_TASK_DEFINITION=$new_task_definition" >> $GITHUB_OUTPUT
+              new_task_definition=$(echo "${{ steps.get-task-definition.outputs.latest_task_definition }}" | jq '.taskDefinition | .containerDefinitions[0].image = "$container_def_image"')
+              echo "::set-output name=modify-task-definition::$new_task_definition"
 
           - name: Register new task definition
             id: register-task-definition
             run: |
-              new_task_definition_escaped=$(echo "${{ steps.modify-task-definition.outputs.NEW_TASK_DEFINITION }}" | jq --raw-output @sh)
+              new_task_definition_escaped=$(echo "${{ steps.modify-task-definition.outputs.new_task_definition }}" | jq --raw-output @sh)
               registered_task_definition=$(aws ecs register-task-definition --cli-input-json $new_task_definition_escaped)
