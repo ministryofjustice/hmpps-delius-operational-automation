@@ -50,9 +50,10 @@ jobs:
               echo "latest_task_def is $latest_task_def"
               echo "latest_task_def=$latest_task_def" >> $GITHUB_OUTPUT
           
-          - name: Parse latest task def
+          - name: Parse & modify latest task def
             id: parse-task-def
             run: |
+              container_def_image="${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-${{ github.event.inputs.service-name}}-ecr-repo:${{ github.event.inputs.image-tag }}"
               latest_task_def=$(echo -n "${{ steps.get-task-definition.outputs.latest_task_def }}" | base64 -d -w 0)
 
               parsed_task_def=$(echo "$latest_task_def" | jq '{
@@ -74,23 +75,14 @@ jobs:
                 ephemeralStorage: .taskDefinition.ephemeralStorage,
                 runtimePlatform: .taskDefinition.runtimePlatform
               }')
-
-              parsed_task_def=$(echo -n $parsed_task_def | base64 -w 0)
+              
+              parsed_task_def=$(echo -n "$parsed_task_def" | jq ".containerDefinitions[0].image = \"$container_def_image\"" | base64 -w 0)
 
               echo "parsed_task_def=$parsed_task_def" >> $GITHUB_OUTPUT
-
-          - name: Modify task definition JSON
-            id: modify-task-definition
-            run: |
-              container_def_image="${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-${{ github.event.inputs.service-name}}-ecr-repo:${{ github.event.inputs.image-tag }}"
-              parsed_task_def=$( echo -n ${{ steps.parse-task-def.outputs.parsed_task_def }} | base64 -w 0 -d )
-              echo "parsed_task_def is $parsed_task_def"
-              new_task_def=$(echo -n $parsed_task_def | jq ".taskDefinition | .containerDefinitions[0].image = \"$container_def_image\"" | base64 -w 0)
-              echo "new_task_def=$new_task_def" >> $GITHUB_OUTPUT
 
           - name: Register new task definition
             id: register-task-definition
             run: |
-              new_task_def=$(echo -n "${{ steps.modify-task-definition.outputs.new_task_def }}" | base64 -w 0 -d )
+              new_task_def=$(echo -n "${{ steps.parse-task-def.outputs.parsed_task_def }}" | base64 -w 0 -d )
               echo "new_task_def is $new_task_def "
               registered_task_definition=$(aws ecs register-task-definition --cli-input-json "$new_task_def")
