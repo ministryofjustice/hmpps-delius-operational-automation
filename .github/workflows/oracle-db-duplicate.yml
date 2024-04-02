@@ -306,7 +306,7 @@ jobs:
 
   oracle-rman-import-schema:
     if: ${{ github.event.inputs.SourceLegacy == 'no' }}
-    needs: [oracle-rman-pre-duplicate,oracle-rman-import-schema]
+    needs: [oracle-rman-pre-duplicate,oracle-rman-export-schema]
     name: oracle-rman-import-schema
     environment: ${{ needs.oracle-rman-pre-duplicate.outputs.TargetOemEnvironment }}-preapproved
     runs-on: ubuntu-latest
