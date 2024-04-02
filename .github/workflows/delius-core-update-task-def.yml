@@ -63,4 +63,4 @@ jobs:
             run: |
               new_task_def=$(echo -n "${{ steps.modify-task-definition.outputs.new_task_def }}" | base64 -w 0 -d )
               echo "new_task_def is $new_task_def "
-              registered_task_definition=$(aws ecs register-task-definition --cli-input-json $new_task_def)
+              registered_task_definition=$(aws ecs register-task-definition --cli-input-json "$new_task_def")
