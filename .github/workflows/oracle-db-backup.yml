@@ -154,14 +154,16 @@ jobs:
           else
              echo "JSON: ${{ github.event.inputs.ParametersJSON }}"
              PARAMETERS_JSON=$(echo '${{ github.event.inputs.ParametersJSON }}')
-             TargetHost=$(echo ${PARAMETERS_JSON} | jq -r '.target_host')
+             TargetHost=$(echo ${PARAMETERS_JSON} | jq -r '.TargetHost')
              echo "TargetHost: $TargetHost"
-             TargetEnvironment=$(echo ${PARAMETERS_JSON} | jq -r '.target_environment')
+             TargetEnvironment=$(echo ${PARAMETERS_JSON} | jq -r '.TargetEnvironment')
              echo "TargetEnvironment: $TargetEnvironment"
-             BackupStatus=$(echo ${PARAMETERS_JSON} | jq -r '.backup_status // "starting"')
+             Period=$(echo ${PARAMETERS_JSON} | jq -r '.Period')
+             echo "Period: $Period"
+             BackupStatus=$(echo ${PARAMETERS_JSON} | jq -r '.BackupStatus // "starting"')
              if [[ "$BackupStatus" == "failed" ]];
              then
-                BackupStandbyOnPrimaryFailure=$(echo ${PARAMETERS_JSON} | jq -r '.backup_standby_on_primary_failure')
+                BackupStandbyOnPrimaryFailure=$(echo ${PARAMETERS_JSON} | jq -r '.BackupStandbyOnPrimaryFailure')
              fi
           fi
           Inputs="{"
