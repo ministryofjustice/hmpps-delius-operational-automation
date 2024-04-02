@@ -217,7 +217,7 @@ jobs:
             playbooks/oracle_backup
             playbooks/ansible.cfg
           path: operations
-          ref: env.SourceCodeVersion
+          ref: "${{ env.SourceCodeVersion }}"
           fetch-depth: 0
 
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
@@ -229,7 +229,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: env.SourceCodeVersion
+          ref: "${{ env.SourceCodeVersion }}"
           fetch-depth: 0
 
       - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
@@ -241,7 +241,7 @@ jobs:
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-modernisation-platform-facts
           path: roles
-          ref: env.SourceConfigVersion
+          ref: "${{ env.SourceConfigVersion }}"
           fetch-depth: 0
 
       - name: Configure AWS Credentials
