@@ -177,8 +177,10 @@ jobs:
           Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\""
           Inputs=$Inputs"}"
           RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
+          # Some of the following variables are also written to the JSON Inputs but we expand them out here for ease of access
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
+          echo "BackupStatus=$BackupStatus" >> $GITHUB_OUTPUT
           echo "BackupError=$BackupError" >> $GITHUB_OUTPUT
           echo "Inputs=$Inputs" >> $GITHUB_OUTPUT
 
@@ -347,6 +349,6 @@ jobs:
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |
-              {"icon_emoji":"broken_record","text":"Failed Backup Validation","blocks":[{"type": "section","text": {"type": "mrkdwn","text": ":no_entry: Failed Backup Validation:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
+              {"icon_emoji":"large_purple_circle","text":"Failed Backup","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Failed Backup:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
         env:
           SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
