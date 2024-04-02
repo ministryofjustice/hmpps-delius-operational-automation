@@ -106,39 +106,11 @@ jobs:
           SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
           SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
 
-      - name: Prepare Duplicate Target Name and OEM Source And Target Environment (Non Legacy)
+      - name: Prepare Duplicate Target Name
         id: preparation
         shell: bash
         run: |
           echo "DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
-          if [[ "${{ github.event.inputs.SourceLegacy }}" == "no" ]]
-          then
-
-            case ${{ github.event.inputs.S3SourceBucket }} in
-              dev-oracle-database-backups)
-                SourceOemEnvironment=development
-                ;;
-              prod-oracle-database-backups)
-                SourceOemEnvironment=production
-                ;;
-            esac
-
-            echo "SourceOemEnvironment=hmpps-oem-${SourceOemEnvironment}" >> $GITHUB_OUTPUT
-
-            case $(echo ${{ github.event.inputs.TargetEnvironment }} | awk -F- '{print $NF}') in
-              dev)
-                TargetOemEnvironment=development
-                ;;
-              test)
-                TargetOemEnvironment=test
-                ;;
-              stage|prod)
-                TargetOemEnvironment=production
-                ;;
-            esac
-            echo "TargetOemEnvironment=hmpps-oem-${TargetOemEnvironment}" >> $GITHUB_OUTPUT
-
-          fi
 
       - name: Check Restore DateTime Input
         if: ${{ github.event.inputs.RestoreDateTime != '' }}
@@ -232,21 +204,21 @@ jobs:
 
   oracle-rman-export-schema:
     if: ${{ github.event.inputs.SourceLegacy == 'no' }}
-    needs: [oracle-rman-pre-duplicate]
     name: oracle-rman-export-schema
-    environment: ${{ needs.oracle-rman-pre-duplicate.outputs.SourceOemEnvironment }}-preapproved
+    environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
-      SourceCatalogDb: ${{ steps.preparation.outputs.SourceCatalogDb }}
-      SourceDbBackupS3BucketName: ${{ steps.preparation.outputs.SourceDbBackupS3BucketName }}
-      ExportName: ${{ steps.preparation.outputs.ExportName }}
+      TargetOemEnvironment: ${{ env.TargetOemEnvironment }}
+      SourceCatalogDb: ${{ env.SourceCatalogDb }}
+      SourceDbBackupS3BucketName: ${{ env.SourceDbBackupS3BucketName }}
+      ExportName: ${{ env.ExportName }}
       JobId: ${{ github.job }}
     steps:
-
+          
       - name: Checkout hmpps-delius-operation-automation
         uses: actions/checkout@v4
         with:
@@ -277,15 +249,27 @@ jobs:
           version: "v4.35.1"
           force: true
 
-      - name: Prepare RMAN Export Name
+      - name: Prepare Environment Variables
         working-directory: ${{ env.inventory }}
         id: preparation
         shell: bash
         run: |
-          OemTarget=environment_name_$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.SourceOemEnvironment }} | sed 's/-/_/') >> $GITHUB_OUTPUT
+          OemTarget=environment_name_$(echo ${{ steps.preparation.outputs.SourceOemEnvironment }} | sed 's/-/_/g') >> $GITHUB_OUTPUT
           SourceCatalogDb=$(yq .db_configs.RCVCAT.rcvcat_db_name group_vars/environment_name_${OemTarget}.yml)  >> $GITHUB_OUTPUT
           SourceDbBackupS3BucketName=$(yq .db_backup_s3_bucket_name group_vars/environment_name_${OemTarget}.yml)  >> $GITHUB_OUTPUT
           ExportName=RCVCATOWNER_${SourceCatalogDb} >> $GITHUB_OUTPUT
+          case $(echo ${{ github.event.inputs.TargetEnvironment }} | awk -F- '{print $NF}') in
+            dev)
+              TargetOemEnvironment=development
+              ;;
+            test)
+              TargetOemEnvironment=test
+              ;;
+            stage|prod)
+              TargetOemEnvironment=production
+              ;;
+          esac
+          echo "TargetOemEnvironment=hmpps-oem-${TargetOemEnvironment}" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
         id: login-aws
@@ -305,10 +289,9 @@ jobs:
           -e export_name=${{ steps.preparation.outputs.ExportName }}
 
   oracle-rman-import-schema:
-    if: ${{ github.event.inputs.SourceLegacy == 'no' }}
-    needs: [oracle-rman-pre-duplicate,oracle-rman-export-schema]
+    needs: [oracle-rman-export-schema]
     name: oracle-rman-import-schema
-    environment: ${{ needs.oracle-rman-pre-duplicate.outputs.TargetOemEnvironment }}-preapproved
+    environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
@@ -353,7 +336,7 @@ jobs:
         id: preparation
         shell: bash
         run: |
-          OemTarget=environment_name_$(echo ${{ needs.oracle-rman-pre-duplicate.outputs.TargetOemEnvironment }} | sed 's/-/_/') >> $GITHUB_OUTPUT
+          OemTarget=environment_name_$(echo ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} | sed 's/-/_/g') >> $GITHUB_OUTPUT
         
       - name: Configure AWS Credentials
         id: login-aws
