@@ -53,7 +53,7 @@ jobs:
           - name: Parse latest task def
             id: parse-task-def
             run: |
-              latest_task_def=$(echo "${{ steps.get-task-definition.outputs.latest_task_def }}")
+              latest_task_def=$(echo -n "${{ steps.get-task-definition.outputs.latest_task_def }}" | base64 -d -w 0)
 
               parsed_task_def=$(echo "$latest_task_def" | jq '{
                 family: .taskDefinition.family,
@@ -74,6 +74,8 @@ jobs:
                 ephemeralStorage: .taskDefinition.ephemeralStorage,
                 runtimePlatform: .taskDefinition.runtimePlatform
               }')
+
+              parsed_task_def=$(echo -n $parsed_task_def | base64 -w 0)
 
               echo "parsed_task_def=$parsed_task_def" >> $GITHUB_OUTPUT
 
