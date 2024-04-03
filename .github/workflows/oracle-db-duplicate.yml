@@ -212,10 +212,10 @@ jobs:
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
-      TargetOemEnvironment: ${{ env.TargetOemEnvironment }}
-      SourceCatalogDb: ${{ env.SourceCatalogDb }}
-      SourceDbBackupS3BucketName: ${{ env.SourceDbBackupS3BucketName }}
-      ExportName: ${{ env.ExportName }}
+      TargetOemEnvironment: ${{ steps.preparation.outputs.TargetOemEnvironment }}
+      SourceCatalogDb: ${{ steps.preparation.outputs.SourceCatalogDb }}
+      SourceDbBackupS3BucketName: ${{ steps.preparation.outputs.SourceDbBackupS3BucketName }}
+      ExportName: ${{ steps.preparation.outputs.ExportName }}
       JobId: ${{ github.job }}
     steps:
           
@@ -292,14 +292,14 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $ansible_playbook_directory/rman-export-import.yml -i $inventory \
-          -e oem_target=${{ env.OemTarget }} \
+          -e oem_target=${{ steps.preparation.outputs.OemTarget }} \
           -e action=export \
-          -e export_name=${{ env.ExportName }}
+          -e export_name=${{ steps.preparation.outputs.ExportName }}
 
   oracle-rman-import-schema:
     needs: [oracle-rman-export-schema]
     name: oracle-rman-import-schema
-    environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }}-preapproved
+    environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} #-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
@@ -338,13 +338,6 @@ jobs:
           download-compressed: true
           version: "v4.35.1"
           force: true
-
-      - name: Prepare OEM Target Name
-        working-directory: ${{ env.inventory }}
-        id: preparation
-        shell: bash
-        run: |
-          OemTarget=environment_name_$(echo ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} | sed 's/-/_/g') >> $GITHUB_OUTPUT
         
       - name: Configure AWS Credentials
         id: login-aws
@@ -358,8 +351,8 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $ansible_playbook_directory/rman-export-import.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e oem_target=${{ env.OemTarget }} \
+          $ansible_playbook_directory/rman-export-import.yml -i $inventory \
+          -e oem_target=environment_name_$(echo ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} | sed 's/-/_/g') \
           -e action=import \
           -e export_name=${{ needs.oracle-rman-import-schema.outputs.ExportName }} \
           -e source_catalog_db=${{ needs.oracle-rman-import-schema.outputs.SourceCatalogDb }} \
