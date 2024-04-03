@@ -142,10 +142,14 @@ EVENT_TYPE=$1
 JSON_PAYLOAD=$2
 GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
 info "Running Repository Dispatch:${EVENT_TYPE}:${JSON_PAYLOAD}:${GITHUB_TOKEN_VALUE}"
+JSON_DATA="'{"event_type": "${EVENT_TYPE}","client_payload":${JSON_PAYLOAD}}'"
+info "JD1: $JSON_DATA"
+JSON_DATA=$(echo $JSON_DATA | jq @json)
+info "JD2: $JSON_DATA"
 cat <<EOCURL | tee -a /tmp/eocurl.txt
-curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data "{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}" ${REPOSITORY_DISPATCH}
+curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data ${JSON_DATA} ${REPOSITORY_DISPATCH}
 EOCURL
-curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data "{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}" ${REPOSITORY_DISPATCH}
+curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data ${JSON_DATA} ${REPOSITORY_DISPATCH}
 RC=$?
 if [[ $RC -ne 0 ]]; then
       # We cannot use the error function for dispatch failures as it contains its own dispatch call   
