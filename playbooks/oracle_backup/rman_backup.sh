@@ -74,7 +74,8 @@ usage () {
   echo "  "
   echo "  If -j is specified then it should be followed by a valid JSON string representing all of the inputs to the GitHub"
   echo "       backup workflow.  This is used to supply the original input parameters back to the GitHub workflow in the case"
-  echo "       that we wish to continue the workflow after this script has finished running."
+  echo "       that we wish to continue the workflow after this script has finished running. This parameter is mandatory
+  echo "       if -r is used to specify the use of repository dispatch events."
   echo ""
   echo "  The SSM parameter path optionally specified with -s is used to identify the path for storing the phase, "
   echo "     status, and status messages for a backup held in a JSON string at this location."
@@ -86,7 +87,7 @@ usage () {
 function generate_jwt()
 {
 # Get a JSON Web Token to authenicate against the HMPPS Bot.
-# The HMPPS bot can provide exchange this for a GtHub Token for action GitHub workflows.
+# The HMPPS bot can provide exchange this for a GitHub Token for action GitHub workflows.
 
 BOT_APP_ID=$(aws ssm get-parameter --name "/github/hmpps_bot_app_id" --query "Parameter.Value" --with-decryption --output text)
 BOT_PRIVATE_KEY=$(aws ssm get-parameter --name "/github/hmpps_bot_priv_key" --query "Parameter.Value" --with-decryption --output text)
@@ -138,8 +139,12 @@ printf '%s\n' "$GITHUB_TOKEN"
 function github_repository_dispatch()
 {
 EVENT_TYPE=$1
+JSON_PAYLOAD=$2
 GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
-curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data "{\"event_type\": \"${EVENT_TYPE}\"}" ${REPOSITORY_DISPATCH}
+echo <<EOCURL
+curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data "{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}" ${REPOSITORY_DISPATCH}
+EOCURL
+curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data "{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}" ${REPOSITORY_DISPATCH}
 RC=$?
 if [[ $RC -ne 0 ]]; then
       # We cannot use the error function for dispatch failures as it contains its own dispatch call   
@@ -179,7 +184,7 @@ error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
   [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error" "$1"
-  [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository dispatch "my-backup-error"
+  [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-db-backup-failure" "${JSON_INPUTS}"
   exit $ERROR_STATUS
 }
 
@@ -681,7 +686,7 @@ MINIMIZE_LOAD=UNSPECIFIED
 TRACE_FILE=N
 ARCHIVELOGS=UNSPECIFIED
 DATAFILES=UNSPECIFIED
-while getopts "d:t:b:f:i:n:m:u:c:e:a:l:g:p:s:r:" opt
+while getopts "d:t:b:f:i:n:m:u:c:e:a:l:g:p:s:r:j:" opt
 do
   case $opt in
     d) TARGET_DB_SID=$OPTARG ;;
@@ -699,6 +704,7 @@ do
     g) TARGET_DB_NAME=$OPTARG ;;
     s) SSM_PARAMETER=$OPTARG ;;
     r) REPOSITORY_DISPATCH=$OPTARG ;;
+    j) JSON_INPUTS=$OPTARG ;;
     *) usage ;;
   esac
 done
@@ -765,6 +771,16 @@ if [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
    info "GitHub Actions Repository Dispatch Events will be sent to : $REPOSITORY_DISPATCH"
 fi
 
+if [[ ! -z "$JSON_INPUTS" ]]; then
+   # The JSON Inputs are used to record the parameters originally passed to GitHub
+   # actions to start the backup job.   These are only used for actioning a repository
+   # dispatch event to indicate the end of the backup job run.  They do NOT
+   # override the command line options passed to the script.
+   info "Original JSON Inputs to GitHub Action: "$(echo $JSON_INPUTS | jq)
+elif [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
+   error "JSON inputs must be supplied using the -j option if Repository Dispatch Events are requested."
+fi
+
 touch $RMANCMDFILE
 info "Create rman tags and format"
 create_tag_format
@@ -781,7 +797,7 @@ info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
 [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Success" "Completed without errors"
-[[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "my-event-type"
+[[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-db-backup-success" "${JSON_INPUTS}"
 info "Completes successfully"
 
 # Exit with success status if no error found
