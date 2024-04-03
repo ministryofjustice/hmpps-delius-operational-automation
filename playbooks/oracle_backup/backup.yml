@@ -9,6 +9,11 @@
   become_method: sudo
 
   tasks:
+
+    - name: Show Inputs
+      debug:
+         var: json_inputs
+
     - name: RMAN script
       block:
         - name: Set database_global_database
