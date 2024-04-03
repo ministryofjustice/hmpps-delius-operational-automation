@@ -102,7 +102,7 @@
 
         - name: Enable Repository Dispatch Event if supplied
           set_fact:
-            repository_dispatch_flag: "-r {{ repository_dispatch }} -j '{{ json_inputs | string }}'"
+            repository_dispatch_flag: "-r {{ repository_dispatch }} -j '{{ json_inputs | string | b64encode }}'"
           when:
              - repository_dispatch is defined
              - json_inputs is defined
