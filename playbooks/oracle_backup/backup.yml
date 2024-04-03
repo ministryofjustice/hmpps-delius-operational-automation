@@ -95,6 +95,13 @@
             enable_trace_flag: "-e Y"
           when: enable_trace | default(false) | bool
 
+        - name: Enable Repository Dispatch Event if supplied
+          set_fact:
+            repository_dispatch: "-r {{ repository_dispatch }} -j \"{{ json_inputs }}\""
+          when:
+             - repository_dispatch is not null
+             - json_inputs is not null
+
         - block:
             - name: Get Current RMAN Retention
               script: get_rman_retention.sh {{ database_primary_sid | default(database_standby_sid) }}
@@ -138,7 +145,7 @@
 
         - name: Create RMAN Command
           set_fact:
-            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ ssm_parameter_path | default() }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }}"
+            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ ssm_parameter_path | default() }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }} {{ repository_dispatch|default() }}"
 
         - name: Show RMAN Command
           debug:
