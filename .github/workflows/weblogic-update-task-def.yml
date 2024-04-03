@@ -1,0 +1,104 @@
+name: Weblogic ECS - Update Task Definition
+
+#on:
+#  workflow_dispatch:
+#    inputs:
+#        environment:
+#            required: true
+#            type: choice
+#            options:
+#              - "dev"
+#        service-name:
+#            required: true
+#            type: choice
+#            options:
+#              - "weblogic"
+#              - "weblogic-eis"
+#        image-tag:
+#            required: false
+#            type: string
+#            default: 'latest'
+            
+jobs:
+    deploy:
+        name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}
+        runs-on: ubuntu-latest
+        environment: delius-core-${{ github.event.inputs.environment }}
+        permissions:
+          id-token: write
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v4
+            
+          - name: Configure AWS Credentials
+            uses: aws-actions/configure-aws-credentials@v4
+            with:
+              role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+              role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+              aws-region: "eu-west-2"
+
+          - name: Set cluster ARN
+            id: set-cluster-arn
+            run: |
+                echo "CLUSTER_ARN=delius-core-${{ github.event.inputs.environment }}-cluster" >> $GITHUB_OUTPUT
+
+          - name: Get latest ECS task definition
+            id: get-task-definition
+            run: |
+              latest_task_def_arn=$(aws ecs list-task-definitions --family-prefix delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}} --status ACTIVE --sort DESC --query 'taskDefinitionArns[0]' --output text)
+
+              latest_task_def=$(aws ecs describe-task-definition --task-definition $latest_task_def_arn )
+              latest_task_def=$(echo -n $latest_task_def | base64 -w 0 )
+              echo "latest_task_def=$latest_task_def" >> $GITHUB_OUTPUT
+          
+          - name: Parse & modify latest task def
+            id: parse-task-def
+            run: |
+              container_def_image="${{ secrets.CORE_SHARED_SERVICES_ACCOUNT }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/delius-core-${{ github.event.inputs.service-name}}-ecr-repo:${{ github.event.inputs.image-tag }}"
+              latest_task_def=$(echo -n "${{ steps.get-task-definition.outputs.latest_task_def }}" | base64 -d -w 0)
+
+              parsed_task_def=$(echo "$latest_task_def" | jq '{
+                family: .taskDefinition.family,
+                taskRoleArn: .taskDefinition.taskRoleArn,
+                executionRoleArn: .taskDefinition.executionRoleArn,
+                networkMode: .taskDefinition.networkMode,
+                containerDefinitions: .taskDefinition.containerDefinitions,
+                volumes: .taskDefinition.volumes,
+                placementConstraints: .taskDefinition.placementConstraints,
+                requiresCompatibilities: .taskDefinition.requiresCompatibilities,
+                cpu: .taskDefinition.cpu,
+                memory: .taskDefinition.memory
+              }')
+              
+              parsed_task_def=$(echo -n "$parsed_task_def" | jq ".containerDefinitions[0].image = \"$container_def_image\"" | base64 -w 0)
+
+              echo "parsed_task_def=$parsed_task_def" >> $GITHUB_OUTPUT
+
+          - name: Register & update new task definition
+            id: update-task-definition
+            run: |
+              family="delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}}"
+              new_task_def=$(echo -n "${{ steps.parse-task-def.outputs.parsed_task_def }}" | base64 -w 0 -d )
+              registered_task_definition=$(aws ecs register-task-definition --cli-input-json "$new_task_def")
+              registered_task_definition_arn=$(echo $registered_task_definition | jq '.taskDefinition.taskDefinitionArn')
+
+              # Check if the task definition exists
+              check_task_definition_exists() {
+                  response=$(aws ecs describe-task-definition --task-definition $registered_task_definition_arn 2>&1)
+                  if [[ $response == *"Unable to describe task definition"* ]]; then
+                      return 1
+                  else
+                      return 0
+                  fi
+              }
+
+              # Loop until task definition exists
+              while ! check_task_definition_exists; do
+                  echo "Waiting for the task definition $registered_task_definition_arn to exist..."
+                  sleep 10
+              done
+
+              echo "The task definition $registered_task_definition_arn exists."
+
+
+              aws ecs update-service --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --service $family --force-new-deployment --task-definition $family
