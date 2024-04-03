@@ -205,7 +205,7 @@ jobs:
   oracle-rman-export-schema:
     if: ${{ github.event.inputs.SourceLegacy == 'no' }}
     name: oracle-rman-export-schema
-    environment: hmpps-oem-development-preapproved
+    environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }} # -preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
