@@ -142,10 +142,9 @@ EVENT_TYPE=$1
 JSON_PAYLOAD=$2
 GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
 info "Running Repository Dispatch:${EVENT_TYPE}:${JSON_PAYLOAD}:${GITHUB_TOKEN_VALUE}"
-info $(echo <<EOCURL 
+echo <<EOCURL | tee -a /tmp/eocurl.txt
 curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data "{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}" ${REPOSITORY_DISPATCH}
 EOCURL
-)
 curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data "{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}" ${REPOSITORY_DISPATCH}
 RC=$?
 if [[ $RC -ne 0 ]]; then
