@@ -75,28 +75,29 @@ jobs:
           - name: Register & update new task definition
             id: update-task-definition
             run: |
-              family="delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}}"
-              new_task_def=$(echo -n "${{ steps.parse-task-def.outputs.parsed_task_def }}" | base64 -w 0 -d )
-              registered_task_definition=$(aws ecs register-task-definition --cli-input-json "$new_task_def")
-              registered_task_definition_arn=$(echo $registered_task_definition | jq '.taskDefinition.taskDefinitionArn')
+              echo -n "${{ steps.parse-task-def.outputs.parsed_task_def }}" | base64 -w 0 -d 
+              # family="delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}}"
+              # new_task_def=$(echo -n "${{ steps.parse-task-def.outputs.parsed_task_def }}" | base64 -w 0 -d )
+              # registered_task_definition=$(aws ecs register-task-definition --cli-input-json "$new_task_def")
+              # registered_task_definition_arn=$(echo $registered_task_definition | jq '.taskDefinition.taskDefinitionArn')
 
-              # Check if the task definition exists
-              check_task_definition_exists() {
-                  response=$(aws ecs describe-task-definition --task-definition $registered_task_definition_arn 2>&1)
-                  if [[ $response == *"Unable to describe task definition"* ]]; then
-                      return 1
-                  else
-                      return 0
-                  fi
-              }
+              # # Check if the task definition exists
+              # check_task_definition_exists() {
+              #     response=$(aws ecs describe-task-definition --task-definition $registered_task_definition_arn 2>&1)
+              #     if [[ $response == *"Unable to describe task definition"* ]]; then
+              #         return 1
+              #     else
+              #         return 0
+              #     fi
+              # }
 
-              # Loop until task definition exists
-              while ! check_task_definition_exists; do
-                  echo "Waiting for the task definition $registered_task_definition_arn to exist..."
-                  sleep 10
-              done
+              # # Loop until task definition exists
+              # while ! check_task_definition_exists; do
+              #     echo "Waiting for the task definition $registered_task_definition_arn to exist..."
+              #     sleep 10
+              # done
 
-              echo "The task definition $registered_task_definition_arn exists."
+              # echo "The task definition $registered_task_definition_arn exists."
 
 
-              aws ecs update-service --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --service $family --force-new-deployment --task-definition $family
+              # aws ecs update-service --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --service $family --force-new-deployment --task-definition $family
