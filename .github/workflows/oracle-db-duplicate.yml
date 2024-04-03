@@ -202,171 +202,109 @@ jobs:
   #         -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} \
   #         -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
-  oracle-rman-export-schema:
-    if: ${{ github.event.inputs.SourceLegacy == 'no' }}
-    name: oracle-rman-export-schema
-    environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }} # -preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    timeout-minutes: 1440
-    continue-on-error: false
-    outputs:
-      TargetOemEnvironment: ${{ steps.preparation.outputs.TargetOemEnvironment }}
-      SourceCatalogDb: ${{ steps.preparation.outputs.SourceCatalogDb }}
-      SourceDbBackupS3BucketName: ${{ steps.preparation.outputs.SourceDbBackupS3BucketName }}
-      ExportName: ${{ steps.preparation.outputs.ExportName }}
-      JobId: ${{ github.job }}
-    steps:
-          
-      - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            playbooks/oracle_duplicate
-            playbooks/ansible.cfg
-          path: operations
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
-          fetch-depth: 0
-
-      - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@v4
-        with:
-          repository: ministryofjustice/modernisation-platform-configuration-management
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            ansible/hosts
-            ansible/group_vars
-          path: inventory
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
-          fetch-depth: 0
-
-      - name: Install yq
-        uses: dcarbone/install-yq-action@v1.1.1
-        with:
-          download-compressed: true
-          version: "v4.35.1"
-          force: true
-
-      - name: Prepare Environment Variables
-        working-directory: ${{ env.inventory }}
-        id: preparation
-        shell: bash
-        run: |
-          case $(echo ${{ github.event.inputs.S3SourceBucket }} | awk -F- '{print $1}') in
-            dev)
-              SourceOemEnvironment=development
-              ;;
-            prod)
-              SourceOemEnvironment=production
-              ;;
-          esac
-          OemTarget=environment_name_hmpps_oem_${SourceOemEnvironment}
-          echo "OemTarget=${OemTarget}" >> $GITHUB_OUTPUT
-          SourceCatalogDb=$(yq .db_configs.RCVCAT.rcvcat_db_name group_vars/${OemTarget}.yml)
-          echo "SourceCatalogDb=${SourceCatalogDb}" >> $GITHUB_OUTPUT
-          echo "SourceDbBackupS3BucketName=$(yq .db_backup_s3_bucket_name group_vars/${OemTarget}.yml)" >> $GITHUB_OUTPUT
-          echo "ExportName=RCVCATOWNER_${SourceCatalogDb}" >> $GITHUB_OUTPUT
-          case $(echo ${{ github.event.inputs.TargetEnvironment }} | awk -F- '{print $NF}') in
-            dev)
-              TargetOemEnvironment=development
-              ;;
-            test)
-              TargetOemEnvironment=test
-              ;;
-            stage|prod)
-              TargetOemEnvironment=production
-              ;;
-          esac
-          echo "TargetOemEnvironment=hmpps-oem-${TargetOemEnvironment}" >> $GITHUB_OUTPUT
-
-      - name: Configure AWS Credentials
-        id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
-          aws-region: "eu-west-2"
-
-      - name: Start Ansible RMAN Export
-        shell: bash
-        run: |
-          export ANSIBLE_CONFIG=$ansible_config
-          $ansible_playbook_directory/rman-export-import.yml -i $inventory \
-          -e oem_target=${{ steps.preparation.outputs.OemTarget }} \
-          -e action=export \
-          -e export_name=${{ steps.preparation.outputs.ExportName }}
-
-  oracle-rman-import-schema:
-    needs: [oracle-rman-export-schema]
-    name: oracle-rman-import-schema
-    environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} #-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    timeout-minutes: 1440
-    continue-on-error: false
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            playbooks/oracle_duplicate
-            playbooks/ansible.cfg
-          path: operations
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
-          fetch-depth: 0
-
-      - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@v4
-        with:
-          repository: ministryofjustice/modernisation-platform-configuration-management
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            ansible/hosts
-            ansible/group_vars
-          path: inventory
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
-          fetch-depth: 0
-
-      - name: Install yq
-        uses: dcarbone/install-yq-action@v1.1.1
-        with:
-          download-compressed: true
-          version: "v4.35.1"
-          force: true
-        
-      - name: Configure AWS Credentials
-        id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
-          aws-region: "eu-west-2"
-
-      - name: Start Ansible RMAN Import
-        shell: bash
-        run: |
-          export ANSIBLE_CONFIG=$ansible_config
-          $ansible_playbook_directory/rman-export-import.yml -i $inventory \
-          -e oem_target=environment_name_$(echo ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} | sed 's/-/_/g') \
-          -e action=import \
-          -e export_name=${{ needs.oracle-rman-export-schema.outputs.ExportName }} \
-          -e source_catalog_db=${{ needs.oracle-rman-export-schema.outputs.SourceCatalogDb }} \
-          -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
-
-  # oracle-rman-duplicate:
-  #   name: oracle-rman-duplicate
-  #   environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+  # oracle-rman-export-schema:
+  #   if: ${{ github.event.inputs.SourceLegacy == 'no' }}
+  #   name: oracle-rman-export-schema
+  #   environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }} # -preapproved
   #   runs-on: ubuntu-latest
   #   container:
   #     image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-  #   needs: [oracle-rman-pre-duplicate]
+  #   timeout-minutes: 1440
+  #   continue-on-error: false
+  #   outputs:
+  #     TargetOemEnvironment: ${{ steps.preparation.outputs.TargetOemEnvironment }}
+  #     SourceCatalogDb: ${{ steps.preparation.outputs.SourceCatalogDb }}
+  #     SourceDbBackupS3BucketName: ${{ steps.preparation.outputs.SourceDbBackupS3BucketName }}
+  #     ExportName: ${{ steps.preparation.outputs.ExportName }}
+  #     JobId: ${{ github.job }}
+  #   steps:
+          
+  #     - name: Checkout hmpps-delius-operation-automation
+  #       uses: actions/checkout@v4
+  #       with:
+  #         sparse-checkout-cone-mode: false
+  #         sparse-checkout: |
+  #           playbooks/oracle_duplicate
+  #           playbooks/ansible.cfg
+  #         path: operations
+  #         ref: ${{ github.event.inputs.SourceCodeVersion }}
+  #         fetch-depth: 0
+
+  #     - name: Checkout modernisation-platform-configuration-management
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: ministryofjustice/modernisation-platform-configuration-management
+  #         sparse-checkout-cone-mode: false
+  #         sparse-checkout: |
+  #           ansible/hosts
+  #           ansible/group_vars
+  #         path: inventory
+  #         ref: ${{ github.event.inputs.SourceConfigVersion }}
+  #         fetch-depth: 0
+
+  #     - name: Install yq
+  #       uses: dcarbone/install-yq-action@v1.1.1
+  #       with:
+  #         download-compressed: true
+  #         version: "v4.35.1"
+  #         force: true
+
+  #     - name: Prepare Environment Variables
+  #       working-directory: ${{ env.inventory }}
+  #       id: preparation
+  #       shell: bash
+  #       run: |
+  #         case $(echo ${{ github.event.inputs.S3SourceBucket }} | awk -F- '{print $1}') in
+  #           dev)
+  #             SourceOemEnvironment=development
+  #             ;;
+  #           prod)
+  #             SourceOemEnvironment=production
+  #             ;;
+  #         esac
+  #         OemTarget=environment_name_hmpps_oem_${SourceOemEnvironment}
+  #         echo "OemTarget=${OemTarget}" >> $GITHUB_OUTPUT
+  #         SourceCatalogDb=$(yq .db_configs.RCVCAT.rcvcat_db_name group_vars/${OemTarget}.yml)
+  #         echo "SourceCatalogDb=${SourceCatalogDb}" >> $GITHUB_OUTPUT
+  #         echo "SourceDbBackupS3BucketName=$(yq .db_backup_s3_bucket_name group_vars/${OemTarget}.yml)" >> $GITHUB_OUTPUT
+  #         echo "ExportName=RCVCATOWNER_${SourceCatalogDb}" >> $GITHUB_OUTPUT
+  #         case $(echo ${{ github.event.inputs.TargetEnvironment }} | awk -F- '{print $NF}') in
+  #           dev)
+  #             TargetOemEnvironment=development
+  #             ;;
+  #           test)
+  #             TargetOemEnvironment=test
+  #             ;;
+  #           stage|prod)
+  #             TargetOemEnvironment=production
+  #             ;;
+  #         esac
+  #         echo "TargetOemEnvironment=hmpps-oem-${TargetOemEnvironment}" >> $GITHUB_OUTPUT
+
+  #     - name: Configure AWS Credentials
+  #       id: login-aws
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+  #         role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+  #         aws-region: "eu-west-2"
+
+  #     - name: Start Ansible RMAN Export
+  #       shell: bash
+  #       run: |
+  #         export ANSIBLE_CONFIG=$ansible_config
+  #         $ansible_playbook_directory/rman-export-import.yml -i $inventory \
+  #         -e oem_target=${{ steps.preparation.outputs.OemTarget }} \
+  #         -e action=export \
+  #         -e export_name=${{ steps.preparation.outputs.ExportName }}
+
+  # oracle-rman-import-schema:
+  #   needs: [oracle-rman-export-schema]
+  #   name: oracle-rman-import-schema
+  #   environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} #-preapproved
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
   #   timeout-minutes: 1440
   #   continue-on-error: false
   #   outputs:
@@ -395,7 +333,7 @@ jobs:
   #         path: inventory
   #         ref: ${{ github.event.inputs.SourceConfigVersion }}
   #         fetch-depth: 0
-
+        
   #     - name: Configure AWS Credentials
   #       id: login-aws
   #       uses: aws-actions/configure-aws-credentials@v4
@@ -404,26 +342,87 @@ jobs:
   #         role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
   #         aws-region: "eu-west-2"
 
-  #     - name: Start Ansible Oracle RMAN Duplicate
+  #     - name: Start Ansible RMAN Import
   #       shell: bash
   #       run: |
-  #         # Only pass extra variables source_db and s3_source_bucket if NOT duplicating from AWS legacy
-  #         # These variables shall be picked up from Ansible Inventory
-  #         if [[ ! "${{ github.event.inputs.TargetEnvironment }}" =~ ^.*(-dev|-test)$ ]]
-  #         then
-  #           extra_vars="-e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }}"
-  #         else
-  #           if [[ "${{ github.event.inputs.SourceLegacy }}" == "yes" ]]
-  #           then
-  #             extra_vars="-e source_legacy=yes"
-  #           else
-  #             extra_vars=""
-  #           fi
-  #         fi
   #         export ANSIBLE_CONFIG=$ansible_config
-  #         $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-  #         -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars}
+  #         $ansible_playbook_directory/rman-export-import.yml -i $inventory \
+  #         -e oem_target=environment_name_$(echo ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} | sed 's/-/_/g') \
+  #         -e action=import \
+  #         -e export_name=${{ needs.oracle-rman-export-schema.outputs.ExportName }} \
+  #         -e source_catalog_db=${{ needs.oracle-rman-export-schema.outputs.SourceCatalogDb }} \
+  #         -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
+  oracle-rman-duplicate:
+    name: oracle-rman-duplicate
+    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+    # needs: [oracle-rman-pre-duplicate]
+    timeout-minutes: 1440
+    continue-on-error: false
+    outputs:
+      JobId: ${{ github.job }}
+    steps:
+
+      - name: Checkout hmpps-delius-operation-automation
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oracle_duplicate
+            playbooks/ansible.cfg
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      - name: Install yq
+        uses: dcarbone/install-yq-action@v1.1.1
+        with:
+          download-compressed: true
+          version: "v4.35.1"
+          force: true
+
+      - name: Start Ansible Oracle RMAN Duplicate
+        shell: bash
+        run: |
+          # Only pass extra variables if NOT duplicating from AWS legacy
+          if [[ "${{ github.event.inputs.SourceLegacy }}" == "no" ]]
+          then
+             case $(echo ${{ github.event.inputs.S3SourceBucket }} | awk -F- '{print $1}') in
+                dev) SourceOemEnvironment=development ;;
+               prod) SourceOemEnvironment=production ;;
+             esac
+             SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
+             extra_vars="-e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }}"
+          else
+             extra_vars="-e source_legacy=yes"
+          fi        
+          export ANSIBLE_CONFIG=$ansible_config
+          echo "$ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          ${extra_vars}"
+          # -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars}"
   # oracle-rman-post-duplicate:
   #   name: oracle-rman-post-duplicate
   #   environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
