@@ -100,6 +100,8 @@
             enable_trace_flag: "-e Y"
           when: enable_trace | default(false) | bool
 
+        # The quotes in the JSON inputs can get messed up by unwanted shell interpretation.
+        # To avoid this we send the JSON as an encoded string to be decoded by the shell script.
         - name: Enable Repository Dispatch Event if supplied
           set_fact:
             repository_dispatch_flag: "-r {{ repository_dispatch }} -j '{{ json_inputs | string | b64encode }}'"
