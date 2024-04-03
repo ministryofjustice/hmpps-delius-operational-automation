@@ -283,6 +283,7 @@ jobs:
         shell: bash
         run: |
             RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text 2>&1) || true
+            echo "Runtime: $RUNTIME"
             PHASE=$(echo $RUNTIME | jq -r '.Phase // "Initialising"')
             echo "Backup Phase: $PHASE"
             # Initialize the Backup Status for this RMAN Backup Target
