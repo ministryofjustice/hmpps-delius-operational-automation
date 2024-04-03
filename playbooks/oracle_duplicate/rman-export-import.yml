@@ -72,3 +72,9 @@
           . oraenv
           impdp \"/ as sysdba\" dumpfile={{ export_name }}.dmp logfile={{ export_name }}.import.log schemas=rcvcatowner job_name={{ export_name }} remap_schema=rcvcatowner:{{ export_name }} remap_tablespace=rcvcat_tbs:rcvcat_{{ source_catalog_db }}_tbs directory=DATA_PUMP_DIR
         register: import_rman_schema
+
+      - name: Change Imported RCVCATOWNER Schema Password
+        script: rman_change_password.sh
+        environment:
+          CATALOG_DB: "{{ catalog_db }}"
+          NEW_CATALOG_SCHEMA: "{{ export_name }}"
