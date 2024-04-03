@@ -74,7 +74,7 @@ usage () {
   echo "  "
   echo "  If -j is specified then it should be followed by a valid JSON string representing all of the inputs to the GitHub"
   echo "       backup workflow.  This is used to supply the original input parameters back to the GitHub workflow in the case"
-  echo "       that we wish to continue the workflow after this script has finished running. This parameter is mandatory
+  echo "       that we wish to continue the workflow after this script has finished running. This parameter is mandatory"
   echo "       if -r is used to specify the use of repository dispatch events."
   echo ""
   echo "  The SSM parameter path optionally specified with -s is used to identify the path for storing the phase, "
