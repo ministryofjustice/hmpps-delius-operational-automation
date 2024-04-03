@@ -168,6 +168,7 @@ jobs:
               else
                  echo "Overriding command line with supplied JSON inputs"
                  Inputs="${{ github.event.inputs.ParametersJSON }}"
+                 echo "JSON Inputs: $Inputs"
                  BackupStatus=$(echo $Inputs | jq -r '.BackupStatus // "starting"')   
               fi
               echo "JSON Inputs: $Inputs"
