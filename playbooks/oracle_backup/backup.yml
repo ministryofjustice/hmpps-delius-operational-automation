@@ -99,8 +99,8 @@
           set_fact:
             repository_dispatch: "-r {{ repository_dispatch }} -j \"{{ json_inputs }}\""
           when:
-             - repository_dispatch is not null
-             - json_inputs is not null
+             - repository_dispatch is defined
+             - json_inputs is defined
 
         - block:
             - name: Get Current RMAN Retention
