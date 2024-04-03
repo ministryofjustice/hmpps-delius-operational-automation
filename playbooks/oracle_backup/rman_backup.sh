@@ -44,7 +44,7 @@ usage () {
   echo "                                              [ -l <comma separated list of datafiles to backup> ] "
   echo "                                              [ -g <target db global name> ]"
   echo "                                              [ -s <SSM Parameter Path where Runtime details are written>]"
-  echo "                                              [ -r <GitHub repository for sending repository dispatch events>] "
+  echo "                                              [ -r <GitHub repository for sending repository dispatch events back to the calling workflow>] "
   echo "                                              [ -j <JSON formatted string of inputs to the Github backup workflow>] "
   echo ""
   echo "where"
