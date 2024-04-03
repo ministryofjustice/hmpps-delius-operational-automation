@@ -77,5 +77,5 @@ jobs:
             run: |
               new_task_def=$(echo -n "${{ steps.parse-task-def.outputs.parsed_task_def }}" | base64 -w 0 -d )
               registered_task_definition_arn=$(aws ecs register-task-definition --cli-input-json "$new_task_def" | jq '.taskDefinition.taskDefinitionArn')
-              sleep 10
+              sleep 60
               aws ecs update-service --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --service delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}} --force-new-deployment --task-definition $registered_task_definition_arn
