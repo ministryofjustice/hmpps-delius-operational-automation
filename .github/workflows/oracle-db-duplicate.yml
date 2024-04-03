@@ -356,9 +356,9 @@ jobs:
           $ansible_playbook_directory/rman-export-import.yml -i $inventory \
           -e oem_target=environment_name_$(echo ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} | sed 's/-/_/g') \
           -e action=import \
-          -e export_name=${{ needs.oracle-rman-import-schema.outputs.ExportName }} \
-          -e source_catalog_db=${{ needs.oracle-rman-import-schema.outputs.SourceCatalogDb }} \
-          -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-import-schema.outputs.SourceDbBackupS3BucketName }} 
+          -e export_name=${{ needs.oracle-rman-export-schema.outputs.ExportName }} \
+          -e source_catalog_db=${{ needs.oracle-rman-export-schema.outputs.SourceCatalogDb }} \
+          -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   # oracle-rman-duplicate:
   #   name: oracle-rman-duplicate
