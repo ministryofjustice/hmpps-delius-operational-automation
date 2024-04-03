@@ -111,9 +111,6 @@ jobs:
       TargetEnvironment: ${{ steps.preparermantargetname.outputs.TargetEnvironment }}-preapproved
       BackupStatus: ${{ steps.preparermantargetname.outputs.BackupStatus }}
       BackupStandbyOnPrimaryFailure: ${{ steps.preparermantargetname.outputs.BackupStandbyOnPrimaryFailure }}
-      FixAbsentChunks: ${{ steps.preparermantargetname.outputs.FixAbsentChunks }}
-      EnableTrace: ${{ steps.preparermantargetname.outputs.EnableTrace }}
-      VerboseOutput: ${{ steps.preparermantargetname.outputs.VerboseOutput }}
       SourceCodeVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
       Inputs: ${{ steps.preparermantargetname.outputs.Inputs }}
@@ -123,7 +120,7 @@ jobs:
         id: preparermantargetname
         run: |
           BackupStatus=starting
-          if [[ -z "${{ github.event.inputs.ParametersJSON }}" ]];
+          if [[ "${{ github.event_name }}" != "repository_dispatch" ]] && [[ -z "${{ github.event.inputs.ParametersJSON }}" ]];
           then
               if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
               then
@@ -142,41 +139,46 @@ jobs:
                 TargetEnvironment="${{ inputs.TargetEnvironment }}"
                 Period="${{ inputs.Period }}"
                 BackupStandbyOnPrimaryFailure="yes"
-                FixAbsentChunks="yes"
-                EnableTrace="no"
-                VerboseOutput=""
-                SourceCodeVersion="main"
-                SourceConfigVersion="main"
-              elif [[ "${{ github.event_name }}" == "repository_dispatch" ]] && [[ "${{ github.event.action}}" == "oracle-db-backup-failure" ]]
-              then
-                echo "Payload: ${{ github.event.client_payload }}"
               fi
+              # Build a JSON variable capturing all the inputs which have been supplied
+              Inputs="{"
+              Inputs=$Inputs"\"TargetEnvironment\": \"$TargetEnvironment\","
+              Inputs=$Inputs"\"TargetHost\": \"$TargetHost\","
+              Inputs=$Inputs"\"Period\": \"$Period\","
+              Inputs=$Inputs"\"BackupStandbyOnPrimaryFailure\": \"${BackupStandbyOnPrimaryFailure:-yes}\","
+              Inputs=$Inputs"\"FixAbsentChunks\": \"${FixAbsentChunks:-yes}\","
+              Inputs=$Inputs"\"EnableTrace\": \"${EnableTrace:-no}\","
+              Inputs=$Inputs"\"VerboseOutput\": \"$VerboseOutput\","
+              Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
+              Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\""
+              Inputs=$Inputs"}"
           else
-             echo "JSON: ${{ github.event.inputs.ParametersJSON }}"
-             PARAMETERS_JSON=$(echo '${{ github.event.inputs.ParametersJSON }}')
-             TargetHost=$(echo ${PARAMETERS_JSON} | jq -r '.TargetHost')
-             echo "TargetHost: $TargetHost"
-             TargetEnvironment=$(echo ${PARAMETERS_JSON} | jq -r '.TargetEnvironment')
-             echo "TargetEnvironment: $TargetEnvironment"
-             Period=$(echo ${PARAMETERS_JSON} | jq -r '.Period')
-             echo "Period: $Period"
-             BackupStatus=$(echo ${PARAMETERS_JSON} | jq -r '.BackupStatus // "starting"')
-             if [[ "$BackupStatus" == "failed" ]];
-             then
-                BackupStandbyOnPrimaryFailure=$(echo ${PARAMETERS_JSON} | jq -r '.BackupStandbyOnPrimaryFailure')
-             fi
+              # We come here if we have either:
+              # (1) Responded to a Repository Dispatch event, or
+              # (2) Supplied ParametersJSON as an input 
+              # In this case, the incoming JSON Inputs override any other command line parameters
+              if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+                 echo "Responding to Repository Dispatch event"
+                 Inputs="${{ github.event.client_payload }}"
+                 if [[ "${{ github.event.action}}" == "oracle-db-backup-success" ]]; then
+                    BackupStatus="success"
+                 else
+                    BackupStatus="failed"
+                 fi
+              else
+                 echo "Overriding command line with supplied JSON inputs"
+                 Inputs="${{ github.event.inputs.ParametersJSON }}"
+                 BackupStatus=$(echo $Inputs | jq -r '.BackupStatus // "starting"')   
+              fi
+              echo "JSON Inputs: $Inputs"
+              TargetHost=$(echo $Inputs | jq -r '.TargetHost')
+              TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')
+              Period=$(echo $Inputs | jq -r '.Period')
+              # The following 3 parameters are mandatory; abort if they are missing from JSON inputs
+              [[ -z $TargetHost ]] && "Target Host is not specified in JSON inputs"  && exit 2
+              [[ -z $TargetEnvironment ]] && "Target Environment is not specified in JSON inputs"  && exit 3
+              [[ -z $Period ]] && "Backup Period (daily/weekly) is not specified in JSON inputs"  && exit 4
           fi
-          Inputs="{"
-          Inputs=$Inputs"\"TargetEnvironment\": \"$TargetEnvironment\","
-          Inputs=$Inputs"\"TargetHost\": \"$TargetHost\","
-          Inputs=$Inputs"\"Period\": \"$Period\","
-          Inputs=$Inputs"\"BackupStandbyOnPrimaryFailure\": \"${BackupStandbyOnPrimaryFailure:-yes}\","
-          Inputs=$Inputs"\"FixAbsentChunks\": \"${FixAbsentChunks:-yes}\","
-          Inputs=$Inputs"\"EnableTrace\": \"${EnableTrace:-no}\","
-          Inputs=$Inputs"\"VerboseOutput\": \"$VerboseOutput\","
-          Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
-          Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\""
-          Inputs=$Inputs"}"
           RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
@@ -187,11 +189,11 @@ jobs:
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
         run: |
-               if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
-                  echo "SlackChannel=delius-aws-oracle-prod-alerts" >> $GITHUB_OUTPUT
-               else
-                  echo "SlackChannel=delius-aws-oracle-dev-alerts" >> $GITHUB_OUTPUT
-               fi
+            if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
+              echo "SlackChannel=delius-aws-oracle-prod-alerts" >> $GITHUB_OUTPUT
+            else
+              echo "SlackChannel=delius-aws-oracle-dev-alerts" >> $GITHUB_OUTPUT
+            fi
 
   # Start deployment container job based on the build delius-ansible-aws image
   deployment:
@@ -206,9 +208,6 @@ jobs:
       backup_command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
       validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
       inventory: inventory/ansible
-      FixAbsentChunks: "${{needs.build_rman_target_name.outputs.FixAbsentChunks}}"
-      EnableTrace: "${{needs.build_rman_target_name.outputs.EnableTrace}}"
-      VerboseOutput: "${{needs.build_rman_target_name.outputs.VerboseOutput}}"
       RmanTarget: "${{needs.build_rman_target_name.outputs.RmanTarget}}"
       TargetEnvironment: "${{needs.build_rman_target_name.outputs.TargetEnvironment}}"
       SSMParameter: "/oracle-backups/${{needs.build_rman_target_name.outputs.RmanTarget}}"
@@ -276,7 +275,7 @@ jobs:
             # Initialize the Backup Status for this RMAN Backup Target
             [[ ! $PHASE =~ ^Inactive ]] && echo "Backup is already active on this host.  Multiple concurrent runs are not allowed." && exit 1
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite \
-                --value "{\"Phase\":\"Backup\",\"Status\":\"Initializing\",\"Message\":\"Running on $RmanTarget\",\"TargetEnvironment\":\"$TargetEnvironment\",\"RmanTarget\":\"$RmanTarget\",\"FixAbsentChunks\":\"$FixAbsentChunks\",\"VerboseOutput\":\"$VerboseOutput\"}" \
+                --value "{\"Phase\":\"Backup\",\"Status\":\"Initializing\",\"Message\":\"Running on $RmanTarget\",\"TargetEnvironment\":\"$TargetEnvironment\",\"RmanTarget\":\"$RmanTarget\",\"FixAbsentChunks\":\"${FixAbsentChunks:-yes}\",\"VerboseOutput\":\"$VerboseOutput\"}" \
                 --description "Runtime phase and status details of RMAN backups running on the $RmanTarget host"
 
       # Only run backup on initial choice of host
@@ -289,7 +288,7 @@ jobs:
           echo "Period: "$(echo "$Inputs" | jq -r '.Period' )
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter -e repository_dispatch="${{ github.repository }}" -e json_inputs="'$Inputs'" $VerboseOutput
+          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$(echo "$Inputs" | jq -r '.EnableTrace') -e ssm_parameter=$SSMParameter -e repository_dispatch="${{ github.repository }}" -e json_inputs="'$Inputs'" $(echo "$Inputs" | jq -r '.VerboseOutput') 
 
       - name: Start Ansible Backup On First Standby (If Exists) If Primary Backup Failed
         if: contains(env.RmanTarget,'primarydb') && env.BackupStatus == 'failed' && env.BackupStandbyOnPrimaryFailure == 'yes'
@@ -301,10 +300,11 @@ jobs:
               echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
               export ANSIBLE_CONFIG=$ansible_config
               ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-              $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget} -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$EnableTrace -e repository_dispatch="${{ github.repository }}" -e json_inputs="'$Inputs'" $VerboseOutput
+              $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget} -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$(echo "$Inputs" | jq -r '.EnableTrace') -e repository_dispatch="${{ github.repository }}" -e json_inputs="'$Inputs'" $(echo "$Inputs" | jq -r '.VerboseOutput') 
             else
+              # Fatal error - backup failed and no standby available to re-run on
               echo "Standby Not Configured"
-              echo "BackupStatus=fatal" >> $GITHUB_OUTPUT
+              exit 10
             fi
 
       - name: Start Ansible Backup On Second Standby (If Exists) If First Standby Backup Failed
@@ -317,18 +317,26 @@ jobs:
               echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
               export ANSIBLE_CONFIG=$ansible_config
               ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-              $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget} -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$EnableTrace -e repository_dispatch="${{ github.repository }}" -e json_inputs="'$Inputs'" $VerboseOutput
+              $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget} -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$(echo "$Inputs" | jq -r '.EnableTrace') -e repository_dispatch="${{ github.repository }}" -e json_inputs="'$Inputs'" $(echo "$Inputs" | jq -r '.VerboseOutput') 
             else
+              # Fatal error - backup failed and no standby available to re-run on
               echo "Second Standby Not Configured"
-              echo "BackupStatus=fatal" >> $GITHUB_OUTPUT
+              exit 20
             fi
+
+      - name: Abort if Primary Backup Failed and Not Allowed To Re-Try on Standby
+        if: contains(env.RmanTarget,'primarydb') && env.BackupStatus == 'failed' && env.BackupStandbyOnPrimaryFailure == 'no'
+        shell: bash
+        run: |
+              echo "Primary Backup failed and no re-try on Standby allowed"
+              exit 30
 
       - name: Start Ansible Validate And Fix Absent Chunks
         if: env.BackupStatus == 'success'
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $validate_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e fix_absent_chunks=$FixAbsentChunks $VerboseOutput
+          $validate_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e fix_absent_chunks=$(echo "$Inputs" | jq -r '.FixAbsentChunks') $(echo "$Inputs" | jq -r '.VerboseOutput') 
 
       - name: Get Slack Token
         id: get-slack-token
