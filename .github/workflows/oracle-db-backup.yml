@@ -286,7 +286,7 @@ jobs:
         continue-on-error: false
         run: |
           echo "Inputs: $Inputs"
-          Inputs="'"$Inputs"''
+          Inputs="'"$Inputs"'"
           echo "Period: "$(echo "$Inputs" | jq -r '.Period' )
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
