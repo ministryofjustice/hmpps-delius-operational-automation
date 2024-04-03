@@ -142,7 +142,7 @@ EVENT_TYPE=$1
 JSON_PAYLOAD=$2
 GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
 info "Running Repository Dispatch:${EVENT_TYPE}:${JSON_PAYLOAD}:${GITHUB_TOKEN_VALUE}"
-JSON_DATA="'{"event_type": "${EVENT_TYPE}","client_payload":${JSON_PAYLOAD}}'"
+JSON_DATA="'{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}'"
 info "JD1: $JSON_DATA"
 JSON_DATA=$(echo $JSON_DATA | jq @json)
 info "JD2: $JSON_DATA"
