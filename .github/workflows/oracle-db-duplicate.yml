@@ -262,7 +262,8 @@ jobs:
               SourceOemEnvironment=production
               ;;
           esac
-          echo "OemTarget=environment_name_hmpps_oem_${SourceOemEnvironment}" >> $GITHUB_OUTPUT
+          OemTarget=environment_name_hmpps_oem_${SourceOemEnvironment}
+          echo "OemTarget=${OemTarget}" >> $GITHUB_OUTPUT
           SourceCatalogDb=$(yq .db_configs.RCVCAT.rcvcat_db_name group_vars/${OemTarget}.yml)
           echo "SourceCatalogDb=${SourceCatalogDb}" >> $GITHUB_OUTPUT
           echo "SourceDbBackupS3BucketName=$(yq .db_backup_s3_bucket_name group_vars/${OemTarget}.yml)" >> $GITHUB_OUTPUT
