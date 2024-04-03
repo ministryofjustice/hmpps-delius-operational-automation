@@ -286,11 +286,10 @@ jobs:
         continue-on-error: false
         run: |
           echo "Inputs: $Inputs"
-          Inputs=$Inputs
           echo "Period: "$(echo "$Inputs" | jq -r '.Period' )
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" $VerboseOutput
+          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter -e repository_dispatch="${{ github.repository }}" -e json_inputs=\'$Inputs\' $VerboseOutput
 
       - name: Start Ansible Backup On First Standby (If Exists) If Primary Backup Failed
         if: contains(env.RmanTarget,'primarydb') && env.BackupStatus == 'failed' && env.BackupStandbyOnPrimaryFailure == 'yes'
@@ -302,7 +301,7 @@ jobs:
               echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
               export ANSIBLE_CONFIG=$ansible_config
               ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-              $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget} -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$EnableTrace -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" $VerboseOutput
+              $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget} -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$EnableTrace -e repository_dispatch="${{ github.repository }}" -e json_inputs=\'$Inputs\' $VerboseOutput
             else
               echo "Standby Not Configured"
               echo "BackupStatus=fatal" >> $GITHUB_OUTPUT
@@ -318,7 +317,7 @@ jobs:
               echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
               export ANSIBLE_CONFIG=$ansible_config
               ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-              $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget} -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$EnableTrace -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" $VerboseOutput
+              $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=${RmanTarget} -e daily_weekly=$(echo "$Inputs" | jq -r '.Period' ) -e enable_trace=$EnableTrace -e repository_dispatch="${{ github.repository }}" -e json_inputs=\'$Inputs\' $VerboseOutput
             else
               echo "Second Standby Not Configured"
               echo "BackupStatus=fatal" >> $GITHUB_OUTPUT
