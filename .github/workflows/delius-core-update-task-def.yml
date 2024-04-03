@@ -41,14 +41,21 @@ jobs:
             run: |
                 echo "CLUSTER_ARN=delius-core-${{ github.event.inputs.environment }}-cluster" >> $GITHUB_OUTPUT
 
+          # - name: Get latest ECS task definition
+          #   id: get-task-definition
+          #   run: |
+          #     latest_task_def_arn=$(aws ecs describe-services --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --services delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}} --query 'services[0].taskDefinition' --output text)
+          #     latest_task_def=$(aws ecs describe-task-definition --task-definition $latest_task_def_arn )
+          #     latest_task_def=$(echo -n $latest_task_def | base64 -w 0 )
+          #     echo "latest_task_def=$latest_task_def" >> $GITHUB_OUTPUT
+          
           - name: Get latest ECS task definition
             id: get-task-definition
             run: |
-              latest_task_def_arn=$(aws ecs describe-services --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --services delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}} --query 'services[0].taskDefinition' --output text)
-              latest_task_def=$(aws ecs describe-task-definition --task-definition $latest_task_def_arn )
-              latest_task_def=$(echo -n $latest_task_def | base64 -w 0 )
-              echo "latest_task_def=$latest_task_def" >> $GITHUB_OUTPUT
-          
+              echo $(aws ecs describe-services --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --services delius-core-${{ github.event.inputs.environment }}-${{github.event.inputs.service-name}} --query 'services[0].taskDefinition' --output text)
+
+              echo $(aws ecs describe-task-definition --task-definition $latest_task_def_arn)
+
           - name: Parse & modify latest task def
             id: parse-task-def
             run: |
@@ -58,7 +65,7 @@ jobs:
               parsed_task_def=$(echo "$latest_task_def" | jq '{
                 family: .taskDefinition.family,
                 taskRoleArn: .taskDefinition.taskRoleArn,
-                executionRoleArn: "test",
+                executionRoleArn: .taskDefinition.executionRoleArn,
                 networkMode: .taskDefinition.networkMode,
                 containerDefinitions: .taskDefinition.containerDefinitions,
                 volumes: .taskDefinition.volumes,
