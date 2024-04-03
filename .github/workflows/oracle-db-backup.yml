@@ -159,7 +159,7 @@ jobs:
               # In this case, the incoming JSON Inputs override any other command line parameters
               if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
                  echo "Responding to Repository Dispatch event"
-                 Inputs="${{ github.event.client_payload }}"
+                 Inputs='${{ github.event.client_payload }}'
                  if [[ "${{ github.event.action}}" == "oracle-db-backup-success" ]]; then
                     BackupStatus="success"
                  else
@@ -167,7 +167,7 @@ jobs:
                  fi
               else
                  echo "Overriding command line with supplied JSON inputs"
-                 Inputs="${{ github.event.inputs.ParametersJSON }}"
+                 Inputs='${{ github.event.inputs.ParametersJSON }}'
                  echo "JSON Inputs: $Inputs"
                  BackupStatus=$(echo $Inputs | jq -r '.BackupStatus // "starting"')   
               fi
