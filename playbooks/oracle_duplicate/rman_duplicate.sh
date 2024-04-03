@@ -33,13 +33,14 @@ usage () {
   echo ""
   echo "Usage:"
   echo ""
-  echo "  $THISSCRIPT -d <target db> -s <source db> -c <catalog db> -t <restore datetime> [ -f <spfile parameters> ] [-l]"
+  echo "  $THISSCRIPT -d <target db> -s <source db> -c <catalog db> -r <catalog schema> -t <restore datetime> [ -f <spfile parameters> ] [-l]"
   echo ""
   echo "where"
   echo ""
   echo "  target db         = target database to clone to"
   echo "  source db         = source database to clone from"
   echo "  catalog db        = rman repository"
+  echo "  catalog schema    = rman schema"
   echo "  restore datetime  = optional date time of production backup to restore from"
   echo "                      format [YYMMDDHH24MISS]"
   echo "  spfile parameters = extra spfile set parameters"
@@ -92,7 +93,7 @@ get_catalog_connection () {
     export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
     export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
     SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:/oracle/database/${CATALOG_DB}/shared-passwords"
-    RMANUSER=rcvcatowner
+    RMANUSER=${CATALOG_SCHEMA:-rcvcatowner}
     RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
   else
     REGION=eu-west-2
@@ -506,12 +507,13 @@ info "Retrieving arguments"
 TARGET_DB=UNSPECIFIED
 DATETIME=LATEST
 SPFILE_PARAMETERS=UNSPECIFIED
-while getopts "d:s:c:t:p:f:l" opt
+while getopts "d:s:c:r:t:p:f:l" opt
 do
   case $opt in
     d) TARGET_DB=$OPTARG ;;
     s) SOURCE_DB=$OPTARG ;;
     c) CATALOG_DB=$OPTARG ;;
+    r) CATALOG_SCHEMA=$OPTARG ;;
     t) DATETIME=${OPTARG} ;;
     f) SPFILE_PARAMETERS=${OPTARG} ;;
     l) LOCAL_DISK_BACKUP=TRUE ;;
