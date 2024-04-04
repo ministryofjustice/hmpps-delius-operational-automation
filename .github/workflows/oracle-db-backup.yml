@@ -181,8 +181,8 @@ jobs:
                        # If we are allowed to retry a failed backup then change to the next host in sequence
                        Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")')
                        Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")')
-                       RmanTarget=$(echo $Inputs | jq '.RmanTarget')
                     fi
+                    RmanTarget=$(echo $Inputs | jq '.RmanTarget')
                  fi
               else
                  echo "Overriding command line with supplied JSON inputs"
