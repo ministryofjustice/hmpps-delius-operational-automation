@@ -160,7 +160,7 @@ jobs:
               Inputs=$Inputs"\"EnableTrace\": \"${EnableTrace:-no}\","
               Inputs=$Inputs"\"VerboseOutput\": \"$VerboseOutput\","
               Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
-              Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\""
+              Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
               Inputs=$Inputs"\"Phase\": \"Starting\""
               Inputs=$Inputs"}"
           else
