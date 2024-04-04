@@ -204,6 +204,7 @@ jobs:
 
   oracle-rman-export-schema:
     if: ${{ github.event.inputs.SourceLegacy == 'no' }}
+    needs: [oracle-rman-pre-duplicate]
     name: oracle-rman-export-schema
     environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }} # -preapproved
     runs-on: ubuntu-latest
@@ -359,7 +360,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    needs: [oracle-rman-pre-duplicate]
+    needs:
+      - ${{ github.event.inputs.SourceLegacy == 'no' && 'oracle-rman-import-schema' }}
+      - oracle-rman-pre-duplicate
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -421,7 +424,7 @@ jobs:
           fi        
           export ANSIBLE_CONFIG=$ansible_config
           $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars}"
+          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars}
 
   oracle-rman-post-duplicate:
     name: oracle-rman-post-duplicate
