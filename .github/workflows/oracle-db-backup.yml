@@ -305,7 +305,7 @@ jobs:
             # Initialize the Backup Status for this RMAN Backup Target
             [[ ! $PHASE =~ ^Inactive ]] && echo "Backup is already active on this host.  Multiple concurrent runs are not allowed." && exit 1
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite \
-                --value "$Inputs" \
+                --value "$(Inputs | jq -r )" \
                 --description "Runtime phase and status details of RMAN backups running on the $RmanTarget host"
 
       - name: Start Ansible Backup On Selected Host
