@@ -171,7 +171,7 @@ jobs:
               if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
                  echo "Responding to Repository Dispatch event"
                  Inputs='${{ github.event.client_payload }}'
-                 if [[ "${{ github.event.action}}" == "oracle-db-backup-success" ]]; then
+                 if [[ "${{ github.event.action}}" == "oracle-db-backup-success" ]] || [[ $(echo $Inputs | jq '.BackupStatus') == "success" ]]; then
                     BackupStatus="success"
                     Inputs=$(echo $Inputs | jq '.Phase = "Validating Chunks"')
                  else
