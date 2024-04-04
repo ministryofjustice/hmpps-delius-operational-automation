@@ -224,8 +224,7 @@ jobs:
               echo "SlackChannel=delius-aws-oracle-dev-alerts" >> $GITHUB_OUTPUT
             fi
 
-  # Start deployment container job based on the build delius-ansible-aws image
-  deployment:
+  oracle-backup:
     name: oracle-backup
     needs: build_rman_target_name
     environment: ${{needs.build_rman_target_name.outputs.TargetEnvironment}}
