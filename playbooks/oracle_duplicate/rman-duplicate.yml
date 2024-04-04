@@ -138,14 +138,14 @@
       - name: Running RMAN script
         shell: "{{ run_rman_script }} &> /home/oracle/admin/rman_scripts/rman_duplicate_script_$( date +%Y%m%d%H%M ).log"
         async: 57600
-        poll: 120
+        poll: 0
         args:
           executable: /bin/bash
         register: duplicate_cmd_output
         become: yes
         become_user: oracle
 
-      - name: Wait for RMAN duplicate to complete only in lower environments for migration
+      - name: Wait for RMAN duplicate to complete
         ansible.builtin.async_status:
           jid: "{{ duplicate_cmd_output.ansible_job_id }}"
         register: duplicate_cmd_output_result
@@ -154,7 +154,6 @@
         retries: 120
         become: yes
         become_user: oracle
-        when: catalog_tns is defined
 
       - name: Report Run Output
         debug:
