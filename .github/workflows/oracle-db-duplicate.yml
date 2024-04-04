@@ -355,14 +355,13 @@ jobs:
           -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   oracle-rman-duplicate:
+    if: ${{ (github.event.inputs.SourceLegacy == 'no' && needs.oracle-rman-import-schema.result == 'success')  || (github.event.inputs.SourceLegacy == 'yes' && needs.oracle-rman-import-schema.result == 'skipped') }}
     name: oracle-rman-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    needs:
-      - ${{ github.event.inputs.SourceLegacy == 'no' && 'oracle-rman-import-schema' }}
-      - oracle-rman-pre-duplicate
+    needs: [oracle-rman-import-schema, oracle-rman-pre-duplicate]
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
