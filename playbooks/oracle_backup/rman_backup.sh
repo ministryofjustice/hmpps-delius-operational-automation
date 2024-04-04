@@ -181,7 +181,7 @@ update_ssm_parameter () {
   MESSAGE=$2
   info "Updating SSM Parameter ${SSM_PARAMETER} Status to ${STATUS}"
   SSM_VALUE=$(aws ssm get-parameter --name "${SSM_PARAMETER}" --query "Parameter.Value" --output text)
-  NEW_SSM_VALUE=$(echo ${SSM_VALUE} | jq --arg STATUS "$STATUS" '.Status=$STATUS' | jq -r --arg MESSAGE "$MESSAGE" '.Message=$MESSAGE')
+  NEW_SSM_VALUE=$(echo ${SSM_VALUE} | jq --arg STATUS "$STATUS" '.BackupStatus=$STATUS' | jq -r --arg MESSAGE "$MESSAGE" '.Message=$MESSAGE')
   aws ssm put-parameter --name "${SSM_PARAMETER}" --type String --overwrite --value "${NEW_SSM_VALUE}" 1>&2
 }
 
