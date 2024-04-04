@@ -119,6 +119,11 @@ jobs:
       - name: Prepare Rman Target
         id: preparermantargetname
         run: |
+          function set_rman_target()
+          {
+            # Supply 2 parameters:  TargetEnvironment & TargetHost
+            RmanTarget="environment_name_$(echo $1 | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$2"
+          }
           BackupStatus=starting
           if [[ "${{ github.event_name }}" != "repository_dispatch" ]] && [[ -z "${{ github.event.inputs.ParametersJSON }}" ]];
           then
@@ -140,7 +145,7 @@ jobs:
                 Period="${{ inputs.Period }}"
                 BackupStandbyOnPrimaryFailure="yes"
               fi
-              RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
+              RmanTarget=$(set_rman_target $TargetEnvironment $TargetHost)
               # Build a JSON variable capturing all the inputs which have been supplied
               Inputs="{"
               Inputs=$Inputs"\"TargetEnvironment\": \"$TargetEnvironment\","
@@ -193,6 +198,10 @@ jobs:
               [[ -z $TargetHost ]] && "Target Host is not specified in JSON inputs"  && exit 2
               [[ -z $TargetEnvironment ]] && "Target Environment is not specified in JSON inputs" && exit 3
               [[ -z $Period ]] && "Backup Period (daily/weekly) is not specified in JSON inputs" && exit 4
+              if [[ "$(echo $Inputs | jq -r '.RmanTarget)" == "null" ]]; then
+                 RmanTarget=$(set_rman_target $TargetEnvironment $TargetHost)
+                 Inputs=$(echo $Inputs | jq '.RmanTarget = "$RmanTarget"')
+              fi
           fi
           echo "RmanTarget: $RmanTarget"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
