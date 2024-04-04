@@ -200,7 +200,7 @@ jobs:
               [[ -z $Period ]] && "Backup Period (daily/weekly) is not specified in JSON inputs" && exit 4
               if [[ "$(echo $Inputs | jq -r '.RmanTarget')" == "null" ]]; then
                  RmanTarget=$(set_rman_target $TargetEnvironment $TargetHost)
-                 Inputs=$(echo $Inputs | jq '.RmanTarget = "$RmanTarget"')
+                 Inputs=$(echo $Inputs | jq --arg RMANTARGET "$RmanTarget" '.RmanTarget = $RMANTARGET')
               fi
           fi
           echo "RmanTarget: $RmanTarget"
