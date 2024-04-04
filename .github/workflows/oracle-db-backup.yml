@@ -160,7 +160,7 @@ jobs:
               Inputs=$Inputs"\"VerboseOutput\": \"$VerboseOutput\","
               Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
               Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
-              Inputs=$Inputs"\"Phase\": \"Running Backup\""
+              Inputs=$Inputs"\"Phase\": \"Initialising Backup\""
               Inputs=$Inputs"}"
           else
               # We come here if we have either:
@@ -176,6 +176,7 @@ jobs:
                  Inputs='${{ github.event.inputs.ParametersJSON }}'
                  Action=$(echo $Inputs | jq '.BackupAction // "unknown"')
                  [[ "$Action" == "unknown" ]] && "Action is not specified in JSON inputs"  && exit 6
+                 echo "Required Action: $Action"
               fi
               if [[ "$Action" == "oracle-db-backup-success" ]]; then
                 BackupStatus="success"
