@@ -209,6 +209,7 @@ jobs:
           echo "BackupStatus=$BackupStatus" >> $GITHUB_OUTPUT
           echo "BackupError=$BackupError" >> $GITHUB_OUTPUT
           echo "Inputs=$Inputs" >> $GITHUB_OUTPUT
+          echo "here"
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
