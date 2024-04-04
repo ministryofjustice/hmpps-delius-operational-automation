@@ -171,24 +171,25 @@ jobs:
               if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
                  echo "Responding to Repository Dispatch event"
                  Inputs='${{ github.event.client_payload }}'
-                 if [[ "${{ github.event.action}}" == "oracle-db-backup-success" ]] || [[ $(echo $Inputs | jq '.BackupStatus') == "success" ]]; then
-                    BackupStatus="success"
-                    Inputs=$(echo $Inputs | jq '.Phase = "Validating Chunks"')
-                 else
-                    BackupStatus="failed"
-                    Inputs=$(echo $Inputs | jq '.Phase = "Retrying Failed Backup on Standby"')
-                    if [[ $(echo $Inputs | jq '.BackupStandbyOnPrimaryFailure // "yes"') == "yes" ]]; then
-                       # If we are allowed to retry a failed backup then change to the next host in sequence
-                       Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")')
-                       Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")')
-                    fi
-                    RmanTarget=$(echo $Inputs | jq '.RmanTarget')
-                 fi
+                 Action='${{ github.event.action}}'
               else
                  echo "Overriding command line with supplied JSON inputs"
                  Inputs='${{ github.event.inputs.ParametersJSON }}'
-                 echo "JSON Inputs: $Inputs"
-                 BackupStatus=$(echo $Inputs | jq -r '.BackupStatus // "starting"')
+                 Action=$(echo $Inputs | jq '.BackupAction // "unknown"'')
+                 [[ "$Action" == "unknown" ]] && "Action is not specified in JSON inputs"  && exit 6
+              fi
+              if [[ "$Action" == "oracle-db-backup-success" ]]; then
+                BackupStatus="success"
+                Inputs=$(echo $Inputs | jq '.Phase = "Validating Chunks"')
+              else
+                BackupStatus="failed"
+                Inputs=$(echo $Inputs | jq '.Phase = "Retrying Failed Backup on Standby"')
+                if [[ $(echo $Inputs | jq '.BackupStandbyOnPrimaryFailure // "yes"') == "yes" ]]; then
+                    # If we are allowed to retry a failed backup then change to the next host in sequence
+                    Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")')
+                    Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")')
+                fi
+                RmanTarget=$(echo $Inputs | jq '.RmanTarget')
               fi
               echo "JSON Inputs: $Inputs"
               TargetHost=$(echo $Inputs | jq -r '.TargetHost')
