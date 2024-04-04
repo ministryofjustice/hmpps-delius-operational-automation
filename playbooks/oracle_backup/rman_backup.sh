@@ -160,7 +160,7 @@ if [[ $RC -ne 0 ]]; then
       # We cannot use the error function for dispatch failures as it contains its own dispatch call   
       T=`date +"%D %T"`
       echo "ERROR : $THISSCRIPT : $T : Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}" | tee -a ${RMANOUTPUT}
-      update_ssm_parameter "Error: Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}"
+      update_ssm_parameter  "Error" "Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}"
       exit 1
 fi
 }
@@ -180,7 +180,8 @@ warning () {
 }
 
 update_ssm_parameter () {
-  MESSAGE=$1
+  STATUS=$1
+  MESSAGE=$2
   info "Updating SSM Parameter ${SSM_PARAMETER} Message to ${MESSAGE}"
   SSM_VALUE=$(aws ssm get-parameter --name "${SSM_PARAMETER}" --query "Parameter.Value" --output text)
   info "I: $NEW_SSM_VALUE"
@@ -188,6 +189,8 @@ update_ssm_parameter () {
   info "B: $NEW_SSM_VALUE"
   if [[ "$STATUS" == "Success" ]]; then
      NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup Succeeded"')
+  elif [[ "$STATUS" == "Running" ]]; then
+     NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup In Progress"') 
   else
      NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup Failed"')
   fi
@@ -198,7 +201,7 @@ update_ssm_parameter () {
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
-  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error: $1"
+  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error" "Error: $1"
   [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-db-backup-failure" "${JSON_INPUTS}"
   exit $ERROR_STATUS
 }
@@ -778,7 +781,7 @@ fi
 
 if [[ ! -z "$SSM_PARAMETER" ]]; then
    info "Runtime status updates will be written to: $SSM_PARAMETER"
-   update_ssm_parameter "Running: $0 $*"
+   update_ssm_parameter "Running" "Running: $0 $*"
 fi
 
 if [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
@@ -812,7 +815,7 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
-[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Completed without errors"
+[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Success" "Completed without errors"
 [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-db-backup-success" "${JSON_INPUTS}"
 info "Completes successfully"
 
