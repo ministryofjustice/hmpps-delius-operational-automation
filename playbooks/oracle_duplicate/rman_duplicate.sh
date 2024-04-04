@@ -95,6 +95,7 @@ get_catalog_connection () {
     SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:/oracle/database/${CATALOG_DB}/shared-passwords"
     RMANUSER=${CATALOG_SCHEMA:-rcvcatowner}
     RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
+    unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
   else
     REGION=eu-west-2
     INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
@@ -358,7 +359,7 @@ restore_db_passwords () {
   if [ "$APPLICATION" = "delius" ]
   then
     APPLICATION_USERS=(delius_app_schema delius_pool delius_analytics_platform gdpr_pool delius_audit_dms_pool mms_pool)
-    # Add Probation Integration Services by looking up the Usernames by their path in the AWS Secrets (there may be several of these)
+    # Add Probation Integration Services by looking up the Usernames (there may be several of these)
     # We suppress any lookup errors for integration users as these may not exist
     PROBATION_INTEGRATION_USERS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-integration-passwords --query SecretString --output text 2>/dev/null | jq -r 'keys | join(" ")')
   elif [ "$APPLICATION" = "delius-mis" ]
