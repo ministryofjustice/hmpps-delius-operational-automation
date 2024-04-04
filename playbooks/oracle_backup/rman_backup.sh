@@ -187,7 +187,7 @@ update_ssm_parameter () {
   info "I: $NEW_SSM_VALUE"
   NEW_SSM_VALUE=$(echo ${SSM_VALUE} | jq --arg STATUS "$STATUS" '.BackupStatus=$STATUS' | jq -r --arg MESSAGE "$MESSAGE" '.Message=$MESSAGE')
   info "B: $NEW_SSM_VALUE"
-  [[ "$STATUS" == "Success" ]] && NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq '.Phase = "Backup Done"')
+  [[ "$STATUS" == "Success" ]] && NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup Done"')
   info "A: $NEW_SSM_VALUE"
   aws ssm put-parameter --name "${SSM_PARAMETER}" --type String --overwrite --value "${NEW_SSM_VALUE}" 1>&2
 }
