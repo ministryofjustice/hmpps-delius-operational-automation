@@ -603,11 +603,11 @@ jobs:
           -e primary_source_type=active
 
   slack-notification:
-    if: ${{ failure() }}
+    if: ${{ failure() || (failure() && (needs.oracle-rman-export-schema.result == 'skipped' && needs.oracle-rman-import-schema.result == 'skipped')) }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    needs: [oracle-rman-pre-duplicate,oracle-rman-duplicate,oracle-rman-post-duplicate,oracle-build-ha]
+    needs: [oracle-rman-pre-duplicate,oracle-rman-export-schema,oracle-rman-import-schema,oracle-rman-duplicate,oracle-rman-post-duplicate,oracle-build-ha]
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     steps:
 
@@ -644,6 +644,12 @@ jobs:
           elif [[ "${{ needs.oracle-build-ha.result }}" == "failure" ]]
           then
             echo "jobid=${{ needs.oracle-build-ha.outputs.JobId }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.oracle-rman-export-schema.result }}" == "failure" ]]
+          then
+            echo "jobid=${{ needs.oracle-rman-export-schema.outputs.JobId }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.oracle-rman-import-schema.result }}" == "failure" ]]
+          then
+            echo "jobid=${{ needs.oracle-rman-import-schema.outputs.JobId }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Slack Failure Notification
