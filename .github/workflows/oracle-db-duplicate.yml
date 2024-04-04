@@ -653,7 +653,7 @@ jobs:
             channel-id: "delius-aws-oracle-dev-alerts"
             payload: |
               { 
-                "icon_emoji":"broken_record",
+                "icon_emoji":"large_purple_circle",
                 "text":"Failed RMAN Duplicate",
                 "blocks":[
                   {
@@ -661,7 +661,7 @@ jobs:
                     "text": 
                     {
                       "type": "mrkdwn",
-                      "text": ":no_entry: Failed RMAN Duplicate:"}
+                      "text": "Failed RMAN Duplicate:"}
                     },
                     {
                       "type": "section",
