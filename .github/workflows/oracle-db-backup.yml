@@ -318,19 +318,19 @@ jobs:
           if [[ "$BackupStatus" == "failed" ]]; then
              if [[ "$BackupStandbyOnPrimaryFailure" == "no" ]]; then
                 echo "Backup Failed And No Retry Allowed"
-                Inputs=$(echo $Inputs | jq '.Phase == "Failed And No Retry Allowed"')
+                Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Failed And No Retry Allowed"' | jq @json)
                 aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$Inputs"
                 exit 10
              else
                 if [[ "$RmanTarget" =~ "standbydb1" ]] && [[ ! -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml ]]; then
                     echo "Failed And No Standby Exists"
-                    Inputs=$(echo $Inputs | jq '.Phase == "Failed And No Standby Exists"')
+                    Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Failed And No Standby Exists"' | jq @json)
                     aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$Inputs"
                     exit 20
                 fi
                 if [[ "$RmanTarget" =~ "standbydb2" ]] && [[ ! -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb2}.yml ]]; then
                     echo "Failed on First Standby And No Second Standby Exists"
-                    Inputs=$(echo $Inputs | jq '.Phase == "Failed on First Standby And No Second Standby Exists"')
+                    Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Failed on First Standby And No Second Standby Exists"' | jq @json)
                     aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$Inputs"
                     exit 30
                 fi
