@@ -160,7 +160,7 @@ jobs:
               Inputs=$Inputs"\"VerboseOutput\": \"$VerboseOutput\","
               Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
               Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
-              Inputs=$Inputs"\"Phase\": \"Running\""
+              Inputs=$Inputs"\"Phase\": \"Running Backup\""
               Inputs=$Inputs"}"
           else
               # We come here if we have either:
@@ -170,7 +170,7 @@ jobs:
               if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
                  echo "Responding to Repository Dispatch event"
                  Inputs='${{ github.event.client_payload }}'
-                 Action='${{ github.event.action}}'
+                 Action='${{ github.event.action }}'
               else
                  echo "Overriding command line with supplied JSON inputs"
                  Inputs='${{ github.event.inputs.ParametersJSON }}'
@@ -209,7 +209,6 @@ jobs:
           echo "Inputs: $Inputs"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
-          echo "BackupStatus=$BackupStatus" >> $GITHUB_OUTPUT
           echo "BackupError=$BackupError" >> $GITHUB_OUTPUT
           echo "Inputs="$(echo $Inputs | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT

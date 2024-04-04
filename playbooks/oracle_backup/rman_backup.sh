@@ -142,9 +142,9 @@ EVENT_TYPE=$1
 JSON_PAYLOAD=$2
 GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
 if [[ "$EVENT_TYPE" == "oracle-db-backup-success" ]]; then
-    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Done"' | jq -r '.BackupStatus = "success"')
+    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Succeeded"')
 else
-    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Failed"' | jq -r '.BackupStatus = "failed"')
+    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Failed"')
 fi
 info "Running Repository Dispatch:${EVENT_TYPE}:${JSON_PAYLOAD}:${GITHUB_TOKEN_VALUE}"
 JSON_DATA="{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}"
@@ -160,7 +160,7 @@ if [[ $RC -ne 0 ]]; then
       # We cannot use the error function for dispatch failures as it contains its own dispatch call   
       T=`date +"%D %T"`
       echo "ERROR : $THISSCRIPT : $T : Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}" | tee -a ${RMANOUTPUT}
-      update_ssm_parameter "Error" "Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}"
+      update_ssm_parameter "Error: Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}"
       exit 1
 fi
 }
@@ -180,14 +180,17 @@ warning () {
 }
 
 update_ssm_parameter () {
-  STATUS=$1
-  MESSAGE=$2
-  info "Updating SSM Parameter ${SSM_PARAMETER} Status to ${STATUS}"
+  MESSAGE=$1
+  info "Updating SSM Parameter ${SSM_PARAMETER} Message to ${MESSAGE}"
   SSM_VALUE=$(aws ssm get-parameter --name "${SSM_PARAMETER}" --query "Parameter.Value" --output text)
   info "I: $NEW_SSM_VALUE"
-  NEW_SSM_VALUE=$(echo ${SSM_VALUE} | jq --arg STATUS "$STATUS" '.BackupStatus=$STATUS' | jq -r --arg MESSAGE "$MESSAGE" '.Message=$MESSAGE')
+  NEW_SSM_VALUE=$(echo ${SSM_VALUE} | jq -r --arg MESSAGE "$MESSAGE" '.Message=$MESSAGE')
   info "B: $NEW_SSM_VALUE"
-  [[ "$STATUS" == "Success" ]] && NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup Done"')
+  if [[ "$STATUS" == "Success" ]]; then
+     NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup Succeeded"')
+  else
+     NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup Failed"')
+  fi
   info "A: $NEW_SSM_VALUE"
   aws ssm put-parameter --name "${SSM_PARAMETER}" --type String --overwrite --value "${NEW_SSM_VALUE}" 1>&2
 }
@@ -195,7 +198,7 @@ update_ssm_parameter () {
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
-  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error" "$1"
+  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error: $1"
   [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-db-backup-failure" "${JSON_INPUTS}"
   exit $ERROR_STATUS
 }
@@ -775,7 +778,7 @@ fi
 
 if [[ ! -z "$SSM_PARAMETER" ]]; then
    info "Runtime status updates will be written to: $SSM_PARAMETER"
-   update_ssm_parameter "Running" "Running $0 $*"
+   update_ssm_parameter "Running: $0 $*"
 fi
 
 if [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
@@ -809,7 +812,7 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
-[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Success" "Completed without errors"
+[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Completed without errors"
 [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-db-backup-success" "${JSON_INPUTS}"
 info "Completes successfully"
 
