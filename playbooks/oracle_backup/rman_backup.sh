@@ -781,7 +781,7 @@ if [[ ! -z "$JSON_INPUTS" ]]; then
    # actions to start the backup job.   These are only used for actioning a repository
    # dispatch event to indicate the end of the backup job run.  They do NOT
    # override the command line options passed to the script.
-   JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode)
+   JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode )
    info "Original JSON Inputs to GitHub Action: $JSON_INPUTS"
 elif [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
    error "JSON inputs must be supplied using the -j option if Repository Dispatch Events are requested."
