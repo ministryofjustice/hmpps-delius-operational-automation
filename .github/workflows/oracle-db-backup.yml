@@ -189,7 +189,7 @@ jobs:
                     Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")')
                     Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")')
                 fi
-                RmanTarget=$(echo $Inputs | jq '.RmanTarget')
+                RmanTarget=$(echo $Inputs | jq -r '.RmanTarget')
               fi
               echo "JSON Inputs: $Inputs"
               TargetHost=$(echo $Inputs | jq -r '.TargetHost')
