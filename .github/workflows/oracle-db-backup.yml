@@ -211,7 +211,7 @@ jobs:
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
           echo "BackupStatus=$BackupStatus" >> $GITHUB_OUTPUT
           echo "BackupError=$BackupError" >> $GITHUB_OUTPUT
-          echo "Inputs=$Inputs" >> $GITHUB_OUTPUT
+          echo "Inputs="$(echo Inputs | jq @json) >> $GITHUB_OUTPUT
           echo "here"
 
       - name: Prepare Slack Channel Name
