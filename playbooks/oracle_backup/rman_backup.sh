@@ -141,6 +141,11 @@ function github_repository_dispatch()
 EVENT_TYPE=$1
 JSON_PAYLOAD=$2
 GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
+if [[ "$EVENT_TYPE" == "oracle-db-backup-success"]]; then
+    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Done"' | jq -r '.BackupStatus = "success"')
+else
+    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Failed"' | jq -r '.BackupStatus = "failed"')
+fi
 info "Running Repository Dispatch:${EVENT_TYPE}:${JSON_PAYLOAD}:${GITHUB_TOKEN_VALUE}"
 JSON_DATA="{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}"
 info "JD1: $JSON_DATA"
@@ -175,8 +180,6 @@ warning () {
 }
 
 update_ssm_parameter () {
-  # We do not change the backup phase within this script - it is always BACKUP
-  # We can only change the status of the run
   STATUS=$1
   MESSAGE=$2
   info "Updating SSM Parameter ${SSM_PARAMETER} Status to ${STATUS}"
