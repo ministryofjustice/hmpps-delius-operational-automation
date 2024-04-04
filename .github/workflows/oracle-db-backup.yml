@@ -194,6 +194,7 @@ jobs:
               [[ -z $TargetEnvironment ]] && "Target Environment is not specified in JSON inputs" && exit 3
               [[ -z $Period ]] && "Backup Period (daily/weekly) is not specified in JSON inputs" && exit 4
           fi
+          echo "RmanTarget: $RmanTarget"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
           echo "BackupStatus=$BackupStatus" >> $GITHUB_OUTPUT
