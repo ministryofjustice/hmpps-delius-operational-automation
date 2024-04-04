@@ -297,7 +297,8 @@ jobs:
         id: check-and-set-backup-runtime
         shell: bash
         run: |
-            RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text 2>&1) || true
+            # Ignore errors fetching the parameter - this happens if the backup has not been run before
+            RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text) || true
             echo "Runtime: >>$RUNTIME<<"
             echo $RUNTIME | jq -r '.Phase // "Initialising"'
             PHASE=$(echo $RUNTIME | jq -r '.Phase // "Initialising"')
