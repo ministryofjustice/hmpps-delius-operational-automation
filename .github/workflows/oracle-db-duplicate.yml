@@ -198,9 +198,9 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          $ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          echo "$ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
           -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} \
-          -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
+          -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}"
 
   oracle-rman-export-schema:
     if: ${{ github.event.inputs.SourceLegacy == 'no' }}
@@ -355,7 +355,7 @@ jobs:
           -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   oracle-rman-duplicate:
-    if: ${{ (github.event.inputs.SourceLegacy == 'no' && needs.oracle-rman-import-schema.result == 'success')  || (github.event.inputs.SourceLegacy == 'yes' && needs.oracle-rman-import-schema.result == 'skipped') }}
+    if: ${{ always() && ((github.event.inputs.SourceLegacy == 'no' && needs.oracle-rman-import-schema.result == 'success')  || (github.event.inputs.SourceLegacy == 'yes' && needs.oracle-rman-import-schema.result == 'skipped')) }}
     name: oracle-rman-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
