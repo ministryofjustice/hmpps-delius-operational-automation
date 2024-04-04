@@ -206,6 +206,7 @@ jobs:
               fi
           fi
           echo "RmanTarget: $RmanTarget"
+          echo "Inputs: $Inputs"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
           echo "BackupStatus=$BackupStatus" >> $GITHUB_OUTPUT
