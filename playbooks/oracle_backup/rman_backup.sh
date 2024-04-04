@@ -141,7 +141,7 @@ function github_repository_dispatch()
 EVENT_TYPE=$1
 JSON_PAYLOAD=$2
 GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
-if [[ "$EVENT_TYPE" == "oracle-db-backup-success"]]; then
+if [[ "$EVENT_TYPE" == "oracle-db-backup-success" ]]; then
     JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Done"' | jq -r '.BackupStatus = "success"')
 else
     JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Failed"' | jq -r '.BackupStatus = "failed"')
