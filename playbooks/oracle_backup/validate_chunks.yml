@@ -401,7 +401,7 @@
         # available recovery times available)
         - name: Check All Requested Archivelog Sequences for Backup were Available in FRA
           assert:
-            that: ({{ archivelogs | max }} - {{ archivelogs | min }} + 1) == ( rman_log_content | length )
+            that: ({{ archivelogs | max | int }} - {{ archivelogs | min | int }} + 1) == ( rman_log_content | length )
 
       when: archivelog_range |  default([]) | length > 0
 
