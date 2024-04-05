@@ -287,6 +287,7 @@
     - name: Create Range of Archivelogs in Need of Backup
       set_fact:
         archivelog_range: "{{ archivelog_min }},{{ archivelog_max }}"
+        archivelog_range_size: "{{ archivelog_min | int - archivelog_max | int + 1 }}"
       when: archivelogs is defined
 
     # Ensure that we have found something to backup (in case of RMAN output format changes the match may fail)
@@ -407,7 +408,7 @@
         # available recovery times available)
         - name: Check All Requested Archivelog Sequences for Backup were Available in FRA
           assert:
-            that: (( archivelog_max - archivelog_min + 1) == ( rman_log_content | length )
+            that: archivelog_range_size | int == ( rman_log_content | length )
 
       when: archivelog_range |  default([]) | length > 0
 
