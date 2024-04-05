@@ -416,7 +416,7 @@
     # This avoids the corrupt Backup Sets being considered again in any subsquent processing but leaves the information
     # intact in the RMAN catalog for any subsequent diagnostics.
     - name: Set Corrupt Backupsets Unavailable
-      script: run_rman_command.sh {{ database_primary_sid | default(database_standby_sid) }}  "{{ rman_catalog_connect }}" "change backupset {{ corrupt_backup_sets | join(',') }} unavailable;"
+      script: run_rman_command.sh {{ database_primary_sid | default(database_standby_sid) }} "change backupset {{ corrupt_backup_sets | join(',') }} unavailable;"
 
     - name: Send notification message via Slack that Fix It Job has Run
       community.general.slack:
