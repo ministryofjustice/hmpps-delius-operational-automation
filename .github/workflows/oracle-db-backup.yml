@@ -313,7 +313,7 @@ jobs:
             PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
             echo "Backup Phase: $PHASE"
             # Initialize the Backup Status for this RMAN Backup Target
-            if [[ $PHASE != "Inactive" ]] && [[ ! $PHASE =~ Backup ]]; then
+            if [[ $PHASE != "Inactive" ]] && [[ ! $PHASE =~ Backup ]] && [[ $PHASE != "Done" ]]; then
                 echo "Backup is already active on this host.  Multiple concurrent runs are not allowed." && exit 1
             fi
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite \
@@ -352,12 +352,18 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo "$Inputs" | jq -r | jq -r '.Period' ) -e enable_trace=$(echo "$Inputs" | jq -r | jq -r '.EnableTrace // "no"') -e ssm_parameter=$SSMParameter -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
 
-      - name: Start Ansible Validate And Fix Absent Chunks
+      - name: Run Ansible Validate And Fix Absent Chunks
         if: env.BackupStatus == 'success'
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $validate_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e fix_absent_chunks=$(echo "$Inputs" | jq -r | jq -r '.FixAbsentChunks // "yes"') $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
+
+      - name: Record Job Completed in SSM Parameter Store
+        if: env.BackupStatus == 'success'
+        run: |
+            Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Done"' | jq @json)
+            aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$Inputs"
 
       - name: Slack Failure Notification
         id: slack
