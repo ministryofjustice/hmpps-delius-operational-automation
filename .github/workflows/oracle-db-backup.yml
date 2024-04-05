@@ -291,6 +291,18 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
+      - name: Get Slack Token
+        id: get-slack-token
+        run: |
+                ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+                OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
+                      jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
+                      jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
+                SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
+                SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
+                SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
+                echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
+
       - name: Check And Set Backup Runtime
         id: check-and-set-backup-runtime
         shell: bash
@@ -345,20 +357,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $validate_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e fix_absent_chunks=$(echo "$Inputs" | jq -r '.FixAbsentChunks // "yes"') $(echo "$Inputs" | jq -r '.VerboseOutput // ""') 
-
-      - name: Get Slack Token
-        id: get-slack-token
-        if: failure()
-        run: |
-                ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-                OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
-                      jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
-                      jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
-                SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
-                SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
-                SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
-                echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
+          $validate_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e fix_absent_chunks=$(echo "$Inputs" | jq -r | jq -r '.FixAbsentChunks // "yes"') $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
 
       - name: Slack Failure Notification
         id: slack
