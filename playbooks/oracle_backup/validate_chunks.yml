@@ -278,10 +278,14 @@
     # in any corrupt backup set to the maximum Sequence number in any corrupt backup set.  (Its possible we may end up
     # backing up more than needed if there are, say, 3 archivelog backup sets and only sets 1 and 3 are corrupt, but this
     # will be pretty rare and its harmless to backup set 2 again anyway)
-    - name: Create Range of Archivelogs in Need of Backup
+    - name: Get Minimum and Maximum Sequence Numbers of Archivelogs in Need of Backup
       set_fact:
         archivelog_min: "{{ archivelogs | min | int }}"
         archivelog_max: "{{ archivelogs | max | int }}"
+      when: archivelogs is defined
+
+    - name: Create Range of Archivelogs in Need of Backup
+      set_fact:
         archivelog_range: "{{ archivelog_min }},{{ archivelog_max }}"
       when: archivelogs is defined
 
