@@ -298,7 +298,7 @@ jobs:
             # Ignore errors fetching the parameter - this happens if the backup has not been run before
             RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text) || true
             echo "Runtime: >>$RUNTIME<<"
-            PHASE=$(echo ${RUNTIME:-{}} | jq -r '.Phase // "Inactive"')
+            PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
             echo "Backup Phase: $PHASE"
             # Initialize the Backup Status for this RMAN Backup Target
             if [[ $PHASE != "Inactive" ]] && [[ ! $PHASE =~ Backup ]]; then
