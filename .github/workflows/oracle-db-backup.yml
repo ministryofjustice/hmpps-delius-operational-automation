@@ -210,7 +210,7 @@ jobs:
           echo "Inputs: $Inputs"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
-          echo "BackupError=$BackupError" >> $GITHUB_OUTPUT
+          echo "BackupStatus=$BackupStatus" >> $GITHUB_OUTPUT
           echo "Inputs="$(echo $Inputs | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
 
