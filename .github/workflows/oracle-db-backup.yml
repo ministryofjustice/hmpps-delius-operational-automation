@@ -174,7 +174,7 @@ jobs:
               else
                  echo "Overriding command line with supplied JSON inputs"
                  Inputs='${{ github.event.inputs.ParametersJSON }}'
-                 Action=$(echo $Inputs | jq '.BackupAction // "unknown"')
+                 Action=$(echo $Inputs | jq -r '.BackupAction // "unknown"')
                  [[ "$Action" == "unknown" ]] && "Action is not specified in JSON inputs"  && exit 6
                  echo "Required Action: $Action"
               fi
