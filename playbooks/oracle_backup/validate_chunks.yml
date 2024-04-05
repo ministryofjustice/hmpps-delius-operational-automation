@@ -379,7 +379,7 @@
 
         - name: Update Notification
           set_fact:
-            notification: "{{ (notification | default('')) + 'Backups of Archivelogs: ' + archivelog_range }}"
+            notification: "{{ (notification | default('')) + 'Backups of Archivelogs: ' + (( archivelog_range.split(',')[0] == archivelog_range.split(',')[1] ) | ternary(archivelog_range.split(',')[0],archivelog_range)) }}"
 
         # For Archivelog backups we want to ensure that we were able to backup the archivelogs successfully since
         # these may have aged out of the FRA if they are old.   This is unlikely as should be validating immediately after a backup
