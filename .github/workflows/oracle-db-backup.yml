@@ -362,7 +362,7 @@ jobs:
       - name: Record Job Completed in SSM Parameter Store
         if: env.BackupStatus == 'success'
         run: |
-            Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Done"' | jq @json)
+            Inputs=$(echo $Inputs | jq -r | jq '.Phase = "Done"' | jq @json)
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$Inputs"
 
       - name: Slack Failure Notification
