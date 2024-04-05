@@ -355,7 +355,7 @@ jobs:
           -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   oracle-rman-duplicate:
-    if: ${{ always() && ((github.event.inputs.SourceLegacy == 'no' && needs.oracle-rman-import-schema.result == 'success')  || (github.event.inputs.SourceLegacy == 'yes' && needs.oracle-rman-import-schema.result == 'skipped')) }}
+    if: ${{ always() }}
     name: oracle-rman-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -400,7 +400,7 @@ jobs:
           aws-region: "eu-west-2"
 
       - name: Install yq
-        uses: dcarbone/install-yq-action@v1.1.1
+        uses: dcarbone/install-yq-action@64b1b9eb28920bb1a4c13c05321df284f9a8f940 # v1.1.1
         with:
           download-compressed: true
           version: "v4.35.1"
@@ -523,7 +523,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install yq
-        uses: dcarbone/install-yq-action@v1.1.1
+        uses: dcarbone/install-yq-action@64b1b9eb28920bb1a4c13c05321df284f9a8f940 # v1.1.1
         with:
           download-compressed: true
           version: "v4.35.1"
@@ -603,7 +603,7 @@ jobs:
           -e primary_source_type=active
 
   slack-notification:
-    if: ${{ failure() || (failure() && (needs.oracle-rman-export-schema.result == 'skipped' && needs.oracle-rman-import-schema.result == 'skipped')) }}
+    if: ${{ failure() }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
