@@ -313,7 +313,7 @@ jobs:
             PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
             echo "Backup Phase: $PHASE"
             # Initialize the Backup Status for this RMAN Backup Target
-            if [[ $PHASE != "Inactive" ]] && [[ ! $PHASE =~ Backup ]] && [[ $PHASE != "Done" ]]; then
+            if [[ $PHASE != "Inactive" ]] && [[ ! $PHASE =~ Backup ]] && [[ $PHASE != "Done" ]] && [[ ! $PHASE =~ Failed ]]; then
                 echo "Backup is already active on this host.  Multiple concurrent runs are not allowed." && exit 1
             fi
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite \
