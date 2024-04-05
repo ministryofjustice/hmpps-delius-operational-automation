@@ -365,6 +365,12 @@ jobs:
             Inputs=$(echo $Inputs | jq -r | jq '.Phase = "Done"' | jq @json)
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $Inputs | jq -r)"
 
+      - name: Record Job Failure in SSM Parameter Store
+        if: failure()
+        run: |
+            Inputs=$(echo $Inputs | jq -r | jq '.Phase += " -- Failed"' | jq @json)
+            aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $Inputs | jq -r)"
+
       - name: Slack Failure Notification
         id: slack
         if: failure()
