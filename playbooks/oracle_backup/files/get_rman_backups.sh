@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -x
+
+env
+
 get_rman_password () {
   ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
   ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ASSUME_ROLE_NAME}"
