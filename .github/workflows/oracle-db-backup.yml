@@ -184,6 +184,7 @@ jobs:
               else
                 echo "Backup has failed"
                 BackupStatus="failed"
+                echo "BackupOnStandby: "$(echo $Inputs | jq -r '.BackupStandbyOnPrimaryFailure // "yes"')
                 if [[ $(echo $Inputs | jq -r '.BackupStandbyOnPrimaryFailure // "yes"') == "yes" ]]; then
                     Inputs=$(echo $Inputs | jq '.Phase = "Retrying Failed Backup on Standby"')
                     echo "Selecting Retry Target"
