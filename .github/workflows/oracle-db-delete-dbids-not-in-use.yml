@@ -1,5 +1,5 @@
 name: "Oracle: Delete Old DBIDs"
-run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_delete_old_dbids"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_delete_old_dbids"
 on:
   workflow_dispatch:
     inputs:
