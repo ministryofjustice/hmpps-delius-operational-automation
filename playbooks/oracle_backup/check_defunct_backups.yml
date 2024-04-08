@@ -24,15 +24,15 @@
 
 - block:
     - include_tasks: fetch_inventory_files.yml
-  delegate_to: localhost
-  become: no
+  # delegate_to: localhost
+  # become: no
 
 # Copy inventory file from Ansible Controller to same directory on the target Host
-- name: Copy Inventory File to Target Host for Further Processing
-  copy:
-    src: "{{ inventory_file }}"
-    dest: "{{ inventory_file }}"
-    owner: oracle
+# - name: Copy Inventory File to Target Host for Further Processing
+#   copy:
+#     src: "{{ inventory_file }}"
+#     dest: "{{ inventory_file }}"
+#     owner: oracle
 
 - name: Get Passwords
   include_tasks: get_facts.yml
