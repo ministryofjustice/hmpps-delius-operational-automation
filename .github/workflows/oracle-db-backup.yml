@@ -187,7 +187,9 @@ jobs:
                 if [[ $(echo $Inputs | jq '.BackupStandbyOnPrimaryFailure // "yes"') == "yes" ]]; then
                     # If we are allowed to retry a failed backup then change to the next host in sequence
                     Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")')
+                    echo "I1: $Inputs"
                     Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")')
+                    echo "I2: $Inputs"
                 fi
               fi
               RmanTarget=$(echo $Inputs | jq -r '.RmanTarget')
