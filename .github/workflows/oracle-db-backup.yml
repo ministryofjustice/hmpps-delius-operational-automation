@@ -115,6 +115,7 @@ jobs:
       SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
       Inputs: ${{ steps.preparermantargetname.outputs.Inputs }}
       SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
+      IsRetryJob: ${{ steps.preparermantargetname.outputs.IsRetryJob }}
     steps:
       - name: Prepare Rman Target
         id: preparermantargetname
@@ -193,6 +194,7 @@ jobs:
                     echo "I1: $Inputs"
                     Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")')
                     echo "I2: $Inputs"
+                    Inputs=$(echo $Inputs | jq '.IsRetryJob = "yes"')
                 fi
               fi
               RmanTarget=$(echo $Inputs | jq -r '.RmanTarget')
@@ -200,6 +202,7 @@ jobs:
               TargetHost=$(echo $Inputs | jq -r '.TargetHost')
               TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')
               Period=$(echo $Inputs | jq -r '.Period')
+              IsRetryJob=$(echo $Inputs | jq -r '.IsRetryJob' // "no"')
               # The following 3 parameters are mandatory; abort if they are missing from JSON inputs
               [[ -z $TargetHost ]] && "Target Host is not specified in JSON inputs"  && exit 2
               [[ -z $TargetEnvironment ]] && "Target Environment is not specified in JSON inputs" && exit 3
@@ -249,6 +252,7 @@ jobs:
       SourceConfigVersion:  "${{needs.build_rman_target_name.outputs.SourceConfigVersion}}"
       Inputs:  "${{needs.build_rman_target_name.outputs.Inputs}}"
       SlackChannel: ${{ needs.build_rman_target_name.outputs.SlackChannel }}
+      IsRetryJob: "${{needs.build_rman_target_name.outputs.IsRetryJob }}"
       ansible_config: operations/playbooks/ansible.cfg
     continue-on-error: false
     steps:
@@ -357,6 +361,29 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo "$Inputs" | jq -r | jq -r '.Period' ) -e enable_trace=$(echo "$Inputs" | jq -r | jq -r '.EnableTrace // "no"') -e ssm_parameter=$SSMParameter -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
 
+      - name: Report Backup Retry Attempt
+        id: slack-retry
+        if: env.BackupStatus == 'failed'
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+            channel-id: "${{ env.SlackChannel }}"
+            payload: |
+              {"icon_emoji":"arrows_counterclockwise","text":"Retrying Failed Backup on Standby","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Retrying Failed Backup on Standby:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
+        env:
+          SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
+
+      # To avoid clutter we do not report all backup successes - just those that needed to be retried due to prior failure
+      - name: Report Backup Retry Attempt Success
+        id: slack-retry-success
+        if: env.BackupStatus == 'success' and env.IsRetryJob == 'yes'
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+            channel-id: "${{ env.SlackChannel }}"
+            payload: |
+              {"icon_emoji":"white_check_mark","text":"Retrying Failed Backup on Standby Successful","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Retrying Failed Backup on Standby Successful:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
+        env:
+          SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
+
       - name: Run Ansible Validate And Fix Absent Chunks
         if: env.BackupStatus == 'success'
         run: |
@@ -377,7 +404,7 @@ jobs:
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $Inputs | jq -r)"
 
       - name: Slack Failure Notification
-        id: slack
+        id: slack-failure
         if: failure()
         uses: slackapi/slack-github-action@v1.25.0
         with:
