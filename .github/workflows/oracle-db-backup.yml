@@ -182,6 +182,7 @@ jobs:
                 BackupStatus="success"
                 Inputs=$(echo $Inputs | jq '.Phase = "Validating Chunks"')
               else
+                echo "Backup has failed"
                 BackupStatus="failed"
                 Inputs=$(echo $Inputs | jq '.Phase = "Retrying Failed Backup on Standby"')
                 if [[ $(echo $Inputs | jq '.BackupStandbyOnPrimaryFailure // "yes"') == "yes" ]]; then
