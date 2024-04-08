@@ -94,6 +94,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 30
     env:
+      delete_dbids_command: ansible-playbook operations/playbooks/oracle_backup/delete_dbids_not_in_use.yml
       inventory: inventory/ansible
       RmanTarget: "${{needs.build_rman_target_name.outputs.RmanTarget}}"
       TargetEnvironment: "${{needs.build_rman_target_name.outputs.TargetEnvironment}}"
