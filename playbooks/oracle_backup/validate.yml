@@ -1,6 +1,6 @@
 ---
 - name: Oracle validate chunk
-  hosts: '{{ rman_target }}'
+  hosts: "{{ rman_target }}"
   gather_facts: yes
   become: yes
   become_user: oracle

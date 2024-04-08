@@ -9,10 +9,9 @@
   become_method: sudo
 
   tasks:
-
     - name: Show Inputs
       debug:
-         msg: "{{ json_inputs | string }}"
+        msg: "{{ json_inputs | string }}"
 
     - name: RMAN script
       block:
@@ -69,7 +68,7 @@
 
         - name: Set SSM Parameter used for Runtime details when variable is not null
           set_fact:
-             ssm_parameter_path: "-s \"{{ ssm_parameter }}\""
+            ssm_parameter_path: '-s "{{ ssm_parameter }}"'
           when: (ssm_parameter is defined)
 
         - name: Set backup duration target when variable is not null
@@ -106,8 +105,8 @@
           set_fact:
             repository_dispatch_flag: "-r {{ repository_dispatch }} -j {{ json_inputs | b64encode }}"
           when:
-             - repository_dispatch is defined
-             - json_inputs is defined
+            - repository_dispatch is defined
+            - json_inputs is defined
 
         - block:
             - name: Get Current RMAN Retention
