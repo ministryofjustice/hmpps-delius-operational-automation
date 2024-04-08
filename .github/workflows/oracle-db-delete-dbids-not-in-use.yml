@@ -1,5 +1,5 @@
 name: "Oracle: Delete Old DBIDs"
-run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.Period, github.event.inputs.TargetHost) }}_delete_old_dbids"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_delete_old_dbids"
 on:
   workflow_dispatch:
     inputs:
@@ -60,19 +60,17 @@ jobs:
       - name: Prepare Rman Target
         id: preparermantargetname
         run: |
-          if [[ "${{ github.event_name }}" != "repository_dispatch" ]] && [[ -z "${{ github.event.inputs.ParametersJSON }}" ]];
-          then
-              if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
-              then
-                TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
-                VerboseOutput="${{ github.event.inputs.VerboseOutput }}"
-                SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
-                SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
-              elif [[ "${{ github.event_name }}" == "schedule" ]]
-              then
-                TargetEnvironment="${{ inputs.TargetEnvironment }}"
-              fi
-              RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
+            then
+              TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
+              VerboseOutput="${{ github.event.inputs.VerboseOutput }}"
+              SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
+              SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
+            elif [[ "${{ github.event_name }}" == "schedule" ]]
+            then
+              TargetEnvironment="${{ inputs.TargetEnvironment }}"
+            fi
+            RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$TargetHost"
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
