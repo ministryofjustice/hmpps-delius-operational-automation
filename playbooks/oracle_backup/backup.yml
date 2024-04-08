@@ -9,6 +9,10 @@
   become_method: sudo
 
   tasks:
+    - name: Show Inputs
+      debug:
+        msg: "{{ json_inputs | string }}"
+
     - name: RMAN script
       block:
         - name: Set database_global_database
@@ -62,6 +66,11 @@
             catalog_options: "-n Y -c {{ catalog }}"
           when: (catalog is defined)
 
+        - name: Set SSM Parameter used for Runtime details when variable is not null
+          set_fact:
+            ssm_parameter_path: '-s "{{ ssm_parameter }}"'
+          when: (ssm_parameter is defined)
+
         - name: Set backup duration target when variable is not null
           set_fact:
             duration_options: "-m {{ rman_level_0_backup_duration_target }}"
@@ -89,6 +98,15 @@
           set_fact:
             enable_trace_flag: "-e Y"
           when: enable_trace | default(false) | bool
+
+        # The quotes in the JSON inputs can get messed up by unwanted shell interpretation.
+        # To avoid this we send the JSON as an encoded string to be decoded by the shell script.
+        - name: Enable Repository Dispatch Event if supplied
+          set_fact:
+            repository_dispatch_flag: "-r {{ repository_dispatch }} -j {{ json_inputs | b64encode }}"
+          when:
+            - repository_dispatch is defined
+            - json_inputs is defined
 
         - block:
             - name: Get Current RMAN Retention
@@ -133,16 +151,16 @@
 
         - name: Create RMAN Command
           set_fact:
-            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }}"
+            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ ssm_parameter_path | default() }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }} {{ repository_dispatch_flag|default() }}"
 
         - name: Show RMAN Command
           debug:
             msg: "About to run:  {{ rman_command }}"
 
-        - name: Running RMAN script
+        - name: Running RMAN script in Background
           shell: "{{ rman_command }}"
           async: "{{ allowable_duration|default(28800) }}"
-          poll: 60
+          poll: 0
           environment:
             ASSUME_ROLE_NAME: "{{ secretsmanager_passwords['catalog'].assume_role_name | default() }}"
             SECRET_ACCOUNT_ID: "{{ account_ids[secretsmanager_passwords['catalog'].account_name] | default() }}"

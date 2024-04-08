@@ -19,7 +19,7 @@ export NUM_OF_DAYS_BACK_TO_VALIDATE="${1:-0}"
 if [[ "${CATALOG}" != "NOCATALOG" ]]
 then
    get_rman_password
-   CONNECT_TO_CATALOG="connect catalog ${CATALOG_CREDENTIALS}"
+   CONNECT_TO_CATALOG="connect catalog rcvcatowner/${RMANPASS}@${CATALOG}"
 fi
 
 # Get list of RMAN backups from the Catalog; merge the Availability and Handle Lines
