@@ -156,12 +156,16 @@
     dict_actual_vs_expected: "{{ dict_actual_vs_expected | combine({item.split(' ')[0]: {'backup_piece': item.split(' ')[1], 'availability': item.split(' ')[2], 'expected_chunks': item.split(' ')[3], 'actual_chunks': ( item.split(' ')[4] | default(0) ) }}) }}"
   loop: "{{ chunk_actual_vs_expected.stdout_lines }}"
 
+- name: Initialise List of Corrupt Backup Pieces
+  set_fact:
+     corrupt_backup_pieces: []
+
 - name: Notify of Missing Chunks
   when: dict_actual_vs_expected != {}
   block:
     - name: Create List of Backup Pieces with Missing Chunks
       set_fact:
-        corrupt_backup_pieces: "{{ ( corrupt_backup_pieces | default([]) ) + [ item.value.backup_piece ] }}"
+        corrupt_backup_pieces: "{{ corrupt_backup_pieces + [ item.value.backup_piece ] }}"
       with_dict: "{{ dict_actual_vs_expected }}"
 
     - name: Send notification message via Slack if Missing Chunks Detected Without Previous Fix Attempt
