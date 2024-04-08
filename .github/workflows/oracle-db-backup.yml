@@ -184,8 +184,9 @@ jobs:
               else
                 echo "Backup has failed"
                 BackupStatus="failed"
-                Inputs=$(echo $Inputs | jq '.Phase = "Retrying Failed Backup on Standby"')
-                if [[ $(echo $Inputs | jq '.BackupStandbyOnPrimaryFailure // "yes"') == "yes" ]]; then
+                if [[ $(echo $Inputs | jq -r '.BackupStandbyOnPrimaryFailure // "yes"') == "yes" ]]; then
+                    Inputs=$(echo $Inputs | jq '.Phase = "Retrying Failed Backup on Standby"')
+                    echo "Selecting Retry Target"
                     # If we are allowed to retry a failed backup then change to the next host in sequence
                     Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")')
                     echo "I1: $Inputs"
