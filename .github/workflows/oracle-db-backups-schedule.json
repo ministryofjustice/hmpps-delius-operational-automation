@@ -1,0 +1,26 @@
+[
+    {
+        "TargetEnvironment":"delius-core-dev",
+        "TargetHost":"delius_primarydb",
+        "CronSchedule":"0 8 * * 1,2,4,5",
+        "Period": "daily"
+    },
+    {
+        "TargetEnvironment":"delius-core-dev",
+        "TargetHost":"delius_primarydb",
+        "CronSchedule":"0 8 * * 3",
+        "Period": "weekly"
+    },
+    {
+        "TargetEnvironment":"delius-core-test",
+        "TargetHost":"delius_primarydb",
+        "CronSchedule":"0 8 * * 1,2,4,5",
+        "Period": "daily"
+    },
+    {
+        "TargetEnvironment":"delius-core-test",
+        "TargetHost":"delius_primarydb",
+        "CronSchedule":"0 8 * * 3",
+        "Period": "weekly"
+    }
+]
