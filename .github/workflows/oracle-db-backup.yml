@@ -138,7 +138,7 @@ jobs:
                 VerboseOutput="${{ github.event.inputs.VerboseOutput }}"
                 SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
                 SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
-              elif [[ "${{ github.event_name }}" == "schedule" ]]
+              elif [[ "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "push" ]]
               then
                 TargetHost="${{ inputs.TargetHost }}"
                 TargetEnvironment="${{ inputs.TargetEnvironment }}"
