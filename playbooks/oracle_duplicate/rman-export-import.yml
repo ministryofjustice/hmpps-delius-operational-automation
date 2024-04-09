@@ -1,0 +1,77 @@
+---
+- name: Datapump Export Import
+  hosts: "{{ oem_target }}"
+  gather_facts: False
+  become: yes
+  become_user: oracle
+  become_method: sudo
+  tasks:
+    - name: Set RMAN Catalog Database Name And Datapump Backup Name
+      set_fact:
+        catalog_db: "{{ db_configs['RCVCAT']['rcvcat_db_name'] }}"
+
+    - name: Get Location Default Data Pump Directory
+      script: get_dump_location.sh
+      environment:
+        CATALOG_DB: "{{ catalog_db }}"
+      register: get_dump_location
+
+    - name: Check Path Defined
+      fail:
+        msg: "Could not find path to dump file."
+      when: get_dump_location | length < 2
+
+    - name: Export RCVCATOWNER Schema
+      when: action == 'export'
+      block:
+        - name: Export RCVCATOWNER Schema
+          shell: |
+            . ~/.bash_profile
+            PATH=$PATH:/usr/local/bin
+            export ORACLE_SID={{ catalog_db }}
+            export ORAENV_ASK=NO
+            . oraenv
+            expdp \"/ as sysdba\" dumpfile={{ export_name }}.dmp logfile={{ export_name }}.log schemas=rcvcatowner reuse_dumpfiles=y directory=DATA_PUMP_DIR exclude=INDEX:\"IN \(\'PDB_U1\'\)\"
+          register: export_rman_schema
+
+        - name: Upload RMAN Schema Dump File To S3
+          amazon.aws.s3_object:
+            bucket: "{{ db_backup_s3_bucket_name }}"
+            object: "datapump/{{ export_name }}.{{ item }}"
+            src: "{{ get_dump_location.stdout | trim }}/{{ export_name }}.{{ item }}"
+            mode: put
+          loop: ["dmp", "log"]
+
+    - name: Import RCVCATOWNER Schema
+      when: action == 'import'
+      block:
+        - name: Create New Tablespace
+          script: create_tablespace.sh
+          environment:
+            SOURCE_CATALOG_DB: "{{ source_catalog_db }}"
+            CATALOG_DB: "{{ catalog_db }}"
+            NEW_CATALOG_SCHEMA: "{{ export_name }}"
+
+        - name: Download RCVCATOWNER Schema Dump File From S3
+          amazon.aws.s3_object:
+            bucket: "{{ source_db_backup_s3_bucket_name }}"
+            object: "datapump/{{ export_name }}.{{ item }}"
+            dest: "{{ get_dump_location.stdout | trim }}/{{ export_name }}.{{ item }}"
+            mode: get
+          loop: ["dmp", "log"]
+
+        - name: Import RCVCATOWNER schema
+          shell: |
+            . ~/.bash_profile
+            PATH=$PATH:/usr/local/bin
+            export ORACLE_SID={{ catalog_db }}
+            export ORAENV_ASK=NO
+            . oraenv
+            impdp \"/ as sysdba\" dumpfile={{ export_name }}.dmp logfile={{ export_name }}.import.log schemas=rcvcatowner job_name={{ export_name }} remap_schema=rcvcatowner:{{ export_name }} remap_tablespace=rcvcat_tbs:rcvcat_{{ source_catalog_db }}_tbs directory=DATA_PUMP_DIR
+          register: import_rman_schema
+
+        - name: Change Imported RCVCATOWNER Schema Password
+          script: rman_change_password.sh
+          environment:
+            CATALOG_DB: "{{ catalog_db }}"
+            NEW_CATALOG_SCHEMA: "{{ export_name }}"

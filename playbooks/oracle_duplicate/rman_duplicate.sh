@@ -33,13 +33,14 @@ usage () {
   echo ""
   echo "Usage:"
   echo ""
-  echo "  $THISSCRIPT -d <target db> -s <source db> -c <catalog db> -t <restore datetime> [ -f <spfile parameters> ] [-l]"
+  echo "  $THISSCRIPT -d <target db> -s <source db> -c <catalog db> -r <catalog schema> -t <restore datetime> [ -f <spfile parameters> ] [-l]"
   echo ""
   echo "where"
   echo ""
   echo "  target db         = target database to clone to"
   echo "  source db         = source database to clone from"
   echo "  catalog db        = rman repository"
+  echo "  catalog schema    = rman schema"
   echo "  restore datetime  = optional date time of production backup to restore from"
   echo "                      format [YYMMDDHH24MISS]"
   echo "  spfile parameters = extra spfile set parameters"
@@ -92,8 +93,9 @@ get_catalog_connection () {
     export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
     export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
     SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:/oracle/database/${CATALOG_DB}/shared-passwords"
-    RMANUSER=rcvcatowner
+    RMANUSER=${CATALOG_SCHEMA:-rcvcatowner}
     RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
+    unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
   else
     REGION=eu-west-2
     INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
@@ -357,7 +359,7 @@ restore_db_passwords () {
   if [ "$APPLICATION" = "delius" ]
   then
     APPLICATION_USERS=(delius_app_schema delius_pool delius_analytics_platform gdpr_pool delius_audit_dms_pool mms_pool)
-    # Add Probation Integration Services by looking up the Usernames by their path in the AWS Secrets (there may be several of these)
+    # Add Probation Integration Services by looking up the Usernames (there may be several of these)
     # We suppress any lookup errors for integration users as these may not exist
     PROBATION_INTEGRATION_USERS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-integration-passwords --query SecretString --output text 2>/dev/null | jq -r 'keys | join(" ")')
   elif [ "$APPLICATION" = "delius-mis" ]
@@ -506,12 +508,13 @@ info "Retrieving arguments"
 TARGET_DB=UNSPECIFIED
 DATETIME=LATEST
 SPFILE_PARAMETERS=UNSPECIFIED
-while getopts "d:s:c:t:p:f:l" opt
+while getopts "d:s:c:r:t:p:f:l" opt
 do
   case $opt in
     d) TARGET_DB=$OPTARG ;;
     s) SOURCE_DB=$OPTARG ;;
     c) CATALOG_DB=$OPTARG ;;
+    r) CATALOG_SCHEMA=$OPTARG ;;
     t) DATETIME=${OPTARG} ;;
     f) SPFILE_PARAMETERS=${OPTARG} ;;
     l) LOCAL_DISK_BACKUP=TRUE ;;

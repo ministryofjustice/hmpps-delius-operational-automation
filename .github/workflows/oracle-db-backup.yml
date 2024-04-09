@@ -152,12 +152,15 @@ jobs:
               # The TargetHost is the simple type of the host, e.g. delius_primarydb
               # The RmanTarget is the full group name including both the environment name and the database type, and may
               # be updating during the course of the backup if it is retries on a standby database.
+              # Note that we deliberately exclude the EnableTrace attribute from the JSON since GitHub currently only
+              # supports 10 elements and this was deemed the least important.  This means that we cannot activate
+              # RMAN trace on retry backups (only on the initial backup).  However, retry backups are expected to be
+              # rare, so the requirement for tracing them is very limited.
               Inputs=$Inputs"\"TargetHost\": \"$TargetHost\","
               Inputs=$Inputs"\"RmanTarget\": \"$RmanTarget\","
               Inputs=$Inputs"\"Period\": \"$Period\","
               Inputs=$Inputs"\"BackupStandbyOnPrimaryFailure\": \"${BackupStandbyOnPrimaryFailure:-yes}\","
               Inputs=$Inputs"\"FixAbsentChunks\": \"${FixAbsentChunks:-yes}\","
-              Inputs=$Inputs"\"EnableTrace\": \"${EnableTrace:-no}\","
               Inputs=$Inputs"\"VerboseOutput\": \"$VerboseOutput\","
               Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
               Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
@@ -171,7 +174,11 @@ jobs:
               if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
                  echo "Responding to Repository Dispatch event"
                  Inputs='${{ github.event.client_payload }}'
+                 echo "I0: $Inputs"
+                 Inputs=$(echo $Inputs | jq -r)
+                 echo "I4: $Inputs"
                  Action='${{ github.event.action }}'
+                 echo "I3: $Inputs"
               else
                  echo "Overriding command line with supplied JSON inputs"
                  Inputs='${{ github.event.inputs.ParametersJSON }}'
@@ -221,6 +228,7 @@ jobs:
           echo "BackupStatus=$BackupStatus" >> $GITHUB_OUTPUT
           echo "Inputs="$(echo $Inputs | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
+          echo "EnableTrace="${EnableTrace:-"no"} >> $GITHUB_OUTPUT
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
@@ -359,7 +367,7 @@ jobs:
           fi
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo "$Inputs" | jq -r | jq -r '.Period' ) -e enable_trace=$(echo "$Inputs" | jq -r | jq -r '.EnableTrace // "no"') -e ssm_parameter=$SSMParameter -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
+          $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo "$Inputs" | jq -r | jq -r '.Period' ) -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
 
       - name: Report Backup Retry Attempt
         id: slack-retry
