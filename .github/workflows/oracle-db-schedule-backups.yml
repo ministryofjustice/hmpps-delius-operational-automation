@@ -9,26 +9,6 @@ on:
     branches:
       - DBA-673
 jobs:
-  prepare-parameters:
-    runs-on: ubuntu-latest
-    outputs:
-      Period: ${{ steps.parameters.outputs.Period }}
-    steps:
-      - name: Parameters
-        id: parameters
-        run: |
-          [ "${{ github.event.schedule }}" == '* 07 * * 1,2,4,5' ] && Period="daily" || Period="weekly"
-          echo "Period=$Period" >> $GITHUB_OUTPUT
-  run-workflow-call:
-    needs: prepare-parameters
-    uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
-    with:
-      TargetEnvironment: delius-core-test
-      TargetHost: delius_primarydb
-      Period: ${{ needs.prepare-parameters.outputs.Period }}
-    secrets: inherit
-
 
   prepare-run-matrix:
     runs-on: ubuntu-latest
@@ -42,7 +22,7 @@ jobs:
           sparse-checkout: |
              .github/workflows/oracle-db-backups-schedule.json
           path: operations
-          ref: main
+          ref: DBA-673
           fetch-depth: 0
 
       - name: Filter Backups Schedule
@@ -80,6 +60,7 @@ jobs:
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
     with:
-      TargetEnvironment: ${{ matrix.TargetEnvironment }}
+      TargetEnvironment: ${{ matrix.TargetEnvironment }}-preapproved
       TargetHost: ${{ matrix.TargetHost }}
       Period: ${{ matrix.Period }}
+    secrets: inherit
