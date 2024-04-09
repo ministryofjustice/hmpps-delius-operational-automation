@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 typeset -u RUN_MODE
 export RUN_MODE=LIVE
 
@@ -149,12 +151,13 @@ fi
 info "Running Repository Dispatch:${EVENT_TYPE}:${JSON_PAYLOAD}:${GITHUB_TOKEN_VALUE}"
 JSON_DATA="{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}"
 info "JD1: $JSON_DATA"
-JSON_DATA=$(echo $JSON_DATA | jq @json)
-info "JD2: $JSON_DATA"
+cat <<EOPOST
+curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data ${JSON_DATA} ${REPOSITORY_DISPATCH}
+EOPOST
 cat <<EOCURL | tee -a /tmp/eocurl.txt
 curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data ${JSON_DATA} ${REPOSITORY_DISPATCH}
 EOCURL
-curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data ${JSON_DATA} ${REPOSITORY_DISPATCH}
+curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data-raw "${JSON_DATA}" ${REPOSITORY_DISPATCH}
 RC=$?
 if [[ $RC -ne 0 ]]; then
       # We cannot use the error function for dispatch failures as it contains its own dispatch call   
@@ -739,6 +742,22 @@ info "Trace File          = $TRACE_FILE"
 info "Archivelog Range    = $ARCHIVELOGS"
 info "Specific Datafiles  = $DATAFILES"
 
+if [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
+   REPOSITORY_DISPATCH="https://api.github.com/repos/${REPOSITORY_DISPATCH}/dispatches"
+   info "GitHub Actions Repository Dispatch Events will be sent to : $REPOSITORY_DISPATCH"
+fi
+
+if [[ ! -z "$JSON_INPUTS" ]]; then
+   # The JSON Inputs are used to record the parameters originally passed to GitHub
+   # actions to start the backup job.   These are only used for actioning a repository
+   # dispatch event to indicate the end of the backup job run.  They do NOT
+   # override the command line options passed to the script.
+   JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode )
+   info "Original JSON Inputs to GitHub Action: $JSON_INPUTS"
+elif [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
+   error "JSON inputs must be supplied using the -j option if Repository Dispatch Events are requested."
+fi
+
 validate user
 info "Execute $THISUSER bash profile"
 . $HOME/.bash_profile
@@ -784,23 +803,6 @@ if [[ ! -z "$SSM_PARAMETER" ]]; then
    update_ssm_parameter "Running" "Running: $0 $*"
 fi
 
-if [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
-   REPOSITORY_DISPATCH="https://api.github.com/repos/${REPOSITORY_DISPATCH}/dispatches"
-   info "GitHub Actions Repository Dispatch Events will be sent to : $REPOSITORY_DISPATCH"
-fi
-
-if [[ ! -z "$JSON_INPUTS" ]]; then
-   # The JSON Inputs are used to record the parameters originally passed to GitHub
-   # actions to start the backup job.   These are only used for actioning a repository
-   # dispatch event to indicate the end of the backup job run.  They do NOT
-   # override the command line options passed to the script.
-   JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode )
-   info "Original JSON Inputs to GitHub Action: $JSON_INPUTS"
-elif [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
-   error "JSON inputs must be supplied using the -j option if Repository Dispatch Events are requested."
-fi
-
-touch $RMANCMDFILE
 info "Create rman tags and format"
 create_tag_format
 info "Generating rman command file"
