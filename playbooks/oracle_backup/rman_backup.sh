@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 typeset -u RUN_MODE
 export RUN_MODE=LIVE
 
