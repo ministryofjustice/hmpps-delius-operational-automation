@@ -75,7 +75,7 @@ permissions:
   id-token: write
 
 jobs:
-  deployment:
+  oracle-db-deinstall:
     name: oracle-db-deinstall
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
@@ -83,6 +83,8 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 1440
     continue-on-error: false
+    outputs:
+      TargetOemEnvironment: ${{ steps.preparation.outputs.TargetOemEnvironment }}
     steps:
 
       - name: Prepare Target Name
@@ -96,6 +98,14 @@ jobs:
             TargetHost+=${environment_name}_${target},
           done
           echo "TargetHost=${TargetHost}" >> $GITHUB_OUTPUT
+
+          case $(echo ${{ github.event.inputs.TargetEnvironment }} | awk -F'delius-core-' '{print $NF}') in
+            dev)TargetOemEnvironment=development ;;
+            test|training) TargetOemEnvironment=test ;;
+            stage|pre-prod) TargetOemEnvironment=preproduction ;;
+            prod) TargetOemEnvironment=production ;;
+          esac
+          echo "TargetOemEnvironment=hmpps-oem-${TargetOemEnvironment}" >> $GITHUB_OUTPUT
 
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
