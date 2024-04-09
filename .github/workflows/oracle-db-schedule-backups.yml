@@ -66,9 +66,12 @@ jobs:
   #   secrets: inherit
 
   run-backup:
+    runs-on: ubuntu-latest
     needs: prepare-run-matrix
     if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
     strategy:
       matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
-    run: |
-      echo "TargetEnvironment: ${{ matrix.TargetEnvironment }}-preapproved"
+    steps:
+      - name: Output
+        run: |
+          echo "TargetEnvironment: ${{ matrix.TargetEnvironment }}-preapproved"
