@@ -374,7 +374,7 @@ jobs:
       # To avoid clutter we do not report all backup successes - just those that needed to be retried due to prior failure
       - name: Report Backup Retry Attempt Success
         id: slack-retry-success
-        if: env.BackupStatus == 'success' and env.IsRetryJob == 'yes'
+        if: env.BackupStatus == 'success' && env.IsRetryJob == 'yes'
         uses: slackapi/slack-github-action@v1.25.0
         with:
             channel-id: "${{ env.SlackChannel }}"
