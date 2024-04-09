@@ -174,17 +174,13 @@ jobs:
               if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
                  echo "Responding to Repository Dispatch event"
                  Inputs='${{ github.event.client_payload }}'
-                 echo "I0: $Inputs"
                  Inputs=$(echo $Inputs | jq -r)
-                 echo "I4: $Inputs"
                  Action='${{ github.event.action }}'
-                 echo "I3: $Inputs"
               else
                  echo "Overriding command line with supplied JSON inputs"
                  Inputs='${{ github.event.inputs.ParametersJSON }}'
                  Action=$(echo $Inputs | jq -r '.BackupAction // "unknown"')
                  [[ "$Action" == "unknown" ]] && "Action is not specified in JSON inputs"  && exit 6
-                 echo "Required Action: $Action"
               fi
               if [[ "$Action" == "oracle-db-backup-success" ]]; then
                 BackupStatus="success"
@@ -198,9 +194,7 @@ jobs:
                     echo "Selecting Retry Target"
                     # If we are allowed to retry a failed backup then change to the next host in sequence
                     Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")')
-                    echo "I1: $Inputs"
                     Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")')
-                    echo "I2: $Inputs"
                     Inputs=$(echo $Inputs | jq '.IsRetryJob = "yes"')
                 fi
               fi
@@ -326,9 +320,7 @@ jobs:
         run: |
             # Ignore errors fetching the parameter - this happens if the backup has not been run before
             RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text) || true
-            echo "Runtime: >>$RUNTIME<<"
             PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
-            echo "Backup Phase: $PHASE"
             # Initialize the Backup Status for this RMAN Backup Target
             if [[ $PHASE != "Inactive" ]] && [[ ! $PHASE =~ Backup ]] && [[ $PHASE != "Done" ]] && [[ ! $PHASE =~ Failed ]]; then
                 echo "Backup is already active on this host.  Multiple concurrent runs are not allowed." && exit 1
@@ -342,7 +334,6 @@ jobs:
         id: backup
         continue-on-error: false
         run: |
-          echo "Inputs: $Inputs"
           echo "Period: "$(echo "$Inputs" | jq -r | jq -r '.Period' )
           if [[ "$BackupStatus" == "failed" ]]; then
              if [[ "$BackupStandbyOnPrimaryFailure" == "no" ]]; then
