@@ -1,5 +1,5 @@
 name: "Oracle: Backup"
-run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.Period, github.event.inputs.TargetHost) }}_database_backup"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}_{2}', github.event.inputs.TargetEnvironment, github.event.inputs.Period, github.event.inputs.TargetHost) || 'iterative_call_for' }}_database_backup"
 on:
   workflow_dispatch:
     inputs:
