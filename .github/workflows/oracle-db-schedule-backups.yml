@@ -51,27 +51,15 @@ jobs:
           run: |
               echo "No targets scheduled for backup run."
 
-  # run-backup:
-  #   needs: prepare-run-matrix
-  #   if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
-  #   strategy:
-  #     matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
-  #   name: Backup
-  #   uses:
-  #     ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
-  #   with:
-  #     TargetEnvironment: ${{ matrix.TargetEnvironment }}-preapproved
-  #     TargetHost: ${{ matrix.TargetHost }}
-  #     Period: ${{ matrix.Period }}
-  #   secrets: inherit
-
   run-backup:
-    runs-on: ubuntu-latest
     needs: prepare-run-matrix
     if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
     strategy:
       matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
-    steps:
-      - name: Output
-        run: |
-          echo "TargetEnvironment: ${{ matrix.TargetEnvironment }}-preapproved"
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@DBA-673
+    with:
+      TargetEnvironment: ${{ matrix.TargetEnvironment }}-preapproved
+      TargetHost: ${{ matrix.TargetHost }}
+      Period: ${{ matrix.Period }}
+    secrets: inherit
