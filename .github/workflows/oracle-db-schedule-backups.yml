@@ -2,12 +2,8 @@ name: "Oracle: Schedule Backups"
 on:
   schedule:
     - cron: '0 8 * * 1,2,4,5'
-    - cron: '0 8 * * 3'       
-    # - cron: '1 8 * * 1,2,4,5'
-    # - cron: '1 8 * * 3'
-  push:
-    branches:
-      - DBA-673
+    - cron: '0 8 * * 3'
+
 jobs:
 
   prepare-run-matrix:
@@ -22,13 +18,13 @@ jobs:
           sparse-checkout: |
              .github/workflows/oracle-db-backups-schedule.json
           path: operations
-          ref: DBA-673
+          ref: main
           fetch-depth: 0
 
       - name: Filter Backups Schedule
         id: filter-backups-schedule
         run: |
-          SCHEDULED_JSON=$(jq '[.[] | select (.Period=="daily") | {"TargetEnvironment","TargetHost","Period"}]' operations/.github/workflows/oracle-db-backups-schedule.json | jq '{include: .}')
+          SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost","Period"}]' operations/.github/workflows/oracle-db-backups-schedule.json | jq '{include: .}')
           echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   report-schedule-backup:
@@ -58,7 +54,7 @@ jobs:
       matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
     name: "run-${{ format('{0}-{1}-{2}', matrix.TargetEnvironment, matrix.Period, matrix.TargetHost) }}-backup"
     uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@DBA-673
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
     with:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       TargetHost: ${{ matrix.TargetHost }}
