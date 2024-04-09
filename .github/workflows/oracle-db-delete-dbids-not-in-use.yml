@@ -169,7 +169,9 @@ jobs:
           # replaced with a new copy from live.  DBIDs targeted for deletion are those which have no recent
           # backup pieces in the S3 backup bucket for the current environment.  We run the logic from the
           # primary database host in the environment.  Any such databases are also de-registered from the
-          # RMAN catalog if still present.
+          # RMAN catalog if still present.   (This needs to be run on a database host, rather than the
+          # Ansible controller as an Oracle client is required for some steps).
+          # It is expected this job is run periodically on a schedule.
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $delete_dbids_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget $VerboseOutput
         
