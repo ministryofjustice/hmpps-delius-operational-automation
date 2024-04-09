@@ -123,6 +123,7 @@ jobs:
           function set_rman_target()
           {
             # Supply 2 parameters:  TargetEnvironment & TargetHost
+            # This function determines the inventory name for the RMAN target on which the backup should be run.
             RmanTarget="environment_name_$(echo $1 | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$2"
           }
           if [[ "${{ github.event_name }}" != "repository_dispatch" ]] && [[ -z "${{ github.event.inputs.ParametersJSON }}" ]];
@@ -149,7 +150,7 @@ jobs:
               # Build a JSON variable capturing all the inputs which have been supplied
               Inputs="{"
               Inputs=$Inputs"\"TargetEnvironment\": \"$TargetEnvironment\","
-              # The TargetHost is the simple type of the host, e.g. delius_primarydb
+              # The TargetHost is the type of the host, e.g. delius_primarydb
               # The RmanTarget is the full group name including both the environment name and the database type, and may
               # be updating during the course of the backup if it is retries on a standby database.
               # Note that we deliberately exclude the EnableTrace attribute from the JSON since GitHub currently only
@@ -170,6 +171,9 @@ jobs:
               # We come here if we have either:
               # (1) Responded to a Repository Dispatch event, or
               # (2) Supplied ParametersJSON as an input 
+              #     (ParametersJSON is only intended for test purposes; we can supply JSON from
+              #      the command line to simulate it being passed as the payload of a 
+              #      Repository Dispatch event)
               # In this case, the incoming JSON Inputs override any other command line parameters
               if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
                  echo "Responding to Repository Dispatch event"
@@ -184,9 +188,18 @@ jobs:
               fi
               if [[ "$Action" == "oracle-db-backup-success" ]]; then
                 BackupStatus="success"
+                # If the backup has been successful then we validate the presence of all
+                # of the backup chunks in the S3 backup bucket.
                 Inputs=$(echo $Inputs | jq '.Phase = "Validating Chunks"')
               else
                 echo "Backup has failed"
+                # If the backup has failed then we decide what to do next.  If BackupStandbyOnPrimaryFailure
+                # has the value of "yes" then we attempt to retry the backup on the next host. i.e.:
+                #   1. If the backup was running on the 1st Standby then we attempt to retry on the 2nd Standby.
+                #   2. If the backup was running on the Primary then we attempt to retry on the 1st Standby.
+                # Note that we do not attempt to check if Standby databases exist at this point, since that
+                # requires checking out of the inventory.   We simply decide which host we would use next
+                # assuming that it exists.  The subsequent job will fail if the selected host does not exist.
                 BackupStatus="failed"
                 echo "BackupOnStandby: "$(echo $Inputs | jq -r '.BackupStandbyOnPrimaryFailure // "yes"')
                 if [[ $(echo $Inputs | jq -r '.BackupStandbyOnPrimaryFailure // "yes"') == "yes" ]]; then
@@ -195,11 +208,13 @@ jobs:
                     # If we are allowed to retry a failed backup then change to the next host in sequence
                     Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")')
                     Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")')
+                    # The IsRetryJob parameter is simply used for informational purposes to indicate
+                    # a job which was attempted on the originally selected host but had to be retried
+                    # on another host due to a failure.
                     Inputs=$(echo $Inputs | jq '.IsRetryJob = "yes"')
                 fi
               fi
               RmanTarget=$(echo $Inputs | jq -r '.RmanTarget')
-              echo "JSON Inputs: $Inputs"
               TargetHost=$(echo $Inputs | jq -r '.TargetHost')
               TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')
               Period=$(echo $Inputs | jq -r '.Period')
@@ -209,6 +224,8 @@ jobs:
               [[ -z $TargetEnvironment ]] && "Target Environment is not specified in JSON inputs" && exit 3
               [[ -z $Period ]] && "Backup Period (daily/weekly) is not specified in JSON inputs" && exit 4
               if [[ "$(echo $Inputs | jq -r '.RmanTarget')" == "null" ]]; then
+                 # We calculate the inventory name for the RMAN target by combining the environment name
+                 # and desired host name.  This is also added back into the Inputs JSON.
                  set_rman_target $TargetEnvironment $TargetHost
                  Inputs=$(echo $Inputs | jq --arg RMANTARGET "$RmanTarget" '.RmanTarget = $RMANTARGET')
               else
@@ -305,24 +322,32 @@ jobs:
       - name: Get Slack Token
         id: get-slack-token
         run: |
-                ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-                OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
-                      jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
-                      jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
-                SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
-                SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
-                SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
-                echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
+            # The OEM Account ID which is associated with this Delius account is held in the SSM Parameter Store.
+            OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
+                  jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
+                  jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
+            # We can then access the Slack Token from the AWS Secrets for that OEM Account
+            SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
+            SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
+            SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
+            echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
 
       - name: Check And Set Backup Runtime
         id: check-and-set-backup-runtime
         shell: bash
         run: |
-            # Ignore errors fetching the parameter - this happens if the backup has not been run before
+            # The SSM Parameter store is used to record information about a backup run.  This is mostly done simply for
+            # informational purposes and is not used to marshal calls to steps in the backup (those are done instead by
+            # respository_dispatch events).
+            # However, the ONE case where we DO act on the contents of the parameter store is to abort a backup if there
+            # is already a backup running on the same host.  This is detected if the previous backup is not at the
+            # Inactive, Done or Failed phase.
+            # (Ignore errors fetching the parameter - this happens if the backup has not been run before: we
+            #  just default this to "Inactive")
             RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text) || true
             PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
             # Initialize the Backup Status for this RMAN Backup Target
-            if [[ $PHASE != "Inactive" ]] && [[ ! $PHASE =~ Backup ]] && [[ $PHASE != "Done" ]] && [[ ! $PHASE =~ Failed ]]; then
+            if [[ $PHASE != "Inactive" ]] && [[ $PHASE != "Done" ]] && [[ ! $PHASE =~ Failed ]]; then
                 echo "Backup is already active on this host.  Multiple concurrent runs are not allowed." && exit 1
             fi
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite \
@@ -334,7 +359,23 @@ jobs:
         id: backup
         continue-on-error: false
         run: |
+          # This step starts running the backup by calling the Ansible backup play
+          # with the appropriate inputs.   
+          # This play is intended to run asynchronously, so once it calls the rman_backup.sh shell
+          # script, it does not wait for the script to complete.   This is because:
+          #   (1) Some backups can exceed the maximum 6 hour limit for a job on a hosted GitHub Runner
+          #   (2) GitHub Runners are billed all the time they are active, even if they are not doing
+          #       anything.  Running the backup asynchronously allows the runner to complete as soon
+          #       as the backup starts and therefore saves on hosting costs.
+          # The backup script, rman_backup.sh, is itself is responsible for raising a respository_dispatch 
+          # event to re-enter this workflow so steps after the backup can continue, whether the backup has
+          # succeeed or failed.
           echo "Period: "$(echo "$Inputs" | jq -r | jq -r '.Period' )
+          # The following section determines what happens if the previous attempt to run the backup has
+          # failed:
+          # If BackupStandbyOnPrimaryFailue is set to "yes" and a Standby database exists, then the
+          # backup may be retried on the Standby.  Otherwise the job aborts with a failure since there
+          # is notwhere else where the backup may be attempted.
           if [[ "$BackupStatus" == "failed" ]]; then
              if [[ "$BackupStandbyOnPrimaryFailure" == "no" ]]; then
                 echo "Backup Failed And No Retry Allowed"
@@ -357,6 +398,7 @@ jobs:
              fi
           fi
           export ANSIBLE_CONFIG=$ansible_config
+          # A symlink is used to access the Backup Role as if it were a standalone Ansible Role
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo "$Inputs" | jq -r | jq -r '.Period' ) -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
 
@@ -386,6 +428,14 @@ jobs:
       - name: Run Ansible Validate And Fix Absent Chunks
         if: env.BackupStatus == 'success'
         run: |
+          # We only come here by a repository_dispatch event which reports that the backup was successful.
+          # If this is the case then we run a second Ansible play which checks that all backup chunk pieces are available
+          # on the S3 bucket.  This is a precaution due to previous incidents where the backup metadata did not match
+          # the available chunks.   This has not been seen on more recent versions of OSBWS and it is believed the
+          # bug has been fixed.   However, since Oracle had been unable to identify the root cause, we keep this
+          # check active just in case.
+          # Unlike the Backup Ansible play, this step is not asynchronous so we do not expect it to encounter
+          # time limits.
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
           $validate_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e fix_absent_chunks=$(echo "$Inputs" | jq -r | jq -r '.FixAbsentChunks // "yes"') $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
