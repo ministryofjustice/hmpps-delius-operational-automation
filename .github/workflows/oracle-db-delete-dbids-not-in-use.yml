@@ -113,7 +113,7 @@ jobs:
             playbooks/oracle_backup
             playbooks/ansible.cfg
           path: operations
-          ref: DBA-667
+          ref: "${{ env.SourceCodeVersion }}"
           fetch-depth: 0
 
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
