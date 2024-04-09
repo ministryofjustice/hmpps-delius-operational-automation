@@ -176,6 +176,7 @@ jobs:
                  Inputs='${{ github.event.client_payload }}'
                  echo "I0: $Inputs"
                  Inputs=$(echo $Inputs | jq -r)
+                 echo "I4: $Inputs"
                  Action='${{ github.event.action }}'
                  echo "I3: $Inputs"
               else
