@@ -59,7 +59,7 @@ jobs:
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@DBA-673
     with:
-      TargetEnvironment: ${{ matrix.TargetEnvironment }}-preapproved
+      TargetEnvironment: ${{ matrix.TargetEnvironment }}
       TargetHost: ${{ matrix.TargetHost }}
       Period: ${{ matrix.Period }}
     secrets: inherit
