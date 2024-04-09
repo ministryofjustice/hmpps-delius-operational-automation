@@ -43,6 +43,9 @@ usage () {
   echo "                                              [ -a min archivelog sequence,max archivelog sequence ] "
   echo "                                              [ -l <comma separated list of datafiles to backup> ] "
   echo "                                              [ -g <target db global name> ]"
+  echo "                                              [ -s <SSM Parameter Path where Runtime details are written>]"
+  echo "                                              [ -r <GitHub repository for sending repository dispatch events back to the calling workflow>] "
+  echo "                                              [ -j <JSON formatted string of inputs to the Github backup workflow>] "
   echo ""
   echo "where"
   echo ""
@@ -64,9 +67,102 @@ usage () {
   echo "  If -a or -l is NOT specified then a full backup of the database and all archivelogs not already backed up is performed."
   echo "     -a and -l are mutually exclusive.  If you wish to backup a range of archivelogs and some datafiles then call the script twice "
   echo "     with the respective parameters."
+  echo "  "
+  echo "  If -r is specified then a repository must be specified for sending GitHub actions repository dispatch events."
+  echo "      This would typically be ministryofjustice/hmpps-delius-operational-automation and is used for triggering"
+  echo "      any follow-on GitHub actions necessary upon succesful or unsuccessful completion."
+  echo "  "
+  echo "  If -j is specified then it should be followed by a valid JSON string representing all of the inputs to the GitHub"
+  echo "       backup workflow.  This is used to supply the original input parameters back to the GitHub workflow in the case"
+  echo "       that we wish to continue the workflow after this script has finished running. This parameter is mandatory"
+  echo "       if -r is used to specify the use of repository dispatch events."
   echo ""
+  echo "  The SSM parameter path optionally specified with -s is used to identify the path for storing the phase, "
+  echo "     status, and status messages for a backup held in a JSON string at this location."
 
   exit $ERROR_STATUS
+}
+
+
+function generate_jwt()
+{
+# Get a JSON Web Token to authenicate against the HMPPS Bot.
+# The HMPPS bot can provide exchange this for a GitHub Token for action GitHub workflows.
+
+BOT_APP_ID=$(aws ssm get-parameter --name "/github/hmpps_bot_app_id" --query "Parameter.Value" --with-decryption --output text)
+BOT_PRIVATE_KEY=$(aws ssm get-parameter --name "/github/hmpps_bot_priv_key" --query "Parameter.Value" --with-decryption --output text)
+
+# Define expiry time for JWT
+NOW=$(date +%s)
+INITIAL=$((${NOW} - 60)) # Issues 60 seconds in the past
+EXPIRY=$((${NOW} + 600)) # Expires 10 minutes in the future
+
+b64enc() { openssl base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n'; }
+
+HEADER_JSON='{
+    "typ":"JWT",
+    "alg":"RS256"
+}'
+# Header encode
+HEADER=$( echo -n "${HEADER_JSON}" | b64enc )
+
+PAYLOAD_JSON='{
+    "iat":'"${INITIAL}"',
+    "exp":'"${EXPIRY}"',
+    "iss":'"${BOT_APP_ID}"'
+}'
+# Payload encode
+PAYLOAD=$( echo -n "${PAYLOAD_JSON}" | b64enc )
+
+# Signature
+HEADER_PAYLOAD="${HEADER}"."${PAYLOAD}"
+SIGNATURE=$(
+    openssl dgst -sha256 -sign <(echo -n "${BOT_PRIVATE_KEY}") \
+    <(echo -n "${HEADER_PAYLOAD}") | b64enc
+)
+
+# Create JWT
+JWT="${HEADER_PAYLOAD}"."${SIGNATURE}"
+printf '%s\n' "$JWT"
+}
+
+function get_github_token()
+{
+# Generate JSON Web Token to authenticate to HMPPS Bot
+JWT=$(generate_jwt)
+# Fetch Installation ID for App in target Repository
+BOT_INSTALL_ID=$(aws ssm get-parameter --name "/github/hmpps_bot_installation_id" --query "Parameter.Value" --with-decryption --output text)
+GITHUB_TOKEN=$(curl --request POST --url "https://api.github.com/app/installations/${BOT_INSTALL_ID}/access_tokens" --header "Accept: application/vnd.github+json" --header "Authorization: Bearer $JWT" --header "X-GitHub-Api-Version: 2022-11-28")
+printf '%s\n' "$GITHUB_TOKEN"
+}
+
+function github_repository_dispatch()
+{
+EVENT_TYPE=$1
+JSON_PAYLOAD=$2
+GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
+if [[ "$EVENT_TYPE" == "oracle-db-backup-success" ]]; then
+    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Succeeded"')
+else
+    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Failed"')
+fi
+info "Running Repository Dispatch:${EVENT_TYPE}:${JSON_PAYLOAD}:${GITHUB_TOKEN_VALUE}"
+JSON_DATA="{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}"
+info "JD1: $JSON_DATA"
+JSON_DATA=$(echo $JSON_DATA | jq @json)
+info "JD2: $JSON_DATA"
+cat <<EOCURL | tee -a /tmp/eocurl.txt
+curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data ${JSON_DATA} ${REPOSITORY_DISPATCH}
+EOCURL
+curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data ${JSON_DATA} ${REPOSITORY_DISPATCH}
+RC=$?
+if [[ $RC -ne 0 ]]; then
+      # We cannot use the error function for dispatch failures as it contains its own dispatch call   
+      T=`date +"%D %T"`
+      echo "ERROR : $THISSCRIPT : $T : Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}" | tee -a ${RMANOUTPUT}
+      update_ssm_parameter  "Error" "Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}"
+      exit 1
+fi
 }
 
 info () {
@@ -83,9 +179,30 @@ warning () {
   echo "WARNING : $THISSCRIPT : $T : $1"
 }
 
+update_ssm_parameter () {
+  STATUS=$1
+  MESSAGE=$2
+  info "Updating SSM Parameter ${SSM_PARAMETER} Message to ${MESSAGE}"
+  SSM_VALUE=$(aws ssm get-parameter --name "${SSM_PARAMETER}" --query "Parameter.Value" --output text)
+  info "I: $NEW_SSM_VALUE"
+  NEW_SSM_VALUE=$(echo ${SSM_VALUE} | jq -r --arg MESSAGE "$MESSAGE" '.Message=$MESSAGE')
+  info "B: $NEW_SSM_VALUE"
+  if [[ "$STATUS" == "Success" ]]; then
+     NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup Succeeded"')
+  elif [[ "$STATUS" == "Running" ]]; then
+     NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup In Progress"') 
+  else
+     NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup Failed"')
+  fi
+  info "A: $NEW_SSM_VALUE"
+  aws ssm put-parameter --name "${SSM_PARAMETER}" --type String --overwrite --value "${NEW_SSM_VALUE}" 1>&2
+}
+
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1" | tee -a ${RMANOUTPUT}
+  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error" "Error: $1"
+  [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-db-backup-failure" "${JSON_INPUTS}"
   exit $ERROR_STATUS
 }
 
@@ -104,11 +221,13 @@ get_rman_password () {
   ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ASSUME_ROLE_NAME}"
   SESSION="catalog-ansible"
   CREDS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION}"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")
-  export AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
-  export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
-  export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
+  # Avoid exporting the AWS_* variables as we only need to change the role for fetching the RMAN password.
+  # The existing role should continue to be used for other functionality.  Therefore only use AWS_* variables within the subshell.
+  export RMAN_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
+  export RMAN_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
+  export RMAN_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
   SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:${SECRET}"
-  RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
+  RMANPASS=$(AWS_ACCESS_KEY_ID=$RMAN_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$RMAN_SECRET_ACCESS_KEY AWS_SESSION_TOKEN=$RMAN_SESSION_TOKEN aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
 }
 
 validate () {
@@ -567,7 +686,6 @@ EOF
   [ $? -ne 0 ] && error "Unable to enable block change tracking"
 }
 
-
 # ------------------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------------------
@@ -586,7 +704,7 @@ MINIMIZE_LOAD=UNSPECIFIED
 TRACE_FILE=N
 ARCHIVELOGS=UNSPECIFIED
 DATAFILES=UNSPECIFIED
-while getopts "d:t:b:f:i:n:m:u:c:e:a:l:g:p:" opt
+while getopts "d:t:b:f:i:n:m:u:c:e:a:l:g:p:s:r:j:" opt
 do
   case $opt in
     d) TARGET_DB_SID=$OPTARG ;;
@@ -602,6 +720,9 @@ do
     a) ARCHIVELOGS=$OPTARG ;;
     l) DATAFILES=$OPTARG ;;
     g) TARGET_DB_NAME=$OPTARG ;;
+    s) SSM_PARAMETER=$OPTARG ;;
+    r) REPOSITORY_DISPATCH=$OPTARG ;;
+    j) JSON_INPUTS=$OPTARG ;;
     *) usage ;;
   esac
 done
@@ -658,6 +779,27 @@ then
    ENABLE_TRACE="trace $RMANTRCFILE"
 fi
 
+if [[ ! -z "$SSM_PARAMETER" ]]; then
+   info "Runtime status updates will be written to: $SSM_PARAMETER"
+   update_ssm_parameter "Running" "Running: $0 $*"
+fi
+
+if [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
+   REPOSITORY_DISPATCH="https://api.github.com/repos/${REPOSITORY_DISPATCH}/dispatches"
+   info "GitHub Actions Repository Dispatch Events will be sent to : $REPOSITORY_DISPATCH"
+fi
+
+if [[ ! -z "$JSON_INPUTS" ]]; then
+   # The JSON Inputs are used to record the parameters originally passed to GitHub
+   # actions to start the backup job.   These are only used for actioning a repository
+   # dispatch event to indicate the end of the backup job run.  They do NOT
+   # override the command line options passed to the script.
+   JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode )
+   info "Original JSON Inputs to GitHub Action: $JSON_INPUTS"
+elif [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
+   error "JSON inputs must be supplied using the -j option if Repository Dispatch Events are requested."
+fi
+
 touch $RMANCMDFILE
 info "Create rman tags and format"
 create_tag_format
@@ -673,6 +815,8 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
+[[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Success" "Completed without errors"
+[[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-db-backup-success" "${JSON_INPUTS}"
 info "Completes successfully"
 
 # Exit with success status if no error found

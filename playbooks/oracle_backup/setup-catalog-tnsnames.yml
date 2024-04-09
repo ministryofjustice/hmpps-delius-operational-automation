@@ -4,7 +4,7 @@
     marker_name: "ANSIBLE MANAGED BLOCK ADD {{ catalog }} DATABASE"
 
 - name: Get the oracle home for {{ database_primary_sid }}
-  shell: "grep {{ database_primary_sid | default(database_standby_sid) }} /etc/oratab | awk -F':' '{print $2}'"
+  shell: "grep {{ database_primary_sid | default(database_standby_sid) }} /etc/oratab | head -1 | awk -F':' '{print $2}'"
   changed_when: false
   register: oracle_home
 
