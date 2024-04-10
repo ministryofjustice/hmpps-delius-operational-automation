@@ -177,7 +177,7 @@ jobs:
               # In this case, the incoming JSON Inputs override any other command line parameters
               if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
                  echo "Responding to Repository Dispatch event"
-                 Inputs='${{ github.event.client_payload }}'
+                 Inputs='${{ toJson(github.event.client_payload) }}'
                  Inputs=$(echo $Inputs | jq -r)
                  Action='${{ github.event.action }}'
               else
