@@ -1,5 +1,5 @@
 - name: Delete DBIDs Not Longer in Use
-  hosts: '{{ rman_target }}'
+  hosts: "{{ rman_target }}"
   gather_facts: yes
   become: yes
   become_user: oracle
