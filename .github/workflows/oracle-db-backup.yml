@@ -353,7 +353,9 @@ jobs:
             PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
             # Initialize the Backup Status for this RMAN Backup Target
             if [[ $PHASE != "Inactive" ]] && [[ $PHASE != "Done" ]] && [[ ! $PHASE =~ Failed ]]; then
-                echo "Backup is already active on this host.  Multiple concurrent runs are not allowed." && exit 1
+                echo "Backup is already active on this host.  Multiple concurrent runs are not allowed."
+                Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Concurrent Backup Attempt"' | jq @json)
+                exit 1
             fi
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite \
                 --value "$(echo $Inputs | jq -r )" \
@@ -461,7 +463,11 @@ jobs:
         if: failure()
         run: |
             Inputs=$(echo $Inputs | jq -r | jq '.Phase += " -- Failed"' | jq @json)
-            aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $Inputs | jq -r)"
+            if [[ ! $(echo $Inputs | jq -r | jq '.Phase') =~ Concurrent ]]; then
+               # Do not update SSM Parameter if failure was due to concurrent backup attempts as we do
+               # not want to overwrite the parameter value for the original run
+               aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $Inputs | jq -r)"
+            fi
 
       - name: Slack Failure Notification
         id: slack-failure
