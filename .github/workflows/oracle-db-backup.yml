@@ -203,15 +203,20 @@ jobs:
                 BackupStatus="failed"
                 echo "BackupOnStandby: "$(echo $Inputs | jq -r '.BackupStandbyOnPrimaryFailure // "yes"')
                 if [[ $(echo $Inputs | jq -r '.BackupStandbyOnPrimaryFailure // "yes"') == "yes" ]]; then
-                    Inputs=$(echo $Inputs | jq '.Phase = "Retrying Failed Backup on Standby"')
-                    echo "Selecting Retry Target"
-                    # If we are allowed to retry a failed backup then change to the next host in sequence
-                    Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")')
-                    Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")')
-                    # The IsRetryJob parameter is simply used for informational purposes to indicate
-                    # a job which was attempted on the originally selected host but had to be retried
-                    # on another host due to a failure.
-                    Inputs=$(echo $Inputs | jq '.IsRetryJob = "yes"')
+                    if [[ $(echo $Inputs | jq -r '.RmanTarget') =~ standbydb2 ]]; then
+                        echo "No Further Retry Targets Available"
+                        BackupStatus="fatal"
+                    else
+                        Inputs=$(echo $Inputs | jq '.Phase = "Retrying Failed Backup on Standby"')
+                        echo "Selecting Retry Target"
+                        # If we are allowed to retry a failed backup then change to the next host in sequence
+                        Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")')
+                        Inputs=$(echo $Inputs | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")')
+                        # The IsRetryJob parameter is simply used for informational purposes to indicate
+                        # a job which was attempted on the originally selected host but had to be retried
+                        # on another host due to a failure.
+                        Inputs=$(echo $Inputs | jq '.IsRetryJob = "yes"')
+                    fi
                 fi
               fi
               RmanTarget=$(echo $Inputs | jq -r '.RmanTarget')
@@ -376,6 +381,12 @@ jobs:
           # If BackupStandbyOnPrimaryFailue is set to "yes" and a Standby database exists, then the
           # backup may be retried on the Standby.  Otherwise the job aborts with a failure since there
           # is notwhere else where the backup may be attempted.
+          if [[ "$BackupStatus" == "fatal" ]]; then
+             echo "All Possible Backup Retry Targets Exhausted"
+             Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Failed And No More Retry Targets Remain"' | jq @json)
+             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $Inputs | jq -r)"
+             exit 11
+          fi
           if [[ "$BackupStatus" == "failed" ]]; then
              if [[ "$BackupStandbyOnPrimaryFailure" == "no" ]]; then
                 echo "Backup Failed And No Retry Allowed"
