@@ -341,6 +341,12 @@ jobs:
         id: check-and-set-backup-runtime
         shell: bash
         run: |
+            if [[ "$BackupStatus" == "fatal" ]]; then
+                echo "All Possible Backup Retry Targets Exhausted"
+                Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Failed And No More Retry Targets Remain"' | jq @json)
+                aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $Inputs | jq -r)"
+                exit 11
+            fi
             # The SSM Parameter store is used to record information about a backup run.  This is mostly done simply for
             # informational purposes and is not used to marshal calls to steps in the backup (those are done instead by
             # respository_dispatch events).
@@ -383,12 +389,6 @@ jobs:
           # If BackupStandbyOnPrimaryFailue is set to "yes" and a Standby database exists, then the
           # backup may be retried on the Standby.  Otherwise the job aborts with a failure since there
           # is notwhere else where the backup may be attempted.
-          if [[ "$BackupStatus" == "fatal" ]]; then
-             echo "All Possible Backup Retry Targets Exhausted"
-             Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Failed And No More Retry Targets Remain"' | jq @json)
-             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $Inputs | jq -r)"
-             exit 11
-          fi
           if [[ "$BackupStatus" == "failed" ]]; then
              if [[ "$BackupStandbyOnPrimaryFailure" == "no" ]]; then
                 echo "Backup Failed And No Retry Allowed"
