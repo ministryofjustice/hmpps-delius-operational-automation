@@ -9,10 +9,10 @@
         msg: "Grid Infrastructure Oracle Home {{ oracle_grid_oracle_home }} does not match expected format."
       when: not ( oracle_grid_oracle_home | regex_search("^/u01/app/grid/product/[0-9\.]+/grid$"))
 
-    # - name: Deinstall Grid Infrastructure Home
-    #   include: deinstall.yml
-    #   vars:
-    #     deinstall_home: "{{ oracle_grid_oracle_home }}"
+    - name: Deinstall Grid Infrastructure Home
+      include_tasks: deinstall.yml
+      vars:
+        deinstall_home: "{{ oracle_grid_oracle_home }}"
 
 - name: Deinstall Database Software
   when:
@@ -24,10 +24,10 @@
         msg: "Database Oracle Home {{ oracle_database_oracle_home }} does not match expected format."
       when: not (oracle_database_oracle_home | regex_search("^/u01/app/oracle/product/[0-9\.]+/db$"))
 
-    # - name: Deinstall Database Home
-    #   include: deinstall.yml
-    #   vars:
-    #     deinstall_home: "{{ oracle_database_oracle_home }}"
+    - name: Deinstall Database Home
+      include_tasks: deinstall.yml
+      vars:
+        deinstall_home: "{{ oracle_database_oracle_home }}"
 
 # Set variables ready to run target deletion in next playbook
 # NB: We use ansible_play_hosts to compile a list of targets which have not failed so far
