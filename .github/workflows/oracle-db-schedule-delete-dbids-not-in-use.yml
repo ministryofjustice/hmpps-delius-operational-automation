@@ -1,0 +1,62 @@
+name: "Oracle: Schedule Delete DBID Backups Not In Use"
+on:
+  push:
+    branches:
+      - "DBA-667"
+  schedule:
+    - cron: '10 14 * * TUE'
+    - cron: '10 15 * * TUE'
+    - cron: '10 16 * * TUE'
+jobs:
+  prepare-run-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      scheduled_matrix: ${{ steps.filter-validate-schedule.outputs.scheduling_matrix }}
+    steps:
+      - name: Checkout Delete DBIDs Backups Schedule
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+             .github/workflows/oracle-db-delete-dbids-not-in-use-schedule.json
+          path: operations
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          fetch-depth: 0
+
+      - name: Filter Validate Schedule
+        id: filter-validate-schedule
+        run: |
+             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-delete-dbids-not-in-use-schedule.json | jq '{include: .}')
+             echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
+
+  report-schedule-delete-dbids-not-in-use:
+    needs: prepare-run-matrix
+    runs-on: ubuntu-latest
+    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
+    steps:
+      - name: Report Deletion of DBIDs Scheduled to Run
+        id: report-run
+        run: |
+              echo "Running Deletion of Unused DBID Backups for these targets: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }}"
+ 
+  report-no-scheduled-delete-dbids-not-in-use:
+    needs: prepare-run-matrix
+    runs-on: ubuntu-latest
+    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix == '{"include":[]}' }}
+    steps:
+        - name: Report Nothing to Do
+          id: report-no-run
+          run: |
+              echo "No targets scheduled for DBID backup deletion."
+
+  delete-dbids-not-in-use:
+    needs: prepare-run-matrix
+    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
+    strategy:
+      matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
+    name: Delete DBID Backups Not In Use
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-delete-dbids-not-in-use.yml@main
+    with:
+      TargetEnvironment: ${{ matrix.TargetEnvironment }}
+      TargetHost: ${{ matrix.TargetHost }}
