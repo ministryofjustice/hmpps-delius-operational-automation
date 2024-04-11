@@ -18,19 +18,19 @@ on:
         description: "Database target host"
         type: choice
         options:
-          - "delius_primarydb",
-          - "delius_standbydb1",
-          - "delius_standbydb2",
-          - "delius_standbydb1,delius_standbydb2",
-          - "delius_dbs",
-          - "mis_primarydb",
-          - "mis_standbydb1",
-          - "mis_dbs",
-          - "misboe_primarydb",
-          - "misboe_standbydb1",
-          - "misboe_dbs",
-          - "misdsd_primarydb",
-          - "misdsd_standbydb1",
+          - "delius_primarydb"
+          - "delius_standbydb1"
+          - "delius_standbydb2"
+          - "delius_standbydb1,delius_standbydb2"
+          - "delius_dbs"
+          - "mis_primarydb"
+          - "mis_standbydb1"
+          - "mis_dbs"
+          - "misboe_primarydb"
+          - "misboe_standbydb1"
+          - "misboe_dbs"
+          - "misdsd_primarydb"
+          - "misdsd_standbydb1"
           - "misdsd_dbs"
       GridHome:
         description: "Oracle Grid Infrastructure Home to Deinstall"
