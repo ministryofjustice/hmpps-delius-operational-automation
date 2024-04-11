@@ -96,7 +96,7 @@ jobs:
             IFS=""
             TargetHost+=${environment_name}_${target},
           done
-          echo "TargetHost=${TargetHost}" >> $GITHUB_OUTPUT
+          echo "TargetHost=${TargetHost%?}" >> $GITHUB_OUTPUT
 
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
