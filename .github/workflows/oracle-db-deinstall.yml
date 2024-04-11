@@ -43,7 +43,7 @@ on:
         description: "Oracle Database Home to Deinstall"
         type: choice
         default: "DO_NOT_DEINSTALL"
-        options
+        options:
           - "DO_NOT_DEINSTALL"
           - "/u01/app/oracle/product/19.0.0.0/db"
       VerboseOutput:
