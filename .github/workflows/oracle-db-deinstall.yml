@@ -105,6 +105,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/oracle_release_update
+            common/*
             playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
