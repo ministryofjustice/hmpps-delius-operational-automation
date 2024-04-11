@@ -11,7 +11,7 @@
   register: home_exists
 
 - name: Deinstall {{ deinstall_home }} Home
-  include: deinstall_oracle_home.yml
+  include_tasks: deinstall_oracle_home.yml
   vars:
     oracle_home: "{{ deinstall_home }}"
   when: home_exists.stat.exists
