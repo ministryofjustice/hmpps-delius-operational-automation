@@ -61,30 +61,41 @@ done
 
 # If there are old controlfile snapshots present these may contain reference to previous Oracle Homes
 # Simply create a new snapshot controlfile if required
-if [[ -f ${DB_ORACLE_HOME}/dbs/snapcf${ORACLE_SID}.f ]]; then
 
-   grep "${DEINSTALL_HOME}" ${DB_ORACLE_HOME}/dbs/snapcf${ORACLE_SID}.f > /dev/null
+INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
+DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
+APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
+SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region eu-west-2 --query SecretString --output text| jq -r .sys)
+
+if [[ -f ${DB_ORACLE_HOME}/dbs/snapcf_${ORACLE_SID}.f ]];
+then
+   grep "${DEINSTALL_HOME}" ${DB_ORACLE_HOME}/dbs/snapcf_${ORACLE_SID}.f > /dev/null
    if [[ $? -eq 0 ]];
    then  
-      rman target / <<EORMAN
+      rman target sys/${SYS_PASSWORD}@${ORACLE_SID} <<EORMAN
       backup current controlfile;
       exit
 EORMAN
    fi
 
    # Sometimes it is necessary to repeat the above step to clear all references
-   grep "${DEINSTALL_HOME}" ${DB_ORACLE_HOME}/dbs/snapcf${ORACLE_SID}.f > /dev/null
+   grep "${DEINSTALL_HOME}" ${DB_ORACLE_HOME}/dbs/snapcf_${ORACLE_SID}.f > /dev/null
    if [[ $? -eq 0 ]];
    then  
-      rman target / <<EORMAN
+      rman target sys/${SYS_PASSWORD}@${ORACLE_SID} <<EORMAN
       backup current controlfile;
       exit
 EORMAN
    fi
+
+   # Delete snapshot control file as will be created on next backup if defined in RMAN configuration
+   rm -f ${DB_ORACLE_HOME}/dbs/snapcf_${ORACLE_SID}.f
+
 fi
 
 # Check that the default RMAN SBT Channel is not pointing to the deinstall home
-rman target / <<EORMAN | grep "CONFIGURE CHANNEL DEVICE TYPE 'SBT_TAPE' PARMS" | awk -F= '{print $NF}' | tr -d ")';" | grep ${DEINSTALL_HOME}
+rman target sys/${SYS_PASSWORD}@${ORACLE_SID} <<EORMAN | grep "CONFIGURE CHANNEL DEVICE TYPE 'SBT_TAPE' PARMS" | awk -F= '{print $NF}' | tr -d ")';" | grep ${DEINSTALL_HOME}
 SHOW CHANNEL;
 exit;
 EORMAN
@@ -94,7 +105,7 @@ then
    exit 1
 fi
 
-for x in $(grep "${DEINSTALL_HOME}" ${DB_ORACLE_HOME}/dbs/* 2>/dev/null);
+for x in $(grep -r "${DEINSTALL_HOME}" ${DB_ORACLE_HOME}/dbs/* 2>/dev/null);
 do
    echo "$x ${DEINSTALL_HOME}"
    exit 1
