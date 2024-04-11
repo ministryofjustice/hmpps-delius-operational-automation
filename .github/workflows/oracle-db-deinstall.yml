@@ -66,7 +66,7 @@ on:
 
 env:
   ansible_config: ansible/playbooks/ansible.cfg
-  command: ansible-playbook operations/playbooks/oracle_release_update/deinstall_oracle.yml
+  command: ansible-playbook operations/playbooks/oracle_release_update/deinstall_oracle.yml 
   inventory: inventory/ansible
 
 permissions:
@@ -83,8 +83,6 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 1440
     continue-on-error: false
-    outputs:
-      TargetOemEnvironment: ${{ steps.preparation.outputs.TargetOemEnvironment }}
     steps:
 
       - name: Prepare Target Name
@@ -98,14 +96,6 @@ jobs:
             TargetHost+=${environment_name}_${target},
           done
           echo "TargetHost=${TargetHost}" >> $GITHUB_OUTPUT
-
-          case $(echo ${{ github.event.inputs.TargetEnvironment }} | awk -F'delius-core-' '{print $NF}') in
-            dev)TargetOemEnvironment=development ;;
-            test|training) TargetOemEnvironment=test ;;
-            stage|pre-prod) TargetOemEnvironment=preproduction ;;
-            prod) TargetOemEnvironment=production ;;
-          esac
-          echo "TargetOemEnvironment=hmpps-oem-${TargetOemEnvironment}" >> $GITHUB_OUTPUT
 
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
@@ -131,6 +121,18 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
+      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/roles/secretsmanager-passwords
+            ansible/roles/get-modernisation-platform-facts
+          path: roles
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
@@ -142,7 +144,8 @@ jobs:
       - name: Start Deinstall Oracle Home
         run: | 
             export ANSIBLE_CONFIG=$ansible_config
+            ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_release_update/roles
             $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
             -e target_hosts="${{ steps.preparetargetname.outputs.TargetHost }}" \
             -e oracle_grid_oracle_home="{{ github.event.inputs.GridHome }}" \
-            -e oracle_database_oracle_home="{{ github.event.inputs.DatabaseHome }} ${{ github.event.inputs.VerboseOutput }}
+            -e oracle_database_oracle_home="{{ github.event.inputs.DatabaseHome }}" ${{ github.event.inputs.VerboseOutput }}
