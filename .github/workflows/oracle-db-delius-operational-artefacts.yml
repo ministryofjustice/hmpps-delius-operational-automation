@@ -42,6 +42,13 @@ on:
         options:
           - "yes"
           - "no"
+      DeployMVRefreshPurgeChildCursors:
+        description: "Create Job to purge MV Refresh Child Cursors?"
+        type: choice
+        default: "no"
+        options:
+          - "yes"
+          - "no"
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -143,4 +150,5 @@ jobs:
           -e deploy_users=${{ github.event.inputs.DeployUsers }} \
           -e deploy_performance_test_users=${{ github.event.inputs.DeployPerformanceTestUsers }} \
           -e deploy_audit_stub_users=${{ github.event.inputs.DeployAuditStubUsers }} \
-          -e deploy_plan_management=${{ github.event.inputs.DeployPlanManagement }}
+          -e deploy_plan_management=${{ github.event.inputs.DeployPlanManagement }} \
+          -e deploy_mv_refresh_purge_child=${{ github.event.inputs.DeployMVRefreshPurgeChildCursors }}
