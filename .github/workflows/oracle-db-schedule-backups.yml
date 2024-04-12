@@ -51,7 +51,9 @@ jobs:
     needs: prepare-run-matrix
     if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
     strategy:
+      fail-fast: false
       matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
+
     name: "run-${{ format('{0}-{1}-{2}', matrix.TargetEnvironment, matrix.Period, matrix.TargetHost) }}-backup"
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
