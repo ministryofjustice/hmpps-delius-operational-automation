@@ -1,23 +1,23 @@
 name: Weblogic ECS - Update Task Definition
 
-#on:
-#  workflow_dispatch:
-#    inputs:
-#        environment:
-#            required: true
-#            type: choice
-#            options:
-#              - "dev"
-#        service-name:
-#            required: true
-#            type: choice
-#            options:
-#              - "weblogic"
-#              - "weblogic-eis"
-#        image-tag:
-#            required: false
-#            type: string
-#            default: 'latest'
+on:
+ workflow_dispatch:
+   inputs:
+       environment:
+           required: true
+           type: choice
+           options:
+             - "dev"
+       service-name:
+           required: true
+           type: choice
+           options:
+             - "weblogic"
+             - "weblogic-eis"
+       image-tag:
+           required: false
+           type: string
+           default: 'latest'
             
 jobs:
     deploy:
