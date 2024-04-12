@@ -73,3 +73,12 @@
       include_role:
         name: "{{ playbook_dir }}/oracle_plan_management/install_plan_management_job"
       when: deploy_plan_management | default('no') == "yes"
+
+    # Cursors created by Materialied View refreshes may not be shared due to their
+    # use of Flashback Query.  This results in a build up of large numbers of
+    # versions of each refresh which cannot be shared and waste shared pool memory.
+    # This job periodically detects such cursors and purges them.
+    - name: Deploy MV Refresh Purge Child Cursors Job
+      include_role:
+        name: "{{ playbook_dir }}/oracle_mv_refresh_purge_child_cursors/oracle_mv_refresh_purge_child_cursors"
+      when: deploy_mv_refresh_purge_child | default('no') == "yes"

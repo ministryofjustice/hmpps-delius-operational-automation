@@ -1,0 +1,18 @@
+---
+# When Materialized Views are refreshed this creates child SQL cursors which are not reusable
+# since they use Flashback Query.  Since the refreshes happen frequently, the shared pool can
+# begin to fill up with hundreds of versions of the same refresh queries, which can occupy
+# considerable amounts of memory and deprive it from other components of the database.
+#
+# For details see: Using the Flashback Query Feature Results in a High Number of Child Cursors (Doc ID 2192862.1)
+#
+# An SR 3-35666063241 was raised with Oracle for this behaviour but has been closed on the
+# basis that it is expected for Materialized View refreshes.
+#
+# As a workaround we install a scheduler job to clean up the child cursors.
+# This job detects non-reusable materialized view refresh cursors and force purges them
+# from the shared pool to allow this memory to be reused.
+#
+
+- name: Install Materialized View Refresh Purge Child Cursors Job
+  script: install_mv_refresh_purge_child_cursors_job.sh
