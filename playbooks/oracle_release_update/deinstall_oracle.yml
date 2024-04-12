@@ -6,39 +6,13 @@
   roles:
     - deinstall_oracle
 
-# Run the following to Update OEM Targets *** only when inside of AWS ***
-# This playbook calls an SSM Automation to run the OEM Changes within the associated
-# Engineering Environment.   We loop through each host in the environment
-# where the deinstallation completed successfully.
-- hosts: localhost
-  gather_facts: no
-  become: no
-  tasks:
-    - include_vars:
-        file: release_update/vars/main.yml
-    - name: Run SSM Automation to Update OEM Targets
-      include: release_update/tasks/update_oem_targets.yml
-      vars:
-        update_host: "{{ item }}"
-        grid_home: "{{ oem_gi_home | replace('DO_NOT_DEINSTALL','NONE') }}"
-        database_home: "{{ oem_db_home | replace('DO_NOT_DEINSTALL','NONE') }}"
-        document_name: "oracle-delete-home-oem"
-      loop: "{{ target_hosts.split(',') }}"
-      run_once: yes
-      when:
-        - is_aws_environment
-        - ( groups[item][0] | default('UNDEFINED_TARGET') ) in deinstalled_targets
-
-# Run the following to Update OEM Targets *** only when run on non-AWS (e.g. local VMs) ***
-# This playbook runs on the Primary OEM Host directly since AWS IAM / Engineering Accounts
-# are not relevant if not running in AWS
-- hosts: "{{ groups['oem_primarydb'][0] }}"
+# Run the following to Update OEM Targets
+# This playbook runs ONLY on a single target host because emcli is installed
+- hosts: "{{ groups[target_hosts][0] }}"
   gather_facts: no
   become: yes
   become_user: oracle
   vars:
-    oracle_grid_new_oracle_home: "{{ hostvars.localhost.oem_gi_home }}"
-    oracle_database_new_oracle_home: "{{ hostvars.localhost.oem_db_home }}"
     deletion_targets: "{{ hostvars.localhost.deinstalled_targets | default([]) }}"
   roles:
-    - { role: update_oem_after_deinstall, when: not hostvars.localhost.is_aws_environment }
+    - update_oem_after_deinstall
