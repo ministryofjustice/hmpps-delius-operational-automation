@@ -75,7 +75,7 @@
       when: deploy_plan_management | default('no') == "yes"
 
     # Cursors created by Materialied View refreshes may not be shared due to their
-    # use of Flashback Query.  This results in a build up of large numbers of 
+    # use of Flashback Query.  This results in a build up of large numbers of
     # versions of each refresh which cannot be shared and waste shared pool memory.
     # This job periodically detects such cursors and purges them.
     - name: Deploy MV Refresh Purge Child Cursors Job

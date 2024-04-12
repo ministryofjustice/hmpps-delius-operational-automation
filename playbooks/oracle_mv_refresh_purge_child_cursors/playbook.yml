@@ -4,4 +4,4 @@
   become: yes
   become_user: oracle
   roles:
-     - oracle_mv_refresh_purge_child_cursors
+    - oracle_mv_refresh_purge_child_cursors
