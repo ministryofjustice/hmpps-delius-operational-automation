@@ -358,10 +358,14 @@ jobs:
             RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text) || true
             PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
             # Initialize the Backup Status for this RMAN Backup Target
-            if [[ $PHASE != "Inactive" ]] && [[ $PHASE != "Done" ]] && [[ ! $PHASE =~ Failed ]]; then
-                echo "Backup is already active on this host.  Multiple concurrent runs are not allowed."
-                Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Concurrent Backup Attempt"' | jq @json)
-                exit 1
+            if [[ "${{ github.event_name }}" != "repository_dispatch" ]]; then
+                # If this is a scheduled or manually started job then check that it does not conflict with
+                # one which is already in progress.
+                if [[ $PHASE != "Inactive" ]] && [[ $PHASE != "Done" ]] && [[ ! $PHASE =~ Failed ]]; then
+                    echo "Backup is already active on this host.  Multiple concurrent runs are not allowed."
+                    Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Concurrent Backup Attempt"' | jq @json)
+                    exit 1
+                fi
             fi
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite \
                 --value "$(echo $Inputs | jq -r )" \

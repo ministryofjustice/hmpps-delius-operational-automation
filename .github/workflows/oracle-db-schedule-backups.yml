@@ -53,7 +53,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
-    continue-on-error: true
     name: "run-${{ format('{0}-{1}-{2}', matrix.TargetEnvironment, matrix.Period, matrix.TargetHost) }}-backup"
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
