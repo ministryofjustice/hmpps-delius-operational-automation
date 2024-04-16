@@ -17,7 +17,6 @@ export TIMESTAMP=`date +"%Y%m%d%H%M"`
 export RMANDATEFORMAT='YYMMDDHH24MISS';
 export RMANDUPLICATELOGFILE=/home/oracle/admin/rman_scripts/rman_duplicate_${TIMESTAMP}.log
 export RMANDUPLICATECMDFILE=/home/oracle/admin/rman_scripts/rman_duplicate.cmd
-
 export SUCCESS_STATUS=0
 export WARNING_STATUS=1
 export ERROR_STATUS=9
@@ -143,13 +142,13 @@ else
 fi
 JSON_DATA="{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}"
 info "Posting repository dispatch event"
-curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data-raw "${JSON_DATA}" ${REPOSITORY_DISPATCH}
+curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data-raw "${JSON_DATA}" "${REPOSITORY_DISPATCH}"
 RC=$?
 if [[ $RC -ne 0 ]]; then
       # We cannot use the error function for dispatch failures as it contains its own dispatch call   
       T=`date +"%D %T"`
-      echo "ERROR : $THISSCRIPT : $T : Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}" | tee -a ${RMANOUTPUT}
-      update_ssm_parameter  "Error" "Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}"
+      echo "ERROR : $THISSCRIPT : $T : Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}"
+      # update_ssm_parameter  "Error" "Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}"
       exit 1
 fi
 }
@@ -171,7 +170,7 @@ warning () {
 error () {
   T=`date +"%D %T"`
   echo "ERROR : $THISSCRIPT : $T : $1"
-  [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error" "Error: $1"
+  # [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Error" "Error: $1"
   [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-rman-duplicate-failure" "${JSON_INPUTS}"
   exit $ERROR_STATUS
 }
@@ -188,7 +187,7 @@ info "Retrieving arguments"
 TARGET_DB=UNSPECIFIED
 DATETIME=LATEST
 SPFILE_PARAMETERS=UNSPECIFIED
-while getopts "d:s:c:u:t:f:l:r:j" opt
+while getopts "d:s:c:u:t:f:l:r:j:" opt
 do
   case $opt in
     d) TARGET_DB=$OPTARG ;;
@@ -203,6 +202,19 @@ do
     *) usage ;;
   esac
 done
+
+if [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
+   REPOSITORY_DISPATCH="https://api.github.com/repos/${REPOSITORY_DISPATCH}/dispatches"
+   info "GitHub Actions Repository Dispatch Events will be sent to : $REPOSITORY_DISPATCH"
+fi
+
+if [[ ! -z "$JSON_INPUTS" ]]; then
+   # The JSON Inputs are used to record the parameters originally passed to GitHub
+   # actions to start the backup job.   These are only used for actioning a repository
+   # dispatch event to indicate the end of the backup job run.  They do NOT
+   # override the command line options passed to the script.
+   JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode )
+fi
 
 [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-rman-duplicate-success" "${JSON_INPUTS}"
 
