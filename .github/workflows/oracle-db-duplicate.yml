@@ -109,8 +109,8 @@ jobs:
           if [[ "${SourceLegacy}" == "no" ]]
           then
             # Find the source bucket environment and source database environment
-            SourceBucketEnvironment=$(echo ${S3SourceBucket }} | awk -F- '{print $1}')
-            SourceDatabaseEnvironment=$(echo ${SourceDb}} |cut -c1-3)
+            SourceBucketEnvironment=$(echo ${S3SourceBucket} | awk -F- '{print $1}')
+            SourceDatabaseEnvironment=$(echo ${SourceDb} |cut -c1-3)
             if [[ ("${SourceBucketEnvironment}" == "prod" &&  "${SourceDatabaseEnvironment}" != "PRD") ||
                   ("${SourceBucketEnvironment}" == "dev" &&  "${SourceDatabaseEnvironment}" != "DMD") ]]
             then
