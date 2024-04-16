@@ -464,7 +464,7 @@ jobs:
         id: response
         run: |
           Inputs='${{ toJson(github.event.client_payload) }}'
-          echo "TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment') >> $GITHUB_OUTPUT
+          echo "TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')" >> $GITHUB_OUTPUT
           Action='${{ github.event.action }}'
           if [[ "$Action" == "oracle-rman-duplicate-success" ]]; then
             DuplicateStatus="success"
