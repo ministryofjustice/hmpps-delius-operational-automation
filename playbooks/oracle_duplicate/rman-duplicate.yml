@@ -126,7 +126,7 @@
       block:
         - name: Install RMAN script
           copy:
-            src: rman_duplicate.sh
+            src: rman_duplicate_test.sh
             dest: /home/oracle/admin/rman_scripts/rman_duplicate_test.sh
             owner: oracle
             group: oinstall
