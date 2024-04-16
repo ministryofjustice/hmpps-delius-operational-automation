@@ -98,7 +98,7 @@ jobs:
           TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
           TargetHost="${{ github.event.inputs.TargetHost }}"
           SourceLegacy="${{ github.event.inputs.SourceLegacy }}"
-          SourceDb="${{ github.event.inputs.SourceLegacy }}"
+          SourceDb="${{ github.event.inputs.SourceDb }}"
           S3SourceBucket="${{ github.event.inputs.S3SourceBucket }}"
           RestoreDatetime="${{ github.event.inputs.RestoreDatetime }}"
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
