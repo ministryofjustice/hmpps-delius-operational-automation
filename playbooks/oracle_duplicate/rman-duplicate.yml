@@ -110,7 +110,7 @@
 
     - name: Set catalog schema name
       set_fact:
-        source_catalog_schema_option: "-r {{ source_catalog_schema }}"
+        source_catalog_schema_option: "-u {{ source_catalog_schema }}"
       when: source_catalog_schema is defined
 
     - name: RMAN Duplicate
@@ -118,38 +118,26 @@
         - name: Install RMAN script
           copy:
             src: rman_duplicate.sh
-            dest: /home/oracle/admin/rman_scripts/rman_duplicate.sh
+            dest: /home/oracle/admin/rman_scripts/rman_duplicate_test.sh
             owner: oracle
             group: oinstall
             mode: 0744
 
         - name: Generate Command to Run RMAN Script
           set_fact:
-            run_rman_script: '/home/oracle/admin/rman_scripts/rman_duplicate.sh -d {{ database_primary_sid}} -s {{ source_db }} -c "{{ catalog }}" {{ local_disk_backup | default() }} {{ rman_datetime_option | default() }} {{ ssm_parameter_option|default() }} {{ source_catalog_schema_option|default() }} "{{ spfile_parameters_option|default()|trim }}"'
+            run_rman_script: '/home/oracle/admin/rman_scripts/rman_duplicate_test.sh -d {{ database_primary_sid}} -s {{ source_db }} -c "{{ catalog }}" {{ local_disk_backup | default() }} {{ rman_datetime_option | default() }} {{ ssm_parameter_option|default() }} {{ source_catalog_schema_option|default() }} "{{ spfile_parameters_option|default()|trim }}"'
 
         - name: Show Script to Run
           debug:
             msg: "Running: {{ run_rman_script }}"
 
         - name: Running RMAN script
-          shell: "{{ run_rman_script }} &> /home/oracle/admin/rman_scripts/rman_duplicate_script_$( date +%Y%m%d%H%M ).log"
+          shell: "{{ run_rman_script }} &> /home/oracle/admin/rman_scripts/rman_duplicate_script_test_$( date +%Y%m%d%H%M ).log"
           async: 57600
           poll: 0
           args:
             executable: /bin/bash
           register: duplicate_cmd_output
-          become: yes
-          become_user: oracle
-
-        - name: Wait for RMAN duplicate to complete
-          ansible.builtin.async_status:
-            jid: "{{ duplicate_cmd_output.ansible_job_id }}"
-          register: duplicate_cmd_output_result
-          until: duplicate_cmd_output_result.finished
-          delay: 120
-          retries: 120
-          become: yes
-          become_user: oracle
 
         - name: Report Run Output
           debug:
