@@ -387,6 +387,8 @@ jobs:
     needs: [oracle-rman-import-schema, oracle-rman-pre-duplicate]
     timeout-minutes: 1440
     continue-on-error: false
+    env:
+      Inputs: "${{ needs.oracle-rman-pre-duplicate.outputs.Inputs }}"
     outputs:
       JobId: ${{ github.job }}
     steps:
@@ -446,7 +448,7 @@ jobs:
           fi        
           export ANSIBLE_CONFIG=$ansible_config
           $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars} -e repository_dispatch="${{ github.repository }}" -e json_inputs="${{ needs.oracle-rman-pre-duplicate.outputs.Inputs }}"
+          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars} -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs"
 
   oracle-rman-duplicate-check:
     if: ${{ github.event_name == 'repository_dispatch' }}
