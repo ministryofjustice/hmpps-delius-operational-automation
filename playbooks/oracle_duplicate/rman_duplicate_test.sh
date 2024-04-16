@@ -33,7 +33,7 @@ usage () {
   echo ""
   echo "Usage:"
   echo ""
-  echo "  $THISSCRIPT -d <target db> -s <source db> -c <catalog db> -r <catalog schema> -t <restore datetime> [ -f <spfile parameters> ] [-l]"
+  echo "  $THISSCRIPT -d <target db> -s <source db> -c <catalog db> -u <catalog schema> -t <restore datetime> [ -f <spfile parameters> ] [-l]"
   echo ""
   echo "where"
   echo ""
@@ -188,7 +188,7 @@ info "Retrieving arguments"
 TARGET_DB=UNSPECIFIED
 DATETIME=LATEST
 SPFILE_PARAMETERS=UNSPECIFIED
-while getopts "d:s:c:u:t:p:f:l:r:j" opt
+while getopts "d:s:c:u:t:f:l:r:j" opt
 do
   case $opt in
     d) TARGET_DB=$OPTARG ;;
