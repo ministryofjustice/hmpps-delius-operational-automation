@@ -113,6 +113,15 @@
         source_catalog_schema_option: "-u {{ source_catalog_schema }}"
       when: source_catalog_schema is defined
 
+    # The quotes in the JSON inputs can get messed up by unwanted shell interpretation.
+    # To avoid this we send the JSON as an encoded string to be decoded by the shell script.
+    - name: Enable Repository Dispatch Event if supplied
+      set_fact:
+        repository_dispatch_flag: "-r {{ repository_dispatch }} -j {{ json_inputs | b64encode }}"
+      when:
+        - repository_dispatch is defined
+        - json_inputs is defined
+
     - name: RMAN Duplicate
       block:
         - name: Install RMAN script
