@@ -656,7 +656,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    needs: [oracle-rman-pre-duplicate,oracle-rman-export-schema,oracle-rman-import-schema,oracle-rman-duplicate,oracle-rman-post-duplicate,oracle-build-ha]
+    needs: [oracle-rman-pre-duplicate,oracle-rman-export-schema,oracle-rman-import-schema,oracle-rman-duplicate,oracle-rman-duplicate-check,oracle-rman-post-duplicate,oracle-build-ha]
     environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     steps:
 
