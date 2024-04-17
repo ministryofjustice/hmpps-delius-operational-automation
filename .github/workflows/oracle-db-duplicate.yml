@@ -220,9 +220,9 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          echo "$ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          $ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
           -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} \
-          -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}"
+          -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
   oracle-rman-export-schema:
     if: ${{ github.event.inputs.SourceLegacy == 'no' && github.event_name != 'repository_dispatch' }}
@@ -316,10 +316,10 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          echo "$ansible_playbook_directory/rman-export-import.yml -i $inventory \
+          $ansible_playbook_directory/rman-export-import.yml -i $inventory \
           -e oem_target=${{ steps.preparation.outputs.OemTarget }} \
           -e action=export \
-          -e export_name=${{ steps.preparation.outputs.ExportName }}"
+          -e export_name=${{ steps.preparation.outputs.ExportName }}
 
   oracle-rman-import-schema:
     if: ${{ github.event_name != 'repository_dispatch' }}
@@ -370,12 +370,12 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          echo "$ansible_playbook_directory/rman-export-import.yml -i $inventory \
+          $ansible_playbook_directory/rman-export-import.yml -i $inventory \
           -e oem_target=environment_name_$(echo ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} | sed 's/-/_/g') \
           -e action=import \
           -e export_name=${{ needs.oracle-rman-export-schema.outputs.ExportName }} \
           -e source_catalog_db=${{ needs.oracle-rman-export-schema.outputs.SourceCatalogDb }} \
-          -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}"
+          -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   oracle-rman-duplicate:
     if: ${{ (contains(needs.oracle-rman-pre-duplicate.result,'success') && (contains(needs.oracle-rman-import-schema.result,'skipped') || contains(needs.oracle-rman-import-schema.result,'success'))) && github.event_name != 'repository_dispatch' }}
@@ -558,8 +558,8 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          echo "$ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ env.DuplicateTarget }}"
+          $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          -e duplicate_target=${{ env.DuplicateTarget }}
 
   oracle-build-ha:
     name: oracle-build-ha
