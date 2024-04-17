@@ -378,7 +378,7 @@ jobs:
           -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   oracle-rman-duplicate:
-    if: success('oracle-rman-pre-duplicate') && ${{ (needs.oracle-rman-import-schema.result == 'skipped' || needs.oracle-rman-import-schema.result == 'success') && github.event_name != 'repository_dispatch' }}
+    if: success('oracle-rman-pre-duplicate') && ${{ needs.oracle-rman-import-schema.result == 'skipped' && github.event_name != 'repository_dispatch' }}
     name: oracle-rman-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
