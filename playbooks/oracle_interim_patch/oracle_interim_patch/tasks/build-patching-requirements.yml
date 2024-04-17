@@ -78,11 +78,17 @@
 
 # Create a list of whether Grid needs patching (true or false) for all required patches.
 # This will be if the patch install is requested, it is a Grid patch, is version compatible, and is has not already been installed.
+# We ignore any patches that are to be installed with opatchauto for the time being
+# as these do their own shutdown and so are installed separately later.
 - name: Create List of Grid Patching Requirements
   set_fact:
     grid_patching_list: "{{ grid_patching_list + [ true ] }}"
   with_dict: "{{ required_patches }}"
-  when: item.value.install_request and item.value.grid_patch and item.value.install_to_grid_required
+  when: 
+     - item.value.install_request
+     - item.value.grid_patch
+     - item.value.install_to_grid_required
+     - not item.value.install_with_opatchauto
 
 # Summarize whether we need to shutdown Grid - this is if any Grid patching is required
 - name: Set Grid Shutdown Needed
@@ -125,13 +131,14 @@
     - not ( only_patch_offline | default(true) | bool )
 
   # Summarize whether we need to shutdown Databases - this is if any Database patches require shutdown
+  # (We exclude patches which are installed with opatchauto as these are handled separately and do their own shutdowns)
 - name: Set Database Shutdown Needed
   set_fact:
     database_shutdown_needed: true
   with_dict: "{{ required_patches }}"
   when:
     - item.value.install_request
-    - item.value.install_to_grid_required or item.value.install_to_database_required
+    - (item.value.install_to_grid_required and not item.value.install_with_opatchauto) or item.value.install_to_database_required
     - item.value.shutdown_required
 
 - name: Set Database Shutdown Not Needed
