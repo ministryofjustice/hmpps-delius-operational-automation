@@ -628,6 +628,7 @@ done
 info "Target         = $TARGET_DB"
 info "Source         = $SOURCE_DB"
 info "Catalog db     = $CATALOG_DB"
+info "Catalog Schema = $CATALOG_SCHEMA"
 info "Restore Datetime = ${DATETIME}"
 [[ "${LOCAL_DISK_BACKUP}" == "TRUE" ]] && info "Local Disk Backup = ENABLED"
 target_db=$(echo "${TARGET_DB}" | tr '[:upper:]' '[:lower:]')
