@@ -166,9 +166,8 @@ fi
 # GitHub Actions only allows us to have 10 elements in the payload so we remove those which are
 # not necessary.  In this case we remove TargetHost since that is only relevant to the original
 # backup; any retries will use RmanTarget instead.
-info "PAYLOAD(1): $JSON_PAYLOAD"
 JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r 'del(.TargetHost)')
-info "PAYLOAD(2): $JSON_PAYLOAD"
+info "Repository Dispatch Payload: $JSON_PAYLOAD"
 JSON_DATA="{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}"
 info "Posting repository dispatch event"
 cat <<EOCURL | tee -a /tmp/eocurl.txt
