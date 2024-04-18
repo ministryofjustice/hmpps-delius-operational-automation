@@ -165,9 +165,6 @@ else
 fi
 JSON_DATA="{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}"
 info "Posting repository dispatch event"
-cat <<EOCURL | tee -a /tmp/eocurl.txt
-curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data-raw "${JSON_DATA}" ${REPOSITORY_DISPATCH}
-EOCURL
 curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data-raw "${JSON_DATA}" ${REPOSITORY_DISPATCH}
 RC=$?
 if [[ $RC -ne 0 ]]; then
@@ -824,8 +821,6 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
-# DEBUG ONLY
-error "Rman reported errors"
 [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Success" "Completed without errors"
 [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-db-backup-success" "${JSON_INPUTS}"
 info "Completes successfully"
