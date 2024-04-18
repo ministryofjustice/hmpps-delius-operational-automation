@@ -1,5 +1,5 @@
 name: "Oracle: Database Duplicate"
-run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) || 'iterative_call_for' }}-database-duplicate"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) || 'iterative-call-for' }}-database-duplicate"
 on:
   workflow_dispatch:
     inputs:
@@ -378,13 +378,13 @@ jobs:
           -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   oracle-rman-duplicate:
-    if: ${{ (contains(needs.oracle-rman-pre-duplicate.result,'success') && (contains(needs.oracle-rman-import-schema.result,'skipped') || contains(needs.oracle-rman-import-schema.result,'success'))) && github.event_name != 'repository_dispatch' }}
+    if: ${{ success('oracle-rman-pre-duplicate') && github.event_name != 'repository_dispatch' && (needs.oracle-rman-import-schema.result == 'skipped' || needs.oracle-rman-import-schema.result == 'success') }}
     name: oracle-rman-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    needs: [oracle-rman-import-schema, oracle-rman-pre-duplicate]
+    needs: [oracle-rman-import-schema,oracle-rman-pre-duplicate]
     timeout-minutes: 1440
     continue-on-error: false
     env:
