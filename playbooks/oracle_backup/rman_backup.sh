@@ -824,6 +824,8 @@ ERMAN
 info "Checking for errors"
 grep -i "ERROR MESSAGE STACK" $RMANLOGFILE >/dev/null 2>&1
 [ $? -eq 0 ] && error "Rman reported errors"
+# DEBUG ONLY
+error "Rman reported errors"
 [[ ! -z "$SSM_PARAMETER" ]] && update_ssm_parameter "Success" "Completed without errors"
 [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-db-backup-success" "${JSON_INPUTS}"
 info "Completes successfully"
