@@ -220,12 +220,10 @@ jobs:
                 fi
               fi
               RmanTarget=$(echo $Inputs | jq -r '.RmanTarget')
-              TargetHost=$(echo $Inputs | jq -r '.TargetHost')
               TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')
               Period=$(echo $Inputs | jq -r '.Period')
               IsRetryJob=$(echo $Inputs | jq -r '.IsRetryJob // "no"')
-              # The following 3 parameters are mandatory; abort if they are missing from JSON inputs
-              [[ -z $TargetHost ]] && "Target Host is not specified in JSON inputs"  && exit 2
+              # The following 2 parameters are mandatory; abort if they are missing from JSON inputs
               [[ -z $TargetEnvironment ]] && "Target Environment is not specified in JSON inputs" && exit 3
               [[ -z $Period ]] && "Backup Period (daily/weekly) is not specified in JSON inputs" && exit 4
               if [[ "$(echo $Inputs | jq -r '.RmanTarget')" == "null" ]]; then
