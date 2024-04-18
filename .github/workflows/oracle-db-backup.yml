@@ -120,6 +120,7 @@ jobs:
       - name: Prepare Rman Target
         id: preparermantargetname
         run: |
+          set -x
           function set_rman_target()
           {
             # Supply 2 parameters:  TargetEnvironment & TargetHost
