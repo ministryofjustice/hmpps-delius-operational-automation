@@ -147,10 +147,10 @@
         rollback_from_database: "{{ item.value.database_rollback_required }}"
         rollback_from_grid: "{{ item.value.grid_rollback_required }}"
       with_dict: "{{ required_patches }}"
-      when: 
-         - item.value.install_request 
-         - ((item.value.install_to_grid_required) or (item.value.install_to_database_required))
-         - not item.value.install_with_opatchauto
+      when:
+        - item.value.install_request
+        - ((item.value.install_to_grid_required) or (item.value.install_to_database_required))
+        - not item.value.install_with_opatchauto
 
     - name: (main) Restart Grid
       include_tasks: restart-grid.yml
@@ -182,11 +182,11 @@
         oracle_home: "{{ oracle_grid_oracle_home }}"
         patch_directory: "{{ item.value.grid_patch_directory }}"
       with_dict: "{{ required_patches }}"
-      when: 
-         - item.value.install_request 
-         - item.value.install_to_grid_required
-         - item.value.install_with_opatchauto
-    
+      when:
+        - item.value.install_request
+        - item.value.install_to_grid_required
+        - item.value.install_with_opatchauto
+
   when: required_patches is defined and (install_absent_patches | bool | default(false))
 
 # We run this block if there is a list of require patches and fail if any are absent

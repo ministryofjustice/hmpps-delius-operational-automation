@@ -84,11 +84,11 @@
   set_fact:
     grid_patching_list: "{{ grid_patching_list + [ true ] }}"
   with_dict: "{{ required_patches }}"
-  when: 
-     - item.value.install_request
-     - item.value.grid_patch
-     - item.value.install_to_grid_required
-     - not item.value.install_with_opatchauto
+  when:
+    - item.value.install_request
+    - item.value.grid_patch
+    - item.value.install_to_grid_required
+    - not item.value.install_with_opatchauto
 
 # Summarize whether we need to shutdown Grid - this is if any Grid patching is required
 - name: Set Grid Shutdown Needed
