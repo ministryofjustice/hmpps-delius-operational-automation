@@ -165,6 +165,9 @@ else
 fi
 JSON_DATA="{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}"
 info "Posting repository dispatch event"
+cat <<EOCURL | tee -a /tmp/eocurl.txt
+curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data-raw "${JSON_DATA}" ${REPOSITORY_DISPATCH}
+EOCURL
 curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data-raw "${JSON_DATA}" ${REPOSITORY_DISPATCH}
 RC=$?
 if [[ $RC -ne 0 ]]; then
