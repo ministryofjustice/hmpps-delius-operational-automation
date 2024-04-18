@@ -356,9 +356,13 @@ jobs:
             # (Ignore errors fetching the parameter - this happens if the backup has not been run before: we
             #  just default this to "Inactive")
             RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text) || true
-            echo "111"
-            PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
-            echo "222"
+            if echo ${RUNTIME} | jq . > /dev/null 2>&1; then 
+                PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
+            else
+                echo "Invalid JSON in $SSMParameter - resetting"
+                aws ssm delete-parameter --region ${AWS_REGION} --name "$SSMParameter"
+                PHASE="Inactive"
+            fi
             # Initialize the Backup Status for this RMAN Backup Target
             if [[ "${{ github.event_name }}" != "repository_dispatch" ]]; then
                 # If this is a scheduled or manually started job then check that it does not conflict with
