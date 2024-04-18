@@ -359,8 +359,9 @@ jobs:
             if echo $RUNTIME | jq -r 2>/dev/null | jq 'if type == "object" then "VALID_JSON_OBJECT" else "not" end' | grep -q VALID_JSON_OBJECT; then
                 PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
             else
-                echo "Invalid JSON in $SSMParameter - resetting"
-                aws ssm delete-parameter --region ${AWS_REGION} --name "$SSMParameter"
+                echo "Invalid JSON in $SSMParameter - resetting to Inactive"
+                SSMParameterValue="{\"Phase\":\"Inactive\"}"
+                aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $SSMParameterValue | jq @json)"
                 PHASE="Inactive"
             fi
             # Initialize the Backup Status for this RMAN Backup Target
