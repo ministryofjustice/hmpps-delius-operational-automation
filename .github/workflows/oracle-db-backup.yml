@@ -356,7 +356,7 @@ jobs:
             # (Ignore errors fetching the parameter - this happens if the backup has not been run before: we
             #  just default this to "Inactive")
             RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text) || true
-            if echo ${RUNTIME} | jq . > /dev/null 2>&1; then 
+            if echo $RUNTIME | jq -r 2>/dev/null | jq 'if type == "object" then "VALID_JSON_OBJECT" else "not" end' | grep -q VALID_JSON_OBJECT; then
                 PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
             else
                 echo "Invalid JSON in $SSMParameter - resetting"
