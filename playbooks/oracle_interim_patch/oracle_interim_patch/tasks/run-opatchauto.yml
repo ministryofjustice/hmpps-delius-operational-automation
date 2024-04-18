@@ -1,0 +1,27 @@
+---
+# Opatchauto must be run as the root user
+- name: Use OPatchauto to install the patch {{ patch_number }} to {{ oracle_home }}
+  shell: |
+    export PATH=$PATH:{{ oracle_home }}/bin 
+    export OPATCH_NO_FUSER=true
+    export ORENV_ASK=NO
+    export ORACLE_SID=+ASM
+    . oraenv
+    # Do not run opatchauto from /root
+    cd {{ patch_directory }}
+    {{ oracle_home }}/OPatch/opatchauto apply {{ patch_directory }}/{{ patch_number }}
+  async: 1200
+  poll: 0
+  register: run_opatchauto
+  become: true
+  become_user: root
+
+- name: Wait for OPatchauto Install
+  async_status:
+    jid: "{{ run_opatchauto.ansible_job_id }}"
+  register: result
+  until: result.finished
+  retries: 80
+  delay: 30
+  become: true
+  become_user: root
