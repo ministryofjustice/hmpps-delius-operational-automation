@@ -361,10 +361,21 @@ jobs:
             if [[ "${{ github.event_name }}" != "repository_dispatch" ]]; then
                 # If this is a scheduled or manually started job then check that it does not conflict with
                 # one which is already in progress.
+                # This check is done by looking at the current phase of the backup as written to the SSM
+                # parameter store.  
                 if [[ $PHASE != "Inactive" ]] && [[ $PHASE != "Done" ]] && [[ ! $PHASE =~ Failed ]]; then
-                    echo "Backup is already active on this host.  Multiple concurrent runs are not allowed."
-                    Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Concurrent Backup Attempt"' | jq @json)
-                    exit 1
+                    # If we have detected what looks like a backup running concurrently, also check the
+                    # last time that the SSM parameter was updated. If it was over 23 hours ago (82800 seconds)
+                    # then we can assume that the previous backup has failed in such a way that it was
+                    # unable to update the SSM parameter first, so we assume it is no longer running and
+                    # start the new backup anyway. 
+                    LAST_UPDATED=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.LastModifiedDate" --output text | cut -d. -f1)
+                    CURRENT_EPOCH=$(date +%s)
+                    if [[ $((CURRENT_EPOCH-LAST_UPDATED)) -le 82800 ]]; then
+                        echo "Backup is already active on this host.  Multiple concurrent runs are not allowed."
+                        Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Concurrent Backup Attempt"' | jq @json)
+                        exit 1
+                    fi
                 fi
             fi
             aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite \

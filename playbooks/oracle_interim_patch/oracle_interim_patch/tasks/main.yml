@@ -10,7 +10,7 @@
   when: install_absent_patches is not defined
 
 - name: (main) Load in Oracle Environment Variables when Directory Supplied
-  include: set-oracle-paths.yml
+  include_tasks: set-oracle-paths.yml
 
 - assert:
     that:
@@ -28,7 +28,7 @@
     dependencies_bucket_name: "{{ dependencies_bucket.name }}"
 
 - name: (main) Prepare Oracle Home Version Information
-  include: get-oracle-version.yml
+  include_tasks: get-oracle-version.yml
 
 # The environment_name Ansible variable is not available in the engineering environments
 # (Do not set it in hmpps-engineering-platform-terraform as this will overwrite the
@@ -97,6 +97,7 @@
                   'install_to_database_required':false,
                   'datapatch_required':item.value.datapatch_required|default(false),
                   'replaces_patch':item.value.replaces_patch | default('none'),
+                  'install_with_opatchauto': item.value.install_with_opatchauto|default(false),
                   'grid_rollback_required': false,
                   'database_rollback_required': false,
                   'shutdown_required': true}} 
@@ -120,7 +121,7 @@
 - name: (main) Installation Block when Required Patches are Defined and Install Required
   block:
     - name: (main) Prepare Patch Information
-      include: build-patching-requirements.yml
+      include_tasks: build-patching-requirements.yml
 
     - name: Show the Required Patches
       debug: var=required_patches
@@ -133,7 +134,8 @@
       include_tasks: shutdown-grid.yml
       when: grid_shutdown_needed
 
-    - name: (main) Install Patches
+    # Patching which are to be installed using OPatch are done here
+    - name: (main) Install Patches using OPatch
       include_tasks: install-patches.yml
       vars:
         patch_number: "{{ item.value.patch_number }}"
@@ -145,7 +147,10 @@
         rollback_from_database: "{{ item.value.database_rollback_required }}"
         rollback_from_grid: "{{ item.value.grid_rollback_required }}"
       with_dict: "{{ required_patches }}"
-      when: item.value.install_request and ((item.value.install_to_grid_required) or (item.value.install_to_database_required))
+      when:
+        - item.value.install_request
+        - ((item.value.install_to_grid_required) or (item.value.install_to_database_required))
+        - not item.value.install_with_opatchauto
 
     - name: (main) Restart Grid
       include_tasks: restart-grid.yml
@@ -166,6 +171,21 @@
     - name: (main) Apply Datapatch
       include_tasks: run-datapatch.yml
       when: datapatch_needed
+
+    # Patching which are to be installed using OPatchauto are done here
+    # (We only use this for Grid patches)
+    - name: (main) Install Patches using OPatchauto
+      include_tasks: run-opatchauto.yml
+      vars:
+        patch_number: "{{ item.value.patch_number }}"
+        grid_patch_directory: "{{ item.value.grid_patch_directory }}"
+        oracle_home: "{{ oracle_grid_oracle_home }}"
+        patch_directory: "{{ item.value.grid_patch_directory }}"
+      with_dict: "{{ required_patches }}"
+      when:
+        - item.value.install_request
+        - item.value.install_to_grid_required
+        - item.value.install_with_opatchauto
 
   when: required_patches is defined and (install_absent_patches | bool | default(false))
 
