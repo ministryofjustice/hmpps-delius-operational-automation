@@ -1,6 +1,6 @@
 ---
 - name: Upgrade OPatch
-  include: upgrade_opatch.yml
+  include_tasks: upgrade_opatch.yml
 
 - name: Creating a Home Mapping for Out of Place Upgrade
   copy:
@@ -159,6 +159,6 @@
 # This cause of this is unknown and an SR has been submitted to Oracle.
 # In the meantime, a workaround is to force the Session Cookie file to say COMPLETED instead of ACTIVE if the above step succeeds
 - name: Workaround for Session Cookie Status
-  include: session_cookie_workaround.yml
+  include_tasks: session_cookie_workaround.yml
   vars:
     path_prefix: "{{ source_home }}"
