@@ -1,4 +1,4 @@
-name: "Delius Core:- Update ECS Task Definition
+name: "Delius Core: Update ECS Task Definition
 on:
   workflow_dispatch:
     inputs:
