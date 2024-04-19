@@ -1,4 +1,4 @@
-name: LDAP Automation
+name: "LDAP: Automation Template"
 on:
   workflow_dispatch:
     inputs:

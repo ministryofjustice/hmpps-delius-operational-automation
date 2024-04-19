@@ -1,4 +1,4 @@
-name: "LDAP: RBAC uplift"
+name: "LDAP: RBAC Uplift"
 on:
   workflow_dispatch:
     inputs:

@@ -1,4 +1,4 @@
-name: "LDAP: User expiry"
+name: "LDAP: User Expiry"
 on:
   workflow_dispatch:
     inputs:

@@ -1,4 +1,4 @@
-name: "LDAP: Update user home area"
+name: "LDAP: Update User Home Area"
 on:
   workflow_dispatch:
     inputs:

@@ -1,4 +1,4 @@
-name: Weblogic ECS - Update Task Definition
+name: "WebLogic: Update ECS Task Definition"
 
 on:
   workflow_dispatch:
