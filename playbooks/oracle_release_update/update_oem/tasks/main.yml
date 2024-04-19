@@ -12,4 +12,4 @@
     agent_host: "{{ get_name_of_host.stdout }}"
 
 - name: Update Targets
-  include: update_agent_targets.yml
+  include_tasks: update_agent_targets.yml
