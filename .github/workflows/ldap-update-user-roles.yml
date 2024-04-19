@@ -1,4 +1,4 @@
-name: "LDAP: Update user roles"
+name: "LDAP: Update User Roles"
 on:
   workflow_dispatch:
     inputs:

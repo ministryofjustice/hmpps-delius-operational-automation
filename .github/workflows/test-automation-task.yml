@@ -1,4 +1,4 @@
-name: Test automation task
+name: "Test: Automation Task"
 
 on:
   workflow_dispatch:

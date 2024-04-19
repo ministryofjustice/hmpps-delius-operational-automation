@@ -1,4 +1,4 @@
-name: Delius Ansible AWS Image Build
+name: "Ansible: AWS Image Build"
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: "LDAP: User expiry Cron"
+name: "LDAP: User Expiry Cron"
 on:
   schedule:
     - cron: "30 3 * * *"

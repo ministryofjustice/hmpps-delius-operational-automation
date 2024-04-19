@@ -1,4 +1,4 @@
-name: LDAP Automation Image Build
+name: "LDAP: Automation Image Build"
 
 on:
   workflow_dispatch:
