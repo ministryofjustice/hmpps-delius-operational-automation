@@ -126,7 +126,7 @@ jobs:
             # This function determines the inventory name for the RMAN target on which the backup should be run.
             RmanTarget="environment_name_$(echo $1 | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$2"
           }
-          if [[ "${{ github.event_name }}" != "repository_dispatch" ]] && [[ -z "${{ github.event.inputs.ParametersJSON }}" ]];
+          if [[ "${{ github.event_name }}" != "repository_dispatch" ]] && [[ -z '${{ github.event.inputs.ParametersJSON }}' ]];
           then
               if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
               then
@@ -220,12 +220,10 @@ jobs:
                 fi
               fi
               RmanTarget=$(echo $Inputs | jq -r '.RmanTarget')
-              TargetHost=$(echo $Inputs | jq -r '.TargetHost')
               TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')
               Period=$(echo $Inputs | jq -r '.Period')
               IsRetryJob=$(echo $Inputs | jq -r '.IsRetryJob // "no"')
-              # The following 3 parameters are mandatory; abort if they are missing from JSON inputs
-              [[ -z $TargetHost ]] && "Target Host is not specified in JSON inputs"  && exit 2
+              # The following 2 parameters are mandatory; abort if they are missing from JSON inputs
               [[ -z $TargetEnvironment ]] && "Target Environment is not specified in JSON inputs" && exit 3
               [[ -z $Period ]] && "Backup Period (daily/weekly) is not specified in JSON inputs" && exit 4
               if [[ "$(echo $Inputs | jq -r '.RmanTarget')" == "null" ]]; then
@@ -356,7 +354,14 @@ jobs:
             # (Ignore errors fetching the parameter - this happens if the backup has not been run before: we
             #  just default this to "Inactive")
             RUNTIME=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.Value" --output text) || true
-            PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
+            if echo $RUNTIME | jq -r 2>/dev/null | jq 'if type == "object" then "VALID_JSON_OBJECT" else "not" end' | grep -q VALID_JSON_OBJECT; then
+                PHASE=$(echo ${RUNTIME:-"{}"} | jq -r '.Phase // "Inactive"')
+            else
+                echo "Invalid JSON in $SSMParameter - resetting to Inactive"
+                SSMParameterValue="{\"Phase\":\"Inactive\"}"
+                aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$SSMParameterValue"
+                PHASE="Inactive"
+            fi
             # Initialize the Backup Status for this RMAN Backup Target
             if [[ "${{ github.event_name }}" != "repository_dispatch" ]]; then
                 # If this is a scheduled or manually started job then check that it does not conflict with
@@ -407,19 +412,19 @@ jobs:
           if [[ "$BackupStatus" == "failed" ]]; then
              if [[ "$BackupStandbyOnPrimaryFailure" == "no" ]]; then
                 echo "Backup Failed And No Retry Allowed"
-                Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Failed And No Retry Allowed"' | jq @json)
+                Inputs=$(echo $Inputs | jq -r | jq '.Phase = "Failed And No Retry Allowed"' | jq @json)
                 aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $Inputs | jq -r)"
                 exit 10
              else
                 if [[ "$RmanTarget" =~ "standbydb1" ]] && [[ ! -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml ]]; then
                     echo "Failed And No Standby Exists"
-                    Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Failed And No Standby Exists"' | jq @json)
+                    Inputs=$(echo $Inputs | jq -r | jq '.Phase = "Failed And No Standby Exists"' | jq @json)
                     aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $Inputs | jq -r)"
                     exit 20
                 fi
                 if [[ "$RmanTarget" =~ "standbydb2" ]] && [[ ! -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb2}.yml ]]; then
                     echo "Failed on First Standby And No Second Standby Exists"
-                    Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Failed on First Standby And No Second Standby Exists"' | jq @json)
+                    Inputs=$(echo $Inputs | jq -r | jq '.Phase = "Failed on First Standby And No Second Standby Exists"' | jq @json)
                     aws ssm put-parameter --region ${AWS_REGION} --name "$SSMParameter" --type String --overwrite --value "$(echo $Inputs | jq -r)"
                     exit 30
                 fi

@@ -163,6 +163,11 @@ if [[ "$EVENT_TYPE" == "oracle-db-backup-success" ]]; then
 else
     JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Failed"')
 fi
+# GitHub Actions only allows us to have 10 elements in the payload so we remove those which are
+# not necessary.  In this case we remove TargetHost since that is only relevant to the original
+# backup; any retries will use RmanTarget instead.
+JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r 'del(.TargetHost)')
+info "Repository Dispatch Payload: $JSON_PAYLOAD"
 JSON_DATA="{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}"
 info "Posting repository dispatch event"
 curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data-raw "${JSON_DATA}" ${REPOSITORY_DISPATCH}
