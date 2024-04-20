@@ -2,7 +2,7 @@ name: "LDAP: User Expiry Cron"
 on:
   schedule:
     - cron: "30 3 * * *"
-  workflow_call:
+  workflow_dispatch:
 
 jobs:
   expire-users:
