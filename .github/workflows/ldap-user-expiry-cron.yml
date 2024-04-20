@@ -15,5 +15,4 @@ jobs:
     uses: ./.github/workflows/ldap-user-expiry.yaml
     with:
       environment: ${{matrix.environment}}
-    secrets:
-      PWO_PUBLIC_SLACK_WEBHOOK_URL:  ${{ secrets.PWO_PUBLIC_SLACK_WEBHOOK_URL}}
+    secrets: inherit
