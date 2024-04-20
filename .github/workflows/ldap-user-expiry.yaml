@@ -12,6 +12,9 @@ on:
     inputs:
       environment:
         type: string
+    secrets:
+      PWO_PUBLIC_SLACK_WEBHOOK_URL:
+        required: true
 
 jobs:
   deploy:
