@@ -159,9 +159,6 @@
   become: no
   when: keep_aws_snapshot | default('No AWS Snapshot') != 'No AWS Snapshot'
 
-- debug:
-     msg: "Optional Create AWS Snapshot"
-
 - name: Create AWS Snapshot of Primary Host Prior to Preparing Clone
   include_role:
     name: aws-snapshot
