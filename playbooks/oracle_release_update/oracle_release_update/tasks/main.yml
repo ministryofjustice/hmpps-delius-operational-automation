@@ -159,16 +159,16 @@
   become: no
   when: keep_aws_snapshot | default('No AWS Snapshot') != 'No AWS Snapshot'
 
-- name: Create AWS Snapshot of Primary Host Prior to Preparing Clone
-  include_role:
-    name: aws-snapshot
-  when:
-    - keep_aws_snapshot | default('No AWS Snapshot') != 'No AWS Snapshot'
-    - apply_mode == 'prepare-clone'
-    - database_role == 'primary'
-  vars:
-    target_host: "{{ inventory_hostname }}"
-    delete_after_days: "{{ keep_aws_snapshot }}"
+# - name: Create AWS Snapshot of Primary Host Prior to Preparing Clone
+#   include_role:
+#     name: aws-snapshot
+#   when:
+#     - keep_aws_snapshot | default('No AWS Snapshot') != 'No AWS Snapshot'
+#     - apply_mode == 'prepare-clone'
+#     - database_role == 'primary'
+#   vars:
+#     target_host: "{{ inventory_hostname }}"
+#     delete_after_days: "{{ keep_aws_snapshot }}"
 
 - name: Copy Release Update Software
   include_tasks: copy_RU_software.yml
