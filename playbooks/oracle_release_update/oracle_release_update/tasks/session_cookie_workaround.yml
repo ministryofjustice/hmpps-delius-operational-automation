@@ -27,7 +27,7 @@
     list_of_session_cookies: "{{ cookie_files.results | map(attribute='files') | list | flatten | map(attribute='path') | list  }}"
 
 - name: Convert Session Cookies to COMPLETED
-  include: complete_session_cookies.yml
+  include_tasks: complete_session_cookies.yml
   vars:
     cookie_file: "{{ item }}"
   loop: "{{ list_of_session_cookies }}"

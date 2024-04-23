@@ -171,7 +171,7 @@
     delete_after_days: "{{ keep_aws_snapshot }}"
 
 - name: Copy Release Update Software
-  include: copy_RU_software.yml
+  include_tasks: copy_RU_software.yml
 
 # We use the README files within the combo patch to identify which contained patch is the GI RU and which is the OJVM RU
 - name: Get Individual Patches within a Combo Patch
@@ -193,7 +193,7 @@
         ojvm_patch_id: "{{ get_combo_ojvm_patch_number.stdout }}"
 
 - name: Get Current and Target Version Information
-  include: get_versioning_information.yml
+  include_tasks: get_versioning_information.yml
 
 # Existing Restore Points will Cause Failure of Compatibility Setting Changes
 - name: Count Existing Restore Points
@@ -249,14 +249,14 @@
 # (We also disable FSFO if running prepare-clone on a primary EC2 instance with limited memory, as the load
 #  nmay be so high as to cause a failover)
 - name: Disable FSFO
-  include: stop_fsfo.yml
+  include_tasks: stop_fsfo.yml
   when:
     - ( database_role == 'primary' )
     - ( apply_mode == 'switch-clone' ) or ( apply_mode == 'prepare-clone' and ansible_facts.memory_mb.real.total <= 8192 )
     - ( source_gi_version is version(target_gi_version,'<') ) or ( source_db_version is version(target_db_version,'<') )
 
 - name: Prepare New Grid Infrastructure Home by Cloning and Applying DBRU
-  include: prepare_clone.yml
+  include_tasks: prepare_clone.yml
   when:
     - source_gi_version is version(target_gi_version,'<')
     - apply_mode == 'prepare-clone'
@@ -267,7 +267,7 @@
     target_version: "{{ target_gi_version }}"
 
 - name: Prepare New Database Home by Cloning and Applying DBRU
-  include: prepare_clone.yml
+  include_tasks: prepare_clone.yml
   when:
     - source_db_version is version(target_db_version,'<')
     - apply_mode == 'prepare-clone'
@@ -278,7 +278,7 @@
     target_version: "{{ target_db_version }}"
 
 - name: Reinstall the Oracle Secure Backup (OSB) Cloud Module
-  include: reinstall_osbws.yml
+  include_tasks: reinstall_osbws.yml
   when:
     - source_db_version is version(target_db_version,'<')
     - apply_mode == 'prepare-clone'
@@ -305,7 +305,7 @@
     - stat_target_gi_home.stat.exists
 
 - name: Switch to New Grid Infrastructure Home
-  include: switch_clone.yml
+  include_tasks: switch_clone.yml
   when:
     - source_gi_version is version(target_gi_version,'<')
     - apply_mode == 'switch-clone'
@@ -316,7 +316,7 @@
     target_version: "{{ target_gi_version }}"
 
 - name: Switch to New Database Home
-  include: switch_clone.yml
+  include_tasks: switch_clone.yml
   when:
     - source_db_version is version(target_db_version,'<')
     - apply_mode == 'switch-clone'
@@ -327,7 +327,7 @@
     target_version: "{{ target_db_version }}"
 
 - name: Configure OSBWS to Point to New DB Home
-  include: configure_osbws.yml
+  include_tasks: configure_osbws.yml
 
 - name: Post Switch Steps
   when: apply_mode == 'switch-clone'
@@ -339,11 +339,11 @@
         line: "export ORACLE_HOME={{ target_db_home }}"
 
     - name: Update Listener Configuration
-      include: update_listener.yml
+      include_tasks: update_listener.yml
       tags: listener
 
     - name: Update ASM Compatibility
-      include: update_asm_compatibility.yml
+      include_tasks: update_asm_compatibility.yml
 
     - name: Get Default RMAN Tape Channel
       script: get_default_rman_channel.sh
@@ -361,7 +361,7 @@
 # The OJVM Patch may not be installed onto Standby databases before being applied to Primary
 # Once the primary is ready use the apply-ojvm-standby mode to apply this patch to the standbys
 - name: Install OJVM Release Update
-  include: install_ojvm_ru.yml
+  include_tasks: install_ojvm_ru.yml
   when: ( apply_mode == 'switch-clone' and database_role == 'primary' ) or ( apply_mode == 'apply-ojvm-standby' and database_role != 'primary' )
 
 # Restart EM agent
