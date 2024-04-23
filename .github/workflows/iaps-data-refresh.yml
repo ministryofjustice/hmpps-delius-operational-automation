@@ -10,8 +10,13 @@ on:
         description: "Snapshot ID"
         required: false
       trigger_mp_workflow:
+        type: choice
         description: "Trigger MP workflow for IAPS [true|false]"
         default: "true"
+        options:
+            - "true"
+            - "false"
+        required: true
 
 env:
   SOURCE_ACCOUNT_ID: "936195311149" # production
