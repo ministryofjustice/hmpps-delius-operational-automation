@@ -26,14 +26,6 @@
 - name: Show Install Status
   debug: var=patch_check.rc
 
-- name: Show High Availability Count
-  debug:
-      var=high_availability_count
-
-- name: Show Application
-  debug:
-      var=application
-
 - name: Run Patch Installation only When Not Installed
   block:
     # If Installing on Primary Ensure We Disable Active Data Guard on Related Standby
