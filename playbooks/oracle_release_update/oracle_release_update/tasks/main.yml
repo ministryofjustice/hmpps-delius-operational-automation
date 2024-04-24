@@ -12,6 +12,9 @@
     apply_mode: prepare-clone
   when: apply_mode is not defined
 
+- debug:
+    var: high_availability_count
+
 - name: Confirm Apply Mode is Valid
   fail:
     msg: "Invalid Apply Mode {{ apply_mode }}"
