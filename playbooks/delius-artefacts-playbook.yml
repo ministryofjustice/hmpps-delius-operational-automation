@@ -51,7 +51,7 @@
       include_tasks: deploy_mms/playbook.yml
       when: deploy_mms | default('no') == "yes"
 
-    - name: Deploy Audited Interaction Data Consolidation Schema
+    - name: Deploy Audited Interaction Compression Job
       include_role:
         name: "{{ playbook_dir }}/compress_audited_interaction/compress_audited_interaction"
       when: deploy_audit_compression_job | default('no') == "yes"
