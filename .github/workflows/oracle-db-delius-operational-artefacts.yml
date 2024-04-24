@@ -151,7 +151,6 @@ jobs:
       - name: Run Delius Artefacts Playbook
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          echo "Deploy ACJ: "{{ github.event.DeployAuditCompressionJob }}
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
           -e hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
@@ -160,4 +159,4 @@ jobs:
           -e deploy_audit_stub_users=${{ github.event.inputs.DeployAuditStubUsers }} \
           -e deploy_plan_management=${{ github.event.inputs.DeployPlanManagement }} \
           -e deploy_mv_refresh_purge_child=${{ github.event.inputs.DeployMVRefreshPurgeChildCursors }} \
-          -e deploy_audit_compression_job=${{ github.event.DeployAuditCompressionJob }}
+          -e deploy_audit_compression_job=${{ github.event.inputs.DeployAuditCompressionJob }}
