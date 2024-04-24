@@ -191,6 +191,5 @@ jobs:
           -e combo_patch_info='${{ github.event.inputs.ComboPatch }}' \
           -e opatch_info='${{github.event.inputs.Opatch }}' \
           -e "keep_aws_snapshot='${{github.event.inputs.AWSSnapShot }}'" \
-          -e high_availability_count=${{ steps.countstandbydbs.outputs.high_availability_count }} \
           -e gi_ru_patch_info='' \
           -e ojvm_ru_patch_info=''
