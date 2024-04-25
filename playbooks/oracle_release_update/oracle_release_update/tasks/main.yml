@@ -366,8 +366,6 @@
       changed_when: false
       when: database_role == 'primary' or (database_role != 'primary' and standby_db_configured)
 
-    - debug: var=get_default_rman_channel
-
     - name: Set Default RMAN Tape Channel
       script: set_default_rman_channel.sh
       when:

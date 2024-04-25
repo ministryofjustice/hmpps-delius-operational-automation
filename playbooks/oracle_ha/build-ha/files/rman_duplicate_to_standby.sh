@@ -66,31 +66,34 @@ EOF
 
 lookup_rman_catalog_password() {
 
- info "Looking up rman catalog password in aws secret"
+  info "Looking up rman catalog password in aws secret"
 
-  INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-  ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-  DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-  APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
-  RMANPASS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --query SecretString --output text| jq -r .rman)
-
-  [ -z ${RMANPASS} ] && echo  "Password for RMAN catalog in aws secret ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords does not exist"
+  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/EC2OracleEnterpriseManagementSecretsRole"
+  CREDS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "catalog-ansible"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")
+  export AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
+  export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
+  export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
+  SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:/oracle/database/${CATALOG}/shared-passwords"
+  RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
+  [ -z ${RMANPASS} ] && error "Password for RMAN catalog in aws secret does not exist"
+  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 }
 
 
-lookup_db_sys_password() {
+lookup_db_passwords() {
 
- info "Looking up sys password in aws secret"
+ info "Looking up sys and asmsnmp passwords from aws secret"
 
   INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
   ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
   DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
   APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
   SYSPASS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --query SecretString --output text| jq -r .sys)
-
-  [ -z ${SYSPASS} ] && echo  "Password for sys in aws secret ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords does not exist"
-
+  ASMSNMPPASS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --query SecretString --output text| jq -r .asmsnmp)
+  [ -z ${SYSPASS} ] && error "Password for sys in aws secret ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords does not exist"
+  [ -z ${ASMSNMPPASS} ] && error "Password for asmsnmp in aws secret ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords does not exist"
 }
 
 get_primary_dbid () {
@@ -217,7 +220,8 @@ rman_duplicate_to_standby () {
   echo "  nofilenamecheck;" >> $RMANCMDFILE
   echo "}" >> $RMANCMDFILE
 
-  lookup_db_sys_password
+  lookup_db_passwords
+
   if [[ "${USE_BACKUP}" != "TRUE" ]]
   then
      rman target sys/${SYSPASS}@${PRIMARYDB} auxiliary sys/${SYSPASS}@${STANDBYDB} cmdfile $RMANCMDFILE log $RMANLOGFILE << EOF
@@ -372,10 +376,13 @@ PRIMARY_HOSTNAME=$(tnsping ${PRIMARYDB} | awk -F '[(] *HOST *= *' 'NF>1{print su
 
 set_ora_env +ASM
 
-lookup_db_sys_password
+lookup_db_passwords
 
+# Check if crs resource is set standby database
+srvctl config database -d ${STANDBYDB} > /dev/null 2>&1
+[ $? -eq 0 ] && DBUNIQUENAME="--dbuniquename ${STANDBYDB}" || DBUNIQUENAME=""
 asmcmd <<EOASMCMD
-pwcopy --dbuniquename ${STANDBYDB} sys/${SYSPASS}@${PRIMARY_HOSTNAME}.+ASM:+DATA/${PRIMARYDB}/orapw${PRIMARYDB} +DATA/${STANDBYDB}/orapw${STANDBYDB} -f
+pwcopy ${DBUNIQUENAME} asmsnmp/${ASMSNMPPASS}@${PRIMARY_HOSTNAME}.+ASM:+DATA/${PRIMARYDB}/orapw${PRIMARYDB} +DATA/${STANDBYDB}/orapw${STANDBYDB} -f
 EOASMCMD
 
 # We can presume if there is no standby database in crs, it's the first time the standby database is being created
