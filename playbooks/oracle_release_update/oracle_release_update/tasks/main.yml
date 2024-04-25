@@ -332,7 +332,7 @@
 # Handle situration, on rare occassions, whereby the standby ec2 instances have been recreated
 # and there are no database instances configured
 - name: Check Standby Database Is Setup
-  when: (apply_mode == 'switch-clone' or apply_mode == 'apply-ojvm-standby') and database_role != 'primary' 
+  when: (apply_mode == 'switch-clone' or apply_mode == 'apply-ojvm-standby') and database_role != 'primary'
   block:
     - name: Check Standby Database Setup
       shell: |
@@ -365,8 +365,6 @@
       register: get_default_rman_channel
       changed_when: false
       when: database_role == 'primary' or (database_role != 'primary' and standby_db_configured)
-    
-    - debug: var=get_default_rman_channel
 
     - name: Set Default RMAN Tape Channel
       script: set_default_rman_channel.sh

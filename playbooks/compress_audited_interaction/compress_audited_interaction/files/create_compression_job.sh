@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  Create DELIUS_AUDIT_POOL.COMPRESS_AUDITED_INTERACTION job to periodically compress old AUDITED_INTERACTION partitions.
+#  Create DELIUS_USER_SUPPORT.COMPRESS_AUDITED_INTERACTION job to periodically compress old AUDITED_INTERACTION partitions.
 #  Old partitions should never be edited so are a candidate for BASIC compression which is available with Enterprise Edition.
 #
 
@@ -17,30 +17,30 @@ BEGIN
     SELECT COUNT(*)
     INTO   l_existing_job
     FROM   dba_scheduler_jobs
-    WHERE  owner = 'DELIUS_AUDIT_POOL'
+    WHERE  owner = 'DELIUS_USER_SUPPORT'
     AND    job_name = 'COMPRESS_AUDITED_INTERACTION';
     
     IF l_existing_job > 0
     THEN
        DBMS_SCHEDULER.drop_job (
-         job_name => 'DELIUS_AUDIT_POOL.COMPRESS_AUDITED_INTERACTION'
+         job_name => 'DELIUS_USER_SUPPORT.COMPRESS_AUDITED_INTERACTION'
        );
        DBMS_SCHEDULER.drop_schedule (
-         schedule_name => 'DELIUS_AUDIT_POOL.COMPRESSION_SCHEDULE'
+         schedule_name => 'DELIUS_USER_SUPPORT.COMPRESSION_SCHEDULE'
        );       
        DBMS_SCHEDULER.drop_program (
-         program_name => 'DELIUS_AUDIT_POOL.COMPRESS_AUDIT_PROG'
+         program_name => 'DELIUS_USER_SUPPORT.COMPRESS_AUDIT_PROG'
        ); 
     END IF;
 END;
 /
 
--- Enable required privileges for the DELIUS_AUDIT_POOL
+-- Enable required privileges for the DELIUS_USER_SUPPORT
 -- to contain a job for compressing the AUDITED_INTERACTION TABLE
 
-GRANT SELECT  ON dba_tab_partitions                    TO delius_audit_pool;
-GRANT ALTER   ON delius_app_schema.audited_interaction TO delius_audit_pool;
-GRANT ANALYZE ANY                                      TO delius_audit_pool;
+GRANT SELECT  ON dba_tab_partitions                    TO DELIUS_USER_SUPPORT;
+GRANT ALTER   ON delius_app_schema.audited_interaction TO DELIUS_USER_SUPPORT;
+GRANT ANALYZE ANY                                      TO DELIUS_USER_SUPPORT;
 
 DECLARE
    l_schedule_exists INTEGER;
@@ -48,7 +48,7 @@ BEGIN
     SELECT COUNT(*)
     INTO   l_schedule_exists
     FROM   dba_scheduler_schedules
-    WHERE  owner = 'DELIUS_AUDIT_POOL'
+    WHERE  owner = 'DELIUS_USER_SUPPORT'
     AND    schedule_name = 'COMPRESSION_SCHEDULE';
     
     IF l_schedule_exists = 0
@@ -57,7 +57,7 @@ BEGIN
             repeat_interval => 'FREQ=WEEKLY;BYDAY=SAT;BYHOUR=20',  
             start_date      => SYSTIMESTAMP,
             comments        => 'Run audit compression on Saturdays at 8pm.',
-            schedule_name   => 'DELIUS_AUDIT_POOL.COMPRESSION_SCHEDULE');
+            schedule_name   => 'DELIUS_USER_SUPPORT.COMPRESSION_SCHEDULE');
     END IF;
 END;
 /
@@ -69,13 +69,13 @@ BEGIN
     SELECT COUNT(*)
     INTO   l_program_exists
     FROM   dba_scheduler_programs
-    WHERE  owner = 'DELIUS_AUDIT_POOL'
+    WHERE  owner = 'DELIUS_USER_SUPPORT'
     AND    program_name = 'COMPRESSION_SCHEDULE';
     
     IF l_program_exists = 0
     THEN
         DBMS_SCHEDULER.create_program(
-            program_name => 'DELIUS_AUDIT_POOL.COMPRESS_AUDIT_PROG',
+            program_name => 'DELIUS_USER_SUPPORT.COMPRESS_AUDIT_PROG',
             program_action => q'[
                 DECLARE
                    l_oldest_uncomp_partition VARCHAR2(30);
@@ -111,7 +111,7 @@ BEGIN
                                       ||l_oldest_uncomp_partition||' COMPRESS';
                 
                     -- Update statistics for the newly compressed partition
-                    DBMS_STATS.gather_table_stats(ownname  => 'DELIUS_APP_POOL'
+                    DBMS_STATS.gather_table_stats(ownname  => 'DELIUS_APP_SCHEMA'
                                                  ,tabname  => 'AUDITED_INTERACTION'
                                                  ,partname => l_oldest_uncomp_partition);
                 EXCEPTION
@@ -125,16 +125,16 @@ BEGIN
             number_of_arguments => 0,
             comments => 'Compress old partitions in AUDITED_INTERACTION',
             enabled => FALSE);
-        DBMS_SCHEDULER.ENABLE(name=>'DELIUS_AUDIT_POOL.COMPRESS_AUDIT_PROG');   
+        DBMS_SCHEDULER.ENABLE(name=>'DELIUS_USER_SUPPORT.COMPRESS_AUDIT_PROG');   
    END IF;
 END;
 /
 
 BEGIN
     DBMS_SCHEDULER.CREATE_JOB (
-            job_name => 'DELIUS_AUDIT_POOL.COMPRESS_AUDITED_INTERACTION',
-            program_name => 'DELIUS_AUDIT_POOL.COMPRESS_AUDIT_PROG',
-            schedule_name => 'DELIUS_AUDIT_POOL.COMPRESSION_SCHEDULE',
+            job_name => 'DELIUS_USER_SUPPORT.COMPRESS_AUDITED_INTERACTION',
+            program_name => 'DELIUS_USER_SUPPORT.COMPRESS_AUDIT_PROG',
+            schedule_name => 'DELIUS_USER_SUPPORT.COMPRESSION_SCHEDULE',
             enabled => TRUE,
             comments => 'Apply BASIC compression of old partitions of AUDITED_INTERACTION each month.',     
             job_style => 'REGULAR');
