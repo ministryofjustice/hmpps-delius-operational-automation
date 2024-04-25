@@ -52,7 +52,7 @@
 
     - name: Shutdown Database for Patching
       include_tasks: shutdown_database.yml
-      when: 
+      when:
         - database_role != 'primary' and standby_db_configured
         - or database_role == 'primary'
 
