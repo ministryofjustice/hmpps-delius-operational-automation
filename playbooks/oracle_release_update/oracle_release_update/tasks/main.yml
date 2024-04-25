@@ -329,6 +329,21 @@
 - name: Configure OSBWS to Point to New DB Home
   include_tasks: configure_osbws.yml
 
+# Handle situration, on rare occassions, whereby the standby ec2 instances have been recreated
+# and there are no database instances configured
+- name: Check Standby Database Is Setup
+  when: (apply_mode == 'switch-clone' or apply_mode == 'apply-ojvm-standby') and database_role != 'primary'
+  block:
+    - name: Check Standby Database Setup
+      shell: |
+        . ~/.bash_profile
+        grep ^${ORACLE_SID}: /etc/oratab | wc -l
+      register: get_standby_db_configured
+
+    - name: Set Variable Standby Database Configured
+      set_fact:
+        standby_db_configured: "{{ true if get_standby_db_configured.stdout | int > 0 else false }}"
+
 - name: Post Switch Steps
   when: apply_mode == 'switch-clone'
   block:
@@ -349,10 +364,15 @@
       script: get_default_rman_channel.sh
       register: get_default_rman_channel
       changed_when: false
+      when: database_role == 'primary' or (database_role != 'primary' and standby_db_configured)
+
+    - debug: var=get_default_rman_channel
 
     - name: Set Default RMAN Tape Channel
       script: set_default_rman_channel.sh
-      when: not get_default_rman_channel.stdout is search('.*' + target_db_home + '/dbs/osbws.ora.*')
+      when:
+        - database_role == 'primary' or (database_role != 'primary' and standby_db_configured)
+        - not get_default_rman_channel.stdout is search('.*' + target_db_home + '/dbs/osbws.ora.*')
 
     - name: Upgrade the RMAN Catalog (Catalog Databases Only)
       include_tasks: upgrade_rman_catalog.yml
@@ -413,6 +433,7 @@
     - name: Get Standby Role
       script: get_standby_role.sh
       register: get_standby_role
+      when: standby_db_configured
 
     # Re-Enable FSFO from Associated Primary
     # (Only run from First Standby for each Database Type to avoid competing startups)
