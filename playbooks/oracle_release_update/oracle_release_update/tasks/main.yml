@@ -368,7 +368,7 @@
 
     - name: Set Default RMAN Tape Channel
       script: set_default_rman_channel.sh
-      when: 
+      when:
         - database_role == 'primary' or (database_role != 'primary' and standby_db_configured)
         - not get_default_rman_channel.stdout is search('.*' + target_db_home + '/dbs/osbws.ora.*')
 
