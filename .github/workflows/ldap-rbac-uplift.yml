@@ -11,11 +11,10 @@ on:
       rbac_tag:
         required: true
         type: string
-  workflow_call:
 
 jobs:
     deploy:
-        name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}
+        name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}-preapproved
         runs-on: ubuntu-latest
         environment: delius-core-${{ github.event.inputs.environment }}
         permissions:
