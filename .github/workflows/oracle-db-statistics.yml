@@ -1,4 +1,4 @@
-name: "Oracle: Statisics"
+name: "Oracle: Statistics"
 run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-delius-oracle-statistics"
 on:
   workflow_dispatch:
