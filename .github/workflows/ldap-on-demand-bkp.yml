@@ -62,7 +62,7 @@ jobs:
           status: "success"
           message: "On-Demand LDAP backup completed successfully for ${{ inputs.environment }} environment"
           webhook-url: ${{ secrets.PWO_PUBLIC_SLACK_WEBHOOK_URL }}
-          
+
       - name: Notify Slack
         uses: ministryofjustice/github-actions/slack-notify@main
         if: failure()
