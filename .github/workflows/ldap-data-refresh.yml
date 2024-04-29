@@ -496,3 +496,10 @@ jobs:
             echo "At least one step failed, marking the job as failed"
             exit 1
           fi
+  remove-passwords:
+    needs:
+      - cleanup
+    uses: ./.github/workflows/ldap-remove-user-passwords.yml
+    with:
+      environment: ${{ github.event.inputs.destination_env }}
+    secrets: inherit
