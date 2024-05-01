@@ -186,7 +186,7 @@ get_catalog_connection () {
   if [[ ! ${CATALOG_DB} =~ ^\(DESCRIPTION.* ]]
   then
     ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-    ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/EC2OracleEnterpriseManagementSecretsRole"
+    ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${OEM_SECRET_ROLE}"
     SESSION="catalog-ansible"
     SECRET_ACCOUNT_ID=$(aws ssm get-parameters --with-decryption --name account_ids | jq -r .Parameters[].Value |  jq -r 'with_entries(if (.key|test("hmpps-oem.*$")) then ( {key: .key, value: .value}) else empty end)' | jq -r 'to_entries|.[0].value' )
     CREDS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION}"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")

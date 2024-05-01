@@ -146,6 +146,8 @@
           poll: 0
           args:
             executable: /bin/bash
+          environment:
+            OEM_SECRET_ROLE: "{{ oem_secret_role }}"
           register: duplicate_cmd_output
 
         - name: Report Run Output
