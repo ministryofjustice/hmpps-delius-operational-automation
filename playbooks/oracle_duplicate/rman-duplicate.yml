@@ -148,6 +148,7 @@
             executable: /bin/bash
           environment:
             OEM_SECRET_ROLE: "{{ oem_secret_role }}"
+            ENVIRONMENT_NAME: "{{ environment_name }}"
           register: duplicate_cmd_output
 
         - name: Report Run Output
