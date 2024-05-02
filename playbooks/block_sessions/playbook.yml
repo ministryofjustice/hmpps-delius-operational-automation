@@ -64,7 +64,7 @@
 
     - name: Get ip address of OEM server
       shell: getent hosts {{ getoemhostname.stdout }} | awk '{print $1}'
-      when: getoemhostname.rc == 0
+      when: getoemhostname.stderr | length == 0
       register: oem_ip
 
     - debug: var=oem_ip
