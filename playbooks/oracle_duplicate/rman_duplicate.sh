@@ -198,13 +198,18 @@ get_catalog_connection () {
     RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
     unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
   else
-    REGION=eu-west-2
     INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
     APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=application" --query 'Tags[0].Value' --output text)
-    ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=environment-name" --query 'Tags[0].Value' --output text)
-    SSMNAME="/${ENVIRONMENT}/${APPLICATION}/oracle-db-operation/rman/rman_password"
     RMANUSER=rman19c
-    RMANPASS=`aws ssm get-parameters --region ${REGION} --with-decryption --name ${SSMNAME} | jq -r '.Parameters[].Value'`
+    if [ "$APPLICATION" = "delius" ]
+    then
+      SECRET_ID="${ENVIRONMENT_NAME}-oracle-db-dba-passwords"
+    elif [ "$APPLICATION" = "delius-mis" ]
+    then
+      DATABASE_TYPE=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=database" --query 'Tags[0].Value' --output text | cut -d'_' -f1)
+      SECRET_ID="${ENVIRONMENT_NAME}-oracle-${DATABASE_TYPE}-db-dba-passwords"
+    fi
+    RMANPASS=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} --query SecretString --output text | jq -r .rman)
   fi
   [ -z ${RMANPASS} ] && error "Password for rman catalog does not exist"
   CATALOG_CONNECT=${RMANUSER}/${RMANPASS}@"${CATALOG_DB}"
