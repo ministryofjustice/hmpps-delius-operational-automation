@@ -132,13 +132,14 @@
       become: yes
       become_user: oracle
       register: delius_schema_exists
+      failed_when: delius_schema_exists.rc == 1 and (delius_schema_exists.stdout is not search('database not open'))
 
     - name: Set Delius Schema
       set_fact:
-        delius_exists: "{{ 'TRUE' in delius_schema_exists.stdout }}"
+        delius_exists: "{{ 'TRUE' in delius_schema_exists.stdout | default(false) }}"
 
     - name: Carry Out Delius Tasks
-      when: delius_exists
+      when: delius_exists | default(false) | bool
       block:
 
         - name: Get Multi Threaded Worker Semaphore Main Component Setting
