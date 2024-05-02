@@ -451,26 +451,33 @@ function exists_in_list() {
 
 restore_db_passwords () {
 
+  # Delius dba secret passwords are in the form of <environment-name>-oracle-db-dba-passwords
+  # Mis dba secret passwords are in the form of <environment-name>-oracle-<db_type>-db-dba-passwords
+  # where db_type could be either mis, dsd or boe and is pulled from database tag
+
   info "Looking up passwords to in aws ssm secrets to restore"
   INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
   APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=application" --query 'Tags[0].Value' --output text)
-  ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=environment-name" --query 'Tags[0].Value' --output text)
-  DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=delius-environment" --query 'Tags[0].Value' --output text)
+  # ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=environment-name" --query 'Tags[0].Value' --output text)
+  # DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=delius-environment" --query 'Tags[0].Value' --output text)
   SYSTEMDBUSERS=(sys system dbsnmp)
   if [ "$APPLICATION" = "delius" ]
   then
+    SECRET_PREFIX="${ENVIRONMENT_NAME}-oracle-db"
     APPLICATION_USERS=(delius_app_schema delius_pool delius_analytics_platform gdpr_pool delius_audit_dms_pool mms_pool)
     # Add Probation Integration Services by looking up the Usernames (there may be several of these)
     # We suppress any lookup errors for integration users as these may not exist
-    PROBATION_INTEGRATION_USERS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-integration-passwords --query SecretString --output text 2>/dev/null | jq -r 'keys | join(" ")')
+    # PROBATION_INTEGRATION_USERS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-integration-passwords --query SecretString --output text 2>/dev/null | jq -r 'keys | join(" ")')
+    PROBATION_INTEGRATION_USERS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-oracle-db-integration-passwords --query SecretString --output text 2>/dev/null | jq -r 'keys | join(" ")')
   elif [ "$APPLICATION" = "delius-mis" ]
   then
+    DATABASE_TYPE=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=database" --query 'Tags[0].Value' --output text | cut -d'_' -f1)
+    SECRET_PREFIX="${ENVIRONMENT_NAME}-oracle-${DATABASE_TYPE}-db"
     APPLICATION_USERS=(mis_landing ndmis_abc ndmis_cdc_subscriber ndmis_loader ndmis_working ndmis_data)
     APPLICATION_USERS+=(dfimis_landing dfimis_abc dfimis_subscriber dfimis_data dfimis_working dfimis_loader)
   fi
   DBUSERS+=(${APPLICATION_USERS[@]} ${PROBATION_INTEGRATION_USERS[@]} )
-  SECRET_PREFIX="${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}"
-
+  #SECRET_PREFIX="${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}"
   info "Change password for all db users"
   DBUSERS+=( ${SYSTEMDBUSERS[@]} )
   for USER in ${DBUSERS[@]}
