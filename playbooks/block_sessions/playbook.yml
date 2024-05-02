@@ -81,7 +81,7 @@
           with_items:
             - { source: "{{ localhost_ip }}", jump: ACCEPT }
             - { source: "{{ local_ip }}", jump: ACCEPT }
-            - { source: "{{ oem_ip.stdout }}", jump: ACCEPT }
+            - { source: "{{ oem_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb1_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb2_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
 
