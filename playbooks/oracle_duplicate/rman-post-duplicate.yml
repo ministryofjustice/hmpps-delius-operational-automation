@@ -12,7 +12,7 @@
         oem_secretsmanager_passwords:
           emrep:
             account_name: "hmpps-oem-{{ aws_environment }}"
-            assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+            assume_role_name: "{{ oem_secret_role }}"
             secret: "/oracle/database/EMREP/shared-passwords"
             users:
               - slack_token:

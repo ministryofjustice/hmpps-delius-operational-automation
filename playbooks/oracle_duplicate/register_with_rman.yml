@@ -8,7 +8,7 @@
   script: register_with_rman.sh "{{ database_primary_sid }}"
   environment:
     CATALOG: "{{ catalog }}"
-    ASSUME_ROLE_NAME: "EC2OracleEnterpriseManagementSecretsRole"
+    ASSUME_ROLE_NAME: "{{ oem_secret_role }}"
     SECRET_ACCOUNT_ID: "{{ account_ids['hmpps-oem-' + aws_environment] }}"
     SECRET: "/oracle/database/{{ catalog }}/shared-passwords"
   register: register_database

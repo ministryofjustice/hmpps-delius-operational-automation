@@ -8,6 +8,7 @@ on:
         required: true
         type: choice
         options:
+          - "delius-core-dev"
           - "delius-core-test"
           - "delius-core-stage"
           - "delius-core-pre-prod"
@@ -461,6 +462,7 @@ jobs:
       DuplicateTarget: ${{ steps.response.outputs.DuplicateTarget }}
       SourceConfigVersion: ${{ steps.response.outputs.SourceConfigVersion }}
       SourceCodeVersion: ${{ steps.response.outputs.SourceCodeVersion }}
+      SourceLegacy: ${{ steps.response.outputs.SourceLegacy }}
       JobId: ${{ github.job }}
     steps:
 
@@ -476,6 +478,7 @@ jobs:
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
           echo "DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${TargetHost}" >> $GITHUB_OUTPUT
+          echo "SourceLegacy=$(echo $Inputs | jq -r '.SourceLegacy')" >> $GITHUB_OUTPUT
           Action='${{ github.event.action }}'
           if [[ "$Action" == "oracle-rman-duplicate-success" ]]; then
             DuplicateStatus="success"
@@ -485,7 +488,7 @@ jobs:
           fi
 
   oracle-rman-post-duplicate:
-    if: ${{ github.event_name == 'repository_dispatch' }}
+    if: ${{ github.event_name == 'repository_dispatch' && needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' }}
     name: oracle-rman-post-duplicate
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
