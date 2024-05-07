@@ -69,6 +69,7 @@ jobs:
 
   run-report:
     runs-on: ubuntu-latest
+    needs: prepare-run
     environment: delius-core-dev
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
