@@ -27,8 +27,9 @@ permissions:
   id-token: write
 
 jobs:
-  prepare-run:
+  run-report:
     runs-on: ubuntu-latest
+    environment: delius-core-dev
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 1440
@@ -58,14 +59,6 @@ jobs:
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
-
-  run-report:
-    runs-on: ubuntu-latest
-    needs: prepare-run
-    environment: delius-core-dev
-    timeout-minutes: 1440
-    continue-on-error: false
-    steps:
 
       - name: Configure AWS Credentials
         id: login-aws
