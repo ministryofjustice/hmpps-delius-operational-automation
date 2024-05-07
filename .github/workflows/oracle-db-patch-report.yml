@@ -59,6 +59,14 @@ jobs:
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
+  run-report:
+    runs-on: ubuntu-latest
+    needs: prepare-run
+    environment: delius-core-dev
+    timeout-minutes: 1440
+    continue-on-error: false
+    steps:
+
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
@@ -67,15 +75,6 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-  run-report:
-    runs-on: ubuntu-latest
-    needs: prepare-run
-    environment: delius-core-dev
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
-    timeout-minutes: 1440
-    continue-on-error: false
-    steps:
       - name: Run Patch Report Playbook
         run: |
           export ANSIBLE_CONFIG=$ansible_config
