@@ -27,6 +27,7 @@ jobs:
   run-report:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         environment: 
           - delius-core-dev
