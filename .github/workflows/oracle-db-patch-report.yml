@@ -53,7 +53,7 @@ jobs:
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
-          sparse-checkout: playbooks/oracle_statspack
+          sparse-checkout: playbooks/oracle_patch_report
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
