@@ -11,7 +11,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        environment: ["dev"]
+        environment: ["dev", "test"]
     uses: ./.github/workflows/ldap-user-expiry.yaml
     with:
       environment: ${{matrix.environment}}
