@@ -1,0 +1,134 @@
+- name: Initialize Host Patches
+  set_fact:
+     all_host_patches: {}
+
+- name: Get Grid Infrastructure Patches
+  shell: |
+          . ~/.bash_profile
+          export ORAENV_ASK=NO
+          export ORACLE_SID=+ASM
+          . oraenv > /dev/null
+          $ORACLE_HOME/OPatch/opatch lsinv | grep "^Patch" | paste -d' ' - - | sed 's/:.*://' | sort -n -k2
+  register: get_gi_patches
+  changed_when: false
+  tags: gi_patches
+
+- name: Append GI Patches
+  set_fact:
+     all_host_patches: "{{ all_host_patches | combine ({inventory_hostname:{item.split(' ')[2]:{'type':'Grid','description':(item.split(' ')[3:] | join(' ') | trim | regex_replace('\\\"','') )}}},recursive=true) }}"
+  loop: "{{ get_gi_patches.stdout_lines }}"
+  tags: gi_patches
+
+- name: Get Database Patches
+  shell: |
+          . ~/.bash_profile
+          $ORACLE_HOME/OPatch/opatch lsinv | grep "^Patch" | paste -d' ' - - | sed 's/:.*://' | sort -n -k2
+  register: get_db_patches
+  changed_when: false
+  tags: db_patches
+
+- name: Append DB Patches
+  set_fact:
+     all_host_patches: "{{ all_host_patches | combine ({inventory_hostname:{item.split(' ')[2]:{'type':('Both' if (all_host_patches[inventory_hostname][item.split(' ')[2]] is defined) else 'Database'),'description':(item.split(' ')[3:] | join(' ') | trim | regex_replace('\\\"','') )}}},recursive=true)  }}"
+  loop: "{{ get_db_patches.stdout_lines }}"
+  tags: db_patches
+
+- name: Process Patch Data
+  run_once: true
+  delegate_to: localhost
+  become: no
+  block:
+
+    - name: Combine All Host Patch Lists
+      set_fact:
+        all_patches: "{{ ansible_play_hosts | map('extract',hostvars,'all_host_patches') | flatten }}"
+
+    - name: Get Primary Database Host Patches
+      set_fact:
+         primarydb_host_patches: "{{ item.values() }}"
+      loop: "{{ all_patches }}"
+      when:
+        - item.keys() | length > 0
+        - item.keys() | first | regex_search ('.*-db-1')
+
+    - name: Get 1st Standby Database Host Patches
+      set_fact:
+         standbydb1_host_patches: "{{ item.values() }}"
+      loop: "{{ all_patches }}"
+      when:
+        - item.keys() | length > 0
+        - item.keys() | first | regex_search ('.*-db-2')
+
+    - name: Get 2nd Standby Database Host Patches
+      set_fact:
+         standbydb2_host_patches: "{{  item.values() }}"
+      loop: "{{ all_patches }}"
+      when:
+        - item.keys() | length > 0
+        - item.keys() | first | regex_search ('.*-db-3')
+
+    - name: Flatten Database Host Patch Dictionaries
+      set_fact:
+         primarydb_host_patches: "{{ primarydb_host_patches[0] | default({}) }}"
+         standbydb1_host_patches: "{{ standbydb1_host_patches[0] | default({}) }}"
+         standbydb2_host_patches: "{{ standbydb2_host_patches[0] | default({}) }}"
+
+    - name: Get Sorted List of All Patches Installed on Any Host
+      set_fact:
+          list_of_patches: "{{ ( list_of_patches | default([]) + (item.value.keys() | list)) | unique | sort }}"
+      with_dict: "{{ all_patches }}"
+
+    - name: Get All Patch Descriptions
+      set_fact:
+        descriptions: "{{ descriptions | default({}) | combine ({item['key']:(item['value']['description'] | regex_replace('\\(\\d+\\)','')) }) }}"
+      with_dict: "{{ all_patches | map('dict2items') | flatten | list | map(attribute='value') | flatten | list  }}"
+
+    - name: Show Patches
+      debug:
+         msg: |
+             {{ patch_num }}  
+             {{ descriptions[patch_num] }} 
+             {{ primarydb_host_patches[patch_num]['type'] | default('None') }} 
+             {{ standbydb1_host_patches[patch_num]['type'] | default('None') }} 
+             {{ standbydb2_host_patches[patch_num]['type'] | default('None') }}"
+      loop: "{{ list_of_patches }}"
+      loop_control:
+         loop_var: patch_num
+
+    - name: Initialise Slack Attachments
+      set_fact:
+          attachments: []
+
+    - name: Create Attachments
+      set_fact:
+        attachments: "{{ attachments + 
+                       [{'text':'*' + 
+                        patch_num + 
+                        '* `' + ( '%-36.36s' | format(descriptions[patch_num]) ) + 
+                        '`  |P ' +
+                        emojis[(primarydb_host_patches[patch_num]['type'] | default('None'))] +
+                        ' |S1 ' +
+                        emojis[ (standbydb1_host_patches[patch_num]['type'] | default('None')) ] +
+                        ' |S2 ' +
+                        emojis[ (standbydb2_host_patches[patch_num]['type'] | default('None')) ] +
+                        ' |',
+                        'color':  '#' + ( '%x' | format(( patch_num | hash('sha256') | int(base=16) ) % (256*256*256)) | upper )
+                        }] }}"
+      loop: "{{ list_of_patches }}"
+      loop_control:
+         loop_var: patch_num
+
+- name: Get Slack Token
+  include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
+  run_once: true
+
+- name: Send notification message via Slack
+  community.general.slack:
+    token: "{{ slack_token }}"
+    channel: "#delius-aws-oracle-dev-alerts-test"
+    msg: "*{{ environment_name | default('') }} patches*"
+    icon_emoji: ":security-patch:"
+    username: "Oracle Patch Report"
+    attachments: "{{ attachments }}"
+  delegate_to: localhost
+  become: no

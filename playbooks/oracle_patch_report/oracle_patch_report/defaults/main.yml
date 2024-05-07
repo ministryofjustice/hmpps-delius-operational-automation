@@ -1,0 +1,5 @@
+emojis:
+    Grid: ':rubiks_cube::empty_background:'
+    Database: ':empty_background::database:'
+    Both: ':rubiks_cube::database:'
+    None: ':empty_background::empty_background:'
