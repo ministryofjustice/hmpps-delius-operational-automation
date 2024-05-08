@@ -60,6 +60,7 @@ jobs:
           sparse-checkout: |
                        playbooks/oracle_patch_report
                        common/*
+                       playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
