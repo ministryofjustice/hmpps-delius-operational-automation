@@ -8,6 +8,8 @@
 
 - name: (main/set-primary-dgbroker) Run Oracle Data Guard script for standby
   shell: ". ~/.bash_profile; /tmp/setup_primary_dgbroker.sh -t {{ database_primary_unique_name }} -s {{ database_standby_unique_name }}"
+  environment:
+    ENVIRONMENT_NAME: "{{ environment_name }}"
   become: true
   become_user: "{{ rdbms_service_user.name }}"
   register: dg_result

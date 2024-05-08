@@ -86,14 +86,20 @@ lookup_db_passwords() {
 
  info "Looking up sys and asmsnmp passwords from aws secret"
 
-  INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-  ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-  DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-  APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
-  SYSPASS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --query SecretString --output text| jq -r .sys)
-  ASMSNMPPASS=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --query SecretString --output text| jq -r .asmsnmp)
-  [ -z ${SYSPASS} ] && error "Password for sys in aws secret ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords does not exist"
-  [ -z ${ASMSNMPPASS} ] && error "Password for asmsnmp in aws secret ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords does not exist"
+  INSTANCE_ID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+  APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCE_ID}" "Name=key,Values=application" --query 'Tags[0].Value' --output text)
+  if [ "$APPLICATION" = "delius" ]
+  then
+    SECRET_ID="${ENVIRONMENT_NAME}-oracle-db-dba-passwords"
+  elif [ "$APPLICATION" = "delius-mis" ]
+  then
+    DATABASE_TYPE=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=database" --query 'Tags[0].Value' --output text | cut -d'_' -f1)
+    SECRET_ID="${ENVIRONMENT_NAME}-oracle-${DATABASE_TYPE}-db-dba-passwords"
+  fi
+  SYSPASS=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} --query SecretString --output text| jq -r .sys)
+  ASMSNMPPASS=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} --query SecretString --output text| jq -r .asmsnmp)
+  [ -z ${SYSPASS} ] && error "Password for sys in aws secret ${SECRET_ID} does not exist"
+  [ -z ${ASMSNMPPASS} ] && error "Password for asmsnmp in aws secret ${SECRET_ID} does not exist"
 }
 
 get_primary_dbid () {
@@ -368,6 +374,8 @@ EOF
 
 # When the ASM files are cleared down, this will remove the password file, so fetch a new copy from the primary
 copy_password_file () {
+
+info "Copy password file from primary to standby"
 
 set_ora_env ${STANDBYDB}
 DATABASE_ORACLE_HOME=${ORACLE_HOME}

@@ -12,6 +12,7 @@ on:
           - "delius-core-test"
           - "delius-core-stage"
           - "delius-core-pre-prod"
+          - "delius-mis-dev"
       TargetHost:
         description: "Duplicate to target host"
         type: choice
@@ -565,6 +566,7 @@ jobs:
           -e duplicate_target=${{ env.DuplicateTarget }}
 
   oracle-build-ha:
+    if:  ${{ needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' }}
     name: oracle-build-ha
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -650,7 +652,7 @@ jobs:
         if: ${{ steps.standbydbsconfigured.outputs.standbydb1Host != '' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory \
+          ansible-playbook operations/playbooks/oracle_ha/build-ha.yml -i $inventory \
           -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e primary=${{ env.DuplicateTarget }} \
           -e standby=${{ steps.standbydbsconfigured.outputs.standbydb1Host }} \
@@ -664,7 +666,7 @@ jobs:
         if: ${{ steps.standbydbsconfigured.outputs.standbydb2Host != '' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory \
+          ansible-playbook operations/playbooks/oracle_ha/build-ha.yml -i $inventory \
           -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e primary=${{ env.DuplicateTarget }} \
           -e standby=${{ steps.standbydbsconfigured.outputs.standbydb2Host }} \
