@@ -64,6 +64,19 @@ jobs:
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
+      - name: Checkout Role From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+                ansible/roles/secretsmanager-passwords
+                ansible/roles/get-ec2-facts
+                ansible/roles/get-modernisation-platform-facts
+          path: roles
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
