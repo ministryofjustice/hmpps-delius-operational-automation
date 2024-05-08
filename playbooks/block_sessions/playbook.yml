@@ -141,7 +141,6 @@
     - name: Carry Out Delius Tasks
       when: delius_exists | default(false) | bool
       block:
-
         - name: Get Multi Threaded Worker Semaphore Main Component Setting
           script: get_pdt_semaphore.sh
           register: get_pdt_semaphore
