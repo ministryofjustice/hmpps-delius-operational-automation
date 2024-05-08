@@ -90,6 +90,7 @@
       environment:
         CATALOG: "{{ catalog }}"
         SECRET_ACCOUNT_ID: "{{ account_ids['hmpps-oem-' + aws_environment] }}"
+        ENVIRONMENT_NAME: "{{ environment_name }}"
       register: restore_result
 
     - name: (main/restore-primary-to-standby) Print rman restore output
