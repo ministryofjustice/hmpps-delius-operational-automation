@@ -122,6 +122,10 @@
   include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
   run_once: true
 
+- name: Show Fact
+  debug:
+    var: slack_token
+
 - name: Send notification message via Slack
   community.general.slack:
     token: "{{ slack_token }}"
@@ -132,3 +136,4 @@
     attachments: "{{ attachments }}"
   delegate_to: localhost
   become: no
+  run_once: true
