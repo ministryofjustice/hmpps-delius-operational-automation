@@ -149,7 +149,7 @@ jobs:
         if: ${{ github.event.inputs.DeployUsers == 'yes' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          operations/playbooks/delius-artefacts-playbook.yml -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+          ansible-playbook operations/playbooks/delius-artefacts-playbook.yml -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e hosts=${{ steps.prepareinventorynames.outputs.TargetHost }} \
           -e deploy_users="{{ github.event.inputs.DeployUsers }}"
           
