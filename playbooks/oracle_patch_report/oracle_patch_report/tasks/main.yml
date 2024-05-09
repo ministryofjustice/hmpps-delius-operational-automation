@@ -107,10 +107,8 @@
                         '* `' + ( '%-36.36s' | format(descriptions[patch_num]) ) + 
                         '`  |P ' +
                         emojis[(primarydb_host_patches[patch_num]['type'] | default('None'))] +
-                        ' |S1 ' +
-                        emojis[ (standbydb1_host_patches[patch_num]['type'] | default('None')) ] +
-                        ' |S2 ' +
-                        emojis[ (standbydb2_host_patches[patch_num]['type'] | default('None')) ] +
+                        ( (' |S1 ' + emojis[ (standbydb1_host_patches[patch_num]['type'] | default('None')) ] ) if ( ( play_hosts | select('match','.*-db-2') | length ) > 0) else '' ) +
+                        ( (' |S2 ' + emojis[ (standbydb2_host_patches[patch_num]['type'] | default('None')) ] ) if ( ( play_hosts | select('match','.*-db-3') | length ) > 0) else '' ) +
                         ' |',
                         'color':  '#' + ( '%x' | format(( patch_num | hash('sha256') | int(base=16) ) % (256*256*256)) | upper )
                         }] }}"
@@ -124,10 +122,6 @@
      apply:
         run_once: true
 
-- name: Show Fact
-  debug:
-    var: slack_token
-
 - name: Send notification message via Slack
   community.general.slack:
     token: "{{ slack_token }}"
@@ -139,3 +133,4 @@
   delegate_to: localhost
   become: no
   run_once: true
+  changed_when: false
