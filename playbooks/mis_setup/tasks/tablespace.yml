@@ -1,0 +1,9 @@
+- name: Check tablespace {{ tablespace_name }}
+  script: check_tablespace.sh "{{ tablespace_name }}"
+  changed_when: false
+  register: tablespace_check
+
+- name: Create tablespace {{ tablespace_name }}
+  script: create_tablespace.sh "{{ tablespace_name }}"
+  when: tablespace_check.stdout_lines[0] == '0'
+  register: tablespace_creation

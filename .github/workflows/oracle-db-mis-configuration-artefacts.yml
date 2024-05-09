@@ -1,0 +1,154 @@
+name: "Oracle: MIS Configuration Artefacts"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}_mis_configuration_artefacts"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-mis-dev"
+      TargetHosts:
+        description: "MIS database target host"
+        required: true
+        type: string
+        default: "mis_primarydb,boe_primarydb,dsd_primarydb"
+      DeployBoe:
+        description: "Create boe artefacts?"
+        type: choice
+        default: "no"
+        options:
+          - "yes"
+          - "no"
+      DeployDsd:
+        description: "Create dsd artefacts?"
+        type: choice
+        default: "no"
+        options:
+          - "yes"
+          - "no"
+      DeployMisDblinks:
+        description: "Create MIS database links?"
+        type: choice
+        default: "no"
+        options:
+          - "yes"
+          - "no"
+      DeployMisDfi:
+        description: "Create DFI artefacts?"
+        type: choice
+        default: "no"
+        options: 
+          - "yes"
+          - "no"
+      DeployTempSpaceManagement:
+        description: "Create Temp Space Limit Job? (kills sessions using excessive temp space)"
+        type: choice
+        default: "no"
+        options: 
+          - "yes"
+          - "no"
+      DeployUsers:
+        description: "Create MIS database users? (DBA)"
+        type: choice
+        default: "no"
+        options: 
+          - "yes"
+          - "no"
+      SourceCodeVersion:
+        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+
+env:
+  ansible_config: operations/playbooks/ansible.cfg
+  command: ansible-playbook operations/playbooks/mis-artefacts-playbook.yml
+  inventory: inventory/ansible
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:
+  deployment:
+    environment: ${{ github.event.inputs.TargetEnvironment }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+    timeout-minutes: 1440
+    continue-on-error: false
+    steps:
+
+      - name: Prepare Mis Primary Inventory Names
+        id: prepareinventorynames
+        run: |
+          environment_name="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-mis-dev/delius_mis_development_dev/;s/delius-mis-stage/delius_mis_preproduction_stage/;s/delius-mis-pre-prod/delius_mis_preproduction_pre_prod/;s/delius-mis-prod/delius_mis_production_prod/')"
+          IFS="," read -ra targets <<< "${{ github.event.inputs.TargetHosts }}"
+          for target in "${targets[@]}"
+          do
+            TargetHost+=${environment_name}_${target},
+          done
+          echo "TargetHost=${TargetHost%?}" >> $GITHUB_OUTPUT
+
+      - name: Checkout Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/mis_setup
+            playbooks/mis_database_links
+            playbooks/mis_temp_space_management
+            playbooks/mis-artefacts-playbook.yml
+            playbooks/delius_users
+            playbooks/delius-artefacts-playbook.yml
+            playbooks/ansible.cfg
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      - name: Run Mis Artefacts Playbook
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+          -e hosts=${{ steps.prepareinventorynames.outputs.TargetHost }} \
+          -e deploy_boe=${{ github.event.inputs.DeployBoe }} \
+          -e deploy_dsd=${{ github.event.inputs.DeployDsd }} \
+          -e deploy_dfi=${{ github.event.inputs.DeployMisDfi }} \
+          -e deploy_dblinks=${{ github.event.inputs.DeployMisDblinks }} \
+          -e deploy_temp_space_management=${{ github.event.inputs.DeployTempSpaceManagement }}
+
+      - name: Run Deploy Users Playbook
+        if: ${{ github.event.inputs.DeployUsers == 'yes' }}
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          operations/playbooks/delius-artefacts-playbook.yml -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+          -e hosts=${{ steps.prepareinventorynames.outputs.TargetHost }} \
+          -e deploy_users="{{ github.event.inputs.DeployUsers }}"
+          

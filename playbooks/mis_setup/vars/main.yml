@@ -1,0 +1,39 @@
+system_privileges: ["create session", "create procedure", "create sequence", "create table", "create view"]
+
+boe_schemas:
+  - b14cms
+  - b14aud
+
+dsd_schemas:
+  - ipsaud
+  - ipscms
+  - bodslocal
+  - bodscentral
+
+dsd_dev_schemas:
+  - bodslocal1
+  - bodslocal2
+  - dfi_bodscentral
+  - dfi_bodslocal1
+  - dfi_bodslocal2
+  - dfi_bodslocal3
+
+dsd_dfi_schemas:
+  - dfi_ipscms
+  - dfi_ipsaud
+  - dfi_bodslocal
+
+dfi_schemas:
+  - dfimis_landing
+  - dfimis_subscriber
+  - dfimis_data
+  - dfimis_working
+  - dfimis_loader
+  - dfimis_abc
+
+dfimis_landing_system_privileges: ["create session", "create procedure", "create sequence", "create table", "create trigger", "create view"]
+dfimis_subscriber_system_privileges: ["create session", "create procedure", "create sequence", "create table"]
+dfimis_data_system_privileges: ["create session", "create procedure", "create table"]
+dfimis_working_system_privileges: ["create session", "create procedure", "create table"]
+dfimis_loader_system_privileges: ["create session", "create procedure", "create table"]
+dfimis_abc_system_privileges: ["create session", "create procedure", "create sequence", "create table"]
