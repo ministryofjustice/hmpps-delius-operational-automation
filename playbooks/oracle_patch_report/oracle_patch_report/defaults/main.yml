@@ -10,3 +10,4 @@ emojis:
     Database: ':empty_background::database:'
     Both: ':rubiks_cube::database:'
     None: ':empty_background::empty_background:'
+slack_channel: "#delius-aws-oracle-dev-alerts-test"

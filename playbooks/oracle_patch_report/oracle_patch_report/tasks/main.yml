@@ -125,8 +125,8 @@
 - name: Send notification message via Slack
   community.general.slack:
     token: "{{ slack_token }}"
-    channel: "#delius-aws-oracle-dev-alerts-test"
-    msg: "*{{ environment_name | default('') }} patches*"
+    channel: "{{ slack_channel }}"
+    msg: "*{{ environment_name | default('') }} {{ (target_hosts | split('_'))[-2] }} database patches*"
     icon_emoji: ":security-patch:"
     username: "Oracle Patch Report"
     attachments: "{{ attachments }}"
