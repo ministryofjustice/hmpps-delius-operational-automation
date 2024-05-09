@@ -87,6 +87,7 @@ jobs:
 
       - name: Prepare Mis Primary Inventory Names
         id: prepareinventorynames
+        shell: bash
         run: |
           environment_name="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-mis-dev/delius_mis_development_dev/;s/delius-mis-stage/delius_mis_preproduction_stage/;s/delius-mis-pre-prod/delius_mis_preproduction_pre_prod/;s/delius-mis-prod/delius_mis_production_prod/')"
           IFS="," read -ra targets <<< "${{ github.event.inputs.TargetHosts }}"
