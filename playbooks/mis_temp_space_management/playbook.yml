@@ -4,4 +4,4 @@
   become: yes
   become_user: oracle
   roles:
-     - mis_temp_space_management
+    - mis_temp_space_management

@@ -1,5 +1,4 @@
 ---
-
 - name: Check schema {{ schema_name }} exist in the database
   script: check_schema.sh "{{ schema_name }}"
   changed_when: false
@@ -11,7 +10,7 @@
     ENVIRONMENT_NAME: "{{ environment_name }}"
     SCHEMA_NAME: "{{ schema_name }}"
     SCHEMA_TYPE: "{{ schema_type }}"
-  register: schema_creation 
+  register: schema_creation
   when: schema_check.stdout_lines[0] == '0'
 
 - name: Grant system privileges to schema {{ schema_name }}
@@ -19,4 +18,4 @@
   environment:
     SCHEMA_NAME: "{{ schema_name }}"
     SYSPRIVSJSON: "{{ schema_privileges }}"
-  register: grant_system_privileges  
+  register: grant_system_privileges

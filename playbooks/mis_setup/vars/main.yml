@@ -1,4 +1,4 @@
-system_privileges: ["create session","create procedure","create sequence","create table","create view"]
+system_privileges: ["create session", "create procedure", "create sequence", "create table", "create view"]
 
 boe_schemas:
   - b14cms
@@ -31,9 +31,9 @@ dfi_schemas:
   - dfimis_loader
   - dfimis_abc
 
-dfimis_landing_system_privileges: ["create session","create procedure","create sequence","create table","create trigger","create view"]
-dfimis_subscriber_system_privileges: ["create session", "create procedure","create sequence","create table"]
-dfimis_data_system_privileges: ["create session", "create procedure","create table"]
-dfimis_working_system_privileges: ["create session", "create procedure","create table"]   
-dfimis_loader_system_privileges: ["create session", "create procedure","create table"]
-dfimis_abc_system_privileges: ["create session", "create procedure","create sequence","create table"]
+dfimis_landing_system_privileges: ["create session", "create procedure", "create sequence", "create table", "create trigger", "create view"]
+dfimis_subscriber_system_privileges: ["create session", "create procedure", "create sequence", "create table"]
+dfimis_data_system_privileges: ["create session", "create procedure", "create table"]
+dfimis_working_system_privileges: ["create session", "create procedure", "create table"]
+dfimis_loader_system_privileges: ["create session", "create procedure", "create table"]
+dfimis_abc_system_privileges: ["create session", "create procedure", "create sequence", "create table"]

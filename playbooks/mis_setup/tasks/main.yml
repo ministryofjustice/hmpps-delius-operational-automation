@@ -1,11 +1,9 @@
 ---
-
 # In all cases the tablespace name is the same name as the schema
 
 - name: Setup Boe
-  when:  (deploy_boe | default('no') == "yes") and (group_names | select('search','boe_primarydb') | list | count > 0)
+  when: (deploy_boe | default('no') == "yes") and (group_names | select('search','boe_primarydb') | list | count > 0)
   block:
-
     - name: Setup Boe
       include_tasks: create.yml
       vars:
@@ -16,9 +14,8 @@
       loop: "{{ boe_schemas }}"
 
 - name: Setup Dsd
-  when:  (deploy_dsd | default('no') == "yes") and (group_names | select('search','dsd_primarydb') | list | count > 0)
+  when: (deploy_dsd | default('no') == "yes") and (group_names | select('search','dsd_primarydb') | list | count > 0)
   block:
-
     - name: Set Required Dsd Schemas For Development
       set_fact:
         schemas: "{{ dsd_schemas + dsd_dev_schemas + dsd_dfi_schemas }}"
@@ -39,9 +36,8 @@
       loop: "{{ schemas }}"
 
 - name: Setup Dynamic Framework Interventions (Dfi)
-  when:  (deploy_dfi| default('no') == "yes") and (group_names | select('search','mis_primarydb') | list | count > 0)
+  when: (deploy_dfi| default('no') == "yes") and (group_names | select('search','mis_primarydb') | list | count > 0)
   block:
-
     - name: Setup Dfi
       include_tasks: create.yml
       vars:

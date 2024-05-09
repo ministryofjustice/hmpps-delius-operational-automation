@@ -1,11 +1,10 @@
 ---
-
 # NART have requested that any WIReport.exe SQL using more than 400Gb of temp space should be
 # cancelled as this is likely to be a runaway badly formed query and should not be allowed to
 # cause a temp space shortage for other concurrent queries.
 
 - name: Install MIS Temp Space Management Job
-  script: install_mis_temp_space_management_job.sh 
+  script: install_mis_temp_space_management_job.sh
   environment:
-       MAX_TEMP_SPACE_GB: "{{ max_temp_space_gb }}"
-       CHECK_INTERVAL_MINUTES: "{{ check_interval_minutes }}"
+    MAX_TEMP_SPACE_GB: "{{ max_temp_space_gb }}"
+    CHECK_INTERVAL_MINUTES: "{{ check_interval_minutes }}"
