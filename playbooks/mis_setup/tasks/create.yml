@@ -1,0 +1,5 @@
+- name: Setup {{ schema_name }} Tablespace
+  include_tasks: tablespace.yml
+
+- name: Setup {{ schema_name }} Schema
+  include_tasks: schema.yml

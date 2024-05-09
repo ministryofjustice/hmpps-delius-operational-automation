@@ -1,0 +1,19 @@
+#!/bin/bash
+
+. ~/.bash_profile
+
+SCHEMA_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-oracle-${SCHEMA_TYPE}-db-application-passwords --query SecretString --output text| jq -r .${SCHEMA_NAME})
+DEFAULT_TABLESPACE=${SCHEMA_NAME}
+
+sqlplus -s / as sysdba << EOF
+SET LINES 132
+SET PAGES 0
+SET FEEDBACK OFF
+SET HEADING OFF
+WHENEVER SQLERROR EXIT FAILURE
+
+CREATE USER ${SCHEMA_NAME} IDENTIFIED BY "${SCHEMA_PASSWORD}"
+DEFAULT TABLESPACE ${DEFAULT_TABLESPACE}
+QUOTA UNLIMITED ON ${DEFAULT_TABLESPACE};
+
+EOF

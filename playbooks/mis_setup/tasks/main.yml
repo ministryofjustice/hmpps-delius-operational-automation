@@ -1,0 +1,52 @@
+---
+
+# In all cases the tablespace name is the same name as the schema
+
+- name: Setup Boe
+  when:  (deploy_boe | default('no') == "yes") and (group_names | select('search','boe_primarydb') | list | count > 0)
+  block:
+
+    - name: Setup Boe
+      include_tasks: create.yml
+      vars:
+        tablespace_name: "{{ item }}"
+        schema_name: "{{ item }}"
+        schema_type: boe
+        schema_privileges: "{{ system_privileges }}"
+      loop: "{{ boe_schemas }}"
+
+- name: Setup Dsd
+  when:  (deploy_dsd | default('no') == "yes") and (group_names | select('search','dsd_primarydb') | list | count > 0)
+  block:
+
+    - name: Set Required Dsd Schemas For Development
+      set_fact:
+        schemas: "{{ dsd_schemas + dsd_dev_schemas + dsd_dfi_schemas }}"
+      when: environment_name is search('delius-mis-dev')
+
+    - name: Set Required Dsd Schemas For Stage Or Production
+      set_fact:
+        schemas: "{{ dsd_schemas + dsd_dfi_schemas }}"
+      when: environment_name is search("delius-mis-stage|delius-mis-prod")
+
+    - name: Setup Dsd
+      include_tasks: create.yml
+      vars:
+        tablespace_name: "{{ item }}"
+        schema_name: "{{ item }}"
+        schema_type: dsd
+        schema_privileges: "{{ system_privileges }}"
+      loop: "{{ schemas }}"
+
+- name: Setup Dynamic Framework Interventions (Dfi)
+  when:  (deploy_dfi| default('no') == "yes") and (group_names | select('search','mis_primarydb') | list | count > 0)
+  block:
+
+    - name: Setup Dfi
+      include_tasks: create.yml
+      vars:
+        tablespace_name: "{{ item }}"
+        schema_name: "{{ item }}"
+        schema_type: mis
+        schema_privileges: "{{ item }}_system_privileges"
+      loop: "{{ dfi_schemas }}"

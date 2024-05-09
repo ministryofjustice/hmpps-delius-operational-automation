@@ -1,0 +1,7 @@
+---
+- hosts: "{{ target_hosts }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+     - mis_temp_space_management

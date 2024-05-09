@@ -1,0 +1,17 @@
+#!/bin/bash
+
+. ~/.bash_profile
+
+UNAME=${1}
+
+sqlplus -s / as sysdba << EOF
+SET LINES 132
+SET PAGES 0
+SET FEEDBACK OFF
+SET HEADING OFF
+WHENEVER SQLERROR EXIT FAILURE
+SELECT LTRIM(COUNT(*))
+FROM dba_users
+WHERE username = UPPER('${UNAME}');
+EXIT 
+EOF

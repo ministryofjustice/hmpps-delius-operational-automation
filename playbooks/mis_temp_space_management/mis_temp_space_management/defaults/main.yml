@@ -1,0 +1,7 @@
+# Maximum amount of temp space usage allowed by a single WIReport.exe session
+# Define the size in Gigabytes
+max_temp_space_gb: 400
+# Define the number of minutes between space usage checks.  Previous testing has shown that
+# the interval must be less than 5 minutes, otherwise there is
+# potential to run out of temp space between check runs.
+check_interval_minutes: 4

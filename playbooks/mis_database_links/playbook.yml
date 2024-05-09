@@ -1,0 +1,128 @@
+---
+
+  - name: Gather facts with dns filter
+    setup:
+      filter: ansible_dns
+
+  - name: Set facts for delius
+    set_fact:
+      delius_database: "{{ database_primary_sid | regex_replace('MIS','NDA') }}"
+      delius_taf: "{{ database_taf_service | regex_replace('MIS','NDA') }}"
+      primary_address: "(ADDRESS=(PROTOCOL=tcp)(HOST={{ inventory_hostname | regex_replace('-mis-db', '-db') | regex_replace('mis', 'core') }}.{{ dns_zone_internal }})(PORT=1521))"
+
+  - name: Start block
+    block:
+
+      - name: Set fact for address with delius standby database 1
+        set_fact:
+          standby_address_1: "{{ primary_address | regex_replace('-db-1','-db-2') }}"
+        when: high_availability_count.mis|int >= 1
+      
+      - name: Set fact for address with delius standby database 2
+        set_fact:
+          standby_address_2: "{{ primary_address | regex_replace('-db-1','-db-3') }}"
+        when: high_availability_count.mis |int == 2
+
+    when: high_availability_count.mis |int > 0
+
+  - name: Set fact for addresses
+    set_fact:
+      addresses: "{{ primary_address + standby_address_1 | default() + standby_address_2 | default() }}"
+
+  - name: Get oracle database home path
+    shell: egrep {{ database_primary_sid }} /etc/oratab | awk -F":" '{print $2}'
+    changed_when: false
+    register: oracle_database_oracle_home
+
+  - name: Create tnsnames file if does not exist
+    command: touch {{ oracle_database_oracle_home.stdout }}/network/admin/tnsnames.ora
+    args:
+      creates: "{{ oracle_database_oracle_home.stdout }}/network/admin/tnsnames.ora"
+
+  - name: Setup tnsnames with delius database connect identifier
+    blockinfile:
+      backup: true
+      insertafter: EOF
+      path: '{{ oracle_database_oracle_home.stdout }}/network/admin/tnsnames.ora'  
+      block: |
+        {{ delius_database }} =
+          (DESCRIPTION=
+          (LOAD_BALANCE=OFF)
+          (FAILOVER=ON)
+          (CONNECT_TIMEOUT=10)
+          (RETRY_COUNT=3)
+          (ADDRESS_LIST=
+            {{ addresses }}
+          )
+          (CONNECT_DATA=(SERVICE_NAME={{ delius_taf }} ))
+        )
+      marker: "# {mark} ANSIBLE MANAGED BLOCK ADD DELIUS {{ delius_database }}"
+
+  - name: Create database links
+    shell: 
+      cmd: |
+        . ~/.bash_profile
+        USER_PASSWORD=$(aws secretsmanager get-secret-value --secret-id {{ environment_name }}-oracle-mis-db-application-passwords --query SecretString --output text| jq -r .{{ item.user }})
+        DELIUS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id {{ environment_name | regex_replace('mis', 'core') }}-oracle-db-application-passwords --query SecretString --output text| jq -r .delius_app_schema)
+        DELIUS_PASSWORD=f4eqDeL901a0G2CH
+        ORACLE_SID={{ database_primary_sid }}
+        ORAENV_ASK=NO
+        . oraenv > /dev/null;
+        sqlplus -s {{ item.user }}/${USER_PASSWORD}@{{ database_primary_sid }} << EOF
+          --WHENEVER SQLERROR EXIT FAILURE
+          SET PAGES 100 HEAD OFF LINES 200 FEED OFF SERVEROUTPUT ON
+
+          DECLARE
+
+          CURSOR c1 IS
+            SELECT db_link
+            FROM user_db_links
+            WHERE db_link = UPPER('{{ item.dblink }}');
+
+          r1                c1%ROWTYPE;
+          v_count           NUMBER(1);
+
+          PROCEDURE create_dblink IS
+          BEGIN
+            EXECUTE IMMEDIATE 'CREATE DATABASE LINK {{ item.dblink }}'||
+                              ' CONNECT TO delius_app_schema '||
+                              ' IDENTIFIED BY "${DELIUS_PASSWORD}" '||
+                              ' USING '||'''{{ delius_database }}''';
+            DBMS_OUTPUT.PUT_LINE('Created database link {{ item.dblink }}');
+          END create_dblink;
+
+          BEGIN
+
+              OPEN c1;
+              FETCH c1 INTO r1;
+              IF c1%FOUND
+              THEN
+                BEGIN
+                  EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM dual@{{ item.dblink }}' INTO v_count;
+                  DBMS_OUTPUT.PUT_LINE('Database link {{ item.dblink }} already exists');
+                EXCEPTION WHEN OTHERS THEN
+                  EXECUTE IMMEDIATE 'DROP DATABASE LINK {{ item.dblink }}';
+                  create_dblink;
+                END;
+              ELSIF c1%NOTFOUND
+              THEN
+                create_dblink;
+              END IF;
+              CLOSE C1;
+          END;
+          /
+        EOF
+    with_items: 
+      - { user: 'ndmis_cdc_subscriber', dblink: 'delius_app_schema_dblink_ndp'}
+      - { user: 'mis_landing', dblink: 'dbl_delius_app_schema'}
+    loop_control:
+      label: "Checking database link ..."
+    changed_when: false
+    register: dblink_output
+
+  - name: Output of database link
+    debug:
+      msg: "{{ item.stdout }}"
+    loop: "{{ dblink_output.results }}"
+    loop_control:
+      label: "Checking database link ..."

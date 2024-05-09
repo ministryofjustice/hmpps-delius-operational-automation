@@ -1,0 +1,24 @@
+---
+
+- name: Deploy MIS Artefacts
+  hosts: "{{ hosts }}"
+  become: yes
+  become_user: oracle
+  become_method: sudo
+  gather_facts: false
+
+  tasks:
+
+  - name: Deploy
+    include_role: 
+      name: mis_setup
+    when: (deploy_boe | default('no') == "yes") or (deploy_dsd | default('no') == "yes") or (deploy_dfi | default('no') == "yes")
+
+  - name: Deploy Mis Dblinks
+    include_tasks: mis_database_links/playbook.yml
+    when: (deploy_dblinks | default('no') == "yes") and (group_names | select('search','mis_primarydb') | list | count > 0)
+
+  - name: Deploy Temp Space Management
+    include_role: 
+      name: mis_temp_space_management/mis_temp_space_management
+    when: deploy_temp_space_management | default('no') == "yes" and (group_names | select('search','mis_primarydb') | list | count > 0)
