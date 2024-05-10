@@ -82,7 +82,7 @@ jobs:
   oracle-rman-pre-duplicate:
     if: ${{ github.event_name != 'repository_dispatch' }}
     name: oracle-rman-pre-duplicate
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+    environment: ${{ github.event.inputs.TargetEnvironment }} #-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
