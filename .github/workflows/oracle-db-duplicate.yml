@@ -19,6 +19,7 @@ on:
         options:
           - "delius_primarydb"
           - "mis_primarydb"
+          - "dsd_primarydb"
       SourceLegacy:
         description: "Duplicate From AWS Legacy"
         type: choice
