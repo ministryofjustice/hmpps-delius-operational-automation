@@ -478,8 +478,11 @@ restore_db_passwords () {
   then
     DATABASE_TYPE=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=database" --query 'Tags[0].Value' --output text | cut -d'_' -f1)
     SECRET_PREFIX="${ENVIRONMENT_NAME}-oracle-${DATABASE_TYPE}-db"
-    APPLICATION_USERS=(mis_landing ndmis_abc ndmis_cdc_subscriber ndmis_loader ndmis_working ndmis_data)
-    APPLICATION_USERS+=(dfimis_landing dfimis_abc dfimis_subscriber dfimis_data dfimis_working dfimis_loader)
+    if [[ "${DATABASE_TYPE}" == "mis" ]]
+    then
+      APPLICATION_USERS=(mis_landing ndmis_abc ndmis_cdc_subscriber ndmis_loader ndmis_working ndmis_data)
+      APPLICATION_USERS+=(dfimis_landing dfimis_abc dfimis_subscriber dfimis_data dfimis_working dfimis_loader)
+    fi
   fi
   DBUSERS+=(${APPLICATION_USERS[@]} ${PROBATION_INTEGRATION_USERS[@]} )
   #SECRET_PREFIX="${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}"
