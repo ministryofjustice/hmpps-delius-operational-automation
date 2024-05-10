@@ -13,8 +13,8 @@ on:
           - "delius-core-stage"
           - "delius-core-pre-prod"
           - "delius-mis-dev"
-          - "delius_mis-stage"
-          - "delius_mis_pre-prod"
+          - "delius-mis-stage"
+          - "delius-mis-pre-prod"
       TargetHost:
         description: "Duplicate to target host"
         type: choice
