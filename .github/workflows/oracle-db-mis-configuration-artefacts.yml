@@ -87,6 +87,7 @@ jobs:
 
       - name: Prepare Mis Primary Inventory Names
         id: prepareinventorynames
+        shell: bash
         run: |
           environment_name="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-mis-dev/delius_mis_development_dev/;s/delius-mis-stage/delius_mis_preproduction_stage/;s/delius-mis-pre-prod/delius_mis_preproduction_pre_prod/;s/delius-mis-prod/delius_mis_production_prod/')"
           IFS="," read -ra targets <<< "${{ github.event.inputs.TargetHosts }}"
@@ -148,7 +149,7 @@ jobs:
         if: ${{ github.event.inputs.DeployUsers == 'yes' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          operations/playbooks/delius-artefacts-playbook.yml -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+          ansible-playbook operations/playbooks/delius-artefacts-playbook.yml -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e hosts=${{ steps.prepareinventorynames.outputs.TargetHost }} \
-          -e deploy_users="{{ github.event.inputs.DeployUsers }}"
+          -e deploy_users=${{ github.event.inputs.DeployUsers }}
           
