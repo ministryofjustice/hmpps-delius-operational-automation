@@ -27,12 +27,12 @@ on:
           - "mis_primarydb"
           - "mis_standbydb1"
           - "mis_dbs"
-          - "misboe_primarydb"
-          - "misboe_standbydb1"
-          - "misboe_dbs"
-          - "misdsd_primarydb"
-          - "misdsd_standbydb1"
-          - "misdsd_dbs"
+          - "boe_primarydb"
+          - "boe_standbydb1"
+          - "boe_dbs"
+          - "dsd_primarydb"
+          - "dsd_standbydb1"
+          - "dsd_dbs"
       VerboseOutput:
         description: "Verbose Output level"
         type: choice
