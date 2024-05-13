@@ -12,11 +12,11 @@ on:
           - "delius-core-test"
           - "delius-core-training"
           - "delius-core-stage"
-          - "delius-core-pre-prod"
+          - "delius-core-preprod"
           - "delius-core-prod"
           - "delius-mis-dev"
           - "delius-mis-stage"
-          - "delius-mis-pre-prod"
+          - "delius-mis-preprod"
           - "delius-mis-prod"
       TargetHost:
         description: "Backup target host"
