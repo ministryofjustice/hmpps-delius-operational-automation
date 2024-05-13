@@ -12,7 +12,7 @@ on:
           - "delius-core-test"
           - "delius-core-training"
           - "delius-core-stage"
-          - "delius-core-pre-prod"
+          - "delius-core-preprod"
           - "delius-core-prod"
           - "delius-mis-dev"
       TargetHost:
