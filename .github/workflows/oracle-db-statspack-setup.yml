@@ -14,6 +14,10 @@ on:
           - "delius-core-stage"
           - "delius-core-pre-prod"
           - "delius-core-prod"
+          - "delius-mis-dev"
+          - "delius-mis-stage"
+          - "delius-mis-pre-prod"
+          - "delius-mis-prod"
       TargetHost:
         description: "Database target host"
         required: true
@@ -21,8 +25,8 @@ on:
         options: 
           - "delius_primarydb"
           - "mis_primarydb"
-          - "misboe_primarydb"
-          - "misdsd_primarydb"   
+          - "boe_primarydb"
+          - "dsd_primarydb"   
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -53,10 +57,10 @@ jobs:
     continue-on-error: false
     steps:
 
-      - name: Prepare Delius Primary And All Inventory Name
+      - name: Prepare Inventory Name
         id: prepareinventorynames
         run: |
-          hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb"
+          hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}"
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management

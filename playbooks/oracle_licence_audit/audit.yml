@@ -10,7 +10,7 @@
       run_once: yes
       block:
         - name: Find General KMS Key Arn From S3 Backup Bucket
-          shell: aws s3api get-bucket-encryption --bucket {{ simple_environment_name }}-oracle-database-backups --output text --query 'ServerSideEncryptionConfiguration.Rules[].ApplyServerSideEncryptionByDefault.KMSMasterKeyID'
+          shell: aws s3api get-bucket-encryption --bucket {{ environment_name }}-oracle-db-backups --output text --query 'ServerSideEncryptionConfiguration.Rules[].ApplyServerSideEncryptionByDefault.KMSMasterKeyID'
           register: getkmskeyarn
 
         - name: Set Fact For the KMS Key Option

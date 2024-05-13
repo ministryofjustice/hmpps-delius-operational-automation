@@ -14,6 +14,10 @@ on:
           - "delius-core-stage"
           - "delius-core-pre-prod"
           - "delius-core-prod"
+          - "delius-mis-dev"
+          - "delius-mis-stage"
+          - "delius-mis-pre-prod"
+          - "delius-mis-prod"
       TargetHost:
         description: "Database target host"
         required: true
@@ -26,12 +30,12 @@ on:
           - "mis_primarydb"
           - "mis_standbydb1"
           - "mis_dbs"
-          - "misboe_primarydb"
-          - "misboe_standbydb1"
-          - "misboe_dbs"
-          - "misdsd_primarydb"
-          - "misdsd_standbydb1"
-          - "misdsd_dbs"
+          - "boe_primarydb"
+          - "boe_standbydb1"
+          - "boe_dbs"
+          - "dsd_primarydb"
+          - "dsd_standbydb1"
+          - "dsd_dbs"
       SourceCodeVersion:
         description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -57,7 +61,7 @@ jobs:
     steps:
       - name: Prepare Target Name
         id: preparetargetname
-        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
+        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
   deployment:
     name: oracle-db-parameters
     needs: build_target_name

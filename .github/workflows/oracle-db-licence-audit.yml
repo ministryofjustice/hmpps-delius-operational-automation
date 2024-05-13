@@ -33,8 +33,8 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        environment: [delius-core-dev,delius-core-test]
-    #,delius-core-training,delius-core-stage,delius-core-pre-prod,delius-core-prod]
+        environment: [delius-core-dev,delius-core-test,delius-mis-dev]
+    #,delius-core-training,delius-core-stage,delius-core-pre-prod,delius-core-prod,delius-mis-stage,delius-mis-pre-prod,delius-mis-prod
     environment: ${{ matrix.environment }}-preapproved
     timeout-minutes: 1440
     continue-on-error: true
@@ -70,7 +70,7 @@ jobs:
         working-directory: ${{ env.inventory }}
         run: |
           targets=""
-          prefix="environment_name_$(echo ${{ matrix.environment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
+          prefix="environment_name_$(echo ${{ matrix.environment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')"
           build_targets() {
             databasetype=${1}
             if [[ -e group_vars/${prefix}_${databasetype}_primarydb.yml ]]
@@ -80,8 +80,8 @@ jobs:
           }
           build_targets delius
           build_targets mis
-          build_targets misboe
-          build_targets misdsd
+          build_targets boe
+          build_targets dsd
           echo "targets=$targets" >> $GITHUB_OUTPUT
           if [[ $((${{ strategy.job-index }} + 1 )) -eq  ${{ strategy.job-total }} ]]
           then
