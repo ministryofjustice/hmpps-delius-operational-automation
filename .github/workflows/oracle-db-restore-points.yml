@@ -14,6 +14,10 @@ on:
           - "delius-core-stage"
           - "delius-core-pre-prod"
           - "delius-core-prod"
+          - "delius-mis-dev"
+          - "delius-mis-stage"
+          - "delius-mis-pre-prod"
+          - "delius-mis-prod"
       IncludeDelius:
         description: "Include Delius databases?"
         type: choice
@@ -178,7 +182,7 @@ jobs:
         working-directory: ${{ env.inventory }}
         run: |
           targets=""
-          prefix="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment}} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')"
+          prefix="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')"
           build_targets() {
             databasetype=${1}
             if [[ -e group_vars/${prefix}_${databasetype}_primarydb.yml ]]
@@ -189,8 +193,8 @@ jobs:
           }
           [ "${{ github.event.inputs.IncludeDelius }}" == "yes" ] && build_targets delius
           [ "${{ github.event.inputs.IncludeMIS }}" == "yes" ] && build_targets mis
-          [ "${{ github.event.inputs.IncludeBOE }}" == "yes" ] && build_targets misboe
-          [ "${{ github.event.inputs.IncludeDSD }}" == "yes" ] && build_targets misdsd
+          [ "${{ github.event.inputs.IncludeBOE }}" == "yes" ] && build_targets boe
+          [ "${{ github.event.inputs.IncludeDSD }}" == "yes" ] && build_targets dsd
           echo "targets=$targets"
           echo "targets=$targets" >> $GITHUB_OUTPUT
 

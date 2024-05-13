@@ -14,6 +14,10 @@ on:
           - "delius-core-stage"
           - "delius-core-pre-prod"
           - "delius-core-prod"
+          - "delius-mis-dev"
+          - "delius-mis-stage"
+          - "delius-mis-pre-prod"
+          - "delius-mis-prod"
       TargetHost:
         description: "Backup target host"
         required: true
@@ -21,12 +25,12 @@ on:
         options: 
           - "delius_primarydb"
           - "mis_primarydb"
-          - "misboe_primarydb"
-          - "misdsd_primarydb"
+          - "boe_primarydb"
+          - "dsd_primarydb"
           - "delius_standbydb1"
           - "mis_standbydb1"
-          - "misboe_standbydb1"
-          - "misdsd_standbydb1"
+          - "boe_standbydb1"
+          - "dsd_standbydb1"
           - "delius_standbydb2"
       Period: 
         description: "Is this a daily or weekly backup?"
@@ -124,7 +128,10 @@ jobs:
           {
             # Supply 2 parameters:  TargetEnvironment & TargetHost
             # This function determines the inventory name for the RMAN target on which the backup should be run.
-            RmanTarget="environment_name_$(echo $1 | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-pre-prod/delius_core_preproduction_pre_prod/;s/delius-core-prod/delius_core_production_prod/')_$2"
+            RmanTarget="environment_name_$(echo $1 | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_$2"
+            echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
+            echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
+
           }
           if [[ "${{ github.event_name }}" != "repository_dispatch" ]] && [[ -z '${{ github.event.inputs.ParametersJSON }}' ]];
           then
