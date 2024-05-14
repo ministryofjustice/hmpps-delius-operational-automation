@@ -84,7 +84,7 @@
           - name: Set snapshot name string
             run: |
               echo DATETIME_STRING="$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:gdpr-"//)" >> $GITHUB_ENV
-              echo SNAPSHOT_PROD_COPY_NAME="gdpr-prod-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:delius-gdpr-"//)-${{ github.run_id }}" >> $GITHUB_ENV
+              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:delius-${{ inputs.rds_instance}}-"//)-${{ github.run_id }}" >> $GITHUB_ENV
     
           - name: Copy snapshot (prod-prod)
             run: |
