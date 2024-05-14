@@ -144,13 +144,13 @@
     
           - name: Set final snapshot name string
             run: |
-              echo FINAL_SNAPSHOT_PROD_COPY_NAME="gdpr-refresh-ready-${{ env.DATETIME_STRING }}-${{ github.run_id }}" >> $GITHUB_ENV
+              echo FINAL_SNAPSHOT_DEST_COPY_NAME="${{ inputs.rds_instance }}-refresh-ready-${{ needs.source_account.outputs.DATETIME_STRING }}-${{ github.run_id }}" >> $GITHUB_ENV
     
-          - name: Copy snapshot (prod[shared]-preprod)
+          - name: Copy snapshot (${{ inputs.source_environment }}[shared]-${{ inputs.dest_environment }})
             run: |
               aws rds copy-db-snapshot \
                 --source-db-snapshot-identifier "arn:aws:rds:eu-west-2:${{ env.SOURCE_ACCOUNT_ID }}:snapshot:${{ env.SNAPSHOT_PROD_COPY_NAME }}"  \
-                --target-db-snapshot-identifier "${{ env.FINAL_SNAPSHOT_PROD_COPY_NAME }}" \
+                --target-db-snapshot-identifier "${{ env.FINAL_SNAPSHOT_DEST_COPY_NAME }}" \
                 --kms-key-id "arn:aws:kms:eu-west-2:374269020027:alias/rds-hmpps" \
                 --region "eu-west-2"
     
