@@ -154,7 +154,7 @@
                 --kms-key-id "arn:aws:kms:eu-west-2:374269020027:alias/rds-hmpps" \
                 --region "eu-west-2"
     
-          - name: Wait for RDS Snapshot to be ready in Pre-Prod
+          - name: Wait for RDS Snapshot to be ready in ${{ inputs.dest_environment }}
             run: |
               for run in {1..5}; do
                 aws rds wait db-snapshot-available \
