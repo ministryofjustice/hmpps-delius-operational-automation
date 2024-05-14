@@ -6,8 +6,8 @@ oem_secretsmanager_passwords:
     users:
       - sysman:
 emojis:
-    Grid: ':rubiks_cube::empty_background:'
-    Database: ':empty_background::database:'
-    Both: ':rubiks_cube::database:'
-    None: ':empty_background::empty_background:'
+  Grid: ":rubiks_cube::empty_background:"
+  Database: ":empty_background::database:"
+  Both: ":rubiks_cube::database:"
+  None: ":empty_background::empty_background:"
 slack_channel: "#delius-aws-oracle-dev-alerts-test"
