@@ -65,7 +65,7 @@
             run: |
               overnight_snapshot_identifier=$(aws rds describe-db-snapshots \
                 --snapshot-type "automated" \
-                --db-instance-identifier "gdpr" \
+                --db-instance-identifier "${{ inputs.rds_instance }}" \
                 --query "reverse(sort_by(DBSnapshots, &SnapshotCreateTime))[0].DBSnapshotIdentifier" \
                 --output text)
               if [ -z "$overnight_snapshot_identifier" ]; then
