@@ -49,6 +49,9 @@
     jobs:
       share-latest-manual-snapshot:
         runs-on: ubuntu-latest
+        environment: delius-core-${{ inputs.source_environment }}
+        outputs:
+            DATETIME_STRING: "${{ steps.name.outputs.DATETIME_STRING }}"
         steps:
           - name: Configure AWS Credentials
             uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
