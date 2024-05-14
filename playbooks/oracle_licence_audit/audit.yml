@@ -27,7 +27,7 @@
       include_role:
         name: audit
         tasks_from: audit-weblogic
-      when: audit is defined
+      when: audit is defined and environment_name | regex_search('delius-core')
       run_once: yes
 
     - name: Run Upload Task
