@@ -103,7 +103,7 @@
           - name: Share RDS snapshot with Pre-Prod
             run: |
               aws rds modify-db-snapshot-attribute \
-                --db-snapshot-identifier "${{ env.SNAPSHOT_PROD_COPY_NAME }}" \
+                --db-snapshot-identifier "${{ env.SNAPSHOT_SOURCE_COPY_NAME }}" \
                 --attribute-name restore \
                 --values-to-add "${{ env.DEST_ACCOUNT_ID }}"
     
