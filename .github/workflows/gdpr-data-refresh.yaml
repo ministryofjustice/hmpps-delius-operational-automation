@@ -157,7 +157,7 @@
             run: |
               for run in {1..5}; do
                 aws rds wait db-snapshot-available \
-                  --db-snapshot-identifier "${{ env.FINAL_SNAPSHOT_PROD_COPY_NAME }}" && break || sleep 10 * run
+                  --db-snapshot-identifier "${{ env.FINAL_SNAPSHOT_DEST_COPY_NAME }}" && break || sleep 10 * run
               done
     
           - name: Store identifier in SSM parameter store
