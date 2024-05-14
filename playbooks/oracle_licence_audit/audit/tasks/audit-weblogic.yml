@@ -12,7 +12,7 @@
 - name: List services that contain '-weblogic' in the name
   delegate_to: localhost
   become: no
-  shell: aws ecs list-services --cluster {{ weblogic_cluster }} --region {{ region }} | jq -r '.serviceArns[]' | egrep -- "-weblogic" | awk -F'/' '{print $NF}'
+  shell: aws ecs list-services --cluster {{ weblogic_cluster }} --region {{ region }} | jq -r '.serviceArns[]' | egrep -- "weblogic" | awk -F'/' '{print $NF}'
   register: weblogic_services
 
 - name: Create temporary weblogic dictionary and Initalise variables
