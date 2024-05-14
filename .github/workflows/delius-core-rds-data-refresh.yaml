@@ -189,4 +189,3 @@
                 env:
                   GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
                 run: gh workflow run delius-core --ref main -F action=deploy --repo ministryofjustice/modernisation-platform-environments
-    
