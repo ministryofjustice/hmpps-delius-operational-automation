@@ -17,10 +17,34 @@
                 - "true"
                 - "false"
             required: true
-    
-    env:
-      SOURCE_ACCOUNT_ID: "" # to be added later
-      DEST_ACCOUNT_ID: "" # to be added later
+          source_environment:
+            type: choice
+            description: "Select source environment"
+            default: "true"
+            options:
+                - "test"
+                - "stage"
+                - "preprod"
+                - "prod"
+            required: true
+          dest_environment:
+            type: choice
+            description: "Select destination environment"
+            default: "true"
+            options:
+                - "dev"
+                - "test"
+                - "stage"
+                - "preprod"
+            required: true            
+          rds_instance:
+            type: choice
+            description: "Select rds instance for refreshing"
+            default: "true"
+            options:
+                - "merge"
+                - "gdpr"
+            required: true 
     
     jobs:
       share-latest-manual-snapshot:
