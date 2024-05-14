@@ -49,7 +49,7 @@
           cd {{ audit_dir }}
           . ~/.bash_profile
           sqlplus -s / as sysdba << EOF
-            SELECT SYSDATE FROM DUAL;
+            @ReviewLite23.3.sql
             exit
           EOF
       become: yes
