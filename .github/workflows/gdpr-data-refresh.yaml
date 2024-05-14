@@ -47,7 +47,28 @@
             required: true 
     
     jobs:
-      share-latest-manual-snapshot:
+      get_source_account_id:
+          runs-on: ubuntu-latest
+          environment: delius-core-${{ inputs.source_environment }}
+          outputs
+             account_id: "${{ steps.output_account_id.account_id}}"
+          steps:
+              - name: output account id
+                 id: output_account_id
+                 run: echo "account_id=${{ vars.AWS_ACCOUNT_ID }}" >> $GITHUB_OUTPUT
+                 
+       get_dest_account_id:
+          runs-on: ubuntu-latest
+          environment: delius-core-${{ inputs.dest_environment }}
+          outputs
+             account_id: "${{ steps.output_account_id.outputs.account_id}}"
+          steps:
+              - name: output account id
+                 id: output_account_id
+                 run: echo "account_id=${{ vars.AWS_ACCOUNT_ID }}" >> $GITHUB_OUTPUT
+      
+      source_account:
+          needs: [get_source_account_id, get_dest_account_id]
         runs-on: ubuntu-latest
         environment: delius-core-${{ inputs.source_environment }}
         outputs:
@@ -82,6 +103,7 @@
               echo SOURCE_SNAPSHOT_IDENTIFIER=${{ github.event.inputs.manually_specified_snapshot_id }} >> $GITHUB_OUTPUT
     
           - name: Set snapshot name string
+             id: name
             run: |
               echo DATETIME_STRING="$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:gdpr-"//)" >> $GITHUB_ENV
               echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:delius-${{ inputs.rds_instance}}-"//)-${{ github.run_id }}" >> $GITHUB_ENV
