@@ -97,7 +97,7 @@
             run: |
               for run in {1..5}; do
                 aws rds wait db-snapshot-available \
-                  --db-snapshot-identifier "${{ env.SNAPSHOT_PROD_COPY_NAME }}" && break || sleep 10 * run
+                  --db-snapshot-identifier "${{ env.SNAPSHOT_SOURCE_COPY_NAME }}" && break || sleep 10 * run
               done
     
           - name: Share RDS snapshot with Pre-Prod
