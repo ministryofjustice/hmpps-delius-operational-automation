@@ -90,7 +90,7 @@
             run: |
               aws rds copy-db-snapshot \
                 --source-db-snapshot-identifier "${{ env.SOURCE_SNAPSHOT_IDENTIFIER }}"  \
-                --target-db-snapshot-identifier "${{ env.SNAPSHOT_PROD_COPY_NAME }}" \
+                --target-db-snapshot-identifier "${{ env.SNAPSHOT_SOURCE_COPY_NAME }}" \
                 --region "eu-west-2"
     
           - name: Wait for RDS Snapshot to be ready
