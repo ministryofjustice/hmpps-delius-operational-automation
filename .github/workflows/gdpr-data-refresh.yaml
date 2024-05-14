@@ -144,7 +144,7 @@
     
           - name: Output snapshot identifier
             run: |
-              echo "Snapshot identifier: ${{env.FINAL_SNAPSHOT_PROD_COPY_NAME}}"
+              echo "Snapshot identifier: ${{env.FINAL_SNAPSHOT_DEST_COPY_NAME}}"
     
           - name: Generate token
             if: ${{ github.event.inputs.trigger_mp_workflow == 'true' }}
