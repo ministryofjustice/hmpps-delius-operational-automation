@@ -164,7 +164,7 @@
             run: |
               aws ssm put-parameter \
                 --name "/gdpr/snapshot_id" \
-                --value "${{ env.FINAL_SNAPSHOT_PROD_COPY_NAME }}" \
+                --value "${{ env.FINAL_SNAPSHOT_DEST_COPY_NAME }}" \
                 --type "String" \
                 --overwrite \
                 --region "eu-west-2"
