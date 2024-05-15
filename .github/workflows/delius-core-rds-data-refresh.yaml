@@ -151,7 +151,7 @@
               - name: Copy snapshot (${{ inputs.source_environment }}[shared]-${{ inputs.dest_environment }})
                 run: |
                   aws rds copy-db-snapshot \
-                    --source-db-snapshot-identifier "arn:aws:rds:eu-west-2:${{ needs.get_source_account_id.outputs.account_id }}:snapshot:${{ needs.source_environment.outputs.SNAPSHOT_PROD_COPY_NAME }}"  \
+                    --source-db-snapshot-identifier "arn:aws:rds:eu-west-2:${{ needs.get_source_account_id.outputs.account_id }}:snapshot:${{ needs.source_environment.outputs.SNAPSHOT_SOURCE_COPY_NAME }}"  \
                     --target-db-snapshot-identifier "${{ env.FINAL_SNAPSHOT_DEST_COPY_NAME }}" \
                     --kms-key-id "arn:aws:kms:eu-west-2:374269020027:alias/rds-hmpps" \
                     --region "eu-west-2"
