@@ -108,10 +108,10 @@
             run: |
               echo DATETIME_STRING="$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-"//)" >> $GITHUB_ENV
               echo DATETIME_STRING="$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-"//)" >> $GITHUB_OUTPUT
-              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-db-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-${{ inputs.source_environment}}-"//)-${{ github.run_id }}" >> $GITHUB_ENV
-              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-db-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-${{ inputs.source_environment}}-"//)-${{ github.run_id }}"  >> $GITHUB_OUTPUT
+              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-db-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-${{ inputs.source_environment}}-db"//)-${{ github.run_id }}" >> $GITHUB_ENV
+              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-db-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-${{ inputs.source_environment}}-db"//)-${{ github.run_id }}"  >> $GITHUB_OUTPUT
     
-          - name: Copy snapshot (within ${{ inputs.source_account }})
+          - name: Copy snapshot (within ${{ inputs.source_environment }})
             run: |
               aws rds copy-db-snapshot \
                 --source-db-snapshot-identifier "${{ env.SOURCE_SNAPSHOT_IDENTIFIER }}"  \
