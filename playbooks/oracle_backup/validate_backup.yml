@@ -69,6 +69,19 @@
 
       when: restore_datetime | default() | length > 0
 
+    # Backups are peformed using SBT_TAPE and not DISK
+    # To avoid RMAN-06100 error, configure channel for SBT
+    - name: Get SBT_TAPE Channel Configuration
+      script: get_sbt_channel.sh {{ database_standby_sid | default(database_primary_sid) }}
+      register: get_sbt_channel
+      changed_when: false
+
+    - name: Configure SBT Channel If Not Set
+      script: set_sbt_channel.sh {{ database_standby_sid | default(database_primary_sid)  }}
+      register: set_sbt_channel
+      failed_when: set_sbt_channel.rc > 0
+      when: get_sbt_channel is not search('SBT_TAPE')
+
     - block:
         - name: Resync catalog on primary just in case any database structure changes have occurred
           script: run_resync_catalog.sh
