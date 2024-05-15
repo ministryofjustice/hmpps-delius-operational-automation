@@ -49,9 +49,9 @@
     jobs:
       get_source_account_id:
           runs-on: ubuntu-latest
-          environment: delius-core-${{ inputs.source_environment }}
+          environment: delius-core-${{ inputs.source_environment }}-preapproved
           outputs:
-             account_id: "${{ steps.output_account_id.account_id}}"
+             account_id: "${{ steps.output_account_id.outputs.account_id}}"
           steps:
             - name: output account id
               id: output_account_id
@@ -59,7 +59,7 @@
 
       get_dest_account_id:
          runs-on: ubuntu-latest
-         environment: delius-core-${{ inputs.dest_environment }}
+         environment: delius-core-${{ inputs.dest_environment }}-preapproved
          outputs:
             account_id: "${{ steps.output_account_id.outputs.account_id}}"
          steps:
@@ -70,10 +70,10 @@
       source_environment:
         needs: [get_source_account_id, get_dest_account_id]
         runs-on: ubuntu-latest
-        environment: delius-core-${{ inputs.source_environment }}
+        environment: delius-core-${{ inputs.source_environment }}-preapproved
         outputs:
             DATETIME_STRING: "${{ steps.name.outputs.DATETIME_STRING }}"
-            SNAPSHOT_SOURCE_COPY_NAME": "${{ steps.name.outputs.SNAPSHOT_SOURCE_COPY_NAME }}"
+            SNAPSHOT_SOURCE_COPY_NAME: "${{ steps.name.outputs.SNAPSHOT_SOURCE_COPY_NAME }}"
         steps:
           - name: Configure AWS Credentials
             uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
@@ -108,10 +108,10 @@
             run: |
               echo DATETIME_STRING="$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-"//)" >> $GITHUB_ENV
               echo DATETIME_STRING="$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-"//)" >> $GITHUB_OUTPUT
-              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:delius-${{ inputs.rds_instance}}-"//)-${{ github.run_id }}" >> $GITHUB_ENV
-              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:delius-${{ inputs.rds_instance}}-"//)-${{ github.run_id }}" >> $GITHUB_OUTPUT
+              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-db-snapshot$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-${{ inputs.source_environment}}-db"//)-${{ github.run_id }}" >> $GITHUB_ENV
+              echo "SNAPSHOT_SOURCE_COPY_NAME=${{ inputs.rds_instance }}-${{ inputs.source_environment }}-db-snapshot$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-${{ inputs.source_environment}}-db"//)-${{ github.run_id }}"  >> $GITHUB_OUTPUT
     
-          - name: Copy snapshot (within ${{ inputs.source_account }})
+          - name: Copy snapshot (within ${{ inputs.source_environment }})
             run: |
               aws rds copy-db-snapshot \
                 --source-db-snapshot-identifier "${{ env.SOURCE_SNAPSHOT_IDENTIFIER }}"  \
@@ -134,7 +134,7 @@
     
       destination_environment:
           runs-on: ubuntu-latest
-          environment: delius-core-${{ inputs.dest_environment }}
+          environment: delius-core-${{ inputs.dest_environment }}-preapproved
           needs: [source_environment, get_source_account_id, get_dest_account_id]
           steps:
               - name: Configure AWS Credentials
@@ -151,7 +151,7 @@
               - name: Copy snapshot (${{ inputs.source_environment }}[shared]-${{ inputs.dest_environment }})
                 run: |
                   aws rds copy-db-snapshot \
-                    --source-db-snapshot-identifier "arn:aws:rds:eu-west-2:${{ needs.get_source_account_id.outputs.account_id }}:snapshot:${{ needs.source_environment.outputs.SNAPSHOT_PROD_COPY_NAME }}"  \
+                    --source-db-snapshot-identifier "arn:aws:rds:eu-west-2:${{ needs.get_source_account_id.outputs.account_id }}:snapshot:${{ needs.source_environment.outputs.SNAPSHOT_SOURCE_COPY_NAME }}"  \
                     --target-db-snapshot-identifier "${{ env.FINAL_SNAPSHOT_DEST_COPY_NAME }}" \
                     --kms-key-id "arn:aws:kms:eu-west-2:374269020027:alias/rds-hmpps" \
                     --region "eu-west-2"
