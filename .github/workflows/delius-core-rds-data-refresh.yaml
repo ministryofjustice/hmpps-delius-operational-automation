@@ -108,8 +108,8 @@
             run: |
               echo DATETIME_STRING="$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-"//)" >> $GITHUB_ENV
               echo DATETIME_STRING="$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-"//)" >> $GITHUB_OUTPUT
-              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:delius-${{ inputs.rds_instance}}-"//)-${{ github.run_id }}" >> $GITHUB_ENV
-              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:delius-${{ inputs.rds_instance}}-"//)-${{ github.run_id }}" >> $GITHUB_OUTPUT
+              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-db-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-${{ inputs.source_environment}}-"//)-${{ github.run_id }}" >> $GITHUB_ENV
+              echo SNAPSHOT_SOURCE_COPY_NAME="${{ inputs.rds_instance }}-${{ inputs.source_environment }}-db-snapshot-$(echo $SOURCE_SNAPSHOT_IDENTIFIER | sed s/"rds:${{ inputs.rds_instance }}-${{ inputs.source_environment}}-"//)-${{ github.run_id }}"  >> $GITHUB_OUTPUT
     
           - name: Copy snapshot (within ${{ inputs.source_account }})
             run: |
