@@ -51,7 +51,7 @@
           runs-on: ubuntu-latest
           environment: delius-core-${{ inputs.source_environment }}-preapproved
           outputs:
-             account_id: "${{ steps.output_account_id.account_id}}"
+             account_id: "${{ steps.output_account_id.outputs.account_id}}"
           steps:
             - name: output account id
               id: output_account_id
