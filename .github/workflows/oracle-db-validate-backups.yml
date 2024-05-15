@@ -14,6 +14,10 @@ on:
           - "delius-core-stage"
           - "delius-core-preprod"
           - "delius-core-prod"
+          - "delius-mis-dev"
+          - "delius-mis-stage"
+          - "delius-mis-preprod"
+          - "delius-mis-prod"
       TargetHost:
         description: "Validate backup target host"
         required: true
