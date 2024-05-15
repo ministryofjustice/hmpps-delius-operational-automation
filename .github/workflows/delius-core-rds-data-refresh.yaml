@@ -49,7 +49,7 @@
     jobs:
       get_source_account_id:
           runs-on: ubuntu-latest
-          environment: delius-core-${{ inputs.source_environment }}
+          environment: delius-core-${{ inputs.source_environment }}-preapproved
           outputs:
              account_id: "${{ steps.output_account_id.account_id}}"
           steps:
@@ -59,7 +59,7 @@
 
       get_dest_account_id:
          runs-on: ubuntu-latest
-         environment: delius-core-${{ inputs.dest_environment }}
+         environment: delius-core-${{ inputs.dest_environment }}-preapproved
          outputs:
             account_id: "${{ steps.output_account_id.outputs.account_id}}"
          steps:
@@ -70,7 +70,7 @@
       source_environment:
         needs: [get_source_account_id, get_dest_account_id]
         runs-on: ubuntu-latest
-        environment: delius-core-${{ inputs.source_environment }}
+        environment: delius-core-${{ inputs.source_environment }}-preapproved
         outputs:
             DATETIME_STRING: "${{ steps.name.outputs.DATETIME_STRING }}"
             SNAPSHOT_SOURCE_COPY_NAME": "${{ steps.name.outputs.SNAPSHOT_SOURCE_COPY_NAME }}"
@@ -134,7 +134,7 @@
     
       destination_environment:
           runs-on: ubuntu-latest
-          environment: delius-core-${{ inputs.dest_environment }}
+          environment: delius-core-${{ inputs.dest_environment }}-preapproved
           needs: [source_environment, get_source_account_id, get_dest_account_id]
           steps:
               - name: Configure AWS Credentials
