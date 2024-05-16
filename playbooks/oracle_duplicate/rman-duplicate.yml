@@ -80,7 +80,6 @@
     - name: Validate restore datetime parameter
       when: restore_datetime | default() | length > 0
       block:
-
         - name: Check restore datetime parameter is valid
           script: rman_check_restore_datetime.sh {{ source_db }} '{{ catalog }}' '{{ source_catalog_schema | default() }}' '{{ restore_datetime }}'
           environment:
