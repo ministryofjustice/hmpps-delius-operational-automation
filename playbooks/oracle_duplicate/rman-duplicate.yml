@@ -77,21 +77,26 @@
             regexp: "^OSB_WS_BUCKET=.*"
             replace: "OSB_WS_BUCKET={{ s3_source_bucket }}"
 
-    - name: Check restore datetime parameter is valid
-      script: rman_check_restore_datetime.sh {{ source_db}} {{ catalog }} '{{ restore_datetime }}'
-      changed_when: false
-      register: restore_datetime_ok
-      when: (restore_datetime is defined) and (restore_datetime|length > 0)
+    - name: Validate restore datetime parameter
+      when: restore_datetime | default() | length > 0
+      block:
 
-    - name: Exit if no source backups matching restore datetime
-      fail:
-        msg: "No {{ source_db }} backups found matching restore datetime"
-      when: (restore_datetime is defined) and (restore_datetime|length > 0) and ("0" in restore_datetime_ok.stdout)
+        - name: Check restore datetime parameter is valid
+          script: rman_check_restore_datetime.sh {{ source_db }} '{{ catalog }}' '{{ source_catalog_schema | default() }}' '{{ restore_datetime }}'
+          environment:
+            ASSUME_ROLE_NAME: "{{ oem_secret_role }}"
+            ENVIRONMENT_NAME: "{{ environment_name }}"
+          changed_when: false
+          register: restore_datetime_ok
 
-    - name: Set fact restore datetime option when defined
-      set_fact:
-        rman_datetime_option: "-t '{{ restore_datetime }}'"
-      when: (restore_datetime is defined) and (restore_datetime|length > 0)
+        - name: Exit if no source backups matching restore datetime
+          fail:
+            msg: "No {{ source_db }} backups found matching restore datetime"
+          when: restore_datetime_ok.stdout | regex_search("0")
+
+        - name: Set fact restore datetime option when defined
+          set_fact:
+            rman_datetime_option: "-t '{{ restore_datetime }}'"
 
     - name: Set ssm parameter when variable is not null
       set_fact:
