@@ -374,7 +374,9 @@
 
     - name: Upgrade the RMAN Catalog (Catalog Databases Only)
       include_tasks: upgrade_rman_catalog.yml
-      when: database_primary_sid | default('NO') is search('^.CAT$')
+      vars:
+        catalog_db: "{{ db_configs['RCVCAT']['rcvcat_db_name'] }}"
+      when: db_configs['RCVCAT'] is defined
 
 # The OJVM Patch may not be installed onto Standby databases before being applied to Primary
 # Once the primary is ready use the apply-ojvm-standby mode to apply this patch to the standbys
