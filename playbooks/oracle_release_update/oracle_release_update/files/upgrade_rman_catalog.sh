@@ -4,9 +4,13 @@
 
 . ~/.bash_profile
 
-RMAN_USER=rman19c
+PATH=$PATH:/usr/local/bin
+ORAENV_ASK=NO
+ORACLE_SID=${CATALOG_DB}
+. oraenv > /dev/null 2>&1
 
-CATALOG_PASSWORD=$(aws ssm get-parameters --region ${REGION} --with-decryption --name ${SSM_NAME} | jq -r '.Parameters[].Value')
+RMAN_USER=rcvcatowner
+CATALOG_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /oracle/database/${CATALOG_DB}/shared-passwords --query SecretString --output text | jq -r .${RMAN_USER})
 
 # Temporarily change the RMAN password to block concurrent connections
 CATALOG_TEMP_PASSWORD=p#$(oepnssl rand -base64 12)
@@ -24,7 +28,7 @@ srvctl start database -d ${ORACLE_SID}
 
 # Upgrade the catalog
 rman <<EORMAN
-connect catalog rman19c/${CATALOG_TEMP_PASSWORD}
+connect catalog ${RMAN_USER}/${CATALOG_TEMP_PASSWORD}
 upgrade catalog noprompt;
 exit;
 EORMAN
