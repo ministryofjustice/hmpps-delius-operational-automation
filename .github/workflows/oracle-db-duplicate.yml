@@ -44,8 +44,10 @@ on:
         default: ""
         options:
           - ""
-          - "dev-oracle-database-backups"
-          - "prod-oracle-database-backups"
+          - "delius-mis-dev-oracle-mis-db-backups"
+          - "delius-core-dev-oracle-db-backups"
+          - "delius-mis-prod-oracle-mis-db-backups"
+          - "delius-core-prod-oracle-db-backups"
       RestoreDatetime:
         description: Restore datetime from source database, format [YYMMDDHH24MISS]"
         type: string
@@ -114,7 +116,7 @@ jobs:
           if [[ "${SourceLegacy}" == "no" ]]
           then
             # Find the source bucket environment and source database environment
-            SourceBucketEnvironment=$(echo ${S3SourceBucket} | awk -F- '{print $1}')
+            SourceBucketEnvironment=$(echo ${S3SourceBucket} | awk -F- '{print $3}')
             SourceDatabaseEnvironment=$(echo ${SourceDb} |cut -c1-3)
             if [[ ("${SourceBucketEnvironment}" == "prod" &&  "${SourceDatabaseEnvironment}" != "PRD") ||
                   ("${SourceBucketEnvironment}" == "dev" &&  "${SourceDatabaseEnvironment}" != "DMD") ]]

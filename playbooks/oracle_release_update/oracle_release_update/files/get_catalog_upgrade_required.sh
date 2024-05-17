@@ -4,9 +4,14 @@
 
 . ~/.bash_profile
 
-CATALOG_PASSWORD=$(aws ssm get-parameters --region ${REGION} --with-decryption --name ${SSM_NAME} | jq -r '.Parameters[].Value')
+PATH=$PATH:/usr/local/bin
+ORAENV_ASK=NO
+ORACLE_SID=${CATALOG_DB}
+. oraenv > /dev/null 2>&1
+
+CATALOG_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /oracle/database/${CATALOG_DB}/shared-passwords --query SecretString --output text | jq -r .rcvcatowner)
 
 rman <<EORMAN
-connect catalog rman19c/${CATALOG_PASSWORD}
+connect catalog rcvcatowner/${CATALOG_PASSWORD}
 exit;
 EORMAN

@@ -150,7 +150,7 @@
       when:
         - item.value.install_request
         - ((item.value.install_to_grid_required) or (item.value.install_to_database_required))
-        - not item.value.install_with_opatchauto
+        - not (item.value.install_with_opatchauto | default(false))
 
     - name: (main) Restart Grid
       include_tasks: restart-grid.yml
@@ -185,7 +185,7 @@
       when:
         - item.value.install_request
         - item.value.install_to_grid_required
-        - item.value.install_with_opatchauto
+        - item.value.install_with_opatchauto | default(false)
 
   when: required_patches is defined and (install_absent_patches | bool | default(false))
 

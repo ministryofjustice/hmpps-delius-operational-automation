@@ -13,5 +13,20 @@
         "TargetEnvironment":"delius-core-test",
         "TargetHost":"delius_primarydb",
         "CronSchedule":"20 16 * * WED"
+    },
+    {
+        "TargetEnvironment":"delius-mis-dev",
+        "TargetHost":"mis_primarydb",
+        "CronSchedule":"20 15 * * WED"
+    },
+    {
+        "TargetEnvironment":"delius-mis-dev",
+        "TargetHost":"boe_primarydb",
+        "CronSchedule":"20 15 * * WED"
+    },
+    {
+        "TargetEnvironment":"delius-mis-dev",
+        "TargetHost":"dsd_primarydb",
+        "CronSchedule":"20 15 * * WED"
     }
 ]
