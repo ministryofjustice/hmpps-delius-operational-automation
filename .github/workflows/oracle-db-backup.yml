@@ -308,7 +308,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: "${{ env.SourceCodeVersion }}"
+          ref: "${{ env.SourceConfigVersion }}"
           fetch-depth: 0
 
       - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
