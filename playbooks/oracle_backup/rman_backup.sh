@@ -604,6 +604,8 @@ EOF
     if [[ "$ARCHIVELOGS" = "UNSPECIFIED" && $DATAFILES = "UNSPECIFIED" ]]    
     then
         echo "  database $DB_TAG_FORMAT;"                                                                     >>$RMANCMDFILE
+        # Backups may fail when FRA is full, therefore backup archivelogs pior to archiving current log
+        echo "  backup archivelog all not backed up 1 times  $AL_TAG_FORMAT;"                                 >>$RMANCMDFILE
         if [ "$DB_STATUS" = "READ WRITE" ]
         then echo "  alter system archive log current; "                                                      >>$RMANCMDFILE
         fi
