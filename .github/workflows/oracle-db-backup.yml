@@ -116,7 +116,7 @@ jobs:
       BackupStatus: ${{ steps.preparermantargetname.outputs.BackupStatus }}
       BackupStandbyOnPrimaryFailure: ${{ steps.preparermantargetname.outputs.BackupStandbyOnPrimaryFailure }}
       SourceCodeVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
-      SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceConfigVersion }}
       Inputs: ${{ steps.preparermantargetname.outputs.Inputs }}
       SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
       IsRetryJob: ${{ steps.preparermantargetname.outputs.IsRetryJob }}
