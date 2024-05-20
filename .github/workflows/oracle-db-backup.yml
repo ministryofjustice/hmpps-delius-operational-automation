@@ -116,7 +116,7 @@ jobs:
       BackupStatus: ${{ steps.preparermantargetname.outputs.BackupStatus }}
       BackupStandbyOnPrimaryFailure: ${{ steps.preparermantargetname.outputs.BackupStandbyOnPrimaryFailure }}
       SourceCodeVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
-      SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceConfigVersion }}
       Inputs: ${{ steps.preparermantargetname.outputs.Inputs }}
       SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
       IsRetryJob: ${{ steps.preparermantargetname.outputs.IsRetryJob }}
@@ -250,6 +250,8 @@ jobs:
           echo "Inputs="$(echo $Inputs | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
           echo "EnableTrace="${EnableTrace:-"no"} >> $GITHUB_OUTPUT
+          echo "SourceCodeVersion=$SourceCodeVersion" >> $GITHUB_OUTPUT
+          echo "SourceConfigVersion=$SourceConfigVersion" >> $GITHUB_OUTPUT
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
@@ -306,7 +308,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: "${{ env.SourceCodeVersion }}"
+          ref: "${{ env.SourceConfigVersion }}"
           fetch-depth: 0
 
       - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
