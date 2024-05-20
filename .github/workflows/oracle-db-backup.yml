@@ -250,6 +250,8 @@ jobs:
           echo "Inputs="$(echo $Inputs | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
           echo "EnableTrace="${EnableTrace:-"no"} >> $GITHUB_OUTPUT
+          echo "SourceCodeVersion=$SourceCodeVersion" >> $GITHUB_OUTPUT
+          echo "SourceConfigVersion=$SourceConfigVersion" >> $GITHUB_OUTPUT
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
