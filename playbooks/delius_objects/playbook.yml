@@ -107,3 +107,41 @@
   fail:
     msg: "Update of CRN Sequence failed"
   when: sql_result.rc != 0
+
+# We replace production URLs with pre-prod ones.  This happens for both pre-prod and stage
+# refreshes (since stage does have all services, there are no stage equivalents).  The
+# important thing is that they do not point to production.
+- name: Ensure ND_PARAMETER are set to non-production URLs
+  shell:
+    cmd: |
+      . ~/.bash_profile
+      sqlplus / as sysdba << EOF
+        whenever sqlerror exit failure
+        set feedback on
+
+        UPDATE delius_app_schema.nd_parameter
+        SET    nd_value_string = 'https://approved-premises-preprod.hmpps.service.justice.gov.uk/'
+        WHERE  nd_parameter    = 'AP_REFERRAL_URL';
+
+        UPDATE delius_app_schema.nd_parameter
+        SET    nd_value_string = 'https://preprod.hmpps-assessments.service.justice.gov.uk'
+        WHERE  nd_parameter    = 'ARN_LOCATION';
+
+        UPDATE delius_app_schema.nd_parameter
+        SET    nd_value_string = 'https://consider-a-recall-preprod.hmpps.service.justice.gov.uk/'
+        WHERE  nd_parameter    = 'CREATE_RECALL_URL';
+
+        UPDATE delius_app_schema.nd_parameter
+        SET    nd_value_string = 'https://create-and-vary-a-licence-preprod.hmpps.service.justice.gov.uk'
+        WHERE  nd_parameter    = 'CREATE_VARY_LICENCE_URL';
+
+        UPDATE delius_app_schema.nd_parameter
+        SET    nd_value_string = 'https://resettlement-passport-ui-preprod.hmpps.service.justice.gov.uk/'
+        WHERE  nd_parameter    = 'RESETTLEMENT_PASSPORT_URL';
+
+        UPDATE delius_app_schema.nd_parameter
+        SET    nd_value_string = 'https://workload-measurement-preprod.hmpps.service.justice.gov.uk'
+        WHERE  nd_parameter    = 'WORKFORCE_MANAGEMENT';
+
+        COMMIT;
+      EOF
