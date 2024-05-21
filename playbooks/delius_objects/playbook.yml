@@ -108,12 +108,11 @@
     msg: "Update of CRN Sequence failed"
   when: sql_result.rc != 0
 
-
 # We replace production URLs with pre-prod ones.  This happens for both pre-prod and stage
 # refreshes (since stage does have all services, there are no stage equivalents).  The
 # important thing is that they do not point to production.
 - name: Ensure ND_PARAMETER are set to non-production URLs
-  shell: 
+  shell:
     cmd: |
       . ~/.bash_profile
       sqlplus / as sysdba << EOF
