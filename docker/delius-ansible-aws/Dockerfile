@@ -1,7 +1,7 @@
 # Stage 1 of multi-stage docker file - build the session-manager plugin
 FROM golang:1.15.3-alpine as ssm-builder
 
-ARG VERSION=1.2.279.0
+ARG VERSION=1.2.553.0
 
 RUN set -ex && apk add --no-cache make git gcc libc-dev curl bash zip && \
   curl -sLO https://github.com/aws/session-manager-plugin/archive/${VERSION}.tar.gz && \
