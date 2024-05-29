@@ -20,9 +20,9 @@
 
 # Do not bounce an open database -- it will be in use as a Snapshot Standby
 - name: Bounce Standby Database Following Config Change
-  when: 
-     - adg_config.stdout_lines[-1] != 'mount'
-     - adg_config.stdout_lines[-1] != 'open'
+  when:
+    - adg_config.stdout_lines[-1] != 'mount'
+    - adg_config.stdout_lines[-1] != 'open'
   block:
     - name: Shutdown Database
       include_tasks: shutdown_database.yml
