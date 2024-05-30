@@ -288,16 +288,17 @@
           when: database_primary_sid is defined
 
 # If a Flashback occurred we need to unblock the connections to Delius Primary on completion
+# The target_dbs will only be one for Delius.
 - name: Unblock connections to Delius primary database
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: "{{ target_dbs.split(',') | select('match','.*delius_dbs') | first | replace('dbs','primarydb') }}"
+    target_host: "{{ target_dbs | replace('dbs','primarydb') }}"
     database: { "delius": { "high_availability_count": 0 } }
     action: unblock
     ignore_flashback: true
   when:
     - required_action == "Flashback to Restore Point"
-    - target_dbs | regex_search('delius_')
+    - target_dbs | regex_search('delius_dbs')
     - database_primary_sid is defined
 
 # Now We Can Resume Recovery of Standby Databases if a Flashback Occurred
