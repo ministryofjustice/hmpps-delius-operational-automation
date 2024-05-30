@@ -1,5 +1,5 @@
 # Stage 1 of multi-stage docker file - build the session-manager plugin
-FROM golang:1.15.3-alpine as ssm-builder
+FROM golang:1.17.13-alpine as ssm-builder
 
 ARG VERSION=1.2.553.0
 
