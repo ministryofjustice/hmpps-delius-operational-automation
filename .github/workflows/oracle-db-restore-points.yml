@@ -251,7 +251,7 @@ jobs:
             echo "No MIS environment exist for ${{ github.event.inputs.TargetEnvironment }}"
             exit 1
           fi
-          echo "mis_targets=${mis_targets}"
+          echo "mis_targets=${mis_targets}" >> $GITHUB_OUTPUT
   
       - name: Checkout hmpps-delius-operation-automation
         uses: actions/checkout@v4
