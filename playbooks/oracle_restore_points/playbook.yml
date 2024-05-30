@@ -79,16 +79,16 @@
     allow_jobs: true
 
 # Ensure all connections to Delius Primary are blocked and removed
-# prior to a Flashback
+# prior to a Flashback. The target_dbs will only be one for Delius.
 - name: Block connections to Delius primary database
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: "{{ target_dbs.split(',') | select('match','.*delius_dbs') | first | replace('dbs','primarydb') }}"
+    target_host: "{{ target_dbs | replace('dbs','primarydb') }}"
     database: { "delius": { "high_availability_count": 0 } }
     action: block
   when:
     - required_action == "Flashback to Restore Point"
-    - target_dbs | regex_search('delius_')
+    - target_dbs | regex_search('delius_dbs')
     - database_primary_sid is defined
 
 - name: Export dfi schemas only for STGMIS
