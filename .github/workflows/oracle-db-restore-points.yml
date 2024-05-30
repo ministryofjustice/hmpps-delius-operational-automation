@@ -137,7 +137,7 @@ jobs:
           echo "Only Create Restore Point action allowed with both RestoreDateTime and RestorePointName"
           exit 1
 
-   oracle-restore-points-delius:
+  oracle-restore-points-delius:
     needs: validate-parameters
     if: ${{ github.event.inputs.IncludeDelius == 'yes' }}
     environment: delius-core-${{ github.event.inputs.TargetEnvironment }}-preapproved
