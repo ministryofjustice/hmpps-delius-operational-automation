@@ -189,7 +189,7 @@ jobs:
       - name: Define Delius Targets
         id: definetargets
         run: |
-          delius_target=environment_name_delius_core_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/')_${{ github.event.inputs.TargetEnvironment }}_delius_dbs
+          delius_target=environment_name_delius_core_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/')_delius_dbs
           echo "delius_target=${delius_target}" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
@@ -239,9 +239,10 @@ jobs:
         id: definetargets
         working-directory: ${{ env.inventory }}
         run: |
-          environment_name=environment_name_delius_mis_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/')_${{ github.event.inputs.TargetEnvironment }}
-          # Only required to check if mis_primarydb.yml Ansible inventory group vars exists
-          if [[ -e group_vars/environment_name_delius_mis_${environment}_mis_primarydb.yml ]]
+          environment_name=environment_name_delius_mis_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/')
+          # Only required to check if mis_primarydb.yml Ansible inventory group vars file exists 
+          # to check MIS is in this environment
+          if [[ -e group_vars/${environment_name}_mis_primarydb.yml ]]
           then
             [ "${{ github.event.inputs.IncludeMIS }}" == "yes" ] && mis_targets=${environment_name}_mis_dbs,
             [ "${{ github.event.inputs.IncludeBOE }}" == "yes" ] && mis_targets=${mis_targets}${environment_name}_boe_dbs,
