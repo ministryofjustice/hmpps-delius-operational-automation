@@ -79,16 +79,16 @@
     allow_jobs: true
 
 # Ensure all connections to Delius Primary are blocked and removed
-# prior to a Flashback
+# prior to a Flashback. The target_dbs will only be one for Delius.
 - name: Block connections to Delius primary database
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: "{{ target_dbs.split(',') | select('match','.*delius_dbs') | first | replace('dbs','primarydb') }}"
+    target_host: "{{ target_dbs | replace('dbs','primarydb') }}"
     database: { "delius": { "high_availability_count": 0 } }
     action: block
   when:
     - required_action == "Flashback to Restore Point"
-    - target_dbs | regex_search('delius_')
+    - target_dbs | regex_search('delius_dbs')
     - database_primary_sid is defined
 
 - name: Export dfi schemas only for STGMIS
@@ -288,16 +288,17 @@
           when: database_primary_sid is defined
 
 # If a Flashback occurred we need to unblock the connections to Delius Primary on completion
+# The target_dbs will only be one for Delius.
 - name: Unblock connections to Delius primary database
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: "{{ target_dbs.split(',') | select('match','.*delius_dbs') | first | replace('dbs','primarydb') }}"
+    target_host: "{{ target_dbs | replace('dbs','primarydb') }}"
     database: { "delius": { "high_availability_count": 0 } }
     action: unblock
     ignore_flashback: true
   when:
     - required_action == "Flashback to Restore Point"
-    - target_dbs | regex_search('delius_')
+    - target_dbs | regex_search('delius_dbs')
     - database_primary_sid is defined
 
 # Now We Can Resume Recovery of Standby Databases if a Flashback Occurred
@@ -371,7 +372,7 @@
       run_once: true
 
 # If we have run a flashback then it is possible that password changes have been reverted and will be
-# out of Sync with those in SSM Parameter store and OEM.  Rotate the passwords again to sync everything up.
+# out of Sync with those in Secrets Manager and OEM.  Rotate the passwords again to sync everything up.
 # (This step is skipped if not in AWS since there will be no password store)
 - name: Rotate Database Passwords
   import_playbook: ../oracle_password_rotation/database_password_rotation.yml
