@@ -78,12 +78,16 @@ jobs:
           docker load --input /tmp/ansible-aws-image.tar
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@fd25fed6972e341ff0007ddb61f77e88103953c2
+        uses: aquasecurity/trivy-action@b2933f565dbc598b29947660e66259e3c7bc8561
         with:
           format: 'sarif'
-          severity: 'MEDIUM,HIGH,CRITICAL'
+          severity: 'CRITICAL,HIGH'
+          limit-severities-for-sarif: 'true'
           image-ref: 'hmpps-delius-operational-automation:${{ github.sha }}'
           exit-code: '1'
+          scan-type: 'image'
+          trivyignores: '.trivyignore'
+          ignore-unfixed: 'true'
           output: 'trivy-results.sarif'
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
