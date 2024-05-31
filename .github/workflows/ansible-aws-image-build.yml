@@ -67,6 +67,11 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
@@ -86,7 +91,7 @@ jobs:
           image-ref: 'hmpps-delius-operational-automation:${{ github.sha }}'
           exit-code: '1'
           scan-type: 'image'
-          trivyignores: '.trivyignore'
+          trivyignores: 'docker/delius-ansible-aws/.trivyignore'
           ignore-unfixed: 'true'
           output: 'trivy-results.sarif'
       - name: Upload Trivy scan results to GitHub Security tab
@@ -120,18 +125,18 @@ jobs:
           TAG_CONTEXT: repo # Making this default visible
           PRERELEASE: ${{ github.base_ref != 'refs/heads/main' }}
           PRERELEASE_SUFFIX: ${{ github.base_ref }} # Branch name
-      
+
       - name: Create safe tag
         id: safe_tag
         run: |
           echo "SAFE_TAG=$(echo ${{ steps.bump-version.outputs.new_tag }} | sed 's/[^a-zA-Z0-9.]/-/g')" >> $GITHUB_OUTPUT
-      
+
       - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: ansible-aws-image
           path: /tmp
-          
+
       - name: Load and retag image for publish
         run: |
           docker load --input /tmp/ansible-aws-image.tar
@@ -147,4 +152,3 @@ jobs:
       - name: Publish image
         run: docker push ghcr.io/ministryofjustice/hmpps-delius-operational-automation:${{ steps.safe_tag.outputs.SAFE_TAG }}
 
-        
