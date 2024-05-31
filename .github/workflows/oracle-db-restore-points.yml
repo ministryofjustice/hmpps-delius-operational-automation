@@ -81,6 +81,8 @@ jobs:
   validate-parameters:
     environment: delius-core-dev-preapproved # Choose any environment as its only used for validating parameters
     runs-on: ubuntu-latest
+    outputs:
+      MisTargets: ${{ steps.mis_exists.outputs.mis_targets }}
     continue-on-error: false
     steps:
 
@@ -136,6 +138,33 @@ jobs:
         run: |
           echo "Only Create Restore Point action allowed with both RestoreDateTime and RestorePointName"
           exit 1
+
+      - name: Checkout modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Check MIS Exists In Environment
+        id: mis_exists
+        working-directory: ${{ env.inventory }}
+        run: |
+          environment_name=environment_name_delius_mis_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/')
+          # Only required to check if mis_primarydb.yml Ansible inventory group vars file exists
+          # to check MIS is in this environment
+          if [[ -e group_vars/${environment_name}_mis_primarydb.yml ]]
+          then
+            [ "${{ github.event.inputs.IncludeMIS }}" == "yes" ] && mis_targets=${environment_name}_mis_dbs,
+            [ "${{ github.event.inputs.IncludeBOE }}" == "yes" ] && mis_targets=${mis_targets}${environment_name}_boe_dbs,
+            [ "${{ github.event.inputs.IncludeDSD }}" == "yes" ] && mis_targets=${mis_targets}${environment_name}_dsd_dbs
+          fi
+          echo "mis_targets=${mis_targets}" >> $GITHUB_OUTPUT
 
   oracle-restore-points-delius:
     needs: validate-parameters
@@ -214,7 +243,7 @@ jobs:
           
   oracle-restore-points-mis:
     needs: validate-parameters
-    if: ${{ github.event.inputs.IncludeMIS == 'yes' || github.event.inputs.IncludeBOE == 'yes' || github.event.inputs.IncludeDSD == 'yes' }}
+    if: ${{ needs.validate-parameters.outputs.MisTargets != '' }}
     environment: delius-mis-${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
@@ -234,24 +263,6 @@ jobs:
           path: inventory
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
-
-      - name: Define MIS Targets
-        id: definetargets
-        working-directory: ${{ env.inventory }}
-        run: |
-          environment_name=environment_name_delius_mis_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/')
-          # Only required to check if mis_primarydb.yml Ansible inventory group vars file exists 
-          # to check MIS is in this environment
-          if [[ -e group_vars/${environment_name}_mis_primarydb.yml ]]
-          then
-            [ "${{ github.event.inputs.IncludeMIS }}" == "yes" ] && mis_targets=${environment_name}_mis_dbs,
-            [ "${{ github.event.inputs.IncludeBOE }}" == "yes" ] && mis_targets=${mis_targets}${environment_name}_boe_dbs,
-            [ "${{ github.event.inputs.IncludeDSD }}" == "yes" ] && mis_targets=${mis_targets}${environment_name}_dsd_dbs
-          else
-            echo "No MIS environment exist for ${{ github.event.inputs.TargetEnvironment }}"
-            exit 1
-          fi
-          echo "mis_targets=${mis_targets}" >> $GITHUB_OUTPUT
   
       - name: Checkout hmpps-delius-operation-automation
         uses: actions/checkout@v4
@@ -294,7 +305,7 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_restore_points/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_password_rotation/roles
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-          -e target_dbs=${{ steps.definetargets.outputs.mis_targets }} \
+          -e target_dbs=${{ needs.validate-parameters.outputs.MisTargets  }} \
           -e "required_action='${{ github.event.inputs.RequiredAction }}'" \
           -e restore_point_name=${{ github.event.inputs.RestorePointName }} \
           -e restore_date_time=${{ github.event.inputs.RestoreDateTime }}
