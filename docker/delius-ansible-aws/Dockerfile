@@ -8,8 +8,14 @@ LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-w
 
 RUN apt update && apt install -y curl git bash jq && apt clean
 
-RUN if [[curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb" && dpkg -i session-manager-plugin.deb ]];\ 
-  then echo "Session manager plugin installed"; else rm -f session-manager-plugin.deb && curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_arm64/session-manager-plugin.deb" -o "session-manager-plugin.deb" && dpkg -i session-manager-plugin.deb; fi
+RUN if curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb" && dpkg -i session-manager-plugin.deb; then \
+  echo "Session manager plugin installed"; \
+  else \
+  rm -f session-manager-plugin.deb && \
+  curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_arm64/session-manager-plugin.deb" -o "session-manager-plugin.deb" && \
+  dpkg -i session-manager-plugin.deb; \
+  fi
+
 
 # Pip
 COPY requirements.txt requirements.yml ./
