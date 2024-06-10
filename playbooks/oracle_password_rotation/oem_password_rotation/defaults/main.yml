@@ -22,8 +22,6 @@ oemdb_secretsmanager_passwords:
 
 agent_secretsmanager_passwords:
   agent:
-    account_name: "hmpps-oem-{{ aws_environment }}"
-    assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
     secret: "/oracle/oem/shared-passwords"
     users:
       - agentreg:
