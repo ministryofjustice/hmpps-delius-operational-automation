@@ -166,7 +166,7 @@
               - name: Store identifier in SSM parameter store
                 run: |
                   aws ssm put-parameter \
-                    --name "/${{ inputs.rds_instance }}/snapshot_id" \
+                    --name "/delius-core-${{ inputs.dest_environment }}/${{ inputs.rds_instance }}/snapshot_id" \
                     --value "${{ env.FINAL_SNAPSHOT_DEST_COPY_NAME }}" \
                     --type "String" \
                     --overwrite \
