@@ -38,7 +38,7 @@ jobs:
 
       - name: Build and push to ghcr
         id: build_publish
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./docker/delius-ansible-aws
           file: ./docker/delius-ansible-aws/Dockerfile
