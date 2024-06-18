@@ -98,6 +98,14 @@ jobs:
       JobId: ${{ github.job }}
     steps:
 
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
       - name: Prepare Duplicate Target Name
         id: preparation
         shell: bash
@@ -111,7 +119,8 @@ jobs:
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
-          echo "DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${TargetHost}" >> $GITHUB_OUTPUT
+          DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/preprod/preproduction_preprod/;s/-/_/g')_${TargetHost}
+          echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           # Check the combination of Source Database and Source Bucket is correct if NOT duplicating from AWS legacy
           if [[ "${SourceLegacy}" == "no" ]]
           then
@@ -136,10 +145,14 @@ jobs:
           Inputs=$Inputs"\"RestoreDatetime\": \"${RestoreDatetime}\","
           Inputs=$Inputs"\"SkipAudit\": \"${SkipAudit}\","
           Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
-          Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\""
+          Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
+          Inputs=$Inputs"\"Phase\": \"Duplicate Started\""
           Inputs=$Inputs"}"
           echo "Inputs="$(echo $Inputs | jq @json)
+          Inputs=$(echo $Inputs | jq -r | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
+
+          aws ssm put-parameter --region eu-west-2 --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)" --description "Runtime status details of duplicate jobs"
 
       - name: Check Restore DateTime Input
         if: ${{ github.event.inputs.RestoreDateTime != '' }}
@@ -213,14 +226,6 @@ jobs:
           path: roles
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
-
-      - name: Configure AWS Credentials
-        id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
-          aws-region: "eu-west-2"
 
       - name: Start Ansible Oracle RMAN Pre Duplicate
         shell: bash
@@ -461,6 +466,8 @@ jobs:
     if: ${{ github.event_name == 'repository_dispatch' }}
     name: oracle-rman-duplicate-check
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     continue-on-error: false
     outputs:
       TargetEnvironment: ${{ steps.response.outputs.TargetEnvironment }}
@@ -471,6 +478,14 @@ jobs:
       SourceLegacy: ${{ steps.response.outputs.SourceLegacy }}
       JobId: ${{ github.job }}
     steps:
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
 
       - name: Responding to Repository Dispatch event
         id: response
@@ -483,13 +498,16 @@ jobs:
           echo "TargetHost=${TargetHost}" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
-          echo "DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_${TargetHost}" >> $GITHUB_OUTPUT
+          DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_${TargetHost}
+          echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           echo "SourceLegacy=$(echo $Inputs | jq -r '.SourceLegacy')" >> $GITHUB_OUTPUT
           Action='${{ github.event.action }}'
-          if [[ "$Action" == "oracle-rman-duplicate-success" ]]; then
-            DuplicateStatus="success"
-          elif [[ "$Action" == "oracle-rman-duplicate-failure" ]]; then
-            DuplicateStatus="failed"
+          if [[ "$Action" == "oracle-rman-duplicate-success" ]]
+          then
+            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)"
+          elif [[ "$Action" == "oracle-rman-duplicate-failure" ]]
+          then
+            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)"
             exit 2
           fi
 
@@ -740,7 +758,7 @@ jobs:
         id: slack
         uses: slackapi/slack-github-action@v1.26.0
         with:
-            channel-id: "delius-aws-oracle-dev-alerts"
+            channel-id: "delius-aws-oracle-dev-alerts-test"
             payload: |
               { 
                 "icon_emoji":"large_purple_circle",
