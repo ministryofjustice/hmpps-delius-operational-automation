@@ -111,7 +111,8 @@ jobs:
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
-          echo "DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${TargetHost}" >> $GITHUB_OUTPUT
+          DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${TargetHost}"
+          echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           # Check the combination of Source Database and Source Bucket is correct if NOT duplicating from AWS legacy
           if [[ "${SourceLegacy}" == "no" ]]
           then
@@ -137,9 +138,14 @@ jobs:
           Inputs=$Inputs"\"SkipAudit\": \"${SkipAudit}\","
           Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
           Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\""
+          Inputs=$Inputs"\"Phase\": \"Duplicate Initiated\""
           Inputs=$Inputs"}"
           echo "Inputs="$(echo $Inputs | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
+
+          aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite \
+            --value "$(echo $Inputs | jq -r)" \
+            --description "Runtime status details of duplicate jobs"
 
       - name: Check Restore DateTime Input
         if: ${{ github.event.inputs.RestoreDateTime != '' }}
@@ -222,14 +228,14 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Start Ansible Oracle RMAN Pre Duplicate
-        shell: bash
-        run: |
-          export ANSIBLE_CONFIG=$ansible_config
-          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          $ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} \
-          -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
+      # - name: Start Ansible Oracle RMAN Pre Duplicate
+      #   shell: bash
+      #   run: |
+      #     export ANSIBLE_CONFIG=$ansible_config
+      #     ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
+      #     $ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+      #     -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} \
+      #     -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
   oracle-rman-export-schema:
     if: ${{ github.event.inputs.SourceLegacy == 'no' && github.event_name != 'repository_dispatch' }}
@@ -319,14 +325,14 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Start Ansible RMAN Export
-        shell: bash
-        run: |
-          export ANSIBLE_CONFIG=$ansible_config
-          $ansible_playbook_directory/rman-export-import.yml -i $inventory \
-          -e oem_target=${{ steps.preparation.outputs.OemTarget }} \
-          -e action=export \
-          -e export_name=${{ steps.preparation.outputs.ExportName }}
+      # - name: Start Ansible RMAN Export
+      #   shell: bash
+      #   run: |
+      #     export ANSIBLE_CONFIG=$ansible_config
+      #     $ansible_playbook_directory/rman-export-import.yml -i $inventory \
+      #     -e oem_target=${{ steps.preparation.outputs.OemTarget }} \
+      #     -e action=export \
+      #     -e export_name=${{ steps.preparation.outputs.ExportName }}
 
   oracle-rman-import-schema:
     if: ${{ github.event_name != 'repository_dispatch' }}
@@ -373,16 +379,16 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Start Ansible RMAN Import
-        shell: bash
-        run: |
-          export ANSIBLE_CONFIG=$ansible_config
-          $ansible_playbook_directory/rman-export-import.yml -i $inventory \
-          -e oem_target=environment_name_$(echo ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} | sed 's/-/_/g') \
-          -e action=import \
-          -e export_name=${{ needs.oracle-rman-export-schema.outputs.ExportName }} \
-          -e source_catalog_db=${{ needs.oracle-rman-export-schema.outputs.SourceCatalogDb }} \
-          -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
+      # - name: Start Ansible RMAN Import
+      #   shell: bash
+      #   run: |
+      #     export ANSIBLE_CONFIG=$ansible_config
+      #     $ansible_playbook_directory/rman-export-import.yml -i $inventory \
+      #     -e oem_target=environment_name_$(echo ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} | sed 's/-/_/g') \
+      #     -e action=import \
+      #     -e export_name=${{ needs.oracle-rman-export-schema.outputs.ExportName }} \
+      #     -e source_catalog_db=${{ needs.oracle-rman-export-schema.outputs.SourceCatalogDb }} \
+      #     -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   oracle-rman-duplicate:
     if: ${{ success('oracle-rman-pre-duplicate') && github.event_name != 'repository_dispatch' && (needs.oracle-rman-import-schema.result == 'skipped' || needs.oracle-rman-import-schema.result == 'success') }}
@@ -483,13 +489,16 @@ jobs:
           echo "TargetHost=${TargetHost}" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
-          echo "DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_${TargetHost}" >> $GITHUB_OUTPUT
+          DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_${TargetHost}"
+          echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           echo "SourceLegacy=$(echo $Inputs | jq -r '.SourceLegacy')" >> $GITHUB_OUTPUT
           Action='${{ github.event.action }}'
-          if [[ "$Action" == "oracle-rman-duplicate-success" ]]; then
-            DuplicateStatus="success"
-          elif [[ "$Action" == "oracle-rman-duplicate-failure" ]]; then
-            DuplicateStatus="failed"
+          if [[ "$Action" == "oracle-rman-duplicate-success" ]]
+          then
+            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)"
+          elif [[ "$Action" == "oracle-rman-duplicate-failure" ]]
+          then
+            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)"
             exit 2
           fi
 
@@ -562,13 +571,13 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Start Ansible Oracle RMAN Post Duplicate
-        shell: bash
-        run: |
-          export ANSIBLE_CONFIG=$ansible_config
-          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ env.DuplicateTarget }}
+      # - name: Start Ansible Oracle RMAN Post Duplicate
+      #   shell: bash
+      #   run: |
+      #     export ANSIBLE_CONFIG=$ansible_config
+      #     ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
+      #     $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+      #     -e duplicate_target=${{ env.DuplicateTarget }}
 
   oracle-build-ha:
     if:  ${{ needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' }}
