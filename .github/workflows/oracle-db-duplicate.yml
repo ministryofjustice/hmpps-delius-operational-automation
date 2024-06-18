@@ -111,7 +111,7 @@ jobs:
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
-          DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${TargetHost}"
+          DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${TargetHost}
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           # Check the combination of Source Database and Source Bucket is correct if NOT duplicating from AWS legacy
           if [[ "${SourceLegacy}" == "no" ]]
@@ -138,7 +138,7 @@ jobs:
           Inputs=$Inputs"\"SkipAudit\": \"${SkipAudit}\","
           Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
           Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
-          Inputs=$Inputs"\"Phase\": \"Duplicate Initiated\""
+          Inputs=$Inputs"\"Phase\": \"Duplicate Started\""
           Inputs=$Inputs"}"
           echo "Inputs="$(echo $Inputs | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
