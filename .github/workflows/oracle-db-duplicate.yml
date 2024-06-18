@@ -137,15 +137,13 @@ jobs:
           Inputs=$Inputs"\"RestoreDatetime\": \"${RestoreDatetime}\","
           Inputs=$Inputs"\"SkipAudit\": \"${SkipAudit}\","
           Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
-          Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\""
+          Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
           Inputs=$Inputs"\"Phase\": \"Duplicate Initiated\""
           Inputs=$Inputs"}"
           echo "Inputs="$(echo $Inputs | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
 
-          aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite \
-            --value "$(echo $Inputs | jq -r)" \
-            --description "Runtime status details of duplicate jobs"
+          aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)" --description "Runtime status details of duplicate jobs"
 
       - name: Check Restore DateTime Input
         if: ${{ github.event.inputs.RestoreDateTime != '' }}
