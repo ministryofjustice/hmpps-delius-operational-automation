@@ -143,7 +143,7 @@ jobs:
           echo "Inputs="$(echo $Inputs | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
 
-          aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)" --description "Runtime status details of duplicate jobs"
+          aws ssm put-parameter --region eu-west-2 --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)" --description "Runtime status details of duplicate jobs"
 
       - name: Check Restore DateTime Input
         if: ${{ github.event.inputs.RestoreDateTime != '' }}
@@ -747,7 +747,7 @@ jobs:
         id: slack
         uses: slackapi/slack-github-action@v1.26.0
         with:
-            channel-id: "delius-aws-oracle-dev-alerts"
+            channel-id: "delius-aws-oracle-dev-alerts-test"
             payload: |
               { 
                 "icon_emoji":"large_purple_circle",
