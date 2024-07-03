@@ -44,6 +44,16 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
+  workflow_call:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: string
+      TargetHost:
+        description: "Backup target host"
+        required: true
+        type: string
 
 # Allow permissions on repository and docker image and OIDC token
 permissions:
