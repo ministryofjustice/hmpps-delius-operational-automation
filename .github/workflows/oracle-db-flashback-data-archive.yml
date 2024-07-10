@@ -62,9 +62,9 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
-       - name: Checkout From hmpps-delius-operational-automation
-         uses: actions/checkout@v4
-         with:
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
             repository: ministryofjustice/hmpps-delius-operational-automation
             sparse-checkout-cone-mode: false
             sparse-checkout: |
