@@ -37,4 +37,4 @@
   become: yes
   become_user: oracle
   roles:
-    - { role: "delius_oem_metrics_setup", when: apply_mode == 'switch-clone' and (not pingoms.failed | bool) }
+    - { role: delius_oem_metrics_setup, when: apply_mode == 'switch-clone' and (not pingoms.failed | bool) }
