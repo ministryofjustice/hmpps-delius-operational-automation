@@ -1,0 +1,51 @@
+---
+
+- name: Check if Flashback Data Archive Tablespace Exists
+  script: check_if_fda_tablespace_exists.sh
+  register: tablespace_name
+  changed_when: false
+
+- name: Create Flashback Data Archive Tablespace if Absent
+  script: create_fda_tablespace.sh
+  when: 'tablespace_name.stdout is not search("T_FLASHBACK_DATA_ARCHIVE")'
+
+- name: Check if Flashback Data Archives Exists for All Required Numbers of Years
+  script: check_if_fda_exists.sh
+  register: flashback_archive_name
+  changed_when: false
+  environment: 
+     NUMBER_OF_YEARS: "{{ number_of_years }}"
+  loop: "{{ fda_contents | map(attribute='number_of_years') | list | unique }}"
+  loop_control:
+     loop_var: number_of_years
+
+- name: Create Flashback Data Archives Exists for All Required Numbers of Years
+  script: create_fda.sh
+  environment: 
+     NUMBER_OF_YEARS: "{{ check_results.number_of_years }}"
+  loop: "{{ flashback_archive_name.results }}"
+  loop_control:
+     loop_var: check_results
+  when: check_results.stdout is not search("YEAR_FDA")
+
+- name: Check if Required Tables in Flashback Archive
+  script: check_if_table_in_fda.sh
+  register: flashback_archive_tables
+  changed_when: false
+  environment: 
+     OWNER_NAME: "{{ database_table.owner_name | upper }}"
+     TABLE_NAME: "{{ database_table.table_name | upper }}"
+  loop: "{{ fda_contents }}"
+  loop_control:
+     loop_var: database_table
+
+- name: Add Table to Flashback Archive
+  script: add_table_to_fda.sh
+  environment: 
+     OWNER_NAME: "{{ check_results.database_table.owner_name | upper }}"
+     TABLE_NAME: "{{ check_results.database_table.table_name | upper }}"
+     NUMBER_OF_YEARS: "{{ check_results.database_table.number_of_years }}"
+  loop: "{{ flashback_archive_tables.results }}"
+  loop_control:
+     loop_var: check_results
+  when: check_results.stdout is not search(check_results.database_table.owner_name + ',' + check_results.database_table.table_name | upper)

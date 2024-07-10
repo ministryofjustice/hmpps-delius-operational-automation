@@ -63,6 +63,13 @@ on:
         options:
           - "yes"
           - "no"
+      DeployFlashbackDataArchives:
+        description: "Create Delius Flashback Data Archive?"
+        type: choice
+        default: "no"
+        options:
+          - "yes"
+          - "no"
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -143,4 +150,4 @@ jobs:
           -e deploy_audited_interaction=${{ github.event.inputs.DeployAuditedInteraction }} \
           -e deploy_davfs=${{ github.event.inputs.DeployDavfs }} \
           -e deploy_cfo=${{ github.event.inputs.DeployCfo }}
-          
+          -e deploy_flashback_data_archives=${{ github.event.inputs.DeployFlashbackDataArchives }}
