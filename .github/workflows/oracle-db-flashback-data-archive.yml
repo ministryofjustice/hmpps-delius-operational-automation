@@ -1,9 +1,6 @@
 name: "Oracle: Delius Flashback Data Archive"
 run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}_flashback_data_archive"
 on:
-  push:
-    branches:
-      - "DBA-690"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
@@ -52,7 +49,6 @@ jobs:
         run: |
           hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb"
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
-          echo "allHost=$(echo ${hosts} | sed 's/delius_primarydb/all/')" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
