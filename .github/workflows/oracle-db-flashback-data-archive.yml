@@ -86,5 +86,5 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-          -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
+          -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.hosts }}.yml \
           -e hosts=${{ steps.prepareinventorynames.outputs.hosts }}
