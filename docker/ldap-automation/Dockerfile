@@ -9,6 +9,6 @@ RUN python3 -m pip install --upgrade pip
 
 # RUN python3 -m pip install git+https://github.com/oracle/python-oracledb.git
 
-RUN python3 -m pip install git+https://github.com/ministryofjustice/hmpps-ldap-automation-cli.git@v0.6.0-dev.0
+RUN python3 -m pip install git+https://github.com/ministryofjustice/hmpps-ldap-automation-cli.git@v0.13.0
 
 CMD ["ldap-automation"]
