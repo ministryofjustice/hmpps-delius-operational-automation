@@ -93,4 +93,13 @@ jobs:
                   fi
               done
 
-              aws logs tail /ecs/ldap-automation --log-stream-names "ecs/ldap-automation/${{steps.run-task.outputs.TASK_ID}}"
+              task_definition_arn=$(echo "$task_info" | jq -r '.tasks[0].taskDefinitionArn')
+              task_definition=$(aws ecs describe-task-definition --task-definition $task_definition_arn)
+
+              log_group_name=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-group"')
+              
+              log_stream_prefix=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-stream-prefix"')
+              container_name=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].name')
+              log_stream_name="${log_stream_prefix}/${container_name}/${{steps.run-task.outputs.TASK_ID}}"
+
+              aws logs tail "$log_group_name" --log-stream-names "$log_stream_name"
