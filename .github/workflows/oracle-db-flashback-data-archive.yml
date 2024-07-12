@@ -1,5 +1,5 @@
-name: "Oracle: Delius Configuration Artefacts"
-run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}_delius_configuration_artefacts"
+name: "Oracle: Delius Flashback Data Archive"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}_flashback_data_archive"
 on:
   workflow_dispatch:
     inputs:
@@ -14,55 +14,6 @@ on:
           - "delius-core-stage"
           - "delius-core-preprod"
           - "delius-core-prod"
-      DeployAudit:
-        description: "Deploy Database Audit Management?"
-        type: choice
-        default: "no"
-        options:
-          - "yes"
-          - "no"
-      DeployDavfs:
-        description: "Configure davfs for CFO?"
-        type: choice
-        default: "no"
-        options:
-          - "yes"
-          - "no"
-      DeployCfo:
-        description: "Deploy CFO Daily Extract?"
-        type: choice
-        default: "no"
-        options: 
-          - "yes"
-          - "no"
-      DeployAlfrescoWallet:
-        description: "Deploy Alfresco Wallet?"
-        type: choice
-        default: "no"
-        options: 
-          - "yes"
-          - "no"
-      DeployGdpr: 
-        description: "Create Delius gdpr_pool database user?"
-        type: choice
-        default: "no"
-        options: 
-          - "yes"
-          - "no"
-      DeployMMSApi:
-        description: "Create Delius mms_pool database user?"
-        type: choice
-        default: "no"
-        options:
-          - "yes"
-          - "no"
-      DeployAuditedInteraction:
-        description: "Create Delius Audited Interaction Data Consolidation schema?"
-        type: choice
-        default: "no"
-        options:
-          - "yes"
-          - "no"
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -74,7 +25,7 @@ on:
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
-  command: ansible-playbook operations/playbooks/delius-artefacts-playbook.yml
+  command: ansible-playbook operations/playbooks/oracle_flashback_data_archive/playbook.yml
   inventory: inventory/ansible
 
 # Allow permissions on repository and docker image respectively 
@@ -98,7 +49,6 @@ jobs:
         run: |
           hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb"
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
-          echo "allHost=$(echo ${hosts} | sed 's/delius_primarydb/all/')" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -115,12 +65,14 @@ jobs:
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
         with:
-          repository: ministryofjustice/hmpps-delius-operational-automation
-          sparse-checkout-cone-mode: false
-          sparse-checkout: playbooks
-          path: operations
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
-          fetch-depth: 0
+            repository: ministryofjustice/hmpps-delius-operational-automation
+            sparse-checkout-cone-mode: false
+            sparse-checkout: |
+                             playbooks/oracle_flashback_data_archive
+                             playbooks/ansible.cfg
+            path: operations
+            ref: ${{ github.event.inputs.SourceCodeVersion }}
+            fetch-depth: 0
 
       - name: Configure AWS Credentials
         id: login-aws
@@ -130,16 +82,9 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Run Delius Artefacts Playbook
+      - name: Run Delius Flashback Data Archive Playbook
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-          -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
-          -e hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
-          -e deploy_audit=${{ github.event.inputs.DeployAudit }} \
-          -e deploy_alfresco_wallet=${{ github.event.inputs.DeployAlfrescoWallet }} \
-          -e deploy_gdpr=${{ github.event.inputs.DeployGdpr }} \
-          -e deploy_mms=${{ github.event.inputs.DeployMMSApi }} \
-          -e deploy_audited_interaction=${{ github.event.inputs.DeployAuditedInteraction }} \
-          -e deploy_davfs=${{ github.event.inputs.DeployDavfs }} \
-          -e deploy_cfo=${{ github.event.inputs.DeployCfo }}
+          -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.hosts }}.yml \
+          -e hosts=${{ steps.prepareinventorynames.outputs.hosts }}

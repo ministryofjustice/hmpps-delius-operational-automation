@@ -1,0 +1,4 @@
+fda_contents:
+  - owner_name: DELIUS_APP_SCHEMA
+    table_name: ND_PARAMETER
+    number_of_years: 3
