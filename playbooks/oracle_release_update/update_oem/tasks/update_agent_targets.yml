@@ -69,20 +69,31 @@
     - name: Create New Grid Oracle Home Target
       block:
         # For Grid Infrastructure Home Names we use the Convention OraGIHome_<n>_<hostname> where <n> is a sequential counter
-        - name: Get Name of Highest Numbered Existing Grid Infrastructure Homes Matching Naming Convention
-          shell: |
-            . {{ stage }}/emcli_login.sh >/dev/null
-            {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader | grep -v 'Synchronized successfully' |  grep -E "OraGIHome_[[:digit:]]_{{ agent_host }}" | sort -n -k2 -t_ | tail -1
-          register: highest_gi_home_name
-          changed_when: false
+        # - name: Get Name of Highest Numbered Existing Grid Infrastructure Homes Matching Naming Convention
+        #   shell: |
+        #     . {{ stage }}/emcli_login.sh >/dev/null
+        #     {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader | grep -v 'Synchronized successfully' |  grep -E "OraGIHome_[[:digit:]]_{{ agent_host }}" | sort -n -k2 -t_ | tail -1
+        #   register: highest_gi_home_name
+        #   changed_when: false
 
-        - name: Increment Grid Infrastructure Home Name Counter
-          set_fact:
-            gi_home_counter: "{{ ( ( highest_gi_home_name.stdout_lines[0] | default('OraGIHome_0_' + agent_host ) ) | regex_replace('.+_(\\d+)_.+','\\1') | int ) + 1 }}"
+        # - name: Increment Grid Infrastructure Home Name Counter
+        #   set_fact:
+        #     gi_home_counter: "{{ ( ( highest_gi_home_name.stdout_lines[0] | default('OraGIHome_0_' + agent_host ) ) | regex_replace('.+_(\\d+)_.+','\\1') | int ) + 1 }}"
+
+        # - name: Set New Grid Infrastructure Home Name
+        #   set_fact:
+        #     new_gi_home_name: "{{ ( highest_gi_home_name.stdout_lines[0] | default('OraGIHome_0_' + agent_host ) ) | regex_replace('(.+)_\\d+_(.+)','\\1_' + gi_home_counter + '_\\2') }}"
+
+        - name: Find New Grid Infrastructure Home Name
+          shell: |
+            GRID_HOME_NAME=$(grep {{ target_gi_home }} {{ oracle_inventory }}/ContentsXML/inventory.xml |cut -d= -f2 | cut -d'"' -f2)
+            GRID_HOME_INDEX=$(grep {{ target_gi_home }} {{ oracle_inventory }}/ContentsXML/inventory.xml |cut -d= -f5 | cut -d'"' -f2)
+            echo ${GRID_HOME_NAME}_${GRID_HOME_INDEX}_{{ agent_host }}
+          register: newgihomename
 
         - name: Set New Grid Infrastructure Home Name
           set_fact:
-            new_gi_home_name: "{{ ( highest_gi_home_name.stdout_lines[0] | default('OraGIHome_0_' + agent_host ) ) | regex_replace('(.+)_\\d+_(.+)','\\1_' + gi_home_counter + '_\\2') }}"
+            new_gi_home_name: "{{ newgihomename.stdout }}"
 
         - name: Set Properties
           set_fact:
@@ -217,20 +228,31 @@
     - name: Create New Database Oracle Home Target
       block:
         # For Database Infrastructure Home Names we use the Convention OraDBHome_<n>_<hostname> where <n> is a sequential counter
-        - name: Get Name of Highest Numbered Existing Database Homes Matching Naming Convention
+        # - name: Get Name of Highest Numbered Existing Database Homes Matching Naming Convention
+        #   shell: |
+        #     . {{ stage }}/emcli_login.sh >/dev/null
+        #     {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader |  grep -E "OraDBHome_[[:digit:]]_{{ agent_host }}" | sort -n -k2 -t_ | tail -1
+        #   register: highest_db_home_name
+        #   changed_when: false
+
+        # - name: Increment Database Home Name Counter
+        #   set_fact:
+        #     db_home_counter: "{{ ( ( highest_db_home_name.stdout_lines[0] | default('OraDBHome_0_' + agent_host ) ) | regex_replace('.+_(\\d+)_.+','\\1') | int ) + 1 }}"
+
+        # - name: Set New Grid Infrastructure Home Name
+        #   set_fact:
+        #     new_db_home_name: "{{ ( highest_db_home_name.stdout_lines[0] | default('OraDBHome_0_' + agent_host ) ) | regex_replace('(.+)_\\d+_(.+)','\\1_' + db_home_counter + '_\\2') }}"
+
+        - name: Find New Grid Database Home Name
           shell: |
-            . {{ stage }}/emcli_login.sh >/dev/null
-            {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader |  grep -E "OraDBHome_[[:digit:]]_{{ agent_host }}" | sort -n -k2 -t_ | tail -1
-          register: highest_db_home_name
-          changed_when: false
+            DATABASE_HOME_NAME=$(grep {{ target_db_home }} {{ oracle_inventory }}/ContentsXML/inventory.xml |cut -d= -f2 | cut -d'"' -f2)
+            DATABASE_HOME_INDEX=$(grep {{ target_db_home }} {{ oracle_inventory }}/ContentsXML/inventory.xml |cut -d= -f5 | cut -d'"' -f2)
+            echo ${DATABASE_HOME_NAME}_${DATABASE_HOME_INDEX}_{{ agent_host }}
+          register: newdbhomename
 
-        - name: Increment Database Home Name Counter
+        - name: Set New Database Home Name
           set_fact:
-            db_home_counter: "{{ ( ( highest_db_home_name.stdout_lines[0] | default('OraDBHome_0_' + agent_host ) ) | regex_replace('.+_(\\d+)_.+','\\1') | int ) + 1 }}"
-
-        - name: Set New Grid Infrastructure Home Name
-          set_fact:
-            new_db_home_name: "{{ ( highest_db_home_name.stdout_lines[0] | default('OraDBHome_0_' + agent_host ) ) | regex_replace('(.+)_\\d+_(.+)','\\1_' + db_home_counter + '_\\2') }}"
+            new_db_home_name: "{{ newdbhomename.stdout }}"
 
         - name: Set Properties
           set_fact:

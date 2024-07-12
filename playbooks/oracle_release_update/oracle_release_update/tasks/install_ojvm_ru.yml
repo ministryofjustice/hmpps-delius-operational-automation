@@ -52,9 +52,7 @@
 
     - name: Shutdown Database for Patching
       include_tasks: shutdown_database.yml
-      when:
-        - database_role != 'primary' and standby_db_configured
-        - or database_role == 'primary'
+      when: (database_role != 'primary' and standby_db_configured) or (database_role == 'primary')
 
     # OJVM Patch may be standalone (if superset_patch_id is specified) or within the Combo patch (if superset_patch_id is not specified)
     - name: Define Location of Patch
@@ -103,9 +101,7 @@
 
     - name: Startup Database for Normal Use
       include_tasks: startup_database.yml
-      when:
-        - database_role != 'primary' and standby_db_configured
-        - or database_role == 'primary'
+      when: (database_role != 'primary' and standby_db_configured) or (database_role == 'primary')
 
     # Enable Active Data Guard if Required after install on Standby
     - name: Enable ADG
