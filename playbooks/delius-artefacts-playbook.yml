@@ -83,7 +83,3 @@
         name: "{{ playbook_dir }}/oracle_mv_refresh_purge_child_cursors/oracle_mv_refresh_purge_child_cursors"
       when: deploy_mv_refresh_purge_child | default('no') == "yes"
       
-  - name: Deploy Flashback Data Archives
-    include_role:
-       name: "{{ playbook_dir }}/oracle_flashback_data_archive/oracle_flashback_data_archive"
-    when: deploy_flashback_data_archives | default('no') == "yes"
