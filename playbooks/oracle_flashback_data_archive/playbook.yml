@@ -4,4 +4,4 @@
   become: yes
   become_user: oracle
   roles:
-     - oracle_flashback_data_archive
+    - oracle_flashback_data_archive
