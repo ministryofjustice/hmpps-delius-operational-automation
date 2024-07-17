@@ -5,6 +5,11 @@
 #  will practically occur within the expected lifetime of the application.
 #
 
+. ~/.bash_profile
+
+sqlplus /nolog <<EOSQL
+connect / as sysdba
+
 DECLARE
    -- Ensure all new IDs are generated from 9,000,000,000 onwards as these IDs
    -- are sufficiently high as will never be reached in the live application.
@@ -36,6 +41,7 @@ LOOP
 END LOOP;
 END;
 /
-
+EXIT
+EOSQL
    
    
