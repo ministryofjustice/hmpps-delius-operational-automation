@@ -9,6 +9,8 @@
     export ORACLE_HOME={{ oracle_grid_oracle_home }}
     {{ oracle_grid_oracle_home }}/OPatch/opatch lsinventory -xml /tmp/grid_opatch_out.xml >/dev/null
   changed_when: false
+  vars:
+       ansible_aws_ssm_timeout: 600
 
 - name: Nominate temporary file for recording Database OPatch Output
   file:
@@ -20,3 +22,5 @@
     export ORACLE_HOME={{ oracle_database_oracle_home }}
     {{ oracle_database_oracle_home }}/OPatch/opatch lsinventory -xml /tmp/database_opatch_out.xml >/dev/null
   changed_when: false
+  vars:
+       ansible_aws_ssm_timeout: 600
