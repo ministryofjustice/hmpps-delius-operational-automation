@@ -92,7 +92,6 @@
       include_tasks: register_with_rman.yml
 
     - block:
-
         # Ensure that no sequences in duplicated environments overlap IDs
         # with production IDs by incrementing these to a higher range
         - name: Bump seqeunces
@@ -164,7 +163,6 @@
 - name: Bump seqeunces
   script: bump_sequences.sh
   when: duplicate_target | regex_search('.*_delius_primarydb')
-
 
 # The database uplift should already have unblocked the listener but we do it again
 # just in case that step had failed
