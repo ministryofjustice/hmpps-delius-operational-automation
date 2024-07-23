@@ -64,7 +64,7 @@
         . ~/.bash_profile
         cd {{ ojvm_patch_location }}
         $ORACLE_HOME/OPatch/opatch apply -silent
-      async: 1200
+      async: 2400
       poll: 0
       register: run_ojvm_patch
 
