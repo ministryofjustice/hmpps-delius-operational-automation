@@ -1,0 +1,30 @@
+---
+- name: Delius ND Parameters
+  hosts: "{{ duplicate_target }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+    - name: Get Slack Token
+      shell: aws ssm get-parameter --name manual-ops-alerts-slack-token --region {{ region }} --output text --with-decryption --query Parameter.Value || aws ssm get-parameter --name /alfresco/slack/token --region {{ region }} --output text --with-decryption --query Parameter.Value
+      register: getslacktoken
+      changed_when: false
+
+    - block:
+        - name: Set ND Parameters
+          script: update_nd_parameters.sh
+          register: update_nd_parameters
+
+      rescue:
+        - name: Send error notification message via Slack
+          community.general.slack:
+            token: "{{ getslacktoken.stdout }}"
+            msg: "Update ND Parameters failed.  Ignoring errors and continuing with duplication tasks."
+            channel: "#delius-aws-oracle-dev-alerts"
+            username: "Delius Database Duplicate on {{ inventory_hostname }}"
+            icon_emoji: ":sign-warning:"
+          when: update_nd_parameters.rc != 0
+          delegate_to: localhost
+          become: no
+          ignore_errors: true

@@ -201,6 +201,10 @@
     action: "copy"
   when:
     - duplicate_target | regex_search('.*_delius_primarydb')
+
+- name: Update ND Parameter values
+  import_playbook: update-nd-parameters.yml
+  when: duplicate_target | regex_search('.*_delius_primarydb')
 # - name: Re-enable probation integration updates
 #   hosts: '{{ duplicate_target }}'
 #   gather_facts: no
