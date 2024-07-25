@@ -85,7 +85,7 @@ jobs:
                 fi
 
                 if [ -n "${{ github.event.inputs.role_filter }}" ]; then
-                  command_args+=("--role-filter")
+                  command_args+=("--roles-to-filter")
                   command_args+=("${{ github.event.inputs.role_filter }}")
                 fi
 
