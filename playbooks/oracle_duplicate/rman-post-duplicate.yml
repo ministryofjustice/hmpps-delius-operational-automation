@@ -163,13 +163,12 @@
 # Re-run bumping of sequence numbers to capture any new sequences which may have
 # been added by the database uplift
 - name: Re-bump sequences
-  hosts: '{{ duplicate_target }}'
+  hosts: "{{ duplicate_target }}"
   gather_facts: no
   become: yes
   become_user: oracle
 
   tasks:
-
     - name: Bump sequences
       script: bump_sequences.sh
       when: duplicate_target | regex_search('.*_delius_primarydb')
