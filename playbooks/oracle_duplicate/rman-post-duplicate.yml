@@ -160,8 +160,6 @@
 
 # Re-run bumping of sequence numbers to capture any new sequences which may have
 # been added by the database uplift
-# Re-run bumping of sequence numbers to capture any new sequences which may have
-# been added by the database uplift
 - name: Re-bump sequences
   hosts: '{{ duplicate_target }}'
   gather_facts: no
