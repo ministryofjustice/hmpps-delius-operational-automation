@@ -37,7 +37,11 @@ jobs:
             id: get-ids
             run: |
                 echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=*${{ github.event.inputs.environment }}-ldap-sg*" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
-                echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-general-private-*" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT          
+                echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-general-private-*" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
+          - name: Update RBAC Version SSM Parameter
+            id: update-ssm
+            run: |
+                aws ssm put-parameter --name "/delius-core-${{ github.event.inputs.environment }}/LDAP_RBAC_VERSION" --value "${{ github.event.inputs.rbac_tag }}" --overwrite
           - name: Template task def
             uses: christherama/render-json-template@v1
             id: render
