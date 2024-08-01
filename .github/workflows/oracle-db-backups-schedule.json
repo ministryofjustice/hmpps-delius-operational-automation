@@ -56,7 +56,7 @@
     {
         "TargetEnvironment":"delius-core-test",
         "TargetHost":"delius_primarydb",
-        "CronSchedule":"0 8 * * 3",
+        "CronSchedule":"30 6 * * 3",
         "Period": "weekly"
     }
 ]
