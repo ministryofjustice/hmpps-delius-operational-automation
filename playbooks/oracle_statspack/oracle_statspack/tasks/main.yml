@@ -1,4 +1,24 @@
 ---
+
+# DEBUG
+- name: What Role
+  shell: aws sts get-caller-identity
+  register: ec2_role
+
+- name: Remote Role
+  debug:
+     var: ec2_role
+
+- name: What Local Role
+  shell: aws sts get-caller-identity
+  register: ec2_local_role
+  delegate_to: localhost
+
+- name: Local Role
+  debug:
+     var: ec2_local_role
+
+
 # Check if Statspack is to be installed (non diagnostics licence and not already installed)
 - name: Get if Statspack is to be Installed
   script: check_install_required.sh
