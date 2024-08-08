@@ -13,6 +13,7 @@
   shell: aws sts get-caller-identity
   register: ec2_local_role
   delegate_to: localhost
+  become: no
 
 - name: Local Role
   debug:
