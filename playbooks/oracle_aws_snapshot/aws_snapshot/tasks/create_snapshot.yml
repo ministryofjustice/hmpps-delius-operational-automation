@@ -7,10 +7,18 @@
       register: caller_info
       changed_when: false
 
+    - name: Get Database Type
+      set_fact:
+        database_type: "{{ group_names | select('match','.*_dbs') | list | first | regex_replace('^.*_(.*)_dbs', '\\1') }}"
+
+    - name: Setup Backup Vault Name
+      set_fact:
+        backup_vault_name: "{{ simple_environment_name }}{% if database_type != 'delius' %}-{{ database_type }}{% endif %}-db-oracle-backup-vault"
+
     - name: Get Name of Backup Vault
       shell: |
         set -o pipefail
-        aws backup list-backup-vaults --region {{ region }} | jq -r 'first( .BackupVaultList[].BackupVaultName | select (contains("{{ simple_environment_name}}-oracle-backup-vault")) ) '
+        aws backup list-backup-vaults --region {{ region }} | jq -r 'first( .BackupVaultList[].BackupVaultName | select (contains("{{ backup_vault_name }}")) ) '
       register: get_backup_vault
       changed_when: false
       args:
