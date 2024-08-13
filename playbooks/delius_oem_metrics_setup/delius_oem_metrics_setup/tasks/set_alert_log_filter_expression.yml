@@ -14,7 +14,7 @@
       ansible.builtin.shell: |
         echo "running emcli_login.sh"
         . {{ stage }}/emcli_login.sh
-        {{ emcli }} execute_sql -sql="FILE" -input_file="FILE:{{ stage }}/set_alert_log_filter_expression.sql" -targets="EMREP:oracle_database"
+        {{ emcli }} execute_sql -sql="FILE" -input_file="FILE:{{ stage }}/set_alert_log_filter_expression.sql" -targets="EMREP:oracle_database" -credential_set_name="DBCredsNormal"
       register: update_alert_log_filter_expression
 
   always:
