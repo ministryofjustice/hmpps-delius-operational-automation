@@ -46,7 +46,9 @@ on:
         default: "main"
 
 env:
-  ansible_config: ansible/playbooks/ansible.cfg
+  ansible_config: operations/playbooks/ansible.cfg
+  command: ansible-playbook operations/playbooks/oracle_parameters/set_oracle_parameters.yml
+  inventory: inventory/ansible
 
 permissions:
   contents: read
@@ -70,9 +72,6 @@ jobs:
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
     timeout-minutes: 1440
-    env:
-      command: ansible-playbook operations/ansible/roles/oracle-db-parameters/set_oracle_parameters.yml
-      inventory: inventory/ansible
     continue-on-error: false
     steps:
 
@@ -82,19 +81,10 @@ jobs:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            playbooks/oracle_parameters
             playbooks/ansible.cfg
-          path: ansible
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
-          fetch-depth: 0
-
-      - name: Checkout Role From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
-        with:
-          repository: ministryofjustice/modernisation-platform-configuration-management
-          sparse-checkout-cone-mode: false
-          sparse-checkout: ansible/roles/oracle-db-parameters
           path: operations
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
