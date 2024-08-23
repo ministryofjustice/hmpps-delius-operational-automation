@@ -312,7 +312,9 @@ get_source_db_rman_details () {
              'NEXT_TIME='||''''||to_char(max(arch_next_time),'${RMANDATEFORMAT}')||'''',
              'SCN='||to_char(max(arch_scn))
       from completion_times
-      group by dbid;
+      group by dbid
+      order by max(incr_time) desc
+      fetch first 1 rows only;
 EOF
 `
   eval $X || error "Getting $SOURCE_DB rman details"
