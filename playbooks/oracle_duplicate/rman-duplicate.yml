@@ -20,7 +20,7 @@
       set_fact:
         s3_source_bucket: "{{ s3_source_bucket if (source_legacy == 'yes') else db_backup_s3_bucket_name }}"
         catalog: "{{ catalog_tns if (source_legacy == 'yes') else catalog }}"
-      when: aws_environment | regex_search('development|test')
+      when: aws_environment | regex_search('development|test|preproduction')
 
     - name: Check s3 bucket is accessible
       block:
