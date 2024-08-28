@@ -447,7 +447,7 @@ jobs:
       - name: Report Backup Retry Attempt
         id: slack-retry
         if: env.BackupStatus == 'failed'
-        uses: slackapi/slack-github-action@v1.26.0
+        uses: slackapi/slack-github-action@v1.27.0
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |
@@ -459,7 +459,7 @@ jobs:
       - name: Report Backup Retry Attempt Success
         id: slack-retry-success
         if: env.BackupStatus == 'success' && env.IsRetryJob == 'yes'
-        uses: slackapi/slack-github-action@v1.26.0
+        uses: slackapi/slack-github-action@v1.27.0
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |
@@ -501,7 +501,7 @@ jobs:
       - name: Slack Failure Notification
         id: slack-failure
         if: failure()
-        uses: slackapi/slack-github-action@v1.26.0
+        uses: slackapi/slack-github-action@v1.27.0
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |
