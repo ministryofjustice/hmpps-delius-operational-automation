@@ -366,6 +366,7 @@
       . ~/.bash_profile
       DB_STATUS=$( srvctl status database -d ${ORACLE_SID} -verbose | awk '{print $NF}' )
       DATETIME=$(date +"%Y%m%d%H%M%S")
+      [[ ! -d /home/oracle/admin/rman_scripts ]] && mkdir -p /home/oracle/admin/rman_scripts
       if [ "${DB_STATUS}" == "Open." ]
       then
         sqlplus -s / as sysdba << EOF

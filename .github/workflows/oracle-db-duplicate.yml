@@ -119,7 +119,7 @@ jobs:
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
-          DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/preprod/preproduction_preprod/;s/-/_/g')_${TargetHost}
+          DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           # Check the combination of Source Database and Source Bucket is correct if NOT duplicating from AWS legacy
           if [[ "${SourceLegacy}" == "no" ]]
