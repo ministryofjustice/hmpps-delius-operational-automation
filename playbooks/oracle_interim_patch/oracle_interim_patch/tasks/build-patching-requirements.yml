@@ -138,7 +138,7 @@
   with_dict: "{{ required_patches }}"
   when:
     - item.value.install_request
-    - (item.value.install_to_grid_required and not (item.value.install_with_opatchauto | default(false)) or item.value.install_to_database_required
+    - ((item.value.install_to_grid_required and not (item.value.install_with_opatchauto | default(false))) or item.value.install_to_database_required)
     - item.value.shutdown_required
 
 - name: Set Database Shutdown Not Needed

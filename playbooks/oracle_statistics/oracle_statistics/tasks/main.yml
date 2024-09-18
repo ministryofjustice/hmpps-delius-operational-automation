@@ -1,7 +1,7 @@
 ---
 - name: Set Backup Bucket
   set_fact:
-    statistics_backup_bucket: "{{ simple_environment_name }}-oracle-statistics-backup-data"
+    statistics_backup_bucket: "{{ environment_name }}-oracle-db-statistics-backup-data"
 
 - name: Get Location of Statistics Dump File
   script: get_dump_location.sh
