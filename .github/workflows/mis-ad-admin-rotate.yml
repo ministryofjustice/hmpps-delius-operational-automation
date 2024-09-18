@@ -1,0 +1,55 @@
+name: "MIS: AD Admin Password Rotate"
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Run at 2 AM UTC daily
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  rotate-passwords:
+    strategy:
+      matrix:
+        env_name: [dev, stage, preprod]
+    
+    runs-on: ubuntu-latest
+    environment: delius-mis-${{ matrix.env_name }}-preapproved
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4.1.7
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4.0.2
+      with:
+        role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+        role-session-name: "mis-ad-admin-rotate-${{ github.run_number }}"
+        aws-region: "eu-west-2"
+
+    - name: Set environment-specific variables
+      run: |
+        echo "DIRECTORY_NAME=delius-mis-${{ matrix.env_name }}.internal" >> $GITHUB_ENV
+        echo "SECRET_NAME=delius-mis-${{ matrix.env_name }}-ad-admin-password" >> $GITHUB_ENV
+
+    - name: Generate new password
+      run: |
+        NEW_PASSWORD=$(openssl rand -base64 32)
+        echo "::add-mask::${NEW_PASSWORD}"
+        echo "NEW_PASSWORD=${NEW_PASSWORD}" >> $GITHUB_ENV
+
+    - name: Rotate Directory Service password
+      run: |
+        aws ds reset-user-password \
+          --directory-id $(aws ds describe-directories --directory-name ${{ env.DIRECTORY_NAME }} --query 'DirectoryDescriptions[0].DirectoryId' --output text) \
+          --user-name Admin \
+          --new-password ${{ env.NEW_PASSWORD }}
+
+    - name: Update AWS Secrets Manager
+      run: |
+        aws secretsmanager put-secret-value \
+          --secret-id ${{ env.SECRET_NAME }} \
+          --secret-string ${{ env.NEW_PASSWORD }}
+
+    - name: Clean up
+      run: |
+        unset NEW_PASSWORD
+        echo "NEW_PASSWORD=" >> $GITHUB_ENV
