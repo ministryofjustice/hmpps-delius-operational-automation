@@ -465,6 +465,7 @@ jobs:
   oracle-rman-duplicate-check:
     if: ${{ github.event_name == 'repository_dispatch' }}
     name: oracle-rman-duplicate-check
+    environment: ${{ github.event.client_payload.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
