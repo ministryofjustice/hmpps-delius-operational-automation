@@ -1,0 +1,7 @@
+- name: Configure Wallet
+  include_tasks: configure_wallet.yml
+  tags: wallet
+
+- name: Configure Listener
+  include_tasks: configure_listener.yml
+  tags: listener

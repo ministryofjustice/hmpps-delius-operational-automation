@@ -1,0 +1,75 @@
+- name: Create SSL Wallet Directory
+  file:
+     path: "{{ wallet_directory }}"
+     state: directory
+ 
+- name: Get SSL Data
+  set_fact:
+      private_key: "{{ lookup('aws_ssm', 'tf-{{ region }}-{{ environment_name }}-oracle-self-signed-private-key', region=region, decrypt=true ) }}"
+      ca_certificate: "{{ lookup('aws_ssm', 'tf-{{ region }}-{{ environment_name }}-oracle-self-signed-ca-crt', region=region ) }}"
+      leaf_certificate: "{{ lookup('aws_ssm', 'tf-{{ region }}-{{ environment_name }}-oracle-self-signed-crt', region=region ) }}"
+  no_log: true
+  run_once: true
+
+- name: Write Private Key to Local File
+  copy:
+     content: "{{ private_key }}"
+     dest: "{{ wallet_directory }}/key.pem"
+
+- name: Write CA Certificate to Local File
+  copy:
+     content: "{{ ca_certificate }}"
+     dest: "{{ wallet_directory }}/ca.pem"  
+
+- name: Write Leaf Certificate to Local File
+  copy:
+     content: "{{ leaf_certificate }}"
+     dest: "{{ wallet_directory }}/crt.pem"
+
+# We will use the database SYSTEM password for temporarily encrypting the PKCS#12 File
+- name:  Get SYSTEM Password
+  set_fact:
+      system_password:  "{{ lookup('aws_ssm', '/{{ environment_name }}/{{ project_name }}/{{ database_type }}-database/db/oradb_system_password',region=region ) }}"
+  no_log: true
+  run_once: true
+
+- name: Create PKCS#12 File 
+  shell: |
+         cd {{ wallet_directory }}
+         openssl pkcs12 -export -in crt.pem -inkey key.pem -certfile ca.pem -out openssl.p12 -passout env:SYSTEMPWD
+  environment:
+      SYSTEMPWD: "{{ system_password }}"
+
+- name: Check if Wallet Already Exists
+  stat:
+     path: "{{ wallet_directory }}/cwallet.sso"
+  register: wallet_check
+
+- name: Create Oracle Wallet
+  shell: |
+         . ~/.bash_profile
+         orapki wallet create -wallet {{ wallet_directory }}  -auto_login_only
+  when: not wallet_check.stat.exists
+
+- name: Import PKCS#12 File into Oracle Wallet
+  shell: |
+         . ~/.bash_profile
+         cd {{ wallet_directory }}
+         orapki wallet import_pkcs12 -wallet . -pkcs12file openssl.p12 -auto_login_only -pkcs12pwd ${SYSTEMPWD}
+  environment:
+      SYSTEMPWD: "{{ system_password }}"
+  register: import_pkcs12
+  changed_when: not 'Skipped import' in import_pkcs12.stdout
+
+- name: Remove Temporary Files
+  file:
+     path: "{{ wallet_directory }}/{{ file_name }}"
+     state: absent
+  loop:
+      - openssl.p12
+      - ca.pem
+      - crt.pem
+      - key.pem
+  loop_control:
+      loop_var: file_name
+  tags: remove_files
