@@ -1,3 +1,7 @@
+- name: Create CA Certificate
+  include_tasks: create_certificates.yml
+  tags: create
+
 - name: Configure Wallet
   include_tasks: configure_wallet.yml
   tags: wallet
@@ -5,3 +9,7 @@
 - name: Configure Listener
   include_tasks: configure_listener.yml
   tags: listener
+
+- name: Upload Certificate
+  include_tasks: upload_certificate.yml
+  tags: upload

@@ -1,3 +1,15 @@
 wallet_directory: /u01/app/oracle/wallets/ssl_wallet
+wallet_working_directory: /u01/app/oracle/wallets/working
 database_type: "{{ group_names | select('match','.*_(primary|standby)db([12]?)') | list | first | regex_replace('^(.*)_(primary|standby)db([12]?)', '\\1') }}"
 ssl_version: "1.2"
+private_key: "{{ region }}-{{ environment_name }}-oracle-self-signed-private-key"
+crt_subject: "/C=GB/ST=England/L=London/O=MinistryOfJustice/OU=HMPPS/CN=justice.gov.uk"
+self_signed_ca_csr: "{{ region }}-{{ environment_name }}-oracle-self-signed-ca-csr"
+self_signed_ca_crt: "{{ region }}-{{ environment_name }}-oracle-self-signed-ca-crt"
+self_signed_csr: "{{ region }}-{{ environment_name }}-oracle-self-signed-csr"
+self_signed_crt: "{{ region }}-{{ environment_name }}-oracle-self-signed-crt"
+db_secretsmanager_passwords:
+  db:
+    secret: "{{ environment_name }}-oracle-db-dba-passwords"
+    users:
+      - system:
