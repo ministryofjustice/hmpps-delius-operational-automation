@@ -1,9 +1,6 @@
 name: "Oracle: SSL Wallet Setup"
 run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-ssl-wallet"
 on:
-  push:
-      branches:
-          - "DBA-699"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
