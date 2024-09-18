@@ -3,13 +3,22 @@ name: "MIS: AD Admin Password Rotate"
 on:
   schedule:
     - cron: '0 2 * * *'  # Run at 2 AM UTC daily
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rotate password (dev/stage/preprod)'
+        required: true
+        type: choice
+        options:
+          - dev
+          - stage
+          - preprod
 
 jobs:
   rotate-passwords:
     strategy:
       matrix:
-        env_name: [dev, stage, preprod]
+        env_name: ${{ github.event_name == 'schedule' && fromJson('["dev", "stage", "preprod"]') || fromJson(format('["{0}"]', github.event.inputs.environment)) }}
     
     runs-on: ubuntu-latest
     environment: delius-mis-${{ matrix.env_name }}-preapproved
