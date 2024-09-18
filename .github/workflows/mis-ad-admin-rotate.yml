@@ -1,5 +1,9 @@
 name: "MIS: AD Admin Password Rotate"
 
+permissions:
+  id-token: write
+  contents: read
+
 on:
   schedule:
     - cron: '0 2 * * *'  # Run at 2 AM UTC daily
