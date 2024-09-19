@@ -506,10 +506,10 @@ jobs:
           Action='${{ github.event.action }}'
           if [[ "$Action" == "oracle-rman-duplicate-success" ]]
           then
-            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)"
+            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs)"
           elif [[ "$Action" == "oracle-rman-duplicate-failure" ]]
           then
-            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)"
+            aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs)"
             exit 2
           fi
 
