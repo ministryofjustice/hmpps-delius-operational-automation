@@ -40,7 +40,7 @@ jobs:
 
     - name: Set environment-specific variables
       run: |
-        echo "DIRECTORY_NAME=delius-mis-${{ matrix.env_name }}.internal" >> $GITHUB_ENV
+        echo "DIRECTORY_NAME=delius-mis-${{ matrix.env_name }}" >> $GITHUB_ENV
         echo "SECRET_NAME=delius-mis-${{ matrix.env_name }}-ad-admin-password" >> $GITHUB_ENV
 
     - name: Generate new password
@@ -52,7 +52,7 @@ jobs:
     - name: Rotate Directory Service password
       run: |
         aws ds reset-user-password \
-          --directory-id $(aws ds describe-directories --directory-name ${{ env.DIRECTORY_NAME }} --query 'DirectoryDescriptions[0].DirectoryId' --output text) \
+          --directory-id $(aws ds describe-directories --query "DirectoryDescriptions[?ShortName=='${{ env.DIRECTORY_NAME }}'].DirectoryId" --output text) \
           --user-name Admin \
           --new-password ${{ env.NEW_PASSWORD }}
 
