@@ -493,6 +493,7 @@ jobs:
         run: |
           echo "${{ github.event.client_payload }}"
           Inputs='${{ toJson(github.event.client_payload) }}'
+          Inputs=$(echo $Inputs | jq -r)
           TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')
           TargetHost=$(echo $Inputs | jq -r '.TargetHost')
           echo "TargetEnvironment=${TargetEnvironment}" >> $GITHUB_OUTPUT

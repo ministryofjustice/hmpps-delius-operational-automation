@@ -128,7 +128,7 @@ function github_repository_dispatch()
 #  workflow to continue where it left off because this JSON contains the name of the environment, host
 #  and period of the backup, along with any associated parameters.
 EVENT_TYPE=$1
-JSON_PAYLOAD=$2
+JSON_PAYLOAD=$(echo $2 | jq -r)
 GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
 # We set the Phase in the JSON payload corresponding to whether the backup has succeeded or failed.
 # This is informational only - it is GitHub event type (oracle-rman-duplicate-success/failure) which 
