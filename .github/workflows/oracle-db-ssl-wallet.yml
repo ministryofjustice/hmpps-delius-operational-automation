@@ -1,0 +1,111 @@
+name: "Oracle: SSL Wallet Setup"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-ssl-wallet"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-preprod"
+          - "delius-core-prod"
+          - "delius-mis-dev"
+          - "delius-mis-stage"
+          - "delius-mis-preprod"
+          - "delius-mis-prod"
+      TargetHost:
+        description: "Database target host"
+        required: true
+        type: choice
+        options: 
+          - "delius_primarydb"
+          - "mis_primarydb"
+          - "boe_primarydb"
+          - "dsd_primarydb"   
+      SourceCodeVersion:
+        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+
+env:
+  ansible_config: operations/playbooks/ansible.cfg
+  command: ansible-playbook operations/playbooks/oracle_ssl_wallet/playbook.yml
+  inventory: inventory/ansible
+
+# Allow permissions on repository and docker image respectively 
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:
+  deployment:
+    environment: ${{ github.event.inputs.TargetEnvironment }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.77.0
+    timeout-minutes: 1440
+    continue-on-error: false
+    steps:
+
+      - name: Prepare Inventory Name
+        id: prepareinventorynames
+        run: |
+          hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}"
+          echo "hosts=${hosts}" >> $GITHUB_OUTPUT
+
+      - name: Checkout Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/roles/secretsmanager-passwords
+          path: roles
+          ref: "${{ github.event.inputs.SourceConfigVersion }}"
+          fetch-depth: 0
+
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: playbooks/oracle_ssl_wallet
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      - name: Run SSL Wallet Setup Playbook
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+          -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }}
