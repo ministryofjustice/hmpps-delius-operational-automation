@@ -1,0 +1,22 @@
+# Restart Replicating User Data and Business Interaction Data first to
+# ensure data integrity for replicating Audit Data.  As this is reference data we
+# can simply reload it (i.e. we can do a restart whether or not anything has changed
+# as we simply load all the reference data again).
+- name: Restart the Business Interaction DMS Replication Tasks with Full Load
+  shell: |
+         aws dms start-replication-task --replication-task-arn "{{ business_interaction_task_arn }}" \
+            --start-replication-task-type reload-target
+
+# Ensure the Business Interaction Task is Running before we restart the Audit
+# Replication Task since this is required to refresh the Stage Business Interaction
+# Table for finding Codes for replication
+- name: Wait for Business Interaction Replication Tasks to Start
+  shell: |
+          aws dms describe-replication-tasks \
+             --filters Name=replication-task-arn,Values="{{ business_interaction_task_arn }}" \
+             --query "ReplicationTasks[0].Status" --output text
+  register: task_status
+  until: task_status.stdout == "running"
+  retries: 60
+  delay: 10
+  changed_when: FALSE

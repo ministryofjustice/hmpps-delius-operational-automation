@@ -1,0 +1,5 @@
+---
+- hosts: localhost
+  gather_facts: no
+  roles:
+    - oracle_manage_audit_replication

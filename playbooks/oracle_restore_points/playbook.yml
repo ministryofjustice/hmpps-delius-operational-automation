@@ -278,6 +278,12 @@
           script: check_available_restore_points.sh
           environment:
             RESTORE_POINT_NAME: "{{ restore_point_name | upper }}"
+ 
+        - name: Calculate Final Audited Interaction Checksum
+          script: ../../common/files/calculate_audited_interaction_checksum.sh
+          when:
+              - target_dbs | regex_search('delius_dbs')
+              - database_primary_sid is defined
 
         - name: Flashback Standby DBs to Restore Point
           include_tasks: flashback_standby_restore_points.yml
@@ -351,6 +357,22 @@
           wait_for:
             timeout: 120
 
+        - name: Restart Audited Interaction Replication for Delius
+          when:
+            - target_dbs | regex_search('delius_dbs')
+            - database_primary_sid is defined
+          block:
+
+            - name: Get Database Startup SCN
+              script: ../../common/files/get_db_startup_scn.sh
+              register: get_db_startup_scn
+              changed_when: false
+
+            - name: Get Latest User Update for Delius
+              script: ../../common/files/get_latest_user_update.sh
+              register: get_latest_user_update
+              changed_when: false
+      
 # If this an AWS Environment then we will run password rotation - check if this is the case
 - name: Set Inside AWS for Password Rotation
   hosts: "{{ target_dbs  }}"

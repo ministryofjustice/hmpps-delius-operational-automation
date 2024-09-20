@@ -1,0 +1,22 @@
+# Even though we are Resuming, we Restart the Business Interaction replication - since this
+# is reference data it is possible to do a full reload of the data and start from that point
+- name: Restart Business Interaction Replication Task
+  include_tasks: restart_business_interaction_task.yml
+
+# We do not need to wait for the Audited Interaction Checksum Replication to start as the main
+# Audited Interaction data replication is not dependent on it
+- name: Resume the Audited Interaction Checksum DMS CDC Replication Tasks
+  shell: |
+         aws dms start-replication-task --replication-task-arn "{{ audited_interaction_checksum_task_arn }}" \
+            --start-replication-task-type resume-processing
+
+- name: Resume the User and Probation Area DMS CDC Replication Tasks
+  shell: |
+         aws dms start-replication-task --replication-task-arn "{{ user__task_arn }}" \
+            --start-replication-task-type resume-processing
+
+- name: Resume the Audited Interaction DMS CDC Replication Tasks
+  shell: |
+         aws dms start-replication-task --replication-task-arn "{{ audited_interaction_task_arn }}" \
+            --start-replication-task-type resume-processing
+  when: audit_cdc_scn | default('') == ''
