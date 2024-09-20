@@ -9,7 +9,7 @@
   ansible.builtin.file:
     path: "{{ wallet_working_directory }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
 
 # We always clear out the working directory before we begin
 # to ensure that we create a fresh private key and certificates
@@ -48,7 +48,7 @@
 - name: Set correct permissions on the certificate and key
   ansible.builtin.file:
     path: "{{ wallet_working_directory }}"
-    mode: '0755'
+    mode: "0755"
     recurse: yes
 
 - name: Generate a CSR (Certificate Signing Request) for the leaf certificate
@@ -68,4 +68,4 @@
 - name: Set permissions on the leaf certificate
   ansible.builtin.file:
     path: "{{ wallet_working_directory }}/{{ self_signed_crt }}"
-    mode: '0600'
+    mode: "0600"

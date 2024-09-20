@@ -3,19 +3,19 @@
 # In the context of DMS this wallet is called a certificate.
 - name: Create Oracle Auto Login Wallet with Certificate
   shell: |
-        . ~/.bash_profile
-        cd {{ wallet_working_directory }}
-        orapki wallet create -wallet . -auto_login_only
-        orapki wallet add -wallet . -trusted_cert -cert {{ self_signed_ca_crt }} -auto_login_only
+    . ~/.bash_profile
+    cd {{ wallet_working_directory }}
+    orapki wallet create -wallet . -auto_login_only
+    orapki wallet add -wallet . -trusted_cert -cert {{ self_signed_ca_crt }} -auto_login_only
 
 - name: Fetch the Prepared Wallet from the Database Server
   fetch:
-      src: "{{ wallet_working_directory }}/cwallet.sso"
-      dest: /tmp
+    src: "{{ wallet_working_directory }}/cwallet.sso"
+    dest: /tmp
   register: fetch_wallet
 
 - debug:
-     var: fetch_wallet
+    var: fetch_wallet
 
 # Fetch will create a hierarchy of directories for placement of the fetched file
 - name: Determine Fetch Location
@@ -27,95 +27,93 @@
   become: no
   become_user: oracle
   block:
+    - name: Create Environment Specific Certificate Name for the Wallet
+      set_fact:
+        certificate_name: "ca-{{ environment_name }}"
 
-      - name: Create Environment Specific Certificate Name for the Wallet
-        set_fact:
-          certificate_name: "ca-{{ environment_name }}"
+    - name: Add or Replace Certificate
+      block:
+        - name: Check if this Certificate Already Exists
+          shell: |
+            aws dms describe-certificates --query "Certificates[?CertificateIdentifier=='{{ certificate_name }}'].CertificateArn" --output text --region {{ region }}
+          register: get_certificate_already_exists
+          changed_when: false
 
-      - name: Add or Replace Certificate
-        block:
+        # We cannot drop old certificates if they are associated with endpoints, so
+        # removal that association temporarily whilst the new certificate is added
+        - name: Get List of Endpoints Using Old Certificate
+          shell: |
+            aws dms describe-endpoints --query "Endpoints[?CertificateArn=='{{ get_certificate_already_exists.stdout }}'].EndpointArn" --output text --region {{ region }} | sed 's/\t/\n/g'
+          when: "':cert:' in get_certificate_already_exists.stdout"
+          register: get_inuse_endpoint_list
+          changed_when: false
 
-            - name: Check if this Certificate Already Exists
-              shell: |
-                    aws dms describe-certificates --query "Certificates[?CertificateIdentifier=='{{ certificate_name }}'].CertificateArn" --output text --region {{ region }}
-              register:  get_certificate_already_exists
-              changed_when: false
+        - name: Get ARN of default certificate used when endpoint is initially created
+          shell: |
+            aws dms describe-certificates --query "Certificates[?CertificateIdentifier=='empty-oracle-wallet'].CertificateArn" --output text --region {{ region }}
+          register: get_empty_oracle_wallet_arn
+          changed_when: false
 
-            # We cannot drop old certificates if they are associated with endpoints, so
-            # removal that association temporarily whilst the new certificate is added
-            - name: Get List of Endpoints Using Old Certificate
-              shell: |
-                    aws dms describe-endpoints --query "Endpoints[?CertificateArn=='{{ get_certificate_already_exists.stdout }}'].EndpointArn" --output text --region {{ region }} | sed 's/\t/\n/g'
-              when: "':cert:' in get_certificate_already_exists.stdout"
-              register: get_inuse_endpoint_list
-              changed_when: false
+        - name: Get List of Endpoints Using Default Wallet (these are unconfigured endpoints)
+          shell: |
+            aws dms describe-endpoints --query "Endpoints[?CertificateArn=='{{ get_empty_oracle_wallet_arn.stdout }}'].EndpointArn" --output text --region {{ region }} | sed 's/\t/\n/g'
+          when: "':cert:' in get_empty_oracle_wallet_arn.stdout"
+          register: get_unconfigured_endpoint_list
+          changed_when: false
 
-            - name: Get ARN of default certificate used when endpoint is initially created
-              shell: |
-                    aws dms describe-certificates --query "Certificates[?CertificateIdentifier=='empty-oracle-wallet'].CertificateArn" --output text --region {{ region }}
-              register:  get_empty_oracle_wallet_arn
-              changed_when: false
+        # We cannot modify Endpoints if they have running or starting replication tasks; so we find any
+        # associated with these endpoints and temporarily stop them
+        - name: Get List of Running Replication Tasks Using Endpoint with Old Certificate or are Unconfigured
+          shell: |
+            aws dms describe-replication-tasks --query "ReplicationTasks[?(SourceEndpointArn=='{{ endpoint_arn }}'||TargetEndpointArn=='{{ endpoint_arn }}')&&(Status=='running'||Status='starting')].ReplicationTaskArn" --region {{ region }} --output text | sed 's/\t/\n/g'
+          loop: "{{ ( get_inuse_endpoint_list.stdout_lines | default([]) ) + ( get_unconfigured_endpoint_list.stdout_lines | default([]) ) }}"
+          loop_control:
+            loop_var: endpoint_arn
+          changed_when: false
+          register: get_old_cert_replication_tasks
 
-            - name: Get List of Endpoints Using Default Wallet (these are unconfigured endpoints)
-              shell: |
-                    aws dms describe-endpoints --query "Endpoints[?CertificateArn=='{{ get_empty_oracle_wallet_arn.stdout }}'].EndpointArn" --output text --region {{ region }} | sed 's/\t/\n/g'
-              when: "':cert:' in get_empty_oracle_wallet_arn.stdout"
-              register: get_unconfigured_endpoint_list
-              changed_when: false
+        - name: Stop Replication Tasks Using Endpoint with Old Certificate
+          shell: |
+            aws dms stop-replication-task --replication-task-arn {{ task_arn }} --region {{ region }}
+          loop: "{{ get_old_cert_replication_tasks.results | map(attribute='stdout_lines',default=[]) | list | flatten | unique }}"
+          loop_control:
+            loop_var: task_arn
 
-            # We cannot modify Endpoints if they have running or starting replication tasks; so we find any
-            # associated with these endpoints and temporarily stop them
-            - name: Get List of Running Replication Tasks Using Endpoint with Old Certificate or are Unconfigured
-              shell: |
-                     aws dms describe-replication-tasks --query "ReplicationTasks[?(SourceEndpointArn=='{{ endpoint_arn }}'||TargetEndpointArn=='{{ endpoint_arn }}')&&(Status=='running'||Status='starting')].ReplicationTaskArn" --region {{ region }} --output text | sed 's/\t/\n/g'
-              loop: "{{ ( get_inuse_endpoint_list.stdout_lines | default([]) ) + ( get_unconfigured_endpoint_list.stdout_lines | default([]) ) }}"
-              loop_control:
-                 loop_var: endpoint_arn
-              changed_when: false
-              register: get_old_cert_replication_tasks
+        - name: Disable SSL for Endpoints Using Old Certificate or are Unconfigured
+          shell: |
+            aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} --ssl-mode none --region {{ region }}
+          loop: "{{  ( get_inuse_endpoint_list.stdout_lines | default([]) ) + ( get_unconfigured_endpoint_list.stdout_lines | default([]) ) }}"
+          loop_control:
+            loop_var: endpoint_arn
 
-            - name: Stop Replication Tasks Using Endpoint with Old Certificate
-              shell: |
-                     aws dms stop-replication-task --replication-task-arn {{ task_arn }} --region {{ region }}
-              loop: "{{ get_old_cert_replication_tasks.results | map(attribute='stdout_lines',default=[]) | list | flatten | unique }}"
-              loop_control:
-                 loop_var: task_arn
+        - name: Remove Old Certificate
+          shell: |
+            aws dms delete-certificate --certificate-arn {{ get_certificate_already_exists.stdout }} --region {{ region }}
+          when: "':cert:' in get_certificate_already_exists.stdout"
 
-            - name: Disable SSL for Endpoints Using Old Certificate or are Unconfigured
-              shell: | 
-                    aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} --ssl-mode none --region {{ region }}
-              loop: "{{  ( get_inuse_endpoint_list.stdout_lines | default([]) ) + ( get_unconfigured_endpoint_list.stdout_lines | default([]) ) }}"
-              loop_control:
-                  loop_var: endpoint_arn
-                  
-            - name: Remove Old Certificate
-              shell: |
-                    aws dms delete-certificate --certificate-arn {{ get_certificate_already_exists.stdout }} --region {{ region }}
-              when: "':cert:' in get_certificate_already_exists.stdout"
-              
-            - name: Import the Certificate to Engineering DMS Instance
-              shell: |
-                    cd {{ fetch_location }}
-                    aws dms import-certificate --certificate-identifier {{ certificate_name }} --certificate-wallet fileb://cwallet.sso --region {{ region }}
+        - name: Import the Certificate to Engineering DMS Instance
+          shell: |
+            cd {{ fetch_location }}
+            aws dms import-certificate --certificate-identifier {{ certificate_name }} --certificate-wallet fileb://cwallet.sso --region {{ region }}
 
-            - name: Get ARN of Newly Imported Certificate
-              shell: |
-                  aws dms describe-certificates --query "Certificates[?CertificateIdentifier=='{{ certificate_name }}'].CertificateArn" --output text --region {{ region }}
-              register: get_new_certificate_arn
-              changed_when: false
+        - name: Get ARN of Newly Imported Certificate
+          shell: |
+            aws dms describe-certificates --query "Certificates[?CertificateIdentifier=='{{ certificate_name }}'].CertificateArn" --output text --region {{ region }}
+          register: get_new_certificate_arn
+          changed_when: false
 
-            - name: Get List of End Points for this Environment
-              shell: |
-                    aws dms describe-endpoints --query "Endpoints[?ends_with(EndpointIdentifier, 'hmpps-{{ environment_name }}')].EndpointArn" --output text --region {{ region }} | sed 's/\t/\n/g'
-              register: get_environment_endpoints
-              changed_when: false
+        - name: Get List of End Points for this Environment
+          shell: |
+            aws dms describe-endpoints --query "Endpoints[?ends_with(EndpointIdentifier, 'hmpps-{{ environment_name }}')].EndpointArn" --output text --region {{ region }} | sed 's/\t/\n/g'
+          register: get_environment_endpoints
+          changed_when: false
 
-            - debug:
-                var: get_environment_endpoints
+        - debug:
+            var: get_environment_endpoints
 
-            - name: Enable SSL for Endpoints In This Environment
-              shell: | 
-                    aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} --ssl-mode verify-ca --certificate-arn {{ get_new_certificate_arn.stdout }} --region {{ region }}
-              loop: "{{ get_environment_endpoints.stdout_lines }}"
-              loop_control:
-                  loop_var: endpoint_arn
+        - name: Enable SSL for Endpoints In This Environment
+          shell: |
+            aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} --ssl-mode verify-ca --certificate-arn {{ get_new_certificate_arn.stdout }} --region {{ region }}
+          loop: "{{ get_environment_endpoints.stdout_lines }}"
+          loop_control:
+            loop_var: endpoint_arn

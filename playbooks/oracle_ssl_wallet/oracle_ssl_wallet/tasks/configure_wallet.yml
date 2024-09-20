@@ -1,7 +1,7 @@
 - name: Create SSL Wallet Directory
   file:
-     path: "{{ wallet_directory }}"
-     state: directory
+    path: "{{ wallet_directory }}"
+    state: directory
 
 # We will use the database SYSTEM password for temporarily encrypting the PKCS#12 File
 # Note that we cannot use the secretsmanager-passwords role here since that would cause
@@ -9,59 +9,59 @@
 # and the target host, so we must use the AWS CLI to look up the secret directly on the host.
 - name: Get System password from secrets manager and use it to create a PKCS#12 file
   shell: |
-        cd {{ wallet_directory }}
-        export PATH=$PATH:/usr/local/bin
-        INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-        DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-        APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
-        export SYSTEMPWD=$(aws secretsmanager get-secret-value --secret-id ${APPLICATION}-core-${DELIUS_ENVIRONMENT}-oracle-db-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .system)
-        openssl pkcs12 -export -in {{ wallet_working_directory }}/{{ self_signed_crt }} -inkey {{ wallet_working_directory }}/{{ private_key }} -certfile {{ wallet_working_directory }}/{{ self_signed_ca_crt }} -out openssl.p12 -passout env:SYSTEMPWD
+    cd {{ wallet_directory }}
+    export PATH=$PATH:/usr/local/bin
+    INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+    DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
+    APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
+    export SYSTEMPWD=$(aws secretsmanager get-secret-value --secret-id ${APPLICATION}-core-${DELIUS_ENVIRONMENT}-oracle-db-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .system)
+    openssl pkcs12 -export -in {{ wallet_working_directory }}/{{ self_signed_crt }} -inkey {{ wallet_working_directory }}/{{ private_key }} -certfile {{ wallet_working_directory }}/{{ self_signed_ca_crt }} -out openssl.p12 -passout env:SYSTEMPWD
 
 - name: Check if Wallet Already Exists
   stat:
-     path: "{{ wallet_directory }}/cwallet.sso"
+    path: "{{ wallet_directory }}/cwallet.sso"
   register: wallet_check
 
 - name: Create Oracle Wallet
   shell: |
-         . ~/.bash_profile
-         orapki wallet create -wallet {{ wallet_directory }}  -auto_login_only
+    . ~/.bash_profile
+    orapki wallet create -wallet {{ wallet_directory }}  -auto_login_only
   when: not wallet_check.stat.exists
 
 - name: Import PKCS#12 File into Oracle Wallet
   shell: |
-         . ~/.bash_profile
-         cd {{ wallet_directory }}
-         export PATH=$PATH:/usr/local/bin
-         INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-         DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-         APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
-         export SYSTEMPWD=$(aws secretsmanager get-secret-value --secret-id ${APPLICATION}-core-${DELIUS_ENVIRONMENT}-oracle-db-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .system)
-         orapki wallet import_pkcs12 -wallet . -pkcs12file openssl.p12 -auto_login_only -pkcs12pwd ${SYSTEMPWD}
+    . ~/.bash_profile
+    cd {{ wallet_directory }}
+    export PATH=$PATH:/usr/local/bin
+    INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+    DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
+    APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
+    export SYSTEMPWD=$(aws secretsmanager get-secret-value --secret-id ${APPLICATION}-core-${DELIUS_ENVIRONMENT}-oracle-db-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .system)
+    orapki wallet import_pkcs12 -wallet . -pkcs12file openssl.p12 -auto_login_only -pkcs12pwd ${SYSTEMPWD}
   register: import_pkcs12
   changed_when: not 'Skipped import' in import_pkcs12.stdout
 
 - name: Remove Temporary Files
   file:
-     path: "{{ wallet_directory }}/{{ file_name }}"
-     state: absent
+    path: "{{ wallet_directory }}/{{ file_name }}"
+    state: absent
   loop:
-      - openssl.p12
+    - openssl.p12
   loop_control:
-      loop_var: file_name
+    loop_var: file_name
   tags: remove_files
 
 # Do not remove the CA Certificate as we need to upload that to DMS
 - name: Remove Temporary Working Files
   file:
-     path: "{{ wallet_working_directory }}/{{ file_name }}"
-     state: absent
+    path: "{{ wallet_working_directory }}/{{ file_name }}"
+    state: absent
   loop:
-     - "{{ private_key }}"
-     - "{{ self_signed_ca_csr }}"
-     - "{{ self_signed_csr }}"
-     - "{{ self_signed_crt }}"
-     - cwallet.sso
+    - "{{ private_key }}"
+    - "{{ self_signed_ca_csr }}"
+    - "{{ self_signed_csr }}"
+    - "{{ self_signed_crt }}"
+    - cwallet.sso
   loop_control:
-      loop_var: file_name
+    loop_var: file_name
   tags: remove_files
