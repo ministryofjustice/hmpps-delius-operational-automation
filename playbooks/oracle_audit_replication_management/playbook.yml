@@ -2,4 +2,4 @@
 - hosts: localhost
   gather_facts: no
   roles:
-    - oracle_manage_audit_replication
+    - oracle_audit_replication_management
