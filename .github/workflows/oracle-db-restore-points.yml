@@ -254,7 +254,7 @@ jobs:
       - name: Start Ansible Restore Points
         shell: bash
         run: |
-          find .
+          find . -print
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_restore_points/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_password_rotation/roles
