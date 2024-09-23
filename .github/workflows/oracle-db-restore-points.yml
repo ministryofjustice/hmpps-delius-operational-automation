@@ -240,13 +240,11 @@ jobs:
           ls $PWD/operations
           ls $PWD/operations/playbooks
           ls $PWD/operations/playbooks/oracle_restore_points
+          ln -s $PWD/playbooks/oracle_audit_replication_management/oracle_audit_replication_management $PWD/roles/ansible/roles/oracle_audit_replication_management
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_restore_points/roles
           ls -l $PWD/operations/playbooks/oracle_restore_points/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_password_rotation/roles
           ls -l $PWD/operations/playbooks/oracle_password_rotation/roles
-          ln -s $PWD/playbooks/oracle_audit_replication_management/oracle_audit_replication_management $PWD/operations/playbooks/oracle_restore_points/roles/oracle_audit_replication_management
-          ls -l $PWD/operations/playbooks/oracle_restore_points
-          ls -l $PWD/operations/playbooks/oracle_restore_points/roles
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e target_dbs=${{ steps.definetargets.outputs.delius_target }} \
           -e "required_action='${{ github.event.inputs.RequiredAction }}'" \
