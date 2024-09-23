@@ -187,6 +187,7 @@ jobs:
             playbooks/oracle_password_rotation
             playbooks/oem_blackout
             playbooks/ansible.cfg
+            common/files
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
