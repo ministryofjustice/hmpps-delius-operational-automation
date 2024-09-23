@@ -188,17 +188,8 @@ jobs:
             playbooks/oem_blackout
             playbooks/oracle_audit_replication_management
             playbooks/ansible.cfg
+            common/*
           path: operations
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
-          fetch-depth: 0
-
-      - name: Checkout common files hmpps-delius-operation-automation
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            common/files
-          path: .
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
