@@ -239,7 +239,7 @@ jobs:
           ls $PWD
           ls $PWD/operations
           ls $PWD/operations/playbooks
-          ls $PWD/operations/oracle_restore_points
+          ls $PWD/operations/playbooks/oracle_restore_points
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_restore_points/roles
           ls -l $PWD/operations/playbooks/oracle_restore_points/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_password_rotation/roles
