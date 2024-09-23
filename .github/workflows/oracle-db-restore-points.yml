@@ -223,6 +223,7 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_audit_replication_management/oracle_audit_replication_management
           path: roles
+          clean: false
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
