@@ -192,6 +192,16 @@ jobs:
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
+      - name: Checkout common files hmpps-delius-operation-automation
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files
+          path: common
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Checkout modernisation-platform-configuration-management
         uses: actions/checkout@v4
         with:
@@ -244,6 +254,7 @@ jobs:
       - name: Start Ansible Restore Points
         shell: bash
         run: |
+          find . -ls
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_restore_points/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_password_rotation/roles
