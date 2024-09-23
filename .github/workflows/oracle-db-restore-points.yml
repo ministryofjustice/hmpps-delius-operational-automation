@@ -198,7 +198,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             common/files
-          path: common
+          path: .
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
