@@ -219,7 +219,6 @@ jobs:
       - name: Checkout Ansible Required Roles From hmpps-delius-operation-automation
         uses: actions/checkout@v4
         with:
-          repository: ministryofjustice/hmpps-delius-operation-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/oracle_audit_replication_management/oracle_audit_replication_management
