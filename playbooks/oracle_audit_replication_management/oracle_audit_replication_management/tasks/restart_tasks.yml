@@ -6,7 +6,7 @@
 - name: Restart the Audited Interaction Checksum DMS CDC Replication Tasks from Requested Time
   shell: |
          aws dms start-replication-task --replication-task-arn "{{ audited_interaction_checksum_task_arn }}" \
-            --cdc-start-position "{{ audit_cdc_scn }}" \
+            --cdc-start-position "{{ audit_cdc_scn }}"  --region {{ region }}  \
             --start-replication-task-type start-replication
 
 # We supply user_cdc_start_time as the lower bound for user_ and
@@ -17,7 +17,7 @@
 - name: Restart the User and Probation Area DMS CDC Replication Tasks from Requested Time
   shell: |
          aws dms start-replication-task --replication-task-arn "{{ user__task_arn }}" \
-            --cdc-start-time "{{ user_cdc_start_time }}" \
+            --cdc-start-time "{{ user_cdc_start_time }}"  --region {{ region }}  \
             --start-replication-task-type start-replication
 
 # We supply audit_cdc_scn as the lower bound for audit replication
@@ -28,5 +28,5 @@
 - name: Restart the Audited Interaction DMS CDC Replication Tasks from Requested Time
   shell: |
          aws dms start-replication-task --replication-task-arn "{{ audited_interaction_task_arn }}" \
-            --cdc-start-position "{{ audit_cdc_scn }}" \
+            --cdc-start-position "{{ audit_cdc_scn }}"  --region {{ region }} \
             --start-replication-task-type start-replication

@@ -24,13 +24,17 @@
   shell: |
          aws dms describe-endpoints \
          --filters Name=endpoint-type,Values=source Name=endpoint-id,Values=audit-data-from-{{ item | lower }} \
-         --query "Endpoints[].EndpointArn" --output text 2>/dev/null || true
+         --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
   register: get_source_endpoint
   changed_when: false
   loop:
       - "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
       - "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
       - "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
+
+- name: Show Endpoints
+  debug:
+     var: get_source_endpoint
 
 - name: Get Source Endpoint Associated with the Client Environment
   set_fact:

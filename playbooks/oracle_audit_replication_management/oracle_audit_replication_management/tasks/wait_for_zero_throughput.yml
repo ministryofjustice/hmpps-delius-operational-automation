@@ -5,6 +5,7 @@
           aws cloudwatch get-metric-statistics --metric-name CDCThroughputRowsSource \
              --start-time $(date -u -d '-1 min' '+%Y-%m-%dT%H:%M:%SZ') \
              --end-time $(date '+%Y-%m-%dT%H:%M:%SZ') \
+              --region {{ region }} \
              --namespace 'AWS/DMS' --period 60 --statistics Maximum \
              --dimensions Name=ReplicationInstanceIdentifier,Value={{ replication_instance_identifier }} \
                           Name=ReplicationTaskIdentifier,Value={{ audited_interaction_task_arn.split(':')[-1] }} \
