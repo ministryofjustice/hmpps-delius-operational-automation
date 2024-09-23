@@ -186,8 +186,8 @@ jobs:
             playbooks/block_sessions
             playbooks/oracle_password_rotation
             playbooks/oem_blackout
+            playbooks/oracle_audit_replication_management
             playbooks/ansible.cfg
-            common/files
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
@@ -226,17 +226,6 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
-      - name: Checkout Ansible Required Roles From hmpps-delius-operation-automation
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            playbooks/oracle_audit_replication_management/oracle_audit_replication_management
-          path: roles
-          clean: false
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
-          fetch-depth: 0
-
       - name: Define Delius Targets
         id: definetargets
         run: |
@@ -254,10 +243,10 @@ jobs:
       - name: Start Ansible Restore Points
         shell: bash
         run: |
-          find . -print
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_restore_points/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_password_rotation/roles
+          ln -s $PWD/playbooks/oracle_audit_replication_management/oracle_audit_replication_management $PWD/operations/playbooks/oracle_restore_points/roles/oracle_audit_replication_management
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e target_dbs=${{ steps.definetargets.outputs.delius_target }} \
           -e "required_action='${{ github.event.inputs.RequiredAction }}'" \
