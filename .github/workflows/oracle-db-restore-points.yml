@@ -241,6 +241,8 @@ jobs:
           ls $PWD/operations/playbooks
           ls $PWD/operations/playbooks/oracle_restore_points
           ln -s $PWD/playbooks/oracle_audit_replication_management/oracle_audit_replication_management $PWD/roles/ansible/roles/oracle_audit_replication_management
+          ls -l $PWD/roles/ansible/roles
+          ls -L $PWD/roles/ansible/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_restore_points/roles
           ls -l $PWD/operations/playbooks/oracle_restore_points/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_password_rotation/roles
