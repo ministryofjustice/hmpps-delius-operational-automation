@@ -15,3 +15,6 @@
   retries: 20
   delay: 60
   changed_when: FALSE
+
+- name: Final Output
+    var: get_cdc_throughput_row_source
