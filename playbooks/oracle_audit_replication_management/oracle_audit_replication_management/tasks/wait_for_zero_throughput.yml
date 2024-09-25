@@ -1,3 +1,14 @@
+- name: What
+  shell: |
+         hostname
+         uname -a
+         which date
+  register: get_what
+
+- debug:
+    var: get_what
+
+
 # Check if there are still records being replicated, and wait for those to
 # complete if required - abort if audit still replicating after 20 minutes
 - name: Wait for CDC Throughput to Drop on Source
