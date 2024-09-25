@@ -18,4 +18,5 @@
   changed_when: FALSE
 
 - name: Final Output
-    var: get_cdc_throughput_row_source
+  debug:
+      var: get_cdc_throughput_row_source
