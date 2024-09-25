@@ -433,6 +433,7 @@
   vars:
     rotate_database_passwords: true
     rotate_groups: "{{ target_dbs }}"
+    unlock_system_passwords: yes
   when:
     - required_action == "Flashback to Restore Point"
     - is_aws_environment | default(false)
