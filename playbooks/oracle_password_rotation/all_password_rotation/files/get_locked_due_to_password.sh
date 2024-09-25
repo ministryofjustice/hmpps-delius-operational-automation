@@ -26,10 +26,12 @@ set feedback off
 SELECT COALESCE(MAX('YES'),'NO') locked_due_to_password
 FROM
     dba_users d
+CROSS JOIN v\$database db
 WHERE
         d.username = UPPER('${DB_USERNAME}')
     AND d.account_status LIKE '%LOCKED%'
     AND d.lock_date > d.password_change_date
-    AND TRUNC(SYSDATE) = TRUNC(d.password_change_date);
+    AND ((TRUNC(SYSDATE) = TRUNC(d.password_change_date)) OR (d.password_change_date < db.resetlogs_time));
+
 exit;
 EOSQL
