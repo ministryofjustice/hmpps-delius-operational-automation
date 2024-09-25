@@ -11,7 +11,7 @@
      msg: "When restarting, the lower bound SCN for audited interaction, and lower bound date for User replication must be provided"
   when:
      - replication_action == 'restart'
-     - audit_cdc_scn == '' or user_cdc_start_time == ''
+     - audit_cdc_scn == ''
 
 - name: Get Database Environment
   set_fact:
