@@ -411,7 +411,7 @@
                 - include_role:
                     name: oracle_audit_replication_management
                   vars:
-                    replication_action: start
+                    replication_action: restart
                     user_cdc_start_time: "{{ get_latest_user_update.stdout | trim }}"
                     audit_cdc_scn: "{{ get_db_startup_scn.stdout | trim }}"
 
