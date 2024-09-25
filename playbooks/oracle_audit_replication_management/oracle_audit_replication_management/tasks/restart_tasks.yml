@@ -9,15 +9,16 @@
             --cdc-start-position "{{ audit_cdc_scn }}"  --region {{ region }}  \
             --start-replication-task-type start-replication
 
-# We supply user_cdc_start_time as the lower bound for user_ and
-# probation_area_user replication data
-# (we do not replicate any records earlier than this time).  This is used
-# to ensure we only replicate user data which is newer than that already
-# present in the database as a consequence of a restore, duplicate or flashback.
-- name: Restart the User and Probation Area DMS CDC Replication Tasks from Requested Time
+# We cannot supply a lower bound for User and Probation Area replication since we have to use
+# an S3 bucket for staging between Mod Platform environments, and Start Positions may not
+# be specified for S3 sources.   Therefore we simply restart replication as of the current time.
+# However, this means that an User changes which occur whilst the replication is stopped
+# will be skipped, and not applied to the client.  Therefore avoid adding new stub audit
+# users into the repository whilst a client refresh is in progress.
+- name: Restart the User and Probation Area DMS CDC Replication Tasks
   shell: |
          aws dms start-replication-task --replication-task-arn "{{ user__task_arn }}" \
-            --cdc-start-time "{{ user_cdc_start_time }}"  --region {{ region }}  \
+            --region {{ region }}  \
             --start-replication-task-type start-replication
 
 # We supply audit_cdc_scn as the lower bound for audit replication
