@@ -1,51 +1,36 @@
-# This value comes from the inventory in hmpps-engineering-platform-terraform/env_configs
-- name: Set Engineering environment AWS Account ID
-  set_fact:
-    engineering_account_id: "{{ account_id }}"
+- name: Get SYSMAN Password
+  include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
 
-- name: Get Role Prefix Appropriate to the OEM Repository
-  set_fact:
-    role_prefix: "{{ get_oem_env | replace('engineering','eng') }}"
+- name: Synchronize OEM Monitoring Credentials
+  block:
 
-- community.aws.sts_assume_role:
-    role_arn: "arn:aws:iam::{{ engineering_account_id }}:role/terraform"
-    role_session_name: "{{ environment_name }}_Update_OEM_Target_Passwords"
-  register: assumed_eng_role
+    - name: Copy EMCLI Login scripts
+      template:
+        src: "{{ playbook_dir }}/../../common/templates/emcli_login.sh.j2"
+        dest: "{{ stage }}/emcli_login.sh"
+        mode: "0700"
 
-- name: Start OEM Target Update for {{ environment_name }}
-  shell: |
-    aws ssm start-automation-execution --document-name "arn:aws:ssm:eu-west-2:{{ engineering_account_id }}:automation-definition/oracle-rotate-passwords" --region eu-west-2 --parameters "TargetEnvironmentName={{ environment_name }},SyncMonitoringPasswords=yes,RotateRMANPassword=no,RotateOEMPasswords=no,RotateDatabasePasswords=no" | jq --raw-output '.AutomationExecutionId'
-  register: oem_automation
-  environment:
-    AWS_ACCESS_KEY_ID: "{{ assumed_eng_role.sts_creds.access_key }}"
-    AWS_SECRET_ACCESS_KEY: "{{ assumed_eng_role.sts_creds.secret_key }}"
-    AWS_SESSION_TOKEN: "{{ assumed_eng_role.sts_creds.session_token }}"
+    - name: Set Emcli Login Script Variable
+      set_fact:
+        emcli_login: ". {{ stage }}/emcli_login.sh > /dev/null 2>&1"
 
-- name: Set Automation ID
-  set_fact:
-    oem_automation_id: "{{ oem_automation.stdout }}"
+    - name: Get Environment Name From EC2 Tags
+      shell: |
+        export PATH=$PATH:/usr/local/bin
+        INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+        aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text
+      register: get_target_environment_name
 
-- fail:
-    msg: "OEM Target Password Update CodeBuild failed to start. {{ oem_automation.stderr }}"
-  when: oem_automation_id == ''
+    - name: Include Set Monitoring Password Task From Oem Password Rotation Role
+      include_role:
+        name: "{{ playbook_dir }}/oem_password_rotation"
+        tasks_from: set_monitoring_passwords
+      vars:
+        sysman_password: "{{ oem_sysman_password }}"
+        target_environment_name: "{{ get_target_environment_name.stdout }}"
 
-- name: Report Automation ID
-  debug:
-    msg: "Running OEM Target Update in {{ get_oem_env }} account ({{ engineering_account_id }}).  Automation ID is {{ oem_automation_id }}."
-
-- name: Wait for Update of {{ environment_name }} OEM target passwords
-  shell: |
-    aws ssm describe-automation-step-executions --automation-execution-id "{{ oem_automation_id }}" --region=eu-west-2 --filters "Key=StepName,Values=CheckBuildStatus" | jq --raw-output '.StepExecutions[0].StepStatus'
-  register: oem_automation_status
-  until: oem_automation_status.stdout == 'Success' or oem_automation_status.stdout == 'Failed'
-  retries: 50
-  delay: 30
-  environment:
-    AWS_ACCESS_KEY_ID: "{{ assumed_eng_role.sts_creds.access_key }}"
-    AWS_SECRET_ACCESS_KEY: "{{ assumed_eng_role.sts_creds.secret_key }}"
-    AWS_SESSION_TOKEN: "{{ assumed_eng_role.sts_creds.session_token }}"
-  changed_when: false
-
-- fail:
-    msg: "Failed to complete OEM Target Password update for {{ environment_name }}.   See {{ get_oem_env }} Automation ID {{ oem_automation_id }}"
-  when: oem_automation_status.stdout != 'Success'
+  always:
+    - name: Remove Temporary Files from Stage Area
+      file:
+        path: "{{ stage }}/emcli_login.sh"
+        state: absent
