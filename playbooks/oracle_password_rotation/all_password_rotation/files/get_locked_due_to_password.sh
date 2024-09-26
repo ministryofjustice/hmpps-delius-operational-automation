@@ -26,7 +26,6 @@ set feedback off
 SELECT COALESCE(MAX('YES'),'NO') locked_due_to_password
 FROM
     dba_users d
-CROSS JOIN v\$database db
 WHERE
         d.username = UPPER('${DB_USERNAME}')
     AND d.account_status LIKE '%LOCKED%'
