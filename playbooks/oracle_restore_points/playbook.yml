@@ -8,10 +8,6 @@
 
   tasks:
 
-    - name: Playbook Directory
-      debug:
-         var: playbook_dir
-
     - name: Validate Restore Point Name
       script: validate_restore_point_name.sh
       environment:
