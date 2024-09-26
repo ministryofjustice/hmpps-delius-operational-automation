@@ -31,7 +31,7 @@ WHERE
         d.username = UPPER('${DB_USERNAME}')
     AND d.account_status LIKE '%LOCKED%'
     AND d.lock_date > d.password_change_date
-    AND ((TRUNC(SYSDATE) = TRUNC(d.password_change_date)) OR (d.password_change_date < db.resetlogs_time));
+    AND TRUNC(SYSDATE) = TRUNC(d.password_change_date);
 
 exit;
 EOSQL
