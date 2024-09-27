@@ -14,5 +14,4 @@
   until: (get_cdc_throughput_row_source.stdout == '0.0') or (get_cdc_throughput_row_source.stdout == 'null') or  (get_cdc_throughput_row_source.stdout == 'None')
   retries: 20
   delay: 60
-  delay: 6
   changed_when: FALSE
