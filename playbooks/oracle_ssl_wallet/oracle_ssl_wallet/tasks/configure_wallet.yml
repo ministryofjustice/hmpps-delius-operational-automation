@@ -1,3 +1,8 @@
+- name: Create SSL Wallet Parent Directory
+  file:
+    path: "{{ wallet_directory | dirname }}"
+    state: directory
+
 - name: Create SSL Wallet Directory
   file:
     path: "{{ wallet_directory }}"

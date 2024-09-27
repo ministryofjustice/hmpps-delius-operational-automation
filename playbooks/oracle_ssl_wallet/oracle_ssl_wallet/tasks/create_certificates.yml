@@ -1,71 +1,78 @@
 ---
-- name: Install OpenSSL (if not installed)
-  ansible.builtin.package:
-    name: openssl
-    state: present
-  become_user: root
 
-- name: Create a directory for the certificate
-  ansible.builtin.file:
-    path: "{{ wallet_working_directory }}"
-    state: directory
-    mode: "0755"
+# We use the same certificate on all database servers in the system (primary and standby),
+# so we only need to create it once, which we do on the primary.
+- name: Create Certificate on Primary Database Server
+  when: database_primary_sid is defined
+  block:
 
-# We always clear out the working directory before we begin
-# to ensure that we create a fresh private key and certificates
-# which are consistent with it.
-- name: Find all files in the working directory
-  find:
-    paths: "{{ wallet_working_directory }}"
-    file_type: file
-  register: files_to_delete
+    - name: Install OpenSSL (if not installed)
+      ansible.builtin.package:
+        name: openssl
+        state: present
+      become_user: root
 
-- name: Delete files found in the working directory
-  file:
-    path: "{{ item.path }}"
-    state: absent
-  loop: "{{ files_to_delete.files }}"
+    - name: Create a directory for the certificate
+      ansible.builtin.file:
+        path: "{{ wallet_working_directory }}"
+        state: directory
+        mode: "0755"
 
-- name: Generate a private key
-  ansible.builtin.command: >
-    openssl genpkey -algorithm RSA -out {{ wallet_working_directory }}/{{ private_key }} -pkeyopt rsa_keygen_bits:4096
-  args:
-    creates: "{{ wallet_working_directory }}/{{ private_key }}"
+    # We always clear out the working directory before we begin
+    # to ensure that we create a fresh private key and certificates
+    # which are consistent with it.
+    - name: Find all files in the working directory
+      find:
+        paths: "{{ wallet_working_directory }}"
+        file_type: file
+      register: files_to_delete
 
-- name: Generate a CSR (Certificate Signing Request)
-  ansible.builtin.command: >
-    openssl req -new -key {{ wallet_working_directory }}/{{ private_key }} -out {{ wallet_working_directory }}/{{ self_signed_ca_csr }}
-    -subj "{{ crt_subject }}"
-  args:
-    creates: "{{ wallet_working_directory }}/{{ self_signed_ca_csr }}"
+    - name: Delete files found in the working directory
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ files_to_delete.files }}"
 
-- name: Generate a Self-Signed Certificate
-  ansible.builtin.command: >
-    openssl x509 -req -days 3650 -in {{ wallet_working_directory }}/{{ self_signed_ca_csr }} -signkey {{ wallet_working_directory }}/{{ private_key }} -out {{ wallet_working_directory }}/{{ self_signed_ca_crt }}
-  args:
-    creates: "{{ wallet_working_directory }}/{{ self_signed_ca_crt }}"
+    - name: Generate a private key
+      ansible.builtin.command: >
+        openssl genpkey -algorithm RSA -out {{ wallet_working_directory }}/{{ private_key }} -pkeyopt rsa_keygen_bits:4096
+      args:
+        creates: "{{ wallet_working_directory }}/{{ private_key }}"
 
-- name: Set correct permissions on the certificate and key
-  ansible.builtin.file:
-    path: "{{ wallet_working_directory }}"
-    mode: "0755"
-    recurse: yes
+    - name: Generate a CSR (Certificate Signing Request)
+      ansible.builtin.command: >
+        openssl req -new -key {{ wallet_working_directory }}/{{ private_key }} -out {{ wallet_working_directory }}/{{ self_signed_ca_csr }}
+        -subj "{{ crt_subject }}"
+      args:
+        creates: "{{ wallet_working_directory }}/{{ self_signed_ca_csr }}"
 
-- name: Generate a CSR (Certificate Signing Request) for the leaf certificate
-  ansible.builtin.command: >
-    openssl req -new -key {{ wallet_working_directory }}/{{ private_key }} -out {{ wallet_working_directory }}/{{ self_signed_csr }} -subj "{{ crt_subject }}"
-  args:
-    creates: "{{ wallet_working_directory }}/{{ self_signed_csr }}"
+    - name: Generate a Self-Signed Certificate
+      ansible.builtin.command: >
+        openssl x509 -req -days 3650 -in {{ wallet_working_directory }}/{{ self_signed_ca_csr }} -signkey {{ wallet_working_directory }}/{{ private_key }} -out {{ wallet_working_directory }}/{{ self_signed_ca_crt }}
+      args:
+        creates: "{{ wallet_working_directory }}/{{ self_signed_ca_crt }}"
 
-- name: Sign the CSR with the Root CA to create the leaf certificate
-  ansible.builtin.command: >
-    openssl x509 -req -in {{ wallet_working_directory }}/{{ self_signed_csr }}
-    -CA {{ wallet_working_directory }}/{{ self_signed_ca_crt }} -CAkey {{ wallet_working_directory }}/{{ private_key }}
-    -CAcreateserial -out {{ wallet_working_directory }}/{{ self_signed_crt }} -days 365
-  args:
-    creates: "{{ wallet_working_directory }}/{{ self_signed_crt }}"
+    - name: Set correct permissions on the certificate and key
+      ansible.builtin.file:
+        path: "{{ wallet_working_directory }}"
+        mode: "0755"
+        recurse: yes
 
-- name: Set permissions on the leaf certificate
-  ansible.builtin.file:
-    path: "{{ wallet_working_directory }}/{{ self_signed_crt }}"
-    mode: "0600"
+    - name: Generate a CSR (Certificate Signing Request) for the leaf certificate
+      ansible.builtin.command: >
+        openssl req -new -key {{ wallet_working_directory }}/{{ private_key }} -out {{ wallet_working_directory }}/{{ self_signed_csr }} -subj "{{ crt_subject }}"
+      args:
+        creates: "{{ wallet_working_directory }}/{{ self_signed_csr }}"
+
+    - name: Sign the CSR with the Root CA to create the leaf certificate
+      ansible.builtin.command: >
+        openssl x509 -req -in {{ wallet_working_directory }}/{{ self_signed_csr }}
+        -CA {{ wallet_working_directory }}/{{ self_signed_ca_crt }} -CAkey {{ wallet_working_directory }}/{{ private_key }}
+        -CAcreateserial -out {{ wallet_working_directory }}/{{ self_signed_crt }} -days 365
+      args:
+        creates: "{{ wallet_working_directory }}/{{ self_signed_crt }}"
+
+    - name: Set permissions on the leaf certificate
+      ansible.builtin.file:
+        path: "{{ wallet_working_directory }}/{{ self_signed_crt }}"
+        mode: "0600"
