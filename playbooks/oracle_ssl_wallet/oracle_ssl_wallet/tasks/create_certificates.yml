@@ -1,5 +1,26 @@
 ---
 
+- name: Create a working directory for the certificate
+  ansible.builtin.file:
+    path: "{{ wallet_working_directory }}"
+    state: directory
+    mode: "0755"
+
+# We always clear out the working directory before we begin
+# to ensure that we create a fresh private key and certificates
+# which are consistent with it.
+- name: Find all files in the working directory
+  find:
+    paths: "{{ wallet_working_directory }}"
+    file_type: file
+  register: files_to_delete
+
+- name: Delete files found in the working directory
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ files_to_delete.files }}"
+
 # We use the same certificate on all database servers in the system (primary and standby),
 # so we only need to create it once, which we do on the primary.
 - name: Create Certificate on Primary Database Server
@@ -11,27 +32,6 @@
         name: openssl
         state: present
       become_user: root
-
-    - name: Create a directory for the certificate
-      ansible.builtin.file:
-        path: "{{ wallet_working_directory }}"
-        state: directory
-        mode: "0755"
-
-    # We always clear out the working directory before we begin
-    # to ensure that we create a fresh private key and certificates
-    # which are consistent with it.
-    - name: Find all files in the working directory
-      find:
-        paths: "{{ wallet_working_directory }}"
-        file_type: file
-      register: files_to_delete
-
-    - name: Delete files found in the working directory
-      file:
-        path: "{{ item.path }}"
-        state: absent
-      loop: "{{ files_to_delete.files }}"
 
     - name: Generate a private key
       ansible.builtin.command: >
