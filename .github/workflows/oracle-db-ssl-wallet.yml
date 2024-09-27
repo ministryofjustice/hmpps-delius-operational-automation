@@ -24,9 +24,9 @@ on:
         type: choice
         options: 
           - "delius_primarydb"
-          - "mis_primarydb"
-          - "boe_primarydb"
-          - "dsd_primarydb"   
+          - "delius_standbydb1"
+          - "delius_standbydb2"
+          - "delius_dbs"
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
