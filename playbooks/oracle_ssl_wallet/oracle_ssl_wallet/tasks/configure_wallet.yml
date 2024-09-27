@@ -44,6 +44,11 @@
           src: "{{ wallet_directory }}/openssl.p12"
           dest: /tmp
        when: database_primary_sid is defined
+       register: fetch_pkcs12
+
+     - name: Where did it go?
+       debug:
+          var: fetch_pkcs12
 
      - name: Copy PKCS#12 File onto Standby Hosts
        copy:
