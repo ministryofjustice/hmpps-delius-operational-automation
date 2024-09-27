@@ -37,24 +37,21 @@
   when: not wallet_check.stat.exists
 
 - name: Copy PKCS#12 File from Primary to Standbys
-  when: database_primary_sid is defined
   block:
 
      - name: Fetch PKCS#12 File onto Ansible Controller
        fetch:
           src: "{{ wallet_directory }}/openssl.p12"
-          dest: /tmp     
+          dest: /tmp
+          flat: true
+       when: database_primary_sid is defined
        register: fetch_pkcs12
-       run_once: true
 
-- debug:
-    var: fetch_pkcs12
-
-- name: Copy PKCS#12 File onto Standby Hosts
-  copy:
-    src: "{{ fetch_pkcs12.dest }}"
-    dest: "{{ wallet_directory }}/openssl.p12"
-  when: not database_primary_sid is defined
+     - name: Copy PKCS#12 File onto Standby Hosts
+       copy:
+          src: /tmp/openssl.p12
+          dest: "{{ wallet_directory }}/openssl.p12"
+       when: not database_primary_sid is defined
 
 - name: Import PKCS#12 File into Oracle Wallet
   shell: |
