@@ -46,13 +46,9 @@
        when: database_primary_sid is defined
        register: fetch_pkcs12
 
-     - name: Where did it go?
-       debug:
-          var: fetch_pkcs12
-
      - name: Copy PKCS#12 File onto Standby Hosts
        copy:
-          src: "/tmp/{{ inventory_hostname }}/{{ wallet_directory }}/openssl.p12"
+          src: "{{ fetch_pkcs12.dest }}"
           dest: "{{ wallet_directory }}/openssl.p12"
        when: not database_primary_sid is defined
 
