@@ -1,5 +1,4 @@
 ---
-
 - name: Create a working directory for the certificate
   ansible.builtin.file:
     path: "{{ wallet_working_directory }}"
@@ -26,7 +25,6 @@
 - name: Create Certificate on Primary Database Server
   when: database_primary_sid is defined
   block:
-
     - name: Install OpenSSL (if not installed)
       ansible.builtin.package:
         name: openssl

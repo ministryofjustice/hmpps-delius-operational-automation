@@ -38,20 +38,19 @@
 
 - name: Copy PKCS#12 File from Primary to Standbys
   block:
+    - name: Fetch PKCS#12 File onto Ansible Controller
+      fetch:
+        src: "{{ wallet_directory }}/openssl.p12"
+        dest: /tmp/
+        flat: true
+      when: database_primary_sid is defined
+      register: fetch_pkcs12
 
-     - name: Fetch PKCS#12 File onto Ansible Controller
-       fetch:
-          src: "{{ wallet_directory }}/openssl.p12"
-          dest: /tmp/
-          flat: true
-       when: database_primary_sid is defined
-       register: fetch_pkcs12
-
-     - name: Copy PKCS#12 File onto Standby Hosts
-       copy:
-          src: /tmp/openssl.p12
-          dest: "{{ wallet_directory }}/openssl.p12"
-       when: not database_primary_sid is defined
+    - name: Copy PKCS#12 File onto Standby Hosts
+      copy:
+        src: /tmp/openssl.p12
+        dest: "{{ wallet_directory }}/openssl.p12"
+      when: not database_primary_sid is defined
 
 - name: Import PKCS#12 File into Oracle Wallet
   shell: |

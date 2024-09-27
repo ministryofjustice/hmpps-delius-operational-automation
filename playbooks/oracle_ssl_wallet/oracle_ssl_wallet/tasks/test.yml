@@ -2,7 +2,6 @@
   gather_facts: no
 
   tasks:
-
     - name: Create Directory
       file:
         path: /tmp/test_directory

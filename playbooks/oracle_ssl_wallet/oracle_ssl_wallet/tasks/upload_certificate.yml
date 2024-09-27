@@ -5,7 +5,6 @@
 - name: Upload Certificate from Primary Host
   when: database_primary_sid is defined
   block:
-
     - name: Create Oracle Auto Login Wallet with Certificate
       shell: |
         . ~/.bash_profile
