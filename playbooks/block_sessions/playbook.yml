@@ -23,11 +23,13 @@
       command: curl http://169.254.169.254/latest/meta-data/local-ipv4
       when: is_aws_environment
       register: ec2_local_ip
+      changed_when: false
 
     - name: Find local ip address of non-ec2 database server to add as an iptables accept rule
       command: hostname -i
       when: not is_aws_environment
       register: non_ec2_local_ip
+      changed_when: false
 
     - name: Set IP of local database server
       set_fact:
@@ -61,11 +63,13 @@
         {{ emctl_agent }} status agent | grep -E '^Repository URL' | cut -d: -f3 | sed 's/\/\///'
       become_user: oracle
       register: getoemhostname
+      changed_when: false
 
     - name: Get ip address of OEM server
       shell: getent hosts {{ getoemhostname.stdout }} | awk '{print $1}'
       when: getoemhostname.stderr | length == 0
       register: oem_ip
+      changed_when: false
 
     - debug: var=oem_ip
 

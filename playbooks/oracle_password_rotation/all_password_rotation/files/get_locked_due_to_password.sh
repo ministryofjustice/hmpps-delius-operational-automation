@@ -31,5 +31,6 @@ WHERE
     AND d.account_status LIKE '%LOCKED%'
     AND d.lock_date > d.password_change_date
     AND TRUNC(SYSDATE) = TRUNC(d.password_change_date);
+
 exit;
 EOSQL
