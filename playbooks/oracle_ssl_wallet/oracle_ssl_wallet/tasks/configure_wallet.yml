@@ -50,7 +50,7 @@
      - name: Copy PKCS#12 File onto Standby Hosts
        copy:
           src: /tmp/openssl.p12
-          dest: "{{ wallet_directory }}"
+          dest: "{{ wallet_directory }}/openssl.p12"
        when: not database_primary_sid is defined
 
 - name: Import PKCS#12 File into Oracle Wallet
