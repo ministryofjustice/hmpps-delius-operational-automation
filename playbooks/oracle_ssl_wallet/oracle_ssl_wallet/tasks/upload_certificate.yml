@@ -104,7 +104,7 @@
 
         - name: Get List of End Points for this Environment
           shell: |
-            aws dms describe-endpoints --query "Endpoints[?ends_with(EndpointIdentifier, 'hmpps-{{ environment_name }}')].EndpointArn" --output text --region {{ region }} | sed 's/\t/\n/g'
+            aws dms describe-endpoints --query "Endpoints[?EngineName=='oracle' && SslMode=='verify-ca' && (starts_with(EndpointIdentifier,'audit-data-from') || starts_with(EndpointIdentifier,'user-data-to'))].EndpointArn" --output text --region {{ region }} | sed 's/\t/\n/g'
           register: get_environment_endpoints
           changed_when: false
 
