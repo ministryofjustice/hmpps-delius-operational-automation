@@ -7,7 +7,6 @@
   any_errors_fatal: true
 
   tasks:
-
     - name: Validate Restore Point Name
       script: validate_restore_point_name.sh
       environment:
@@ -280,18 +279,18 @@
           environment:
             RESTORE_POINT_NAME: "{{ restore_point_name | upper }}"
           changed_when: false
- 
+
         - name: Calculate Final Audited Interaction Checksum
           script: ../../common/files/calculate_audited_interaction_checksum.sh
           when:
-              - target_dbs | regex_search('delius_dbs')
-              - database_primary_sid is defined
+            - target_dbs | regex_search('delius_dbs')
+            - database_primary_sid is defined
 
         # Include role inside a block so that it may be delegated
         - name: Stop Audited Interaction Replication
           when:
-              - target_dbs | regex_search('delius_dbs')
-              - database_primary_sid is defined
+            - target_dbs | regex_search('delius_dbs')
+            - database_primary_sid is defined
           delegate_to: localhost
           become: no
           block:
@@ -377,7 +376,6 @@
             - target_dbs | regex_search('delius_dbs')
             - database_primary_sid is defined
           block:
-
             - name: Get Database Startup SCN
               script: ../../common/files/get_db_startup_scn.sh
               register: get_db_startup_scn
@@ -385,13 +383,13 @@
 
             - name: Show Database Startup SCN
               debug:
-                 msg: "Restarting Audit Replication from SCN {{ get_db_startup_scn.stdout | trim }}"
+                msg: "Restarting Audit Replication from SCN {{ get_db_startup_scn.stdout | trim }}"
 
             # Include role inside a block so that it may be delegated
             - name: Restart Audited Interaction Replication
               when:
-                  - target_dbs | regex_search('delius_dbs')
-                  - database_primary_sid is defined
+                - target_dbs | regex_search('delius_dbs')
+                - database_primary_sid is defined
               delegate_to: localhost
               become: no
               block:

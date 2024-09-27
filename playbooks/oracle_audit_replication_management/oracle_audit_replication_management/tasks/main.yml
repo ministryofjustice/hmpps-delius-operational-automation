@@ -8,56 +8,55 @@
 #     table on the client.
 - name: Validate Restart Parameters
   fail:
-     msg: "When restarting, the lower bound SCN for audited interaction, and lower bound date for User replication must be provided"
+    msg: "When restarting, the lower bound SCN for audited interaction, and lower bound date for User replication must be provided"
   when:
-     - replication_action == 'restart'
-     - audit_cdc_scn == ''
+    - replication_action == 'restart'
+    - audit_cdc_scn == ''
 
 - name: Get Database Environment
   set_fact:
-      database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
+    database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
 
 # There is currently no DMS Functionality in the Amazon.Aws Collection
 # so we will use the AWSCLI instead
 
 - name: Loop through all possible database sources looking for the one the DMS endpoint is connected to
   shell: |
-         aws dms describe-endpoints \
-         --filters Name=endpoint-type,Values=source Name=endpoint-id,Values=audit-data-from-{{ item | lower }} \
-         --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
+    aws dms describe-endpoints \
+    --filters Name=endpoint-type,Values=source Name=endpoint-id,Values=audit-data-from-{{ item | lower }} \
+    --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
   register: get_source_endpoint
   changed_when: false
   loop:
-      - "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
-      - "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
-      - "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
+    - "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
+    - "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
+    - "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
 
 - name: Show Endpoints
   debug:
-     var: get_source_endpoint
+    var: get_source_endpoint
 
 - name: Get Source Endpoint Associated with the Client Environment
   set_fact:
-     source_endpoint: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten | first | default('') }}"
+    source_endpoint: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten | first | default('') }}"
 
 # If we do not find a Source DMS Endpoint for the supplied *client* environment then
 # we skip all tasks associated with Audited Interaction preservation tasks as it
 # has not been configured for this environment.
 - name: Skip Message
   debug:
-     msg:  "This environment is not configured as an Audited Interaction data client.  No action taken."
+    msg: "This environment is not configured as an Audited Interaction data client.  No action taken."
   when: source_endpoint == ''
 
 - name: Perform Requested Actions on Replication Tasks
   when: source_endpoint != ''
   block:
-
     - debug:
         msg: "Source Endpoint ARN: {{ source_endpoint }}"
 
     - name: Set Flag that this is Audited Interaction Preservation Client
       set_fact:
-          audited_interaction_client: true
+        audited_interaction_client: true
 
     - name: Get Details of Replication Tasks from Client to Repository
       include_tasks: get_outbound_task_details.yml
@@ -71,7 +70,7 @@
 
     - name: Stop Replication Tasks
       include_tasks: stop_tasks.yml
-      when:  (replication_action == 'restart') or (replication_action == 'stop') or (replication_action == 'resume')
+      when: (replication_action == 'restart') or (replication_action == 'stop') or (replication_action == 'resume')
 
     - name: Resume Replication Tasks
       include_tasks: resume_tasks.yml

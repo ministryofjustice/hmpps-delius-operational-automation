@@ -5,9 +5,9 @@
 # Audited Interaction data replication is not dependent on it
 - name: Restart the Audited Interaction Checksum DMS CDC Replication Tasks from Requested Time
   shell: |
-         aws dms start-replication-task --replication-task-arn "{{ audited_interaction_checksum_task_arn }}" \
-            --cdc-start-position "{{ audit_cdc_scn }}"  --region {{ region }}  \
-            --start-replication-task-type start-replication
+    aws dms start-replication-task --replication-task-arn "{{ audited_interaction_checksum_task_arn }}" \
+       --cdc-start-position "{{ audit_cdc_scn }}"  --region {{ region }}  \
+       --start-replication-task-type start-replication
 
 # We cannot supply a lower bound for User and Probation Area replication since we have to use
 # an S3 bucket for staging between Mod Platform environments, and Start Positions may not
@@ -17,9 +17,9 @@
 # users into the repository whilst a client refresh is in progress.
 - name: Restart the User and Probation Area DMS CDC Replication Tasks
   shell: |
-         aws dms start-replication-task --replication-task-arn "{{ user__task_arn }}" \
-            --region {{ region }}  \
-            --start-replication-task-type start-replication
+    aws dms start-replication-task --replication-task-arn "{{ user__task_arn }}" \
+       --region {{ region }}  \
+       --start-replication-task-type start-replication
 
 # We supply audit_cdc_scn as the lower bound for audit replication
 # (we do not replicate any audit records earlier than this time).  This is used
@@ -28,6 +28,6 @@
 # a restore, duplicate or flashback.
 - name: Restart the Audited Interaction DMS CDC Replication Tasks from Requested Time
   shell: |
-         aws dms start-replication-task --replication-task-arn "{{ audited_interaction_task_arn }}" \
-            --cdc-start-position "{{ audit_cdc_scn }}"  --region {{ region }} \
-            --start-replication-task-type start-replication
+    aws dms start-replication-task --replication-task-arn "{{ audited_interaction_task_arn }}" \
+       --cdc-start-position "{{ audit_cdc_scn }}"  --region {{ region }} \
+       --start-replication-task-type start-replication
