@@ -42,7 +42,7 @@
      - name: Fetch PKCS#12 File onto Ansible Controller
        fetch:
           src: "{{ wallet_directory }}/openssl.p12"
-          dest: /tmp
+          dest: /tmp/
           flat: true
        when: database_primary_sid is defined
        register: fetch_pkcs12
