@@ -1,0 +1,81 @@
+# If we are restarting replication (as opposed to resuming),
+# we need to provide:
+# (1) the SCN for restarting Audited Interaction replication to avoid replicating data which is already in the
+#     repository.   This is normally the SCN corresponding to the startup of the client database following
+#     a refresh or flashback operation.
+# (2) the Date/Time for restarting User replication to avoid replicating user updates which have already been
+#     sent to the client.  This is normally the date/time of the latest update of any record in the USER_
+#     table on the client.
+- name: Validate Restart Parameters
+  fail:
+    msg: "When restarting, the lower bound SCN for audited interaction, and lower bound date for User replication must be provided"
+  when:
+    - replication_action == 'restart'
+    - audit_cdc_scn == ''
+
+- name: Get Database Environment
+  set_fact:
+    database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
+
+# There is currently no DMS Functionality in the Amazon.Aws Collection
+# so we will use the AWSCLI instead
+
+- name: Loop through all possible database sources looking for the one the DMS endpoint is connected to
+  shell: |
+    aws dms describe-endpoints \
+    --filters Name=endpoint-type,Values=source Name=endpoint-id,Values=audit-data-from-{{ item | lower }} \
+    --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
+  register: get_source_endpoint
+  changed_when: false
+  loop:
+    - "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
+    - "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
+    - "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
+
+- name: Show Endpoints
+  debug:
+    var: get_source_endpoint
+
+- name: Get Source Endpoint Associated with the Client Environment
+  set_fact:
+    source_endpoint: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten | first | default('') }}"
+
+# If we do not find a Source DMS Endpoint for the supplied *client* environment then
+# we skip all tasks associated with Audited Interaction preservation tasks as it
+# has not been configured for this environment.
+- name: Skip Message
+  debug:
+    msg: "This environment is not configured as an Audited Interaction data client.  No action taken."
+  when: source_endpoint == ''
+
+- name: Perform Requested Actions on Replication Tasks
+  when: source_endpoint != ''
+  block:
+    - debug:
+        msg: "Source Endpoint ARN: {{ source_endpoint }}"
+
+    - name: Set Flag that this is Audited Interaction Preservation Client
+      set_fact:
+        audited_interaction_client: true
+
+    - name: Get Details of Replication Tasks from Client to Repository
+      include_tasks: get_outbound_task_details.yml
+
+    - name: Get Details of Replication Tasks from Repository to Client
+      include_tasks: get_inbound_task_details.yml
+
+    - name: Wait for Audit Replication to Finish
+      include_tasks: wait_for_zero_throughput.yml
+      when: replication_action == 'stop'
+
+    - name: Stop Replication Tasks
+      include_tasks: stop_tasks.yml
+      when: (replication_action == 'restart') or (replication_action == 'stop') or (replication_action == 'resume')
+
+    - name: Resume Replication Tasks
+      include_tasks: resume_tasks.yml
+      when: replication_action == 'resume'
+
+    - name: Restart Replication Tasks
+      include_tasks: restart_tasks.yml
+      when: replication_action == 'restart'

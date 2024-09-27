@@ -1,0 +1,30 @@
+- name: Stop DMS Replication Tasks
+  shell: |
+    aws dms stop-replication-task --replication-task-arn "{{ replication_task_arn }}"  --region {{ region }}
+  register: stop_replication
+  loop:
+    - "{{ audited_interaction_checksum_task_arn }}"
+    - "{{ audited_interaction_task_arn }}"
+    - "{{ business_interaction_task_arn }}"
+    - "{{ user__task_arn }}"
+  loop_control:
+    loop_var: "replication_task_arn"
+  ignore_errors: true # Some of these tasks may already be stopped, so ignore errors stopping them
+
+- name: Wait for DMS Replication Tasks to stop
+  shell: |
+    aws dms describe-replication-tasks \
+       --filters Name=replication-task-arn,Values="{{ replication_task_arn }}" \
+        --region {{ region }}  --query "ReplicationTasks[0].Status" --output text
+  register: task_status
+  until: not task_status.stdout in ["running","stopping","starting"]
+  retries: 60
+  delay: 10
+  loop:
+    - "{{ audited_interaction_checksum_task_arn }}"
+    - "{{ audited_interaction_task_arn }}"
+    - "{{ business_interaction_task_arn }}"
+    - "{{ user__task_arn }}"
+  loop_control:
+    loop_var: "replication_task_arn"
+  changed_when: FALSE
