@@ -514,7 +514,7 @@ jobs:
           fi
 
   oracle-rman-post-duplicate:
-    if: ${{ github.event_name == 'repository_dispatch' && needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' }}
+    if: ${{ github.event_name == 'repository_dispatch' }}
     name: oracle-rman-post-duplicate
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
