@@ -1,3 +1,8 @@
+- name: Create SSL Wallet Parent Directory
+  file:
+    path: "{{ wallet_directory | dirname }}"
+    state: directory
+
 - name: Create SSL Wallet Directory
   file:
     path: "{{ wallet_directory }}"
@@ -7,6 +12,8 @@
 # Note that we cannot use the secretsmanager-passwords role here since that would cause
 # exposure of the password within an environment file between the Ansible controller
 # and the target host, so we must use the AWS CLI to look up the secret directly on the host.
+#
+# We only create the PKCS#12 file on the primary as it will not exist on the standby hosts
 - name: Get System password from secrets manager and use it to create a PKCS#12 file
   shell: |
     cd {{ wallet_directory }}
@@ -16,6 +23,7 @@
     APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
     export SYSTEMPWD=$(aws secretsmanager get-secret-value --secret-id ${APPLICATION}-core-${DELIUS_ENVIRONMENT}-oracle-db-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .system)
     openssl pkcs12 -export -in {{ wallet_working_directory }}/{{ self_signed_crt }} -inkey {{ wallet_working_directory }}/{{ private_key }} -certfile {{ wallet_working_directory }}/{{ self_signed_ca_crt }} -out openssl.p12 -passout env:SYSTEMPWD
+  when: database_primary_sid is defined
 
 - name: Check if Wallet Already Exists
   stat:
@@ -27,6 +35,22 @@
     . ~/.bash_profile
     orapki wallet create -wallet {{ wallet_directory }}  -auto_login_only
   when: not wallet_check.stat.exists
+
+- name: Copy PKCS#12 File from Primary to Standbys
+  block:
+    - name: Fetch PKCS#12 File onto Ansible Controller
+      fetch:
+        src: "{{ wallet_directory }}/openssl.p12"
+        dest: /tmp/
+        flat: true
+      when: database_primary_sid is defined
+      register: fetch_pkcs12
+
+    - name: Copy PKCS#12 File onto Standby Hosts
+      copy:
+        src: /tmp/openssl.p12
+        dest: "{{ wallet_directory }}/openssl.p12"
+      when: not database_primary_sid is defined
 
 - name: Import PKCS#12 File into Oracle Wallet
   shell: |
