@@ -33,7 +33,7 @@ usage () {
   echo ""
   echo "Usage:"
   echo ""
-  echo "  $THISSCRIPT -d <target db> -s <source db> -c <catalog db> -u <catalog schema> -t <restore datetime> [ -f <spfile parameters> ] [-l]"
+  echo "  $THISSCRIPT -d <target db> -s <source db> -c <catalog db> -u <catalog schema> -t <restore datetime> [ -f <spfile parameters> ] [-l] [-n]"
   echo ""
   echo "where"
   echo ""
@@ -54,6 +54,10 @@ usage () {
   echo "       backup workflow.  This is used to supply the original input parameters back to the GitHub workflow in the case"
   echo "       that we wish to continue the workflow after this script has finished running. This parameter is mandatory"
   echo "       if -r is used to specify the use of repository dispatch events."
+  echo ""
+  echo "  If -n is specified (no argument accepted) then the duplicate is done as a no-op.  This skips the actual"
+  echo "        RMAN duplicate script run, and a success code is returned.  No-op mode is intended primarily for"
+  echo "        development purposes where we wish to avoid the lengthy runtime involved in running an RMAN duplicate."
   echo ""
 
   exit $ERROR_STATUS
@@ -626,7 +630,7 @@ info "Retrieving arguments"
 TARGET_DB=UNSPECIFIED
 DATETIME=LATEST
 SPFILE_PARAMETERS=UNSPECIFIED
-while getopts "d:s:c:u:t:f:l:r:j:" opt
+while getopts "d:s:c:u:t:f:l:r:j:n" opt
 do
   case $opt in
     d) TARGET_DB=$OPTARG ;;
@@ -638,6 +642,7 @@ do
     l) LOCAL_DISK_BACKUP=TRUE ;;
     r) REPOSITORY_DISPATCH=$OPTARG ;;
     j) JSON_INPUTS=$OPTARG ;;
+    n) NOOP_MODE=TRUE ;;
     *) usage ;;
   esac
 done
@@ -690,20 +695,25 @@ EOF
 info "Modify database using Server Control with correct spfile location"
 srvctl modify database -d ${TARGET_DB} -p "+DATA/${TARGET_DB}/spfile${TARGET_DB}.ora"
 
-remove_asm_directory DATA ${TARGET_DB}
-remove_asm_directory FLASH ${TARGET_DB}
-
-info "Create ${TARGET_DB} in +DATA in readiness for duplicate"
-asmcmd mkdir +DATA/${TARGET_DB}
-
-info "Set environment for ${TARGET_DB}"
-set_ora_env ${TARGET_DB}
-
-INI_FILES=(${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora)
-if [[ -f ${INI_FILES[0]} ]]
+if [[ "${NOOP_MODE}" != "TRUE" ]];
 then
-   info "Remove all references to all ${TARGET_DB} initialization files to start fresh"
-   rm ${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora || error "Removing ${TARGET_DB} initialization files"
+    remove_asm_directory DATA ${TARGET_DB}
+    remove_asm_directory FLASH ${TARGET_DB}
+
+    info "Create ${TARGET_DB} in +DATA in readiness for duplicate"
+    asmcmd mkdir +DATA/${TARGET_DB}
+
+    info "Set environment for ${TARGET_DB}"
+    set_ora_env ${TARGET_DB}
+
+    INI_FILES=(${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora)
+    if [[ -f ${INI_FILES[0]} ]]
+    then
+      info "Remove all references to all ${TARGET_DB} initialization files to start fresh"
+      rm ${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora || error "Removing ${TARGET_DB} initialization files"
+    fi
+else
+   info "Skipping deleting data files in noop mode"
 fi
 
 DUPLICATEPFILE=${ORACLE_HOME}/dbs/init${TARGET_DB}_duplicate.ora
@@ -723,15 +733,24 @@ fi
 info "Generating rman command file"
 build_rman_command_file
 
-info "Running rman cmd file $RMANDUPLICATECMDFILE"
-info "Please check progress ${RMANDUPLICATELOGFILE} ..."
+if [[ "${NOOP_MODE}" != "TRUE" ]];
+then
+    info "Running rman cmd file $RMANDUPLICATECMDFILE"
+    info "Please check progress ${RMANDUPLICATELOGFILE} ..."
 rman log $RMANDUPLICATELOGFILE <<EOF > /dev/null
 connect auxiliary /
 $CONNECT_TO_CATALOG
 @$RMANDUPLICATECMDFILE
 EOF
-info "Checking for errors"
-grep -i "ERROR MESSAGE STACK" $RMANDUPLICATELOGFILE>/dev/null 2>&1 && error "Rman Duplicate reported errors" || info "RMAN Duplicate Completed successfully"
+    info "Checking for errors"
+    grep -i "ERROR MESSAGE STACK" $RMANDUPLICATELOGFILE>/dev/null 2>&1 && error "Rman Duplicate reported errors" || info "RMAN Duplicate Completed successfully"
+else
+    into "Skipping duplicating database in noop mode"
+    sqlplus -s / as sysdba << EOSQL
+    alter database open;
+EOSQL
+fi
+
 info "Perform post actions"
 post_actions
 [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-rman-duplicate-success" "${JSON_INPUTS}"
