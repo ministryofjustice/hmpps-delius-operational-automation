@@ -114,7 +114,7 @@
 
     - name: Set No-Op mode flag is noop_mode is set to true
       set_fact:
-         noop_flag: "-n"
+        noop_flag: "-n"
       when: noop_mode | default(false)
 
     - name: Set catalog schema name
