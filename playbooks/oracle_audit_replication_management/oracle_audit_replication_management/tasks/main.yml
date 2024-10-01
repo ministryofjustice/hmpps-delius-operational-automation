@@ -23,7 +23,7 @@
 - name: Loop through all possible database sources looking for the one the DMS endpoint is connected to
   shell: |
     aws dms describe-endpoints \
-    --filters Name=endpoint-type,Values=source Name=endpoint-id,Values=audit-data-from-{{ item | lower }} \
+    --filters Name=endpoint-type,Values=source Name=endpoint-id,Values={{ simple_environment_name }}-audit-data-from-{{ item | lower }} \
     --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
   register: get_source_endpoint
   changed_when: false
