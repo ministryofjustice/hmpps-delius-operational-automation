@@ -80,7 +80,6 @@ jobs:
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.77.0
     timeout-minutes: 1440
-    role-duration-seconds: 1440
     continue-on-error: false
     steps:
 
@@ -158,6 +157,7 @@ jobs:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
+          role-duration-seconds: 21600
 
       - name: Check Fast Start Fail Over Ansible Variable
         id: getfsfomode
