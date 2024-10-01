@@ -54,7 +54,7 @@
 
             - name: Get ARN of default certificate used when endpoint is initially created
               shell: |
-                aws dms describe-certificates --query "Certificates[?CertificateIdentifier=='empty-oracle-wallet'].CertificateArn" --output text --region {{ region }}
+                aws dms describe-certificates --query "Certificates[?CertificateIdentifier=='{{ simple_environment_name }}-empty-oracle-wallet')].CertificateArn" --output text --region {{ region }}
               register: get_empty_oracle_wallet_arn
               changed_when: false
 
@@ -108,7 +108,7 @@
 
             - name: Get List of End Points for this Environment
               shell: |
-                aws dms describe-endpoints --query "Endpoints[?EngineName=='oracle' && (starts_with(EndpointIdentifier,'audit-data-from') || starts_with(EndpointIdentifier,'user-data-to'))].EndpointArn" --output text --region {{ region }} | sed 's/\t/\n/g'
+                aws dms describe-endpoints --query "Endpoints[?EngineName=='oracle' && (starts_with(EndpointIdentifier,'{{ simple_environment_name }}-audit-data-from') || starts_with(EndpointIdentifier,'{{ simple_environment_name }}-user-data-to'))].EndpointArn" --output text --region {{ region }} | sed 's/\t/\n/g'
               register: get_environment_endpoints
               changed_when: false
 
