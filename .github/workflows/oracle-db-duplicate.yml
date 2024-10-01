@@ -59,6 +59,13 @@ on:
         options:
           - "no"
           - "yes"
+      NoOpMode:
+        description: "Run in No-Op Mode (Skips Duplicate Step) -- intended for development use only"
+        type : choice
+        default: "no"
+        options:
+          - "no"
+          - "yes"        
       SourceCodeVersion:
         description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -117,6 +124,7 @@ jobs:
           S3SourceBucket="${{ github.event.inputs.S3SourceBucket }}"
           RestoreDatetime="${{ github.event.inputs.RestoreDatetime }}"
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
+          NoOpMode="${{ github.event.NoOpMode }}"
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
           DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
@@ -144,6 +152,7 @@ jobs:
           Inputs=$Inputs"\"S3SourceBucket\": \"${S3SourceBucket}\","
           Inputs=$Inputs"\"RestoreDatetime\": \"${RestoreDatetime}\","
           Inputs=$Inputs"\"SkipAudit\": \"${SkipAudit}\","
+          Inputs=$Inputs"\"NoOpMode"\": \"${NoOpMode}\","
           Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
           Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
           Inputs=$Inputs"\"Phase\": \"Duplicate Started\""
@@ -454,9 +463,9 @@ jobs:
                prod) SourceOemEnvironment=production ;;
              esac
              SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
-             extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }}"
+             extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }} -e noop_mode=${{ github.event.inputs.NoOpMode }}"
           else
-             extra_vars="-e source_legacy=yes"
+             extra_vars="-e source_legacy=yes -e noop_mode=${{ github.event.inputs.NoOpMode }}"
           fi        
           export ANSIBLE_CONFIG=$ansible_config
           $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
@@ -514,7 +523,7 @@ jobs:
           fi
 
   oracle-rman-post-duplicate:
-    if: ${{ github.event_name == 'repository_dispatch' && needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' }}
+    if: ${{ github.event_name == 'repository_dispatch' }}
     name: oracle-rman-post-duplicate
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
