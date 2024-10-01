@@ -463,14 +463,13 @@ jobs:
                prod) SourceOemEnvironment=production ;;
              esac
              SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
-             extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }}"
+             extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }} -e noop_mode=${{ github.event.inputs.NoOpMode }}"
           else
-             extra_vars="-e source_legacy=yes"
+             extra_vars="-e source_legacy=yes -e noop_mode=${{ github.event.inputs.NoOpMode }}"
           fi        
           export ANSIBLE_CONFIG=$ansible_config
           $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
           -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars} -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" \
-          -e noop_mode=${{ github.event.inputs.NoOpMode }}
 
   oracle-rman-duplicate-check:
     if: ${{ github.event_name == 'repository_dispatch' }}
