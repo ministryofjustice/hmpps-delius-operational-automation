@@ -8,6 +8,9 @@ LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-w
 
 RUN apt update && apt install -y curl git bash jq && apt clean
 
+RUN curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/bin/yq &&\
+    chmod +x /usr/bin/yq
+
 RUN if curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb" && dpkg -i session-manager-plugin.deb; then \
   echo "Session manager plugin installed"; \
   else \
