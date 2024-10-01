@@ -54,7 +54,7 @@
 
             - name: Get ARN of default certificate used when endpoint is initially created
               shell: |
-                aws dms describe-certificates --query "Certificates[?CertificateIdentifier=='{{ simple_environment_name }}-empty-oracle-wallet')].CertificateArn" --output text --region {{ region }}
+                aws dms describe-certificates --query "Certificates[?CertificateIdentifier=='{{ simple_environment_name }}-empty-oracle-wallet'].CertificateArn" --output text --region {{ region }}
               register: get_empty_oracle_wallet_arn
               changed_when: false
 
