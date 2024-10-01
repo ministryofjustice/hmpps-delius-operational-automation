@@ -52,7 +52,7 @@ jobs:
     - name: Rotate Directory Service password
       run: |
         aws ds reset-user-password \
-          --directory-id $(aws ds describe-directories --query "DirectoryDescriptions[?ShortName=='${{ env.DIRECTORY_NAME }}'].DirectoryId" --output text) \
+          --directory-id $(aws ds describe-directories --query "DirectoryDescriptions[?Name=='${{ env.DIRECTORY_NAME }}.internal'].DirectoryId" --output text) \
           --user-name Admin \
           --new-password ${{ env.NEW_PASSWORD }}
 
