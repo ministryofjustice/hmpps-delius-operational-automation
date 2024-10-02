@@ -49,7 +49,7 @@ on:
           - "delius-mis-prod-oracle-mis-db-backups"
           - "delius-core-prod-oracle-db-backups"
       RestoreDatetime:
-        description: Restore datetime from source database, format [YYMMDDHH24MISS]"
+        description: Restore datetime from source database, format [YYMMDDHH24MISS] (use the value '0' if you wish to skip duplicate altogether -- development purposes only)"
         type: string
         default: ""
       SkipAudit: 
@@ -59,13 +59,6 @@ on:
         options:
           - "no"
           - "yes"
-      NoOpMode:
-        description: "Run in No-Op Mode (Skips Duplicate Step) -- intended for development use only"
-        type : choice
-        default: "no"
-        options:
-          - "no"
-          - "yes"        
       SourceCodeVersion:
         description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -124,7 +117,15 @@ jobs:
           S3SourceBucket="${{ github.event.inputs.S3SourceBucket }}"
           RestoreDatetime="${{ github.event.inputs.RestoreDatetime }}"
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
-          NoOpMode="${{ github.event.NoOpMode }}"
+          # If we have specified a RestoreDatetimne of '0' then this is a NoOp duplicate,
+          # where we skip the RMAN duplicate step itself -- intended to speed up the
+          # workflow when doing development
+          if [[ "${{ github.event.inputs.RestoreDatetime }}" == "0" ]]
+          then
+             NoOpMode=yes
+          else
+             NoOpMod=no
+          fi
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
           DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
@@ -152,7 +153,6 @@ jobs:
           Inputs=$Inputs"\"S3SourceBucket\": \"${S3SourceBucket}\","
           Inputs=$Inputs"\"RestoreDatetime\": \"${RestoreDatetime}\","
           Inputs=$Inputs"\"SkipAudit\": \"${SkipAudit}\","
-          Inputs=$Inputs"\"NoOpMode\": \"${NoOpMode}\","
           Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
           Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
           Inputs=$Inputs"\"Phase\": \"Duplicate Started\""
