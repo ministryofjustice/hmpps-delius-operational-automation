@@ -152,7 +152,7 @@ jobs:
           Inputs=$Inputs"\"S3SourceBucket\": \"${S3SourceBucket}\","
           Inputs=$Inputs"\"RestoreDatetime\": \"${RestoreDatetime}\","
           Inputs=$Inputs"\"SkipAudit\": \"${SkipAudit}\","
-          Inputs=$Inputs"\"NoOpMode"\": \"${NoOpMode}\","
+          Inputs=$Inputs"\"NoOpMode\": \"${NoOpMode}\","
           Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
           Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
           Inputs=$Inputs"\"Phase\": \"Duplicate Started\""
