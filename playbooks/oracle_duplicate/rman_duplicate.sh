@@ -321,8 +321,6 @@ get_source_db_rman_details () {
       fetch first 1 rows only;
 EOF
 `
-
-  info "Running: $X"
   eval $X || error "Getting $SOURCE_DB rman details"
   info "${SOURCE_DB} dbid = ${DBID}"
   if [ "${DATETIME}" = "LATEST" ]
