@@ -49,7 +49,7 @@ on:
           - "delius-mis-prod-oracle-mis-db-backups"
           - "delius-core-prod-oracle-db-backups"
       RestoreDatetime:
-        description: Restore datetime from source database, format [YYMMDDHH24MISS] (use the value '0' if you wish to skip duplicate altogether -- development purposes only)"
+        description: Restore datetime from source database, format [YYMMDDHH24MISS] (use the value '0' if you wish to skip duplicate altogether -- development purposes only)
         type: string
         default: ""
       SkipAudit: 
