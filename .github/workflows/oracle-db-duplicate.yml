@@ -117,15 +117,6 @@ jobs:
           S3SourceBucket="${{ github.event.inputs.S3SourceBucket }}"
           RestoreDatetime="${{ github.event.inputs.RestoreDatetime }}"
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
-          # If we have specified a RestoreDatetimne of '0' then this is a NoOp duplicate,
-          # where we skip the RMAN duplicate step itself -- intended to speed up the
-          # workflow when doing development
-          if [[ "${{ github.event.inputs.RestoreDatetime }}" == "0" ]]
-          then
-             NoOpMode=yes
-          else
-             NoOpMod=no
-          fi
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
           DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
@@ -441,6 +432,15 @@ jobs:
       - name: Start Ansible Oracle RMAN Duplicate
         shell: bash
         run: |
+          # If we have specified a RestoreDatetimne of '0' then this is a NoOp duplicate,
+          # where we skip the RMAN duplicate step itself -- intended to speed up the
+          # workflow when doing development
+          if [[ "${{ github.event.inputs.RestoreDatetime }}" == "0" ]]
+          then
+             NoOpMode=yes
+          else
+             NoOpMod=no
+          fi
           # Only pass extra variables if NOT duplicating from AWS legacy
           if [[ "${{ github.event.inputs.SourceLegacy }}" == "no" ]]
           then
@@ -449,9 +449,9 @@ jobs:
                prod) SourceOemEnvironment=production ;;
              esac
              SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
-             extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }} -e noop_mode=${{ github.event.inputs.NoOpMode }}"
+             extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }} -e noop_mode=$NoOpMode"
           else
-             extra_vars="-e source_legacy=yes -e noop_mode=${{ github.event.inputs.NoOpMode }}"
+             extra_vars="-e source_legacy=yes -e noop_mode=$NoOpMode"
           fi        
           export ANSIBLE_CONFIG=$ansible_config
           $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
