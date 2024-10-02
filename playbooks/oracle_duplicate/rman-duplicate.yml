@@ -143,7 +143,7 @@
 
         - name: Generate Command to Run RMAN Script
           set_fact:
-            run_rman_script: '/home/oracle/admin/rman_scripts/rman_duplicate.sh -d {{ database_primary_sid}} -s {{ source_db }} -c "{{ catalog }}" {{ local_disk_backup | default() }} {{ noop_flag | default() }} {{ rman_datetime_option | default() }} {{ "-f" if ((ssm_parameter_option | default("")) != "") else ssm_parameter_option }} {{ ssm_parameter_option|default() }} {{ source_catalog_schema_option|default() }} "{{ spfile_parameters_option|default()|trim }}" {{ repository_dispatch_flag|default() }}'
+            run_rman_script: '/home/oracle/admin/rman_scripts/rman_duplicate.sh -d {{ database_primary_sid}} -s {{ source_db }} -c "{{ catalog }}" {{ local_disk_backup | default() }} {{ noop_flag | default() }} {{ rman_datetime_option | default() }} {{ ssm_parameter_option|default() }} {{ source_catalog_schema_option|default() }} {{ "-f" if ((spfile_parameters_option | default("")) != "") else "" }} "{{ spfile_parameters_option|default()|trim }}" {{ repository_dispatch_flag|default() }}'
 
         - name: Show Script to Run
           debug:
