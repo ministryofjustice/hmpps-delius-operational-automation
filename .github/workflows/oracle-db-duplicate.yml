@@ -483,6 +483,18 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
+      - name: Overwrite Checkout of hmpps-delius-operation-automation if Different Branch Required in Payload
+        uses: actions/checkout@v4
+        if: ${{ fromJson(toJson(github.event.client_payload)).SourceConfigVersion != "main" }}
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oracle_duplicate
+            playbooks/ansible.cfg
+          path: operations
+          ref: ${{ fromJson(toJson(github.event.client_payload)).SourceConfigVersion }}
+          fetch-depth: 0
+
       - name: Responding to Repository Dispatch event
         id: response
         run: |
