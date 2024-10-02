@@ -485,7 +485,7 @@ jobs:
 
       - name: Overwrite Checkout of hmpps-delius-operation-automation if Different Branch Required in Payload
         uses: actions/checkout@v4
-        if: ${{ fromJson(toJson(github.event.client_payload)).SourceConfigVersion != "main" }}
+        if: ${{ fromJson(toJson(github.event.client_payload)).SourceConfigVersion != 'main' }}
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
