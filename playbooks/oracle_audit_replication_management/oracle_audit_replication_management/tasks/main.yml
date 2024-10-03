@@ -1,9 +1,3 @@
-# - shell: whoami
-#   register: debug_this
-
-- debug: 
-    var: database_environment
-
 # If we are restarting replication (as opposed to resuming),
 # we need to provide:
 # (1) the SCN for restarting Audited Interaction replication to avoid replicating data which is already in the

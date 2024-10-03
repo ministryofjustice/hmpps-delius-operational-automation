@@ -2,7 +2,7 @@
   shell: |
     aws dms describe-endpoints \
     --filters Name=endpoint-type,Values=target \
-              Name=endpoint-id,Values=user-data-to-{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }} \
+              Name=endpoint-id,Values={{ simple_environment_name }}-user-data-to-{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }} \
     --query "Endpoints[].EndpointArn" --region {{ region }} --output text 2>/dev/null || true
   register: get_target_endpoint
   changed_when: false
