@@ -701,15 +701,15 @@ jobs:
 
   # Restarting Audit Replication should not take place until after any HAs have been built as we
   # normally want to read from the standby database if available, to reduce load on the primary.
-  restart-audit-replication:
-    uses: ./github/workflows/oracle-db-audit-replication-management.yml
-    needs: [oracle-build-ha,oracle-rman-post-duplicate]
-    if:  ${{ ( needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' ) &&  ( needs.oracle-build-ha == 'success' || needs.oracle-build-ha == 'skipped' ) }}
-    with:
-      TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
-      Action: restart
-      SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}
-      SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
+  # restart-audit-replication:
+  #   uses: ./github/workflows/oracle-db-audit-replication-management.yml
+  #   needs: [oracle-build-ha,oracle-rman-post-duplicate]
+  #   if:  ${{ ( needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' ) &&  ( needs.oracle-build-ha == 'success' || needs.oracle-build-ha == 'skipped' ) }}
+  #   with:
+  #     TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
+  #     Action: restart
+  #     SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}
+  #     SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
 
   slack-notification:
     if: ${{ failure() }}
