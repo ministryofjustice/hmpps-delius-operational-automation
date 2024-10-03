@@ -13,12 +13,9 @@
     - replication_action == 'restart'
     - audit_cdc_scn == ''
 
-# If we are calling this role from within another Ansible role then the database environment will not be set, and we will need
-# to calculate it.  If this role is being called from Github Actions directly we set the database_environment as an input extra variable.
 - name: Get Database Environment
   set_fact:
     database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
-  when: database_environment is not defined
 
 # There is currently no DMS Functionality in the Amazon.Aws Collection
 # so we will use the AWSCLI instead
