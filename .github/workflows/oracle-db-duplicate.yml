@@ -598,7 +598,7 @@ jobs:
           -e duplicate_target=${{ env.DuplicateTarget }}
 
   oracle-build-ha:
-    if:  ${{ needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' }}
+    if:  ${{ ( needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' ) && github.event.inputs.RestoreDateTime != '0' }}
     name: oracle-build-ha
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
