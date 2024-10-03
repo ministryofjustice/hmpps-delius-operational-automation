@@ -40,26 +40,11 @@ on:
       TargetEnvironment:
         description: "Target environment"
         required: true
-        type: choice
-        options:
-          - "delius-core-dev"
-          - "delius-core-test"
-          - "delius-core-training"
-          - "delius-core-stage"
-          - "delius-core-preprod"
-          - "delius-core-prod"
-          - "delius-mis-dev"
-          - "delius-mis-stage"
-          - "delius-mis-preprod"
-          - "delius-mis-prod"
+        type: string
       Action:
         description: "Select action"
         required: true
-        type: choice
-        options:
-          - "stop"
-          - "resume"
-          - "restart"
+        type: string
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
