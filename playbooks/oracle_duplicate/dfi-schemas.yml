@@ -16,7 +16,7 @@
 
         - name: Assert dfi schemas export successful
           assert:
-            that: (export_dfischemas.stdout_lines is search('COMPLETED')) or (export_dfischemas.stdout_lines is search('NODIFSCHEMAS'))
+            that: (export_dfischemas.stdout_lines is search('COMPLETED')) or (export_dfischemas.stdout_lines is search('NODFISCHEMAS'))
 
       when: action == 'export'
 
@@ -29,6 +29,6 @@
 
         - name: Assert dfi schemas import successful
           assert:
-            that: import_dfischemas.stdout_lines is search('COMPLETED') or (import_dfischemas.stdout_lines is search('NODIFSCHEMAS'))
+            that: import_dfischemas.stdout_lines is search('COMPLETED') or (import_dfischemas.stdout_lines is search('NODFISCHEMAS'))
 
       when: action == 'import'
