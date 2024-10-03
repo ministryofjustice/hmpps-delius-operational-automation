@@ -40,7 +40,6 @@
     action: "keep"
   when:
     - duplicate_target | regex_search('.*_delius_primarydb')
-    - aws_environment | regex_search('preproduction')
 
 # Allow jobs during the blackout so the Audited Interaction archival job may run
 - name: Start database monitoring blackout
