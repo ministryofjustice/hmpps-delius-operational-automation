@@ -1,8 +1,8 @@
-- shell: whoami
-  register: debug_this
+# - shell: whoami
+#   register: debug_this
 
-- debug: 
-    var: debug_this
+# - debug: 
+#     var: debug_this
 
 # If we are restarting replication (as opposed to resuming),
 # we need to provide:
