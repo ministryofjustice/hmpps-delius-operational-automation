@@ -6,6 +6,7 @@
   become_user: oracle
 
   tasks:
+
     - block:
         - name: Export dfi schemas
           script: dfi_schemas.sh {{ action }}
@@ -15,7 +16,7 @@
 
         - name: Assert dfi schemas export successful
           assert:
-            that: export_dfischemas.stdout_lines is search('successfully completed')
+            that: (export_dfischemas.stdout_lines is search('COMPLETED')) or (export_dfischemas.stdout_lines is search('NODIFSCHEMAS'))
 
       when: action == 'export'
 
@@ -28,6 +29,6 @@
 
         - name: Assert dfi schemas import successful
           assert:
-            that: import_dfischemas.stdout_lines is search('successfully completed')
+            that: import_dfischemas.stdout_lines is search('COMPLETED') or (import_dfischemas.stdout_lines is search('NODIFSCHEMAS'))
 
       when: action == 'import'
