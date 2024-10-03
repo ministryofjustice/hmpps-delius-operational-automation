@@ -26,16 +26,40 @@ on:
           - "stop"
           - "resume"
           - "restart"
-      AuditRestartSCN:
-        description: "Start SCN for Audit Replication"
-        required: false
+      SourceCodeVersion:
+        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
-        default: ""
-      UserRestartDateTime:
-        description: "Start Date and Time for User Replication"
-        required: false
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
-        default: ""
+        default: "main"
+
+  workflow_call:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-preprod"
+          - "delius-core-prod"
+          - "delius-mis-dev"
+          - "delius-mis-stage"
+          - "delius-mis-preprod"
+          - "delius-mis-prod"
+      Action:
+        description: "Select action"
+        required: true
+        type: choice
+        options:
+          - "stop"
+          - "resume"
+          - "restart"
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -58,7 +82,7 @@ permissions:
 
 jobs:
   deployment:
-    environment: ${{ github.event.inputs.TargetEnvironment }}
+    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.77.0

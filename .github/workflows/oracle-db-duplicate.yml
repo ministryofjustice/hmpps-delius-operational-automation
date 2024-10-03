@@ -83,8 +83,18 @@ permissions:
   id-token: write
 
 jobs:
+
+  stop-audit-replication:
+    uses: ./github/workflows/oracle-db-audit-replication-management.yml
+    with:
+      TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
+      Action: stop
+      SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
+
   oracle-rman-pre-duplicate:
     if: ${{ github.event_name != 'repository_dispatch' }}
+    needs: [stop-audit-replication]
     name: oracle-rman-pre-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -688,6 +698,18 @@ jobs:
           -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
           -e standby_number=2 \
           -e primary_source_type=active
+
+  # Restarting Audit Replication should not take place until after any HAs have been built as we
+  # normally want to read from the standby database if available, to reduce load on the primary.
+  restart-audit-replication:
+    uses: ./github/workflows/oracle-db-audit-replication-management.yml
+    needs: [oracle-build-ha,oracle-rman-post-duplicate]
+    if:  ${{ ( needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' ) &&  ( needs.oracle-build-ha == 'success' || needs.oracle-build-ha == 'skipped' ) }}
+    with:
+      TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
+      Action: restart
+      SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
 
   slack-notification:
     if: ${{ failure() }}
