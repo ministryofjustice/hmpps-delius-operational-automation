@@ -6,7 +6,6 @@
   become_user: oracle
 
   tasks:
-
     - block:
         - name: Set ND Parameters
           script: update_nd_parameters.sh
