@@ -49,7 +49,7 @@ on:
           - "delius-mis-prod-oracle-mis-db-backups"
           - "delius-core-prod-oracle-db-backups"
       RestoreDatetime:
-        description: Restore datetime from source database, format [YYMMDDHH24MISS]"
+        description: Restore datetime from source database, format [YYMMDDHH24MISS] (use the value '0' if you wish to skip duplicate altogether -- development purposes only)
         type: string
         default: ""
       SkipAudit: 
@@ -59,13 +59,6 @@ on:
         options:
           - "no"
           - "yes"
-      NoOpMode:
-        description: "Run in No-Op Mode (Skips Duplicate Step) -- intended for development use only"
-        type : choice
-        default: "no"
-        options:
-          - "no"
-          - "yes"        
       SourceCodeVersion:
         description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -96,7 +89,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -124,7 +117,6 @@ jobs:
           S3SourceBucket="${{ github.event.inputs.S3SourceBucket }}"
           RestoreDatetime="${{ github.event.inputs.RestoreDatetime }}"
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
-          NoOpMode="${{ github.event.NoOpMode }}"
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
           DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
@@ -152,7 +144,6 @@ jobs:
           Inputs=$Inputs"\"S3SourceBucket\": \"${S3SourceBucket}\","
           Inputs=$Inputs"\"RestoreDatetime\": \"${RestoreDatetime}\","
           Inputs=$Inputs"\"SkipAudit\": \"${SkipAudit}\","
-          Inputs=$Inputs"\"NoOpMode\": \"${NoOpMode}\","
           Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
           Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
           Inputs=$Inputs"\"Phase\": \"Duplicate Started\""
@@ -252,7 +243,7 @@ jobs:
     environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -285,13 +276,6 @@ jobs:
           path: inventory
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
-
-      - name: Install yq
-        uses: dcarbone/install-yq-action@v1.1.1
-        with:
-          download-compressed: true
-          version: "v4.35.1"
-          force: true
 
       - name: Prepare Environment Variables
         working-directory: ${{ env.inventory }}
@@ -349,7 +333,7 @@ jobs:
     environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -404,7 +388,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     needs: [oracle-rman-import-schema,oracle-rman-pre-duplicate]
     timeout-minutes: 1440
     continue-on-error: false
@@ -445,16 +429,18 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
-      - name: Install yq
-        uses: dcarbone/install-yq-action@64b1b9eb28920bb1a4c13c05321df284f9a8f940 # v1.1.1
-        with:
-          download-compressed: true
-          version: "v4.35.1"
-          force: true
-
       - name: Start Ansible Oracle RMAN Duplicate
         shell: bash
         run: |
+          # If we have specified a RestoreDatetimne of '0' then this is a NoOp duplicate,
+          # where we skip the RMAN duplicate step itself -- intended to speed up the
+          # workflow when doing development
+          if [[ "${{ github.event.inputs.RestoreDatetime }}" == "0" ]]
+          then
+             NoOpMode=yes
+          else
+             NoOpMod=no
+          fi
           # Only pass extra variables if NOT duplicating from AWS legacy
           if [[ "${{ github.event.inputs.SourceLegacy }}" == "no" ]]
           then
@@ -463,9 +449,9 @@ jobs:
                prod) SourceOemEnvironment=production ;;
              esac
              SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
-             extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }} -e noop_mode=${{ github.event.inputs.NoOpMode }}"
+             extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }} -e noop_mode=$NoOpMode"
           else
-             extra_vars="-e source_legacy=yes -e noop_mode=${{ github.event.inputs.NoOpMode }}"
+             extra_vars="-e source_legacy=yes -e noop_mode=$NoOpMode"
           fi        
           export ANSIBLE_CONFIG=$ansible_config
           $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
@@ -477,7 +463,7 @@ jobs:
     environment: ${{ github.event.client_payload.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     continue-on-error: false
     outputs:
       TargetEnvironment: ${{ steps.response.outputs.TargetEnvironment }}
@@ -513,10 +499,10 @@ jobs:
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           echo "SourceLegacy=$(echo $Inputs | jq -r '.SourceLegacy')" >> $GITHUB_OUTPUT
           Action='${{ github.event.action }}'
-          if [[ "$Action" == "oracle-rman-duplicate-success" ]]
+          if [ "$Action" == "oracle-rman-duplicate-success" ]
           then
             aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs)"
-          elif [[ "$Action" == "oracle-rman-duplicate-failure" ]]
+          elif [ "$Action" == "oracle-rman-duplicate-failure" ]
           then
             aws ssm put-parameter --region ${AWS_REGION} --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs)"
             exit 2
@@ -528,7 +514,7 @@ jobs:
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     needs: [oracle-rman-duplicate-check]
     timeout-minutes: 1440
     continue-on-error: false
@@ -600,12 +586,12 @@ jobs:
           -e duplicate_target=${{ env.DuplicateTarget }}
 
   oracle-build-ha:
-    if:  ${{ needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' }}
+    if:  ${{ ( needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' ) && github.event.inputs.RestoreDateTime != '0' }}
     name: oracle-build-ha
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
     timeout-minutes: 1440
     continue-on-error: false
@@ -629,13 +615,6 @@ jobs:
           path: inventory
           ref: ${{ env.SourceConfigVersion }}
           fetch-depth: 0
-
-      - name: Install yq
-        uses: dcarbone/install-yq-action@64b1b9eb28920bb1a4c13c05321df284f9a8f940 # v1.1.1
-        with:
-          download-compressed: true
-          version: "v4.35.1"
-          force: true
 
       - name: Check Standbydb's Configured In Ansible Inventory
         id: standbydbsconfigured
@@ -714,7 +693,7 @@ jobs:
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     needs: [oracle-rman-pre-duplicate,oracle-rman-export-schema,oracle-rman-import-schema,oracle-rman-duplicate,oracle-rman-duplicate-check,oracle-rman-post-duplicate,oracle-build-ha]
     environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     env:

@@ -744,15 +744,15 @@ $CONNECT_TO_CATALOG
 EOF
     info "Checking for errors"
     grep -i "ERROR MESSAGE STACK" $RMANDUPLICATELOGFILE>/dev/null 2>&1 && error "Rman Duplicate reported errors" || info "RMAN Duplicate Completed successfully"
+    info "Perform post actions"
+    post_actions
 else
-    into "Skipping duplicating database in noop mode"
+    info "Skipping duplicating database in noop mode"
     sqlplus -s / as sysdba << EOSQL
-    alter database open;
+    startup force;
 EOSQL
 fi
 
-info "Perform post actions"
-post_actions
 [[ ! -z "$REPOSITORY_DISPATCH" ]] && github_repository_dispatch "oracle-rman-duplicate-success" "${JSON_INPUTS}"
 info "Completed successfully"
 # Exit with success status if no error found
