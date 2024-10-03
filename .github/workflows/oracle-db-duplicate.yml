@@ -88,7 +88,7 @@ jobs:
     uses: ./.github/workflows/oracle-db-audit-replication-management.yml
     with:
       TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
-      Action: stop
+      Action: "stop"
       SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
 
@@ -707,7 +707,7 @@ jobs:
     if:  ${{ ( needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' ) &&  ( needs.oracle-build-ha == 'success' || needs.oracle-build-ha == 'skipped' ) }}
     with:
       TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
-      Action: restart
+      Action: "restart"
       SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
 
