@@ -99,6 +99,7 @@ jobs:
           sparse-checkout: |
                playbooks/oracle_audit_replication_management
                playbooks/ansible.cfg
+               common/*
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
