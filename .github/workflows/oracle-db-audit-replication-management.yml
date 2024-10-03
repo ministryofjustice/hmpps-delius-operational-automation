@@ -14,10 +14,6 @@ on:
           - "delius-core-stage"
           - "delius-core-preprod"
           - "delius-core-prod"
-          - "delius-mis-dev"
-          - "delius-mis-stage"
-          - "delius-mis-preprod"
-          - "delius-mis-prod"
       Action:
         description: "Select action"
         required: true
@@ -110,5 +106,10 @@ jobs:
       - name: Run Oracle Audit Replication Management Playbook
         run: |
           export ANSIBLE_CONFIG=$ansible_config
+          # Since we run this Ansible code directly on the controller, the Ansible variables defined
+          # for the hosts are not available.  Therefore we need to calculate the Simple Environment
+          # Name indirectly, but looking at the last part of the TargetEnvironment.
+          TARGET_ENVIRONMENT_NAME="${{ github.event.inputs.TargetEnvironment }}"
+          SIMPLE_ENVIRONMENT_NAME="${TARGET_ENVIRONMENT_NAME##*-}"
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-             -e replication_action=${{ github.event.inputs.Action }}
+             -e replication_action=${{ github.event.inputs.Action }} -e simple_environment_name $SIMPLE_ENVIRONMENT_NAME
