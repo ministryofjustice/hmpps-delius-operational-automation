@@ -16,6 +16,6 @@ SET PAGES 0
    END control_management_pack_access
  FROM v\$instance i
  CROSS JOIN v\$parameter p
- WHERE p.name = 'control_management_pack_access'
+ WHERE p.name = 'control_management_pack_access';
 
 EOF

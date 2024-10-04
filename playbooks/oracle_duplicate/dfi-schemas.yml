@@ -6,28 +6,40 @@
   become_user: oracle
 
   tasks:
-    - block:
+    - name: Check Database Instance Role
+      script: dfi_schemas.sh check
+      register: check_instance_role
+      changed_when: false
+      failed_when: (check_instance_role.rc > 0) and ('ORA-01034' not in check_instance_role.stdout)
+
+    - name: Set Database Instance Available Flag
+      set_fact:
+        instance_available: "{{ ('UNKNOWN' not in check_instance_role.stdout) }}"
+
+    - name: Export Only When Instance Is Available
+      when: instance_available and action == 'export'
+      block:
         - name: Export dfi schemas
           script: dfi_schemas.sh {{ action }}
           register: export_dfischemas
           vars:
             ansible_aws_ssm_timeout: 1800
 
-        - name: Assert dfi schemas export successful
+        - name: Assert dfi schemas export
           assert:
-            that: export_dfischemas.stdout_lines is search('successfully completed')
+            that:
+              - (export_dfischemas.stdout_lines is search('COMPLETED')) or (export_dfischemas.stdout_lines is search('NODFISCHEMAS')) or (export_dfischemas.stdout_lines is search('NOTHINGTODO'))
 
-      when: action == 'export'
-
-    - block:
+    - name: Import Dfi Schemas
+      when: action == 'import'
+      block:
         - name: Import dfi schemas
           script: dfi_schemas.sh {{ action }}
           register: import_dfischemas
           vars:
             ansible_aws_ssm_timeout: 1800
 
-        - name: Assert dfi schemas import successful
+        - name: Assert dfi schemas import
           assert:
-            that: import_dfischemas.stdout_lines is search('successfully completed')
-
-      when: action == 'import'
+            that:
+              - (import_dfischemas.stdout_lines is search('COMPLETED')) or (import_dfischemas.stdout_lines is search('NODFISCHEMAS')) or (import_dfischemas.stdout_lines is search('NODUMPFILE')) or (export_dfischemas.stdout_lines is search('NOTHINGTODO'))
