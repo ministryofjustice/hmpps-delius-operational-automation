@@ -76,7 +76,7 @@ jobs:
       - name: Prepare Inventory Name
         id: prepareinventorynames
         run: |
-          hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
+          hosts="environment_name_$(echo ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['TargetEnvironment'] || inputs['TargetEnvironment'] }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
