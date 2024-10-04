@@ -63,7 +63,7 @@ permissions:
 
 jobs:
   deployment:
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['TargetEnvironment'] || inputs['TargetEnvironment'] }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0

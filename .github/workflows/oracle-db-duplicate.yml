@@ -506,7 +506,7 @@ jobs:
           echo "TargetHost=${TargetHost}" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
-          DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_${TargetHost}
+          DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           echo "SourceLegacy=$(echo $Inputs | jq -r '.SourceLegacy')" >> $GITHUB_OUTPUT
           Action='${{ github.event.action }}'
@@ -699,25 +699,6 @@ jobs:
           -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
           -e standby_number=2 \
           -e primary_source_type=active
-
-  oracle-debug:
-    if: always()
-    needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
-    name: oracle-debug
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    timeout-minutes: 1440
-    steps:
-
-      - name: Show Control Variables
-        id: preparation
-        shell: bash
-        run: |
-             echo "Target Host:  >${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}<"
-             echo "Post Dupe:    >${{ needs.oracle-rman-post-duplicate.result }}<"
-             echo "Post HA:      >${{ needs.oracle-build-ha.result }}<"
 
   # Restarting Audit Replication should not take place until after any HAs have been built as we
   # normally want to read from the standby database if available, to reduce load on the primary.
