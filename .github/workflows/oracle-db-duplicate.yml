@@ -94,7 +94,7 @@ jobs:
       SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
 
   oracle-rman-pre-duplicate:
-    if: ${{ (github.event_name != 'repository_dispatch') && ( needs.stop-audit-replication == 'success' || needs.stop-audit-replication == 'skipped' ) }}
+    if: ${{ (github.event_name != 'repository_dispatch') && (success() || skipped()) }}
     needs: [stop-audit-replication]
     name: oracle-rman-pre-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
