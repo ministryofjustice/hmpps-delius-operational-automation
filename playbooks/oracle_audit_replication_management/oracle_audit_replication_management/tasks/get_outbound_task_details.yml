@@ -9,6 +9,9 @@
 - set_fact:
     audited_interaction_task_arn: "{{ get_audited_interaction_task_arn.stdout }}"
 
+- debug:
+    msg: "Audited Interaction Task ARN: {{ audited_interaction_task_arn }}"
+
 - name: Get ARN for Business Interaction Replication Task
   shell: |
     aws dms describe-replication-tasks --filters Name=endpoint-arn,Values={{ source_endpoint }}  --region {{ region }}  | \

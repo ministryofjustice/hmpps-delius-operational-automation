@@ -1,5 +1,31 @@
 ---
-- hosts: localhost
+- hosts: "{{ target_hosts }}"
   gather_facts: no
-  roles:
-    - oracle_audit_replication_management
+  become: true
+  become_user: oracle
+
+  # We run this
+
+  tasks:
+    - name: Get Restart Point
+      when: replication_action == 'restart'
+      block:
+        - name: Get Database Startup SCN
+          script: ../../common/files/get_db_startup_scn.sh
+          register: get_db_startup_scn
+          changed_when: false
+
+        - name: Show Database Startup SCN
+          debug:
+            msg: "Restarting Audit Replication from SCN {{ get_db_startup_scn.stdout | trim }}"
+
+    # Include role inside a block so that it may be delegated
+    - name: Restart Audited Interaction Replication
+      delegate_to: localhost
+      become: no
+      block:
+        - include_role:
+            name: oracle_audit_replication_management
+          vars:
+            replication_action: restart
+            audit_cdc_scn: "{{ get_db_startup_scn.stdout | default('') | trim }}"

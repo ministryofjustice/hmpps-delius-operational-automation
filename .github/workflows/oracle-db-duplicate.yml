@@ -83,8 +83,19 @@ permissions:
   id-token: write
 
 jobs:
+
+  stop-audit-replication:
+    if: ${{ (github.event_name != 'repository_dispatch') && (startsWith(github.event.inputs.TargetHost, 'delius_')) }}
+    uses: ./.github/workflows/oracle-db-audit-replication-management.yml
+    with:
+      TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
+      Action: "stop"
+      SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
+
   oracle-rman-pre-duplicate:
-    if: ${{ github.event_name != 'repository_dispatch' }}
+    if: ${{ (github.event_name != 'repository_dispatch') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
+    needs: [stop-audit-replication]
     name: oracle-rman-pre-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -586,7 +597,7 @@ jobs:
           -e duplicate_target=${{ env.DuplicateTarget }}
 
   oracle-build-ha:
-    if:  ${{ ( needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' ) && github.event.inputs.RestoreDateTime != '0' }}
+    if:  ${{ ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && github.event.inputs.RestoreDateTime != '0' }}
     name: oracle-build-ha
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -688,6 +699,18 @@ jobs:
           -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
           -e standby_number=2 \
           -e primary_source_type=active
+
+  # Restarting Audit Replication should not take place until after any HAs have been built as we
+  # normally want to read from the standby database if available, to reduce load on the primary.
+  restart-audit-replication:
+    uses: ./.github/workflows/oracle-db-audit-replication-management.yml
+    needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
+    if:  ${{ startsWith(needs.oracle-rman-duplicate-check.outputs.TargetHost, 'delius_') && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
+    with:
+      TargetEnvironment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}
+      Action: "restart"
+      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
 
   slack-notification:
     if: ${{ failure() }}
