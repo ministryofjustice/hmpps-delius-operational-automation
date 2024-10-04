@@ -6,6 +6,18 @@ DFI_SCHEMAS="'DFIMIS_LANDING','DFIMIS_SUBSCRIBER','DFIMIS_DATA','DFIMIS_WORKING'
 DFI_SCHEMAS_NO=$(echo ${DFI_SCHEMAS} | sed 's/,/ /g;s/'\''//g' | wc -w | xargs)
 ACTION=${1}
 
+if [ "${ACTION}" == "check" ]
+then
+  sqlplus -s / as sysdba << EOF
+  SET ECHO OFF
+  SET FEED OFF
+  SET LINES 132
+  SELECT instance_role
+  FROM v\$instance;
+EOF
+exit $?
+fi
+
 sqlplus -s / as sysdba << EOF
 SET SERVEROUTPUT ON
 SET ECHO OFF
