@@ -94,7 +94,7 @@ jobs:
       SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
 
   oracle-rman-pre-duplicate:
-    if: ${{ (github.event_name != 'repository_dispatch') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
+    if: ${{ always() && (github.event_name != 'repository_dispatch') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
     needs: [stop-audit-replication]
     name: oracle-rman-pre-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
@@ -724,7 +724,7 @@ jobs:
   restart-audit-replication:
     uses: ./.github/workflows/oracle-db-audit-replication-management.yml
     needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
-    if:  ${{ startsWith(needs.oracle-rman-duplicate-check.outputs.TargetHost, 'delius_') && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
+    if:  ${{ always() && startsWith(needs.oracle-rman-duplicate-check.outputs.TargetHost, 'delius_') && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
     with:
       TargetEnvironment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}
       Action: "restart"
