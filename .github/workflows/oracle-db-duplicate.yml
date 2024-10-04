@@ -84,9 +84,8 @@ permissions:
 
 jobs:
 
-
-  # if: ${{ (github.event_name != 'repository_dispatch') && (startsWith(github.event.inputs.TargetHost, 'delius_')) }}
   stop-audit-replication:
+    if: ${{ (github.event_name != 'repository_dispatch') && (startsWith(github.event.inputs.TargetHost, 'delius_')) }}
     uses: ./.github/workflows/oracle-db-audit-replication-management.yml
     with:
       TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
@@ -598,7 +597,7 @@ jobs:
           -e duplicate_target=${{ env.DuplicateTarget }}
 
   oracle-build-ha:
-    if:  ${{ ( needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' ) && github.event.inputs.RestoreDateTime != '0' }}
+    if:  ${{ ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && github.event.inputs.RestoreDateTime != '0' }}
     name: oracle-build-ha
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -706,7 +705,7 @@ jobs:
   restart-audit-replication:
     uses: ./.github/workflows/oracle-db-audit-replication-management.yml
     needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
-    if:  ${{ startsWith(needs.oracle-rman-duplicate-check.outputs.TargetHost, 'delius_') && ( needs.oracle-rman-post-duplicate == 'success' || needs.oracle-rman-post-duplicate == 'skipped' ) &&  ( needs.oracle-build-ha == 'success' || needs.oracle-build-ha == 'skipped' ) }}
+    if:  ${{ startsWith(needs.oracle-rman-duplicate-check.outputs.TargetHost, 'delius_') && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
     with:
       TargetEnvironment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}
       Action: "restart"
