@@ -6,7 +6,6 @@
   become_user: oracle
 
   tasks:
-
     - name: Check Database Instance Role
       script: dfi_schemas.sh check
       register: check_instance_role
@@ -20,7 +19,6 @@
     - name: Export Only When Instance Is Available
       when: instance_available and action == 'export'
       block:
-
         - name: Export dfi schemas
           script: dfi_schemas.sh {{ action }}
           register: export_dfischemas
@@ -35,7 +33,6 @@
     - name: Import Dfi Schemas
       when: action == 'import'
       block:
-
         - name: Import dfi schemas
           script: dfi_schemas.sh {{ action }}
           register: import_dfischemas
