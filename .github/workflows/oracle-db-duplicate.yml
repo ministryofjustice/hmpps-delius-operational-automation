@@ -506,7 +506,7 @@ jobs:
           echo "TargetHost=${TargetHost}" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
-          DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_${TargetHost}
+          DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           echo "SourceLegacy=$(echo $Inputs | jq -r '.SourceLegacy')" >> $GITHUB_OUTPUT
           Action='${{ github.event.action }}'
