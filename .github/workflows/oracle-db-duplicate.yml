@@ -85,7 +85,7 @@ permissions:
 jobs:
 
   stop-audit-replication:
-    if: ${{ (github.event_name != 'repository_dispatch') && (startsWith(github.event.inputs.TargetHost, 'delius_')) }}
+    # if: ${{ (github.event_name != 'repository_dispatch') && (startsWith(github.event.inputs.TargetHost, 'delius_')) }}
     uses: ./.github/workflows/oracle-db-audit-replication-management.yml
     with:
       TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
