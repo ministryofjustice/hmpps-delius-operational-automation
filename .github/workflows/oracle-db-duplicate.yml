@@ -92,6 +92,7 @@ jobs:
       Action: "stop"
       SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
+      environment: "${{ github.event.inputs.TargetEnvironment }}-preapproved"
 
   oracle-rman-pre-duplicate:
     if: ${{ always() && (github.event_name != 'repository_dispatch') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
@@ -700,25 +701,6 @@ jobs:
           -e standby_number=2 \
           -e primary_source_type=active
 
-  oracle-debug:
-    if: always()
-    needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
-    name: oracle-debug
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    timeout-minutes: 1440
-    steps:
-
-      - name: Show Control Variables
-        id: preparation
-        shell: bash
-        run: |
-             echo "Target Host:  >${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}<"
-             echo "Post Dupe:    >${{ needs.oracle-rman-post-duplicate.result }}<"
-             echo "Post HA:      >${{ needs.oracle-build-ha.result }}<"
-
   # Restarting Audit Replication should not take place until after any HAs have been built as we
   # normally want to read from the standby database if available, to reduce load on the primary.
   restart-audit-replication:
@@ -730,6 +712,7 @@ jobs:
       Action: "restart"
       SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
+      environment: "${{ github.event.inputs.TargetEnvironment }}-preapproved"
 
   slack-notification:
     if: ${{ failure() }}
