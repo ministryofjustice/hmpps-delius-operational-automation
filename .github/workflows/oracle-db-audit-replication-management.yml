@@ -71,10 +71,6 @@ jobs:
     continue-on-error: false
     steps:
 
-      - name: Show account ID
-        run: |
-             echo "AWS ${{ vars.AWS_ACCOUNT_ID }}"
-
       # Always run the stop/start tasks from the Delius primary database host.
       # For stopping it does not really matter, but for restarting we need to read the startup SCN from the database.
       - name: Prepare Inventory Name
