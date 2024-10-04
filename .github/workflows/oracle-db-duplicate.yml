@@ -92,7 +92,6 @@ jobs:
       Action: "stop"
       SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
-      environment: "${{ github.event.inputs.TargetEnvironment }}-preapproved"
 
   oracle-rman-pre-duplicate:
     if: ${{ always() && (github.event_name != 'repository_dispatch') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
@@ -712,7 +711,6 @@ jobs:
       Action: "restart"
       SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      environment: "${{ github.event.inputs.TargetEnvironment }}-preapproved"
 
   slack-notification:
     if: ${{ failure() }}

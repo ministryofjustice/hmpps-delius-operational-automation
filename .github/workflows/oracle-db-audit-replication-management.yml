@@ -49,6 +49,9 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
+      environment:
+        type: string
+        required: true
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
@@ -63,7 +66,7 @@ permissions:
 
 jobs:
   deployment:
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['TargetEnvironment'] || inputs['TargetEnvironment'] }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
