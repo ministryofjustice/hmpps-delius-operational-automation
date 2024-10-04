@@ -49,9 +49,6 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
-      environment:
-        type: string
-        required: true
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
