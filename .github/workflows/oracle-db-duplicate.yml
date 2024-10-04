@@ -701,6 +701,7 @@ jobs:
           -e primary_source_type=active
 
   oracle-debug:
+    if: always()
     needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
     name: oracle-debug
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
