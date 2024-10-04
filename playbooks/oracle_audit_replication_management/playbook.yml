@@ -4,10 +4,9 @@
   become: true
   become_user: oracle
 
-  # We run this 
+  # We run this
 
   tasks:
-
     - name: Get Restart Point
       when: replication_action == 'restart'
       block:
@@ -30,4 +29,3 @@
           vars:
             replication_action: restart
             audit_cdc_scn: "{{ get_db_startup_scn.stdout | default('') | trim }}"
-
