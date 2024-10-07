@@ -245,7 +245,7 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
 
   oracle-rman-export-schema:
-    if: ${{ github.event.inputs.SourceLegacy == 'no' && github.event_name != 'repository_dispatch' }}
+    if: ${{ github.event_name != 'repository_dispatch' }}
     needs: [oracle-rman-pre-duplicate]
     name: oracle-rman-export-schema
     environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }}-preapproved
@@ -329,10 +329,6 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $ansible_playbook_directory/rman-export-import.yml -i $inventory \
-          -e oem_target=${{ steps.preparation.outputs.OemTarget }} \
-          -e action=export \
-          -e export_name=${{ steps.preparation.outputs.ExportName }}
 
   oracle-rman-import-schema:
     if: ${{ github.event_name != 'repository_dispatch' }}
@@ -383,12 +379,6 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $ansible_playbook_directory/rman-export-import.yml -i $inventory \
-          -e oem_target=environment_name_$(echo ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }} | sed 's/-/_/g') \
-          -e action=import \
-          -e export_name=${{ needs.oracle-rman-export-schema.outputs.ExportName }} \
-          -e source_catalog_db=${{ needs.oracle-rman-export-schema.outputs.SourceCatalogDb }} \
-          -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   oracle-rman-duplicate:
     if: ${{ success('oracle-rman-pre-duplicate') && github.event_name != 'repository_dispatch' && (needs.oracle-rman-import-schema.result == 'skipped' || needs.oracle-rman-import-schema.result == 'success') }}
