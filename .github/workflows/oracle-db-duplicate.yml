@@ -598,6 +598,30 @@ jobs:
           $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
           -e duplicate_target=${{ env.DuplicateTarget }}
 
+  oracle-build-ha-debug:
+    name: oracle-build-ha-debug
+    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
+    timeout-minutes: 1440
+    continue-on-error: false
+    env:
+      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
+      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
+      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
+      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
+    outputs:
+      JobId: ${{ github.job }}
+    steps:
+
+      - name: Debug why HA Build is being skipped
+        id: response
+        run: |
+          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
+          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
+
   oracle-build-ha:
     if:  ${{ ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0' }}
     name: oracle-build-ha
