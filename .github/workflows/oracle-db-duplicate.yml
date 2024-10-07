@@ -483,6 +483,7 @@ jobs:
       SourceConfigVersion: ${{ steps.response.outputs.SourceConfigVersion }}
       SourceCodeVersion: ${{ steps.response.outputs.SourceCodeVersion }}
       SourceLegacy: ${{ steps.response.outputs.SourceLegacy }}
+      RestoreDatetime: ${{ steps.response.outputs.RestoreDatetime }}
       JobId: ${{ github.job }}
     steps:
 
