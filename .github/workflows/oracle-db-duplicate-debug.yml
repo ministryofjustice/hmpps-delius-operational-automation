@@ -300,9 +300,7 @@ jobs:
           esac
           OemTarget=environment_name_hmpps_oem_${SourceOemEnvironment}
           echo "OemTarget=${OemTarget}" >> $GITHUB_OUTPUT
-          SourceCatalogDb=$(yq .db_configs.RCVCAT.rcvcat_db_name group_vars/${OemTarget}.yml)
           echo "SourceCatalogDb=${SourceCatalogDb}" >> $GITHUB_OUTPUT
-          echo "SourceDbBackupS3BucketName=$(yq .db_backup_s3_bucket_name group_vars/${OemTarget}.yml)" >> $GITHUB_OUTPUT
           echo "ExportName=RCVCATOWNER_${SourceCatalogDb}" >> $GITHUB_OUTPUT
           case $(echo ${{ github.event.inputs.TargetEnvironment }} | awk -F- '{print $NF}') in
             dev)
