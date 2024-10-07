@@ -483,6 +483,7 @@ jobs:
       SourceConfigVersion: ${{ steps.response.outputs.SourceConfigVersion }}
       SourceCodeVersion: ${{ steps.response.outputs.SourceCodeVersion }}
       SourceLegacy: ${{ steps.response.outputs.SourceLegacy }}
+      RestoreDatetime: ${{ steps.response.outputs.RestoreDatetime }}
       JobId: ${{ github.job }}
     steps:
 
@@ -506,6 +507,7 @@ jobs:
           echo "TargetHost=${TargetHost}" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
+          echo "RestoreDatetime=$(echo $Inputs | jq -r '.RestoreDatetime')" >> $GITHUB_OUTPUT
           DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           echo "SourceLegacy=$(echo $Inputs | jq -r '.SourceLegacy')" >> $GITHUB_OUTPUT
@@ -597,7 +599,7 @@ jobs:
           -e duplicate_target=${{ env.DuplicateTarget }}
 
   oracle-build-ha:
-    if:  ${{ ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && github.event.inputs.RestoreDateTime != '0' }}
+    if:  ${{ ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && needs.oracle-rman-post-duplicate.outputs.RestoreDatetime != '0' }}
     name: oracle-build-ha
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
