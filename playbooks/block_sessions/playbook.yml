@@ -97,7 +97,19 @@
             jump: "REJECT"
             state: present
 
+        - name: Check Database State
+          script: ../../common/files/get_database_state.sh
+          become: yes
+          become_user: oracle
+          register: get_database_state
+          changed_when: false
+
+        - name: Set Fact For Database State
+          set_fact:
+            database_open: "{{ ('READ WRITE' in get_database_state.stdout) }}"
+
         - name: Disconnect sessions which are connected to the database
+          when: database_open
           script: disconnect_database_sessions.sh
           become: yes
           become_user: oracle
