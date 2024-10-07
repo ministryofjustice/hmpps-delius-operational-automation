@@ -469,12 +469,11 @@ jobs:
   oracle-rman-duplicate-check:
     name: oracle-rman-duplicate-check
     needs: [oracle-rman-duplicate]
-    if: ${{ ( needs.oracle-rman-duplicate.result == 'success' || needs.oracle-rman-duplicate.result == 'skipped' ) }}
     environment: ${{ github.event.client_payload.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    continue-on-error: false
+    continue-on-error: true
     outputs:
       TargetEnvironment: ${{ steps.response.outputs.TargetEnvironment }}
       TargetHost: ${{ steps.response.outputs.TargetHost }}
