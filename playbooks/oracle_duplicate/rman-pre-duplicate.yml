@@ -5,7 +5,6 @@
   become_user: oracle
 
   tasks:
-
     - name: Check Database State
       script: ../../common/files/get_database_state.sh
       register: get_database_state
@@ -20,7 +19,6 @@
     - name: Include Tasks
       when: hostvars.localhost.database_open
       block:
-
         - name: Store readonly passwords
           include_tasks: "{{ playbook_dir }}/../delius_users/playbook.yml"
           vars:

@@ -146,7 +146,6 @@
     - name: Carry Out Following Tasks
       when: database_open
       block:
-
         - name: Check Delius Schema Exists
           script: check_delius_schema.sh
           become: yes
