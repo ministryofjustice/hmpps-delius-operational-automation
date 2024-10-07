@@ -1,9 +1,6 @@
 name: "Oracle: Database Duplicate (Debug)"
 run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) || 'iterative-call-for' }}-database-duplicate-debug"
 on:
-  push:
-    branches:
-      - "DBA-767"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
@@ -470,7 +467,6 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
         
   oracle-rman-duplicate-check:
-    if: ${{ github.event_name == 'repository_dispatch' }}
     name: oracle-rman-duplicate-check
     needs: [oracle-rman-duplicate]
     environment: ${{ github.event.client_payload.TargetEnvironment }}-preapproved
@@ -524,7 +520,6 @@ jobs:
           fi
 
   oracle-rman-post-duplicate:
-    if: ${{ github.event_name == 'repository_dispatch' }}
     name: oracle-rman-post-duplicate
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
