@@ -470,14 +470,6 @@ jobs:
       JobId: ${{ github.job }}
     steps:
 
-      - name: Configure AWS Credentials
-        id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
-          aws-region: "eu-west-2"
-
       - name: Responding to Repository Dispatch event
         id: response
         run: |
