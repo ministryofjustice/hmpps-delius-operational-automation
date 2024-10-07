@@ -1,6 +1,9 @@
-name: "Oracle: Database Duplicate"
-run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) || 'iterative-call-for' }}-database-duplicate"
+name: "Oracle: Database Duplicate (Debug)"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) || 'iterative-call-for' }}-database-duplicate-debug"
 on:
+  push:
+    branches:
+      - "DBA-767"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
@@ -465,12 +468,11 @@ jobs:
              extra_vars="-e source_legacy=yes -e noop_mode=$NoOpMode"
           fi        
           export ANSIBLE_CONFIG=$ansible_config
-          $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget }} ${extra_vars} -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs"
-
+        
   oracle-rman-duplicate-check:
     if: ${{ github.event_name == 'repository_dispatch' }}
     name: oracle-rman-duplicate-check
+    needs: [oracle-rman-duplicate]
     environment: ${{ github.event.client_payload.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
@@ -595,8 +597,6 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ env.DuplicateTarget }}
 
   oracle-build-ha-debug:
     name: oracle-build-ha-debug
