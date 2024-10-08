@@ -73,6 +73,17 @@
 
     - debug: var=oem_ip
 
+    - name: Check Database State
+      script: ../../common/files/get_database_state.sh
+      become: yes
+      become_user: oracle
+      register: get_database_state
+      changed_when: false
+
+    - name: Set Fact For Database State
+      set_fact:
+        database_open: "{{ ('READ WRITE' in get_database_state.stdout) }}"
+
     - block:
         - name: Accept inbound access on database port 1521
           iptables:
@@ -98,6 +109,7 @@
             state: present
 
         - name: Disconnect sessions which are connected to the database
+          when: database_open
           script: disconnect_database_sessions.sh
           become: yes
           become_user: oracle
@@ -131,51 +143,54 @@
 
       when: action == "unblock"
 
-    - name: Check Delius Schema Exists
-      script: check_delius_schema.sh
-      become: yes
-      become_user: oracle
-      register: delius_schema_exists
-      failed_when: delius_schema_exists.rc == 1 and (delius_schema_exists.stdout is not search('database not open'))
-
-    - name: Set Delius Schema
-      set_fact:
-        delius_exists: "{{ 'TRUE' in delius_schema_exists.stdout | default(false) }}"
-
-    - name: Carry Out Delius Tasks
-      when: delius_exists | default(false) | bool
+    - name: Carry Out Following Tasks
+      when: database_open
       block:
-        - name: Get Multi Threaded Worker Semaphore Main Component Setting
-          script: get_pdt_semaphore.sh
-          register: get_pdt_semaphore
+        - name: Check Delius Schema Exists
+          script: check_delius_schema.sh
           become: yes
           become_user: oracle
-          changed_when: false
-          failed_when: get_pdt_semaphore.rc != 0 and not (ignore_flashback | default(false) | bool)
+          register: delius_schema_exists
+          failed_when: delius_schema_exists.rc == 1 and (delius_schema_exists.stdout is not search('database not open'))
 
-        - name: Show Semaphore Setting
-          debug: var=get_pdt_semaphore.stdout
+        - name: Set Delius Schema
+          set_fact:
+            delius_exists: "{{ 'TRUE' in delius_schema_exists.stdout | default(false) }}"
 
-        # When Blocking Sessions, we want to also disable Scheduler Jobs as these may cause locking or latching
-        # conflicts with the application deployment.   This can be done using the DELIUS_APP_SCHEMA.PKG_PERF_COLLECTOR package.
-        # This updates the PDT_SEMAPHORE table to set a STOP signal for the master component
-        # (this is only required if no semaphore record already in place).
-        #
-        # When Unblocking Sessions we can re-enable the master component.   This is only required if a STOP signal
-        # row is already in the PDT_SEMAPHORE table.   Generally this will not be required as the Uplift Scripts remove the
-        # semaphores as part of a successful run (and does not re-enable the Collector job until the end of the Uplift),
-        # but we include this as a fallback in case the Uplift is not run (or fails prior to semaphore removal).
-        #
-        - name: Toggle Delius Multi Threaded Worker Processes
-          when: ( action == 'block'   and ( get_pdt_semaphore.stdout | trim ) == 'NOT_STOPPED' )
-            or ( action == 'unblock' and ( get_pdt_semaphore.stdout | trim ) == 'STOP' )
+        - name: Carry Out Delius Tasks
+          when: delius_exists | default(false) | bool
           block:
-            - name: Run Toggle Script
-              script: "toggle_mt_workers.sh {{ action }}"
+            - name: Get Multi Threaded Worker Semaphore Main Component Setting
+              script: get_pdt_semaphore.sh
+              register: get_pdt_semaphore
               become: yes
               become_user: oracle
-              register: toggle_mt_workers
-              failed_when: toggle_mt_workers.rc != 0 and not (ignore_flashback | default(false) | bool)
+              changed_when: false
+              failed_when: get_pdt_semaphore.rc != 0 and not (ignore_flashback | default(false) | bool)
 
-            - name: Show Toggle Output
-              debug: var=toggle_mt_workers.stdout
+            - name: Show Semaphore Setting
+              debug: var=get_pdt_semaphore.stdout
+
+            # When Blocking Sessions, we want to also disable Scheduler Jobs as these may cause locking or latching
+            # conflicts with the application deployment.   This can be done using the DELIUS_APP_SCHEMA.PKG_PERF_COLLECTOR package.
+            # This updates the PDT_SEMAPHORE table to set a STOP signal for the master component
+            # (this is only required if no semaphore record already in place).
+            #
+            # When Unblocking Sessions we can re-enable the master component.   This is only required if a STOP signal
+            # row is already in the PDT_SEMAPHORE table.   Generally this will not be required as the Uplift Scripts remove the
+            # semaphores as part of a successful run (and does not re-enable the Collector job until the end of the Uplift),
+            # but we include this as a fallback in case the Uplift is not run (or fails prior to semaphore removal).
+            #
+            - name: Toggle Delius Multi Threaded Worker Processes
+              when: ( action == 'block'   and ( get_pdt_semaphore.stdout | trim ) == 'NOT_STOPPED' )
+                or ( action == 'unblock' and ( get_pdt_semaphore.stdout | trim ) == 'STOP' )
+              block:
+                - name: Run Toggle Script
+                  script: "toggle_mt_workers.sh {{ action }}"
+                  become: yes
+                  become_user: oracle
+                  register: toggle_mt_workers
+                  failed_when: toggle_mt_workers.rc != 0 and not (ignore_flashback | default(false) | bool)
+
+                - name: Show Toggle Output
+                  debug: var=toggle_mt_workers.stdout
