@@ -595,294 +595,8 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
-          # $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          # -e duplicate_target=${{ env.DuplicateTarget }}
-
-  oracle-build-ha-debug-1:
-    name: oracle-build-ha-debug-1
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Debug why HA Build is being skipped
-        id: response
-        run: |
-          echo "DEBUG 1"
-          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
-          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
-  oracle-build-ha-debug-2:
-    if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0') }}
-    name: oracle-build-ha-debug-2
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Debug why HA Build is being skipped
-        id: response
-        run: |
-          echo "DEBUG 2"
-          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
-          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
-  oracle-build-ha-debug-3:
-    if:  ${{ needs.oracle-rman-post-duplicate.result == 'success'  }}
-    name: oracle-build-ha-debug-3
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Debug why HA Build is being skipped
-        id: response
-        run: |
-          echo "DEBUG 3"
-          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
-          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
-  oracle-build-ha-debug-4:
-    if:  ${{ needs.oracle-rman-post-duplicate.result == 'skipped'  }}
-    name: oracle-build-ha-debug-4
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Debug why HA Build is being skipped
-        id: response
-        run: |
-          echo "DEBUG 4"
-          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
-          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
-  oracle-build-ha-debug-5:
-    if:  ${{ ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) }}
-    name: oracle-build-ha-debug-5
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Debug why HA Build is being skipped
-        id: response
-        run: |
-          echo "DEBUG 5"
-          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
-          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
-  oracle-build-ha-debug-6:
-    if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0')  && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) }}
-    name: oracle-build-ha-debug-6
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Debug why HA Build is being skipped
-        id: response
-        run: |
-          echo "DEBUG 6"
-          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
-          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
-  oracle-build-ha-debug-7:
-    if:  ${{ always() && (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0')  && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) }}
-    name: oracle-build-ha-debug-7
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Debug why HA Build is being skipped
-        id: response
-        run: |
-          echo "DEBUG 7"
-          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
-          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
-  oracle-build-ha-debug-8:
-    if:  ${{ !(needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == '0') }}
-    name: oracle-build-ha-debug-8
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Debug why HA Build is being skipped
-        id: response
-        run: |
-          echo "DEBUG 8"
-          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
-          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
-  oracle-build-ha-debug-9:
-    if:  ${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == '' }}
-    name: oracle-build-ha-debug-9
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Debug why HA Build is being skipped
-        id: response
-        run: |
-          echo "DEBUG 9"
-          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
-          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
-  oracle-build-ha-debug-10:
-    if:  ${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == null }}
-    name: oracle-build-ha-debug-10
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Debug why HA Build is being skipped
-        id: response
-        run: |
-          echo "DEBUG 10"
-          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
-          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
-  oracle-build-ha-debug-11:
-    if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0' || needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == null) && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' )  }}
-    name: oracle-build-ha-debug-11
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
-    timeout-minutes: 1440
-    continue-on-error: false
-    env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      TargetHost: ${{ needs.oracle-rman-duplicate-check.outputs.TargetHost }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-    outputs:
-      JobId: ${{ github.job }}
-    steps:
-
-      - name: Debug why HA Build is being skipped
-        id: response
-        run: |
-          echo "DEBUG 10"
-          echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
-          echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
+          $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
+          -e duplicate_target=${{ env.DuplicateTarget }}
 
   oracle-build-ha:
     if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0' || needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == null) && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) }}
@@ -922,23 +636,28 @@ jobs:
           database_type=$(echo ${{ env.TargetHost }} | cut -d_ -f1)
           database_environment=$(echo ${{ env.DuplicateTarget }} | awk -F_${{ env.TargetHost }} '{print $1}')
           high_availability_count=$(yq .high_availability_count.${database_type} group_vars/${database_environment}_all.yml)
-          if [[ ${high_availability_count} -eq 0 ]]
+          if [ ${high_availability_count} -eq 0 ]
           then
             echo "No standbydb's configured"
             exit 0
           fi
-          if [[ ${high_availability_count} -ge 1 ]]
+          if [ ${high_availability_count} -ge 1 ]
           then
             echo "standbydb1Host=$(echo ${{ env.DuplicateTarget }} | sed 's/primarydb/standbydb1/')"  >> $GITHUB_OUTPUT
           fi
-          if [[ ${high_availability_count} -eq 2 ]]
+          if [ ${high_availability_count} -eq 2 ]
           then
             echo "standbydb2Host=$(echo ${{ env.DuplicateTarget }} | sed 's/primarydb/standbydb2/')" >> $GITHUB_OUTPUT
           fi
           echo "high_availability_count=${high_availability_count}" >> $GITHUB_OUTPUT
 
           fsfo_mode=$(yq '.fsfo_mode' group_vars/${{ env.DuplicateTarget }}.yml)
-          [ "$fsfo_mode" == "null" ] && echo 'fsfo_mode="disabled"' >> $GITHUB_OUTPUT || echo "fsfo_mode=$fsfo_mode" >> $GITHUB_OUTPUT
+          if [ "$fsfo_mode" = "null" ] 
+          then
+            echo 'fsfo_mode="disabled"' >> $GITHUB_OUTPUT
+          else
+            echo "fsfo_mode=$fsfo_mode" >> $GITHUB_OUTPUT
+          fi
 
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
