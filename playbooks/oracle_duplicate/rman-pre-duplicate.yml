@@ -5,16 +5,30 @@
   become_user: oracle
 
   tasks:
-    - name: Store readonly passwords
-      include_tasks: "{{ playbook_dir }}/../delius_users/playbook.yml"
-      vars:
-        action_type: "store"
-      when:
-        - duplicate_target | regex_search('.*_delius_primarydb')
+    - name: Check Database State
+      script: ../../common/files/get_database_state.sh
+      register: get_database_state
+      changed_when: false
 
-    - name: Export Automatic Workload Repository (AWR)
-      include_tasks: ../awr_export/playbook.yml
-      when: aws_environment | regex_search('preproduction')
+    - name: Set Fact For Database State
+      delegate_to: localhost
+      delegate_facts: true
+      set_fact:
+        database_open: "{{ ('READ WRITE' in get_database_state.stdout) }}"
+
+    - name: Include Tasks
+      when: hostvars.localhost.database_open
+      block:
+        - name: Store readonly passwords
+          include_tasks: "{{ playbook_dir }}/../delius_users/playbook.yml"
+          vars:
+            action_type: "store"
+          when:
+            - duplicate_target | regex_search('.*_delius_primarydb')
+
+        - name: Export Automatic Workload Repository (AWR)
+          include_tasks: ../awr_export/playbook.yml
+          when: aws_environment | regex_search('preproduction')
 
     # - name: Trigger GitHub Actions workflow to switch probation integration services to read-only mode
     #   when: environment_name == 'delius-pre-prod' and duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
@@ -84,7 +98,3 @@
     target_host: "{{ duplicate_target }}"
     action: "block"
   when: duplicate_target |  regex_search('.*_delius_primarydb')
-# Propagate remaining Audited Interaction Data from the database prior to deletion
-# if an audited_interaction_repo has been defined within this environment
-# (May be skipped if source database is corrupt or unavailable although this should not normally be done)
-# TO BE DEVELOPED
