@@ -166,7 +166,7 @@ jobs:
           aws ssm put-parameter --region eu-west-2 --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)" --description "Runtime status details of duplicate jobs"
 
       - name: Check Restore DateTime Input
-        if: ${{ ( github.event.inputs.RestoreDatetime != '' ) && ( github.event.inputs.RestoreDatetime != '0') }}
+        if: ${{ ( github.event.inputs.RestoreDatetime != '' ) && ! ( github.event.inputs.RestoreDatetime == '0') }}
         shell: bash
         run: |
           isDateInvalid()
