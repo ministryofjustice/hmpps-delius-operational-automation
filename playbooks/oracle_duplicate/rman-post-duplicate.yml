@@ -80,11 +80,6 @@
       vars:
         target_host: "{{ duplicate_target }}"
 
-    # - name: Restart Audited Interaction Replication
-    #   when:  duplicate_target | regex_search('.*_delius_primarydb')
-    #   block:
-    #    TO BE DEVELOPED
-
     # Although the new database would be registered automatically during the next backup, we do the registration
     # now in advance as this allows us to backup any archive logs which may be required to support a restore point
     # before the first backup has been taken.

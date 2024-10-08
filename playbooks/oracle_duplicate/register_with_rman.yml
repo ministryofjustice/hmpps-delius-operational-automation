@@ -3,8 +3,15 @@
   set_fact:
     account_ids: "{{ lookup('aws_ssm', 'account_ids', region='eu-west-2') }}"
 
+- name: Check Catalog Set In Tnsnames
+  shell: |
+    . ~/.bash_profile > /dev/null 1>&2
+    grep {{ catalog }} ${ORACLE_HOME}/network/admin/tnsnames.ora | wc -l | cat
+  register: catalog_exists
+
 # Ignore RMAN-20002 when database has already been registered
 - name: Register Database with RMAN Catalog
+  when: catalog_exists.stdout | int > 0
   script: register_with_rman.sh "{{ database_primary_sid }}"
   environment:
     CATALOG: "{{ catalog }}"
