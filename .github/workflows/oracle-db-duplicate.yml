@@ -166,7 +166,7 @@ jobs:
           aws ssm put-parameter --region eu-west-2 --name "/oracle-duplicate/${DuplicateTarget}" --type String --overwrite --value "$(echo $Inputs | jq -r)" --description "Runtime status details of duplicate jobs"
 
       - name: Check Restore DateTime Input
-        if: ${{ github.event.inputs.RestoreDateTime != '' }}
+        if: ${{ ( github.event.inputs.RestoreDatetime != '' ) && ! ( github.event.inputs.RestoreDatetime == '0') }}
         shell: bash
         run: |
           isDateInvalid()
@@ -196,7 +196,7 @@ jobs:
                   echo "Restore Datetime ${DATE} invalid!"
               fi
           }
-          isDateInvalid '${{ github.event.inputs.RestoreDateTime }}'
+          isDateInvalid '${{ github.event.inputs.RestoreDatetime }}'
 
       - name: Checkout hmpps-delius-operation-automation
         uses: actions/checkout@v4
@@ -443,7 +443,7 @@ jobs:
       - name: Start Ansible Oracle RMAN Duplicate
         shell: bash
         run: |
-          # If we have specified a RestoreDatetimne of '0' then this is a NoOp duplicate,
+          # If we have specified a RestoreDatetime of '0' then this is a NoOp duplicate,
           # where we skip the RMAN duplicate step itself -- intended to speed up the
           # workflow when doing development
           if [[ "${{ github.event.inputs.RestoreDatetime }}" == "0" ]]
@@ -623,7 +623,7 @@ jobs:
           echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
 
   oracle-build-ha:
-    if:  ${{ ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0' }}
+    if:  ${{ always() && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && ! (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == '0') }}
     name: oracle-build-ha
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
