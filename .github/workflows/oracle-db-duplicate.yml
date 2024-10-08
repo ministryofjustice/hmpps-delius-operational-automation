@@ -623,7 +623,7 @@ jobs:
           echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
 
   oracle-build-ha:
-    if:  ${{ always() && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && ! (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == '0') }}
+    if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0')  && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) }}
     name: oracle-build-ha
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
