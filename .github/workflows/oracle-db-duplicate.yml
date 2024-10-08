@@ -779,7 +779,6 @@ jobs:
           echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
           echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
 
-
   oracle-build-ha-debug-8:
     if:  ${{ !(needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == '0') }}
     name: oracle-build-ha-debug-2
@@ -857,7 +856,6 @@ jobs:
           echo "DEBUG 10"
           echo "needs.oracle-rman-post-duplicate.result: >>${{ needs.oracle-rman-post-duplicate.result }}<<"
           echo "needs.oracle-rman-duplicate-check.outputs.RestoreDatetime: >>${{ needs.oracle-rman-duplicate-check.outputs.RestoreDatetime }}<<"
-
 
   oracle-build-ha:
     if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0')  && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) }}
