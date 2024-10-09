@@ -61,7 +61,7 @@
         patterns: alf.[0-9][0-9].crt
       register: files_to_delete
 
-    - name: Remove Any Pre-Existing Individual Cerificate Files
+    - name: Remove Any Pre-Existing Individual Certificate Files
       file:
         path: "{{ item.path }}"
         state: absent
@@ -122,23 +122,15 @@
     # We will use the System Password as the Wallet Password
     - name: Get system password from Secrets Manager
       shell: |
-        export PATH=$PATH:/usr/local/bin
-        INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-        ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-        DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-        APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
-        aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .system
+          aws secretsmanager get-secret-value --secret-id {{ environment_name }}-oracle-db-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .system
       register: oradb_system_password
-      # no_log: true
+      no_log: true
       changed_when: false
 
     - name: Set System Password
       set_fact:
         system_pwd: "{{ oradb_system_password.stdout }}"
-      # no_log: true
-
-    - debug:
-         msg: "PWD: >>{{ system_pwd }}"
+      no_log: true
 
     - name: Create Wallet if it does not already exist
       shell: |
@@ -147,7 +139,7 @@
       args:
         creates: "{{ wallet_dir }}/cwallet.sso"
       register: orapki_out
-      # no_log: true
+      no_log: true
 
     - name: Check Existing Wallet Password is Correct
       include_tasks: check-password.yml
@@ -209,10 +201,14 @@
       with_items: "{{ certificate_files.files }}"
       register: tmp_certificates
 
+    - name: Initialise Dictionary of Certificates
+      set_fact:
+         certificate_dict: {}
+
     - name: Create Dictionary of Certificates Available to be Loaded into Wallet
       set_fact:
-        certificate_dict: "{{ certificate_dict | combine(item) }}"
-      with_items: "{{ tmp_certificates.results | map(attribute='ansible_facts.tmp_certificate') | list }}"
+        certificate_dict: "{{ certificate_dict | combine(item, list_merge='append') }}"
+      loop: "{{ tmp_certificates.results | map(attribute='ansible_facts.tmp_certificate') | list }}"
 
     - name: Calculate Checksums for all Certificates Available to be Loaded
       include_tasks: get-checksum.yml
