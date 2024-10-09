@@ -129,13 +129,16 @@
         APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
         aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .system
       register: oradb_system_password
-      no_log: true
+      # no_log: true
       changed_when: false
 
     - name: Set System Password
       set_fact:
         system_pwd: "{{ oradb_system_password.stdout }}"
-      no_log: true
+      # no_log: true
+
+    - debug:
+         msg: "PWD: >>{{ system_pwd }}"
 
     - name: Create Wallet if it does not already exist
       shell: |
@@ -144,7 +147,7 @@
       args:
         creates: "{{ wallet_dir }}/cwallet.sso"
       register: orapki_out
-      no_log: true
+      # no_log: true
 
     - name: Check Existing Wallet Password is Correct
       include_tasks: check-password.yml
