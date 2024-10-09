@@ -1,27 +1,7 @@
 ---
-# - name: Check location of spg.tfvar when run from CodeBuild
-#   local_action: stat path="{{ inventory_dir }}/../{{ environment_name }}/sub-projects/spg.tfvars"
-#   become: no
-#   register: spg_tfvars_location_1
-
-# - name: Get the Alfresco URL from the Terraform File (CodeBuild)
-#   set_fact:
-#      spg_document_rest_service_public_url: "{{ lookup('file', '{{ spg_tfvars_location_1.stat.path }}') | regex_search('.*SPG_DOCUMENT_REST_SERVICE_PUBLIC_URL.*') | regex_replace('.*=(.*)','\\1') | replace('\"','') }}"
-#   when: spg_tfvars_location_1.stat.exists
-
-# - name: Check location of spg.tfvar when ansible run directly from command line
-#   local_action: stat path="{{ inventory_dir }}/../sub-projects/spg.tfvars"
-#   become: no
-#   register: spg_tfvars_location_2
-
-# - name: Get the Alfresco URL from the Terraform File (Command Line)
-#   set_fact:
-#      spg_document_rest_service_public_url: "{{ lookup('file', '{{ spg_tfvars_location_2.stat.path }}') | regex_search('.*SPG_DOCUMENT_REST_SERVICE_PUBLIC_URL.*') | regex_replace('.*=(.*)','\\1') | replace('\"','') }}"
-#   when: spg_tfvars_location_2.stat.exists
-
 - name: Get Alfresco Host
   set_fact:
-    alfresco_host: "{{ spg_document_rest_service_public_url | default('NOT CONFIGURED') | regex_replace('https://(.*?)/.*$','\\1') }}"
+    alfresco_host: "{{ alfresco_public_url | default('NOT CONFIGURED') | regex_replace('https://(.*?)/.*$','\\1') }}"
 
 - name: Check that we can connect to the Alfresco server from the host
   uri:
@@ -43,8 +23,8 @@
     - name: Set Alfresco URL Specific for this environment
       script: set_alfresco_url.sh
       environment:
-        ALFRESCO_URL: "{{ spg_document_rest_service_public_url | trim }}"
-      when: spg_document_rest_service_public_url | trim !=  ( getalfrescourl.stdout | default('NOT CONFIGURED') )
+        ALFRESCO_URL: "{{ alfresco_public_url | trim }}"
+      when: alfresco_public_url | trim !=  ( getalfrescourl.stdout | default('NOT CONFIGURED') )
 
     - name: Create Access Control Entry for the Alfresco Host
       script: create_host_ace.sh
@@ -143,7 +123,11 @@
     - name: Get system password from Secrets Manager
       shell: |
         export PATH=$PATH:/usr/local/bin
-        aws secretsmanager get-secret-value --secret-id {{ environment_name }}-oracle-db-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .system
+        INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+        ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
+        DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
+        APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
+        aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .system
       register: oradb_system_password
       no_log: true
       changed_when: false
