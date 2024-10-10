@@ -32,8 +32,6 @@
     - name: Deploy Alfresco Wallet
       include_role:
         name: "{{ playbook_dir }}/alfresco_wallet/alfresco_wallet"
-      vars:
-        certificate_dict: {}
       when: deploy_alfresco_wallet | default('no') == "yes"
 
     - name: Deploy Gdpr
