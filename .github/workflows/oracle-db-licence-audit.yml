@@ -28,7 +28,7 @@ jobs:
     name: oracle-licence-audit
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -94,6 +94,7 @@ jobs:
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          role-duration-seconds: 21600
           aws-region: "eu-west-2"
           output-credentials: true
 
