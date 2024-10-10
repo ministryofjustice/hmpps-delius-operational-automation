@@ -110,6 +110,7 @@ jobs:
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          role-duration-seconds: 21600
           aws-region: "eu-west-2"
 
       - name: Run Oracle Audit Replication Management Playbook
