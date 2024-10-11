@@ -446,6 +446,18 @@ remove_standby_parameter_files () {
   [ $? -ne 0 ] && error "Removing standby parameter files"
 }
 
+report_asm_diskgroup_status () {
+  set_ora_env +ASM
+  ASM_DISKGROUP_STATUS=$(sqlplus -s / as sysasm<<EOSQL
+  SET HEAD OFF
+  SET PAGES 0
+  select listagg(name||'==>'||state,'; ') from v\$asm_diskgroup;
+EOSQL
+  )
+  info "ASM diskgroup status: ${ASM_DISKGROUP_STATUS}"
+  set_ora_env ${STANDBYDB}
+}
+
 # ------------------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------------------
@@ -579,6 +591,9 @@ then
 
   # Startup no mount standby instance for rman duplicate
   startup_mount_standby
+
+  # Report ASM diskgroup status (debug ORA-15001 issue)
+  report_asm_diskgroup_status
 
   # Perform rman duplicate
   rman_duplicate_to_standby
