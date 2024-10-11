@@ -446,16 +446,23 @@ remove_standby_parameter_files () {
   [ $? -ne 0 ] && error "Removing standby parameter files"
 }
 
-report_asm_diskgroup_status () {
-  set_ora_env +ASM
+get_asm_diskgroup_status () {
+  SID=$1
+  set_ora_env $SID
   ASM_DISKGROUP_STATUS=$(sqlplus -s / as sysasm<<EOSQL
   SET HEAD OFF
   SET PAGES 0
   select listagg(name||'==>'||state,'; ') from v\$asm_diskgroup;
 EOSQL
   )
-  info "ASM diskgroup status: ${ASM_DISKGROUP_STATUS}"
-  set_ora_env ${STANDBYDB}
+  info "Diskgroup status (from $SID): ${ASM_DISKGROUP_STATUS}"  
+}
+
+report_asm_diskgroup_status () {
+  # Allow time for disk group changes to be updated
+  sleep 120
+  get_asm_diskgroup_status +ASM
+  get_asm_diskgroup_status ${STANDBYDB}
 }
 
 # ------------------------------------------------------------------------------
