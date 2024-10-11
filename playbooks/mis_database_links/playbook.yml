@@ -56,13 +56,36 @@
       )
     marker: "# {mark} ANSIBLE MANAGED BLOCK ADD DELIUS {{ delius_database }}"
 
+- set_fact:
+    oem_secretsmanager_passwords:
+      emrep:
+        account_name: "hmpps-oem-{{ aws_environment }}"
+        assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
+        secret: "/oracle/database/EMREP/shared-passwords"
+        users:
+          - sysman:
+    delius_environment_name: "{{ environment_name | regex_replace('mis', 'core') }}"
+
+- set_fact:
+    sql_cmd: "HOST aws ssm get-parameters --with-decryption --name account_ids | jq -r .Parameters[].Value | jq -r 'with_entries(if (.key|test(\\\"{{ delius_environment_name }}\\\")) then ( {key: .key, value: .value}) else empty end)' | jq -r 'to_entries|.[0].value'"
+
+- name: Get SYSMAN Password
+  include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
+
+- name: Copy EMCLI Login script
+  template:
+    src: "{{ playbook_dir }}/../../common/templates/emcli_login.sh.j2"
+    dest: "/tmp/emcli_login.sh"
+    mode: "0700"
+
 - name: Create database links
   shell:
     cmd: |
       . ~/.bash_profile
+      . /tmp/emcli_login.sh
+      DELIUS_AWS_ACCOUNT_ID=$({{ emcli }} execute_sql -sql="{{ sql_cmd }}" -targets="EMREP:oracle_database" | grep -v "*" | tail -3 | head -1)
+      DELIUS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id "arn:aws:secretsmanager:eu-west-2:${DELIUS_AWS_ACCOUNT_ID}:secret:{{ delius_environment_name }}-oracle-db-application-passwords" --query SecretString --output text| jq -r .delius_app_schema)
       USER_PASSWORD=$(aws secretsmanager get-secret-value --secret-id {{ environment_name }}-oracle-mis-db-application-passwords --query SecretString --output text| jq -r .{{ item.user }})
-      DELIUS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id {{ environment_name | regex_replace('mis', 'core') }}-oracle-db-application-passwords --query SecretString --output text| jq -r .delius_app_schema)
-      DELIUS_PASSWORD=f4eqDeL901a0G2CH
       ORACLE_SID={{ database_primary_sid }}
       ORAENV_ASK=NO
       . oraenv > /dev/null;
