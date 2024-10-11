@@ -39,7 +39,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     timeout-minutes: 1440
     continue-on-error: false
     steps:
@@ -80,6 +80,7 @@ jobs:
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          role-duration-seconds: 21600
           aws-region: "eu-west-2"
 
       - name: Run Delius Flashback Data Archive Playbook

@@ -53,11 +53,11 @@ BEGIN
     INTO lc_count
     FROM dba_directories
     WHERE directory_name = 'DATA_PUMP_DIR'
-    AND directory_path = '/u01/app/oracle/admin/${ORACLE_SID}/dpdump/test/';
+    AND directory_path = '/u01/app/oracle/admin/${ORACLE_SID}/dpdump';
 
     IF lc_count = 0
     THEN
-      EXECUTE IMMEDIATE q'[CREATE OR REPLACE DIRECTORY DATA_PUMP_DIR AS '/u01/app/oracle/admin/${ORACLE_SID}/dpdump/test/']';
+      EXECUTE IMMEDIATE q'[CREATE OR REPLACE DIRECTORY DATA_PUMP_DIR AS '/u01/app/oracle/admin/${ORACLE_SID}/dpdump']';
     END IF;
 
     IF lc_job_mode = 'EXPORT'

@@ -86,7 +86,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.41.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     timeout-minutes: 1440
     env:
       command: ansible-playbook operations/playbooks/oracle_interim_patch/playbook.yml
@@ -133,6 +133,7 @@ jobs:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
+          role-duration-seconds: 21600
 
       - name: Start Oracle Patching
         run: |
