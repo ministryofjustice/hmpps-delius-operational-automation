@@ -70,7 +70,7 @@ jobs:
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
-          sparse-checkout: playbooks/oracle_delius_audit_replication_schema
+          sparse-checkout: playbooks/delius_audit_replication_schema
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
