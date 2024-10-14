@@ -28,12 +28,9 @@
     - "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
     - "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
 
-- debug:
-     msg: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten }}"
-
 - name: This is an Audited Interaction Client Environment if a Source Endpoint Exists
   set_fact:
-     is_audit_client: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten | select('string') | select('length','>',0) | list | length > 0 }}"
+     is_audit_client: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten | select('string') | select('!=','') | list | length > 0 }}"
 
 - name: Is Audit Client
   debug:

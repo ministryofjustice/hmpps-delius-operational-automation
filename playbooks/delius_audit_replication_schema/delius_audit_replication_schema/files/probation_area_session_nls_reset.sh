@@ -8,7 +8,7 @@ WHENEVER SQLERROR EXIT FAILURE;
 SET SERVEROUT ON
 
 CREATE OR REPLACE TRIGGER delius_user_support.audit_control_on_probation_area_user
-FOR delete OR update OR insert ON delius_app_schema.user_
+FOR delete OR update OR insert ON delius_app_schema.probation_area_user
 COMPOUND TRIGGER
 
   BEFORE STATEMENT IS
