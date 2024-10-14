@@ -1,5 +1,5 @@
 name: "Oracle: Delius Audit Replication Schema Setup"
-run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-statspack-setup"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-delius-audit-replication-schema-setup"
 on:
   push:
      branches:
@@ -51,7 +51,7 @@ jobs:
         id: prepareinventorynames
         run: |
           target_host="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
-          echo "target_hosts=${target_host}" >> $GITHUB_OUTPUT
+          echo "target_host=${target_host}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
