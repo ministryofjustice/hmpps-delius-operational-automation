@@ -1,0 +1,106 @@
+# Populate the DELIUS_AUDIT_DMS_POOL schema in all Delius databases.
+# This schema is used in two directions:
+# (1) In the production repository (REPO DB) it is used to Stage and Store incoming AUDITED_INTERACTION data changes.
+# (2) In the non-production databases (CLIENT DB) it is used to Stage and Store incoming USER_ and STAFF data changes.
+# Staging tables for both directions are created in all Delius databases for consistency and to allow roles to be readily changed.
+
+
+- name: Get Database Environment
+  set_fact:
+    database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
+
+# There is currently no DMS Functionality in the Amazon.Aws Collection
+# so we will use the AWSCLI instead
+
+# We need to run the describe endpoints on the Ansible controller as the EC2 instance will not have privileges for this;
+# we force the output to be successful using the true command, as the non-existence of a source endpoint is not an error
+- name: Loop through all possible database sources looking for the one the DMS endpoint is connected to
+  shell: |
+    aws dms describe-endpoints \
+    --filters Name=endpoint-type,Values=source Name=endpoint-id,Values={{ simple_environment_name }}-audit-data-from-{{ item | lower }} \
+    --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
+  register: get_source_endpoint
+  changed_when: false
+  delegate_to: localhost
+  become: no
+  loop:
+    - "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
+    - "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
+    - "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
+
+- name: This is an Audited Interaction Client Environment if a Source Endpoint Exists
+  set_fact:
+     is_audit_client: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten | select('string') | select('!=','') | list | length > 0 }}"
+
+- name: Is Audit Client
+  debug:
+    var: is_audit_client
+
+- name: Check Which Schemas Already Installed
+  script: get_installed_schemas.sh
+  register: get_installed_schemas
+  changed_when: false
+
+- name: Show Installed Schemas
+  debug:
+     var=get_installed_schemas.stdout_lines
+
+- name: Abort if DELIUS_AUDIT_DMS_POOL Does Not Already Exist
+  fail:
+     msg: "Before running this job you must pre-create the DELIUS_AUDIT_DMS_POOL user by running the Oracle DMS Setup job."
+  when: not "DELIUS_AUDIT_DMS_POOL" in get_installed_schemas.stdout_lines
+
+- debug:
+    var: ansible_inventory_sources
+
+- name: Find the Delius Primary Database Configuration Files
+  find:
+    paths: "{{ ansible_inventory_sources }}"
+    patterns: "environment_name_delius_core_.*_delius_primarydb.yml"
+    recurse: yes
+    use_regex: true
+    follow: true
+  register: all_source_databases
+  delegate_to: localhost
+  become: no
+
+- name: Source All Delius Primary Database Configuration Files
+  include_vars:
+    file: "{{ item.path }}"
+    name: "delius_primarydb_config"
+  loop: "{{ all_source_databases.files }}"
+  register: delius_primarydb_configs
+
+- name: Get Names of All Delius Databases in All Environments
+  set_fact:
+      all_databases: "{{ all_databases | default([]) + ( [ item.ansible_facts.delius_primarydb_config.database_primary_sid | default('') ] ) }}"
+  loop: "{{ delius_primarydb_configs.results }}"
+  no_log: true
+
+- debug:
+    var: all_databases
+
+# Schema for Archiving Audited Interaction Data
+- name: Populate DELIUS_AUDIT_DMS_POOL Schema
+  script: create_delius_audit_dms_pool_schema.sh
+  environment:
+      DATABASE_NAMES: "{{ all_databases | join(',') }}"
+
+# Disable User Updates for Client Environments Only
+- name:  Disable Client-Side User Updates
+  include_tasks: disable_user_update.yml
+  when: is_audit_client
+
+# Enable the Audited Interaction Data Checksum Scheduler Job once the Replication has started.
+# We only require this for Client Databases
+- name: Start Audited Interaction Data Checksumming
+  script: enable_checksum_calculation.sh
+  when: is_audit_client
+
+# Enable the Audited Interaction Data Checksum Validation Scheduler Job once the Replication has started.
+# We only require this for Repository Databases
+- name: Start Audited Interaction Data Checksum Validation
+  script: enable_checksum_calculation.sh
+  when: not is_audit_client
+
+# Note: Audited Interaction Compression Job is created separately under "delius_audited_interaction" as unrelated to DMS
