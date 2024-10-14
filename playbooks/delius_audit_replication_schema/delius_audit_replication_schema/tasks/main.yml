@@ -4,6 +4,41 @@
 # (2) In the non-production databases (CLIENT DB) it is used to Stage and Store incoming USER_ and STAFF data changes.
 # Staging tables for both directions are created in all Delius databases for consistency and to allow roles to be readily changed.
 
+
+- name: Get Database Environment
+  set_fact:
+    database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
+
+# There is currently no DMS Functionality in the Amazon.Aws Collection
+# so we will use the AWSCLI instead
+
+# We need to run the describe endpoints on the Ansible controller as the EC2 instance will not have privileges for this;
+# we force the output to be successful using the true command, as the non-existence of a source endpoint is not an error
+- name: Loop through all possible database sources looking for the one the DMS endpoint is connected to
+  shell: |
+    aws dms describe-endpoints \
+    --filters Name=endpoint-type,Values=source Name=endpoint-id,Values={{ simple_environment_name }}-audit-data-from-{{ item | lower }} \
+    --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
+  register: get_source_endpoint
+  changed_when: false
+  delegate_to: localhost
+  become: no
+  loop:
+    - "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
+    - "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
+    - "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
+
+- debug:
+     msg: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten }}"
+
+- name: This is an Audited Interaction Client Environment if a Source Endpoint Exists
+  set_fact:
+     is_audit_client: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten | select('string') | select('length','>',0) | list | length > 0 }}"
+
+- name: Is Audit Client
+  debug:
+    var: is_audit_client
+
 - name: Check Which Schemas Already Installed
   script: get_installed_schemas.sh
   register: get_installed_schemas
@@ -43,61 +78,32 @@
   set_fact:
       all_databases: "{{ all_databases | default([]) + ( [ item.ansible_facts.delius_primarydb_config.database_primary_sid | default('') ] ) }}"
   loop: "{{ delius_primarydb_configs.results }}"
+  no_log: true
 
 - debug:
     var: all_databases
-
-- meta: end_play
 
 # Schema for Archiving Audited Interaction Data
 - name: Populate DELIUS_AUDIT_DMS_POOL Schema
   script: create_delius_audit_dms_pool_schema.sh
   environment:
-      ENVIRONMENT_NAME: "{{ environment_name }}"
       DATABASE_NAMES: "{{ all_databases | join(',') }}"
-
-# Client Environments are identified by the existence of the oracle_audited_interaction variable
-# in the delius-core.tfvars file.   This variable is not set in Repository Environments.
-- name: Determine if this is a Audit Client Environment
-  block:
-
-    - name: Get Path to Delius Terraform Variables File
-      set_fact:
-        tfvars_file: "{{ ansible_inventory_sources | select('search','.*/' + environment_name + '/ansible$') | first | regex_replace('(.*)/ansible','\\1/'+ environment_name + '.tfvars') }}"
-
-    - name: Read the content of tfvars file
-      ansible.builtin.slurp:
-        src: "{{ tfvars_file }}"
-      delegate_to: localhost
-      become: no
-      register: tfvars_content
-
-    - name: Convert tfvars content from base64 to string
-      set_fact:
-        tfvars_decoded: "{{ tfvars_content['content'] | b64decode }}"
-
-    - name: Check if variable 'oracle_audited_interaction' exists in tfvars
-      set_fact:
-        oracle_audited_interaction_exists: "{{ tfvars_decoded is search('oracle_audited_interaction\\s+=') }}"
-        
-    - debug:
-        var: oracle_audited_interaction_exists
 
 # Disable User Updates for Client Environments Only
 - name:  Disable Client-Side User Updates
   include_tasks: disable_user_update.yml
-  when:  oracle_audited_interaction_exists
+  when: is_audit_client
 
 # Enable the Audited Interaction Data Checksum Scheduler Job once the Replication has started.
 # We only require this for Client Databases
 - name: Start Audited Interaction Data Checksumming
   script: enable_checksum_calculation.sh
-  when:  oracle_audited_interaction_exists
+  when: is_audit_client
 
 # Enable the Audited Interaction Data Checksum Validation Scheduler Job once the Replication has started.
 # We only require this for Repository Databases
 - name: Start Audited Interaction Data Checksum Validation
   script: enable_checksum_calculation.sh
-  when: not oracle_audited_interaction_exists
+  when: not is_audit_client
 
 # Note: Audited Interaction Compression Job is created separately under "delius_audited_interaction" as unrelated to DMS
