@@ -1,6 +1,9 @@
-name: "Oracle: Statspack Setup"
+name: "Oracle: Delius Audit Replication Schema Setup"
 run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-statspack-setup"
 on:
+  push:
+     branches:
+        - "DBA-777"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
@@ -14,19 +17,6 @@ on:
           - "delius-core-stage"
           - "delius-core-preprod"
           - "delius-core-prod"
-          - "delius-mis-dev"
-          - "delius-mis-stage"
-          - "delius-mis-preprod"
-          - "delius-mis-prod"
-      TargetHost:
-        description: "Database target host"
-        required: true
-        type: choice
-        options: 
-          - "delius_primarydb"
-          - "mis_primarydb"
-          - "boe_primarydb"
-          - "dsd_primarydb"   
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -38,7 +28,7 @@ on:
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
-  command: ansible-playbook operations/playbooks/oracle_statspack/playbook.yml
+  command: ansible-playbook operations/playbooks/delius_audit_replication_schema/playbook.yml
   inventory: inventory/ansible
 
 # Allow permissions on repository and docker image respectively 
@@ -60,8 +50,8 @@ jobs:
       - name: Prepare Inventory Name
         id: prepareinventorynames
         run: |
-          hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}"
-          echo "hosts=${hosts}" >> $GITHUB_OUTPUT
+          target_host="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
+          echo "target_hosts=${target_host}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -80,7 +70,7 @@ jobs:
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
-          sparse-checkout: playbooks/oracle_statspack
+          sparse-checkout: playbooks/oracle_delius_audit_replication_schema
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
@@ -98,4 +88,4 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-          -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }}
+          -e target_host=${{ steps.prepareinventorynames.outputs.target_host }}
