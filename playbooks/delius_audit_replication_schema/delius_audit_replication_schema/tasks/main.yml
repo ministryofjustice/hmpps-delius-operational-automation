@@ -1,0 +1,103 @@
+# Populate the DELIUS_AUDIT_DMS_POOL schema in all Delius databases.
+# This schema is used in two directions:
+# (1) In the production repository (REPO DB) it is used to Stage and Store incoming AUDITED_INTERACTION data changes.
+# (2) In the non-production databases (CLIENT DB) it is used to Stage and Store incoming USER_ and STAFF data changes.
+# Staging tables for both directions are created in all Delius databases for consistency and to allow roles to be readily changed.
+
+- name: Check Which Schemas Already Installed
+  script: get_installed_schemas.sh
+  register: get_installed_schemas
+  changed_when: false
+
+- name: Show Installed Schemas
+  debug:
+     var=get_installed_schemas.stdout_lines
+
+- name: Abort if DELIUS_AUDIT_DMS_POOL Does Not Already Exist
+  fail:
+     msg: "Before running this job you must pre-create the DELIUS_AUDIT_DMS_POOL user by running the Oracle DMS Setup job."
+  when: not "DELIUS_AUDIT_DMS_POOL" in get_installed_schemas.stdout_lines
+
+- debug:
+    var: ansible_inventory_sources
+
+- name: Find the Delius Primary Database Configuration Files
+  find:
+    paths: "{{ ansible_inventory_sources }}"
+    patterns: "environment_name_delius_core_.*_delius_primarydb.yml"
+    recurse: yes
+    use_regex: true
+    follow: true
+  register: all_source_databases
+  delegate_to: localhost
+  become: no
+
+- name: Source All Delius Primary Database Configuration Files
+  include_vars:
+    file: "{{ item.path }}"
+    name: "delius_primarydb_config"
+  loop: "{{ all_source_databases.files }}"
+  register: delius_primarydb_configs
+
+- name: Get Names of All Delius Databases in All Environments
+  set_fact:
+      all_databases: "{{ all_databases | default([]) + ( [ item.ansible_facts.delius_primarydb_config.database_primary_sid | default('') ] ) }}"
+  loop: "{{ delius_primarydb_configs.results }}"
+
+- debug:
+    var: all_databases
+
+- meta: end_play
+
+# Schema for Archiving Audited Interaction Data
+- name: Populate DELIUS_AUDIT_DMS_POOL Schema
+  script: create_delius_audit_dms_pool_schema.sh
+  environment:
+      ENVIRONMENT_NAME: "{{ environment_name }}"
+      DATABASE_NAMES: "{{ all_databases | join(',') }}"
+
+# Client Environments are identified by the existence of the oracle_audited_interaction variable
+# in the delius-core.tfvars file.   This variable is not set in Repository Environments.
+- name: Determine if this is a Audit Client Environment
+  block:
+
+    - name: Get Path to Delius Terraform Variables File
+      set_fact:
+        tfvars_file: "{{ ansible_inventory_sources | select('search','.*/' + environment_name + '/ansible$') | first | regex_replace('(.*)/ansible','\\1/'+ environment_name + '.tfvars') }}"
+
+    - name: Read the content of tfvars file
+      ansible.builtin.slurp:
+        src: "{{ tfvars_file }}"
+      delegate_to: localhost
+      become: no
+      register: tfvars_content
+
+    - name: Convert tfvars content from base64 to string
+      set_fact:
+        tfvars_decoded: "{{ tfvars_content['content'] | b64decode }}"
+
+    - name: Check if variable 'oracle_audited_interaction' exists in tfvars
+      set_fact:
+        oracle_audited_interaction_exists: "{{ tfvars_decoded is search('oracle_audited_interaction\\s+=') }}"
+        
+    - debug:
+        var: oracle_audited_interaction_exists
+
+# Disable User Updates for Client Environments Only
+- name:  Disable Client-Side User Updates
+  include_tasks: disable_user_update.yml
+  when:  oracle_audited_interaction_exists
+
+# Enable the Audited Interaction Data Checksum Scheduler Job once the Replication has started.
+# We only require this for Client Databases
+- name: Start Audited Interaction Data Checksumming
+  script: enable_checksum_calculation.sh
+  when:  oracle_audited_interaction_exists
+
+# Enable the Audited Interaction Data Checksum Validation Scheduler Job once the Replication has started.
+# We only require this for Repository Databases
+- name: Start Audited Interaction Data Checksum Validation
+  script: enable_checksum_calculation.sh
+  when: not oracle_audited_interaction_exists
+
+# Note: Audited Interaction Compression Job is created separately under "delius_audited_interaction" as unrelated to DMS
