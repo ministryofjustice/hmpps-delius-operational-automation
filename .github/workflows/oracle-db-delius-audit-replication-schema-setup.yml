@@ -1,9 +1,6 @@
 name: "Oracle: Delius Audit Replication Schema Setup"
 run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-delius-audit-replication-schema-setup"
 on:
-  push:
-     branches:
-        - "DBA-777"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
