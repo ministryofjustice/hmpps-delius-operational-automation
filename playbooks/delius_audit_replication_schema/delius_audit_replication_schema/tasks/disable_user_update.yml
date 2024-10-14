@@ -1,0 +1,14 @@
+---
+#  After a database has been duplicated, the Users table should no longer be updateable by the Delius Application
+
+- name: Disable DML on USER_ table
+  script: disable_user_update.sh
+  register: disable_user_update
+
+- debug:
+   var=disable_user_update
+
+# Additionally we require a trigger to undo any changes to the session NLS parameters
+# caused by a CDC trigger firing when we run DML on PROBATION_AREA_USER
+- name: Add NLS Reset Trigger for PROBATION_AREA_USER
+  script: probation_area_session_nls_reset.sh
