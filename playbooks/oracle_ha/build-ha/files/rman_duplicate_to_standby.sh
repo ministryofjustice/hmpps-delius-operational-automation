@@ -448,8 +448,9 @@ remove_standby_parameter_files () {
 
 get_asm_diskgroup_status () {
   SID=$1
+  ROLE=$2
   set_ora_env $SID
-  ASM_DISKGROUP_STATUS=$(sqlplus -s / as sysasm<<EOSQL
+  ASM_DISKGROUP_STATUS=$(sqlplus -s / as ${ROLE}<<EOSQL
   SET HEAD OFF
   SET PAGES 0
   select listagg(name||'==>'||state,'; ') from v\$asm_diskgroup;
@@ -461,8 +462,8 @@ EOSQL
 report_asm_diskgroup_status () {
   # Allow time for disk group changes to be updated
   sleep 120
-  get_asm_diskgroup_status +ASM
-  get_asm_diskgroup_status ${STANDBYDB}
+  get_asm_diskgroup_status +ASM sysasm
+  get_asm_diskgroup_status ${STANDBYDB} sysdba
 }
 
 # ------------------------------------------------------------------------------
