@@ -1,0 +1,10 @@
+---
+- hosts: "{{ target_host }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  
+  tasks:
+
+      - include_role:
+         name: delius_audit_replication_schema

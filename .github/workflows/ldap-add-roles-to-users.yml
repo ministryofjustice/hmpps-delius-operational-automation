@@ -38,7 +38,7 @@ jobs:
           - name: Get security groups and subnet ids
             id: get-ids
             run: |
-                echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=*${{ github.event.inputs.environment }}-ldap-sg*" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
+                echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ecs-service-ldap-${{ github.event.inputs.environment }}" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
                 echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-general-private-*" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT          
 
           - name: Template task def
@@ -60,9 +60,9 @@ jobs:
 
                     $.containerDefinitions[0].secrets: [{"name": "VAR_LDAP_HOST", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_HOST"}, {"name": "VAR_LDAP_USER", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_PRINCIPAL"}, {"name": "SECRET_LDAP_BIND_PASSWORD", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_BIND_PASSWORD"}]
 
-                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-group": "/ecs/ldap-automation"
-                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-region": "${{secrets.AWS_REGION}}"
-                    $.containerDefinitions[0].logConfiguration.logDriver.options."awslogs-stream-prefix": "${{ github.run_id }}"
+                    $.containerDefinitions[0].logConfiguration.options."awslogs-group": "/ecs/ldap-automation-${{ github.event.inputs.environment }}"
+                    $.containerDefinitions[0].logConfiguration.options."awslogs-region": "${{secrets.AWS_REGION}}"
+                    $.containerDefinitions[0].logConfiguration.options."awslogs-stream-prefix": "${{ github.run_id }}"
                     
           - name: Show rendered user service task
             if: github.ref != 'refs/heads/main'
@@ -95,4 +95,11 @@ jobs:
                   fi
               done
 
-              aws logs tail /ecs/ldap-automation --log-stream-names "ecs/ldap-automation/${{steps.run-task.outputs.TASK_ID}}"
+              task_definition_arn=$(echo "$task_info" | jq -r '.tasks[0].taskDefinitionArn')
+              task_definition=$(aws ecs describe-task-definition --task-definition $task_definition_arn)
+              log_group_name=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-group"')
+              
+              log_stream_prefix=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-stream-prefix"')
+              container_name=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].name')
+              log_stream_name="${log_stream_prefix}/${container_name}/${{steps.run-task.outputs.TASK_ID}}"
+              aws logs tail "$log_group_name" --log-stream-names "$log_stream_name"

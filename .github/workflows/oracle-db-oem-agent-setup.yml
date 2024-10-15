@@ -15,6 +15,9 @@ on:
           - "delius-core-preprod"
           - "delius-core-prod"
           - "delius-mis-dev"
+          - "delius-mis-stage"
+          - "delius-mis-preprod"
+          - "delius-mis-prod"
       TargetHost:
         description: "Database target host"
         required: true
