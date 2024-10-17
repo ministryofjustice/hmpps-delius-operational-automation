@@ -226,8 +226,6 @@ rman_duplicate_to_standby () {
   echo "  nofilenamecheck;" >> $RMANCMDFILE
   echo "}" >> $RMANCMDFILE
 
-  lookup_db_passwords
-
   if [[ "${USE_BACKUP}" != "TRUE" ]]
   then
      rman target sys/${SYSPASS}@${PRIMARYDB} auxiliary sys/${SYSPASS}@${STANDBYDB} cmdfile $RMANCMDFILE log $RMANLOGFILE << EOF
@@ -283,7 +281,7 @@ EOF
   [ $? -ne 0 ] && error "Creating spfile in ASM"
   info "Create new pfile and remove spfile"
   echo "SPFILE='+DATA/${STANDBYDB}/spfile${STANDBYDB}.ora'" > ${ORACLE_HOME}/dbs/init${STANDBYDB}.ora
-  rm ${ORACLE_HOME}/dbs/spfile${STANDBYDB}.ora ${ORACLE_HOME}/dbs/tmp.ora
+  rm -f ${ORACLE_HOME}/dbs/spfile${STANDBYDB}.ora ${ORACLE_HOME}/dbs/tmp.ora
 }
 
 add_to_crs () {
@@ -372,40 +370,6 @@ EOF
   [ $? -ne 0 ] && error "Removing orphaned archivelogs" || info "Removed orphaned archivelogs"
 }
 
-# When the ASM files are cleared down, this will remove the password file, so fetch a new copy from the primary
-copy_password_file () {
-
-info "Copy password file from primary to standby"
-
-set_ora_env ${STANDBYDB}
-DATABASE_ORACLE_HOME=${ORACLE_HOME}
-
-PRIMARY_HOSTNAME=$(tnsping ${PRIMARYDB} | awk -F '[(] *HOST *= *' 'NF>1{print substr($2, 1, match($2, / *[)]/) - 1)}')
-
-set_ora_env +ASM
-
-lookup_db_passwords
-
-# Check if crs resource is set standby database
-srvctl config database -d ${STANDBYDB} > /dev/null 2>&1
-[ $? -eq 0 ] && DBUNIQUENAME="--dbuniquename ${STANDBYDB}" || DBUNIQUENAME=""
-asmcmd <<EOASMCMD
-pwcopy ${DBUNIQUENAME} asmsnmp/${ASMSNMPPASS}@${PRIMARY_HOSTNAME}.+ASM:+DATA/${PRIMARYDB}/orapw${PRIMARYDB} +DATA/${STANDBYDB}/orapw${STANDBYDB} -f
-EOASMCMD
-
-# We can presume if there is no standby database in crs, it's the first time the standby database is being created
-# Therefore copy the password file from asm to $ORACLE_HOME/dbs
- srvctl status database -d ${STANDBYDB} > /dev/null
- if [ $? -ne 0 ]
- then
-   asmcmd <<EOASMCMD
-   pwcopy +DATA/${STANDBYDB}/orapw${STANDBYDB} ${DATABASE_ORACLE_HOME}/dbs/orapw${STANDBYDB}
-EOASMCMD
- fi
-
-}
-
-
 remove_asm_directories () {
   sleep 10
   info "Shutdown instance ${STANDBYDB}"
@@ -440,23 +404,62 @@ EOF
   sleep 10
 }
 
+initialise_password_file() {
+   # Ensure the password file is initially created on the file system rather than ASM.
+   # This is due to a change in behaviour in 19c where the password file is automatically copied
+   # from the primary database during active duplication; this happens immediately after the database
+   # is mounted - there appears to be a short interval where the ASM diskgroups are
+   # reconnected which leads to writing of the copied password file to randomly fail on
+   # some occassions with a diskgroup not mounted error.
+   # (this is speculation - a definitive bug record for this has not been found)
+   # To avoid the problem we start with the password file on the file system and only
+   # move it onto ASM at the end of the duplication.
+   set_ora_env ${STANDBYDB}
+   info "Initialising password file location to ${ORACLE_HOME}/dbs/orapw${STANDBYDB}"
+   srvctl modify database -d ${STANDBYDB} -pwfile ${ORACLE_HOME}/dbs/orapw${STANDBYDB}
+   info "Creating seed password file (will be replaced by active duplicate)"
+   rm -f ${ORACLE_HOME}/dbs/orapw${STANDBYDB}
+   orapwd file=${ORACLE_HOME}/dbs/orapw${STANDBYDB} password=${SYSPASS}
+}
+
+
 remove_standby_parameter_files () {
   set_ora_env ${STANDBYDB}
   ls ${ORACLE_HOME}/dbs/*${STANDBYDB}* | egrep -v "${PARAMFILE}|orapw${STANDBYDB}" | xargs -r rm
   [ $? -ne 0 ] && error "Removing standby parameter files"
 }
 
-report_asm_diskgroup_status () {
-  set_ora_env +ASM
-  ASM_DISKGROUP_STATUS=$(sqlplus -s / as sysasm<<EOSQL
+get_asm_diskgroup_status () {
+  SID=$1
+  ROLE=$2
+  set_ora_env $SID
+  ASM_DISKGROUP_STATUS=$(sqlplus -s / as ${ROLE}<<EOSQL
   SET HEAD OFF
   SET PAGES 0
   select listagg(name||'==>'||state,'; ') from v\$asm_diskgroup;
 EOSQL
   )
-  info "ASM diskgroup status: ${ASM_DISKGROUP_STATUS}"
-  set_ora_env ${STANDBYDB}
+  info "Diskgroup status (from $SID): ${ASM_DISKGROUP_STATUS}"  
 }
+
+report_asm_diskgroup_status () {
+  get_asm_diskgroup_status +ASM sysasm
+  get_asm_diskgroup_status ${STANDBYDB} sysdba
+}
+
+move_password_file_to_asm () {
+set_ora_env +ASM
+CURRENT_PASSWORD_FILE=$(srvctl config database -d ${STANDBYDB} | awk '/^Password file:/{print $3}')
+info "Moving password file from ${CURRENT_PASSWORD_FILE} to DATA disk group on ASM"
+asmcmd <<EOASMCMD
+pwcopy ${CURRENT_PASSWORD_FILE} +DATA/${STANDBYDB}/orapw${STANDBYDB} 
+EOASMCMD
+rm -f ${CURRENT_PASSWORD_FILE}
+set_ora_env ${STANDBYDB}
+info "Updating password file location"
+srvctl modify database -d ${STANDBYDB} -pwfile "+DATA/${STANDBYDB}/orapw${STANDBYDB}"
+}
+
 
 # ------------------------------------------------------------------------------
 # Main
@@ -583,8 +586,11 @@ then
   # Shutdown standby instance and remove standby database from DATA and FLASH asm diskgroups
   remove_asm_directories
 
-  # Having cleared down ASM we will need to put the password file back (copy from primary)
-  copy_password_file
+  # As of 19c we do not need to copy the password file from primary as this happens
+  # automatically; however we initialise the location of the password file on disk
+  # to avoid race condition with disk group mounting
+  lookup_db_passwords
+  initialise_password_file
 
   # Remove unneccesary standby parameter files
   remove_standby_parameter_files
@@ -610,6 +616,7 @@ then
 
   # Perform recovery
   perform_recovery
+  move_password_file_to_asm
 
   # Configure RMAN
   configure_rman
