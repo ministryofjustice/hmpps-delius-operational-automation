@@ -46,6 +46,13 @@
         force_restore_flag: "-f"
       when: ( force_restore | default(false) | bool ) or ( hostvars[groups[primary][0]].primary_data_guard_unconfigured | default(false) | bool )
 
+    # If we are creating a standby database to be used as a DMS source endpoint it will need access to all redo since
+    # the primary database was created, not just since the standby database was created, so set flag to copy this over.
+    - name: (main/restore-primary-to-standby) Set Copy Redo since Resetlogs Flag
+      set_fact:
+        copy_redo_since_resetlogs_flag: "-r"
+      when: ( copy_redo_since_resetlogs | default(false) | bool ) 
+
     - name: (main/restore-primary-to-standby) Configure database to use ASM password file
       shell: |
         . ~/.bash_profile
@@ -82,7 +89,7 @@
         account_ids: "{{ lookup('aws_ssm', 'account_ids', region='eu-west-2') }}"
 
     - name: (main/restore-primary-to-standby) Run rman restore bash script
-      shell: ". ~/.bash_profile; /tmp/rman_duplicate_to_standby.sh {{ use_backup_flag | default('') }} {{ no_sbt_flag | default('') }} {{ force_restore_flag | default('') }} -t {{ database_primary_unique_name }} -s {{ database_standby_unique_name }} -i {{ oracle_database_oracle_home }}/dbs/init{{ database_standby_sid}}.ora_predg {{ ssm_parameter_option|default() }}"
+      shell: ". ~/.bash_profile; /tmp/rman_duplicate_to_standby.sh {{ use_backup_flag | default('') }} {{ no_sbt_flag | default('') }} {{ force_restore_flag | default('') }} {{ copy_redo_since_resetlogs_flag | default('') }} -t {{ database_primary_unique_name }} -s {{ database_standby_unique_name }} -i {{ oracle_database_oracle_home }}/dbs/init{{ database_standby_sid}}.ora_predg {{ ssm_parameter_option|default() }}"
       async: 28800
       poll: "{{ poll_value | default(20) }}"
       become: true
