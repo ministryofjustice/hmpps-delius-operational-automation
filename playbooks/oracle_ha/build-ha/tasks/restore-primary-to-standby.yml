@@ -51,7 +51,7 @@
     - name: (main/restore-primary-to-standby) Set Copy Redo since Resetlogs Flag
       set_fact:
         copy_redo_since_resetlogs_flag: "-r"
-      when: ( copy_redo_since_resetlogs | default(false) | bool ) 
+      when: ( copy_redo_since_resetlogs | default(false) | bool )
 
     - name: (main/restore-primary-to-standby) Configure database to use ASM password file
       shell: |

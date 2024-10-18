@@ -425,10 +425,9 @@
 - name: Rotate Database Passwords
   import_playbook: ../oracle_password_rotation/database_password_rotation.yml
   vars:
-    rotate_database_passwords: true
     rotate_groups: "{{ target_dbs }}"
-    unlock_system_passwords: yes
-    sync_monitoring_passwords_nonoem: true
+    rotate_passwords_not_from_oem: true
+    oem_blackout_required: false
   when:
     - required_action == "Flashback to Restore Point"
     - is_aws_environment | default(false)
