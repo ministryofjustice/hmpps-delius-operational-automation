@@ -49,7 +49,7 @@ DECLARE
     l_count        INTEGER := 0;
     l_sharable_mem INTEGER := 0;
 BEGIN
-/*
+    /*
        We identify cursors to purge by the following criteria:
        1. They contain an MV_REFRESH comment or a DELETE from a MV, and
        2. They are not sharable due to the use of Flashback, and
