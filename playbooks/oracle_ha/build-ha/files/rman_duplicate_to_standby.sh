@@ -42,6 +42,8 @@ error () {
    echo "  -f will force a database duplication regardless of dataguard status"
    echo "  -b will force a database duplication using a backup of the primary (default is to use active database duplication)"
    echo "  -n no SBT type channels (used for Active Duplication or Disk-Based backups outside of AWS)"
+   echo "  -r fetch redo logs from primary since RESETLOGS (used if this standby is a DMS source endpoint and needs all redo"
+   echo "     generated since database creation, not just since standby creation)"
    echo ""
    exit 1
 }
@@ -117,6 +119,24 @@ get_primary_dbid () {
 EOF
       )
   [ $? -ne 0 ] && error "Primary database DBID is ${DBID}"
+}
+
+get_resetlogs_scn () {
+  info "Getting SCN of RESETLOGS"
+  RESETLOGS_SCN=$(
+  sqlplus -s sys/${SYSPASS}@${PRIMARYDB} as sysdba << EOF
+      SET LINES 1000
+      SET PAGES 0
+      SET FEEDBACK OFF
+      SET HEADING OFF
+      COL resetlogs_change# FORMAT 99999999990
+      WHENEVER SQLERROR EXIT FAILURE
+      SELECT resetlogs_change#
+      FROM   v\$database;
+      EXIT
+EOF
+      )
+  [ $? -ne 0 ] && error "RESETLOGS SCN is ${RESETLOGS_SCN}"
 }
 
 get_source_db_rman_details () {
@@ -460,6 +480,24 @@ info "Updating password file location"
 srvctl modify database -d ${STANDBYDB} -pwfile "+DATA/${STANDBYDB}/orapw${STANDBYDB}"
 }
 
+fetch_redo_logs_since_resetlogs() {
+  get_resetlogs_scn
+  info "Fetching all redo logs since SCN ${RESETLOGS_SCN} from the primary"
+  rman log /tmp/fetch_all_redo_logs_since_resetlogs.log <<EORMAN
+connect target sys/${SYSPASS}@${PRIMARYDB}
+connect auxiliary sys/${SYSPASS}@${STANDBYDB}
+run {
+   backup as copy reuse archivelog from scn ${RESETLOGS_SCN} auxiliary format '+FLASH';
+}
+exit
+EORMAN
+  info "Registering all fetched redo logs"
+  rman log /tmp/registering_fetched_redologs.log <<EORMAN
+connect target /
+catalog start with '+FLASH' noprompt;
+exit
+EORMAN
+}
 
 # ------------------------------------------------------------------------------
 # Main
@@ -483,7 +521,7 @@ info "Retrieving arguments"
 TARGETDB=UNSPECIFIED
 SSM_PARAMETER=UNSPECIFIED
 
-while getopts "t:s:i:p:c:fbn" opt
+while getopts "t:s:i:p:c:fbnr" opt
 do
   case $opt in
     t) PRIMARYDB=$OPTARG ;;
@@ -494,9 +532,15 @@ do
     c) CATALOG_TNS_STRING=$OPTARG ;;
     b) USE_BACKUP=TRUE ;;
     n) NO_SBT_CHANNELS=TRUE ;;
+    r) COPY_ALL_REDO_SINCE_RESETLOGS=TRUE ;;
     *) usage ;;
   esac
 done
+
+if [[ -z ${ENVIRONMENT_NAME} ]]
+then
+   error "The ENVIRONMENT_NAME environment variable must be set"
+fi
 info "Primary Database = ${PRIMARYDB}"
 info "Standby Database = ${STANDBYDB}"
 info "SSM parameter    = $SSM_PARAMETER"
@@ -514,6 +558,10 @@ then
    fi
 else
    info "Using Active Database Duplication from primary"
+fi
+if [[ "${COPY_ALL_REDO_SINCE_RESETLOGS}" == "TRUE" ]]
+then
+  info "Flag set to copy all redo logs since RESETLOGS on completion of duplicate"
 fi
 
 primarydb=`echo "${PRIMARYDB}" | tr '[:upper:]' '[:lower:]'`
@@ -623,6 +671,11 @@ then
 
   # Remove orphaned archivelogs left by previous incarnation
   remove_orphaned_archive
+
+  if [[ "${COPY_ALL_REDO_SINCE_RESETLOGS}" == "TRUE" ]]
+  then
+    fetch_redo_logs_since_resetlogs
+  fi
 fi
 
 info "End"

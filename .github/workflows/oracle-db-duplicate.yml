@@ -693,7 +693,8 @@ jobs:
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
           -e standby_number=1 \
-          -e primary_source_type=active
+          -e primary_source_type=active \
+          -e copy_redo_since_resetlogs=true
 
       - name: Build High Availability Standby 2 Database
         if: ${{ steps.standbydbsconfigured.outputs.standbydb2Host != '' }}
@@ -707,7 +708,8 @@ jobs:
           -e high_availability_count=${{ steps.standbydbsconfigured.outputs.high_availability_count }} \
           -e fsfo_mode=${{ steps.standbydbsconfigured.outputs.fsfo_mode }} \
           -e standby_number=2 \
-          -e primary_source_type=active
+          -e primary_source_type=active \
+          -e copy_redo_since_resetlogs=true
 
   # Restarting Audit Replication should not take place until after any HAs have been built as we
   # normally want to read from the standby database if available, to reduce load on the primary.
