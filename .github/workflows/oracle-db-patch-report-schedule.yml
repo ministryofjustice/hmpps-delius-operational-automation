@@ -1,0 +1,13 @@
+name: "Oracle: Schedule Patch Report"
+on:
+  push:
+    branches:
+       - "DBA-678"
+  schedule:
+    - cron: '30 17 * * TUE'
+
+jobs:
+  patch-report:
+    name: Patch Report
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-patch-report.yml@main

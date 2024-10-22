@@ -32,6 +32,8 @@ jobs:
       matrix:
         environment: 
           - delius-mis-dev
+          - delius-mis-stage
+          - delius-mis-preprod
         application:
           - mis
           - dsd
@@ -41,6 +43,22 @@ jobs:
             application: delius
           - environment: delius-core-test
             application: delius
+          - environment: delius-core-stage
+            application: delius
+          - environment: delius-core-preprod
+            application: delius
+          - environment: delius-core-prod
+            application: delius
+          - environment: delius-core-training
+            application: delius
+          - environment: hmpps-oem-development
+            application: hmpps-oem
+          - environment: hmpps-oem-test
+            application: hmpps-oem
+          - environment: hmpps-oem-preproduction
+            application: hmpps-oem
+          - environment: hmpps-oem-production
+            application: hmpps-oem
     environment: ${{ matrix.environment }}-preapproved
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
