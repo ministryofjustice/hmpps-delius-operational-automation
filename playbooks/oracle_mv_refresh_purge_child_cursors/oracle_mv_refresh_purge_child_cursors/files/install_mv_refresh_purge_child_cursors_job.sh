@@ -51,7 +51,7 @@ DECLARE
 BEGIN
     /*
        We identify cursors to purge by the following criteria:
-       1. They contain an MV_REFRESH comment, and
+       1. They contain an MV_REFRESH comment or a DELETE from a MV, and
        2. They are not sharable due to the use of Flashback, and
        3. They have a child version count above 5
     */
@@ -65,7 +65,8 @@ BEGIN
         FROM
             v\$sqlarea s
         WHERE
-            upper(s.sql_text) LIKE '/* MV_REFRESH (MRG) */%'
+            (UPPER(s.sql_text) LIKE '/* MV_REFRESH (MRG) */%'
+            OR UPPER(s.sql_text) LIKE 'DELETE%MV" SNAP$%')
             AND s.version_count > 5
             AND EXISTS (
                 SELECT
