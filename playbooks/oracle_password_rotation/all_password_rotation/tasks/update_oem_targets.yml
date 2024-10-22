@@ -17,7 +17,7 @@
       shell: |
         export PATH=$PATH:/usr/local/bin
         INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-        aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text
+        aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=Name" --query "Tags[].Value" --output text | cut -d'-' -f1-3
       register: get_target_environment_name
 
     - name: Include Set Monitoring Password Task From Oem Password Rotation Role
