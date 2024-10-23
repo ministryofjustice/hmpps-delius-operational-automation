@@ -120,7 +120,7 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_patch_report/roles
           if [ "${{ matrix.application }}" = "hmpps-oem" ]
           then 
-             hosts="environment_name_${{ matrix.environment }}"
+             hosts="environment_name_$(echo ${{ matrix.environment }} | tr '-' '_')"
           else
              # Getting the host names for Delius Core and MIS Environments is less straightforward than
              # for OEM since a single AWS Account can hold more than one Delius Environment; convert the
