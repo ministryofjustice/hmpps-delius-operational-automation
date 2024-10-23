@@ -121,12 +121,16 @@ jobs:
           if [ "${{ matrix.application }}" = "hmpps-oem" ]
           then 
              hosts="environment_name_$(echo ${{ matrix.environment }} | tr '-' '_')"
+             $command -i $inventory -e target_hosts=$hosts
           else
              # Getting the host names for Delius Core and MIS Environments is less straightforward than
              # for OEM since a single AWS Account can hold more than one Delius Environment; convert the
              # short form Delius/MIS environment to the fully expanded form
+             # Also note that for Delius environments the AWS SSM Bucket name is stored as a GitHub
+             # Actions environment variable, whereas for OEM the Bucket name is an Ansible variable
+             # and so does not need to be included on the command line.
              hosts="environment_name_$(echo ${{ matrix.environment }} | \
                 sed -E 's/delius-(core|mis)-(dev)/delius_\1_development_\2/;s/delius-(core|mis)-(test)/delius_\1_test_\2/;s/delius-(core|mis)-(stage|preprod)/delius_\1_preproduction_\2/;s/delius-(core|mis)-(prod)/delius_\1_production_\2/')_${{ matrix.application }}_dbs"
+             $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+                       -e target_hosts=$hosts
           fi
-          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-          -e target_hosts=$hosts
