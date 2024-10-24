@@ -62,7 +62,7 @@
       loop: "{{ all_patches }}"
       when:
         - item.keys() | length > 0
-        - item.keys() | first | regex_search ('.*-db-1')
+        - item.keys() | first | regex_search ('.*-(oem-a|db-1)')
 
     - name: Get 1st Standby Database Host Patches
       set_fact:
@@ -70,7 +70,7 @@
       loop: "{{ all_patches }}"
       when:
         - item.keys() | length > 0
-        - item.keys() | first | regex_search ('.*-db-2')
+        - item.keys() | first | regex_search ('.*-(oem-b|db-2)')
 
     - name: Get 2nd Standby Database Host Patches
       set_fact:
@@ -78,7 +78,7 @@
       loop: "{{ all_patches }}"
       when:
         - item.keys() | length > 0
-        - item.keys() | first | regex_search ('.*-db-3')
+        - item.keys() | first | regex_search ('.*-(oem-c|db-3)')
 
     - name: Flatten Database Host Patch Dictionaries
       set_fact:
