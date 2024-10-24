@@ -69,7 +69,7 @@
             # associated with these endpoints and temporarily stop them
             - name: Get List of Running Replication Tasks Using Endpoint with Old Certificate or are Unconfigured
               shell: |
-                aws dms describe-replication-tasks --query "ReplicationTasks[?(SourceEndpointArn=='{{ endpoint_arn }}'||TargetEndpointArn=='{{ endpoint_arn }}')&&(Status=='running'||Status='starting')].ReplicationTaskArn" --region {{ region }} --output text | sed 's/\t/\n/g'
+                aws dms describe-replication-tasks --query "ReplicationTasks[?(SourceEndpointArn=='{{ endpoint_arn }}'||TargetEndpointArn=='{{ endpoint_arn }}')&&(Status=='running'||Status=='starting')].ReplicationTaskArn" --region {{ region }} --output text | sed 's/\t/\n/g'
               loop: "{{ ( get_inuse_endpoint_list.stdout_lines | default([]) ) + ( get_unconfigured_endpoint_list.stdout_lines | default([]) ) }}"
               loop_control:
                 loop_var: endpoint_arn
