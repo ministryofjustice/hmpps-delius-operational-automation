@@ -1,7 +1,7 @@
 name: "Oracle: Schedule Patch Report"
 on:
   schedule:
-    - cron: '00 12 * * THU'
+    - cron: '00 14 * * THU'
 
 jobs:
   patch-report:
