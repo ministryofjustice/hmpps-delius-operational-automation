@@ -1,0 +1,10 @@
+name: "Oracle: Schedule Patch Report"
+on:
+  schedule:
+    - cron: '00 14 * * THU'
+
+jobs:
+  patch-report:
+    name: Patch Report
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-patch-report.yml@main

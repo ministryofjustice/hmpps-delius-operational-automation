@@ -7,6 +7,10 @@
     . ~/.bash_profile
     export ORAENV_ASK=NO
     export ORACLE_SID=+ASM
+    if [ $(grep -c -E "^EMREP:" /etc/oratab) -eq 1 ]
+    then
+       export PATH=$PATH:/usr/local/bin
+    fi
     . oraenv > /dev/null
     $ORACLE_HOME/OPatch/opatch lsinv | grep "^Patch" | paste -d' ' - - | sed 's/:.*://' | sort -n -k2
   register: get_gi_patches
@@ -22,6 +26,16 @@
 - name: Get Database Patches
   shell: |
     . ~/.bash_profile
+    if [ $(grep -c -E "^EMREP:" /etc/oratab) -eq 1 ]
+    then
+       # The bash_profile for OEM DBs contains fewer environment
+       # settings than the equiavlent file for Delius DBs so we
+       # need to set these up here.
+       export ORAENV_ASK=NO
+       export ORACLE_SID=EMREP
+       export PATH=$PATH:/usr/local/bin
+       . oraenv > /dev/null
+    fi
     $ORACLE_HOME/OPatch/opatch lsinv | grep "^Patch" | paste -d' ' - - | sed 's/:.*://' | sort -n -k2
   register: get_db_patches
   changed_when: false
@@ -48,7 +62,7 @@
       loop: "{{ all_patches }}"
       when:
         - item.keys() | length > 0
-        - item.keys() | first | regex_search ('.*-db-1')
+        - item.keys() | first | regex_search ('.*-(oem-a|db-1)')
 
     - name: Get 1st Standby Database Host Patches
       set_fact:
@@ -56,7 +70,7 @@
       loop: "{{ all_patches }}"
       when:
         - item.keys() | length > 0
-        - item.keys() | first | regex_search ('.*-db-2')
+        - item.keys() | first | regex_search ('.*-(oem-b|db-2)')
 
     - name: Get 2nd Standby Database Host Patches
       set_fact:
@@ -64,7 +78,7 @@
       loop: "{{ all_patches }}"
       when:
         - item.keys() | length > 0
-        - item.keys() | first | regex_search ('.*-db-3')
+        - item.keys() | first | regex_search ('.*-(oem-c|db-3)')
 
     - name: Flatten Database Host Patch Dictionaries
       set_fact:
