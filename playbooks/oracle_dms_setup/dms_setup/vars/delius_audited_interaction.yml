@@ -91,15 +91,12 @@ dms_tables:
   - name: AUDITED_INTERACTION
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
+  - name: BUSINESS_INTERACTION
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
   - name: USER_
     owner: DELIUS_APP_SCHEMA
-    log_data: PRIMARY KEY
-  - name: STAFF
-    owner: DELIUS_APP_SCHEMA
-    log_data: PRIMARY KEY
-  - name: PROBATION_AREA
-    owner: DELIUS_APP_SCHEMA
-    log_data: PRIMARY KEY
+    log_data: ALL
   - name: PROBATION_AREA_USER
     owner: DELIUS_APP_SCHEMA
-    log_data: PRIMARY KEY
+    log_data: ALL
