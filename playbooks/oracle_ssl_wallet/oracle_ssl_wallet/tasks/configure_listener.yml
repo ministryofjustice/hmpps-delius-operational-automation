@@ -46,7 +46,6 @@
   blockinfile:
     path: "{{ grid_oracle_home }}/network/admin/listener.ora"
     block: |
-
       SID_LIST_LISTENER=
        (SID_LIST =
          (SID_DESC =
