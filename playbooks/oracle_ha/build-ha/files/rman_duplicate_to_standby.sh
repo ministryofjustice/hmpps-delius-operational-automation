@@ -315,7 +315,7 @@ EOF
   srvctl status database -d ${STANDBYDB} > /dev/null
   if [ $? -ne 0 ]
   then
-    srvctl add database -d ${STANDBYDB} -o ${ORACLE_HOME} -p +DATA/${STANDBYDB}/spfile${STANDBYDB}.ora -r PHYSICAL_STANDBY -s MOUNT -t IMMEDIATE -i ${STANDBYDB} -n ${PRIMARYDB} -y AUTOMATIC -a "DATA,FLASH"
+    srvctl add database -d ${STANDBYDB} -o ${ORACLE_HOME} -spfile +DATA/${STANDBYDB}/spfile${STANDBYDB}.ora -pwfile ${ORACLE_HOME}/dbs/orapw${STANDBYDB} -r PHYSICAL_STANDBY -s MOUNT -t IMMEDIATE -i ${STANDBYDB} -n ${PRIMARYDB} -y AUTOMATIC -a "DATA,FLASH"
     [ $? -ne 0 ] && error "Adding ${STANDBYDB} to CRS" || info "Added ${STANDBYDB} to CRS"
   fi
   srvctl start database -d ${STANDBYDB} -o MOUNT
