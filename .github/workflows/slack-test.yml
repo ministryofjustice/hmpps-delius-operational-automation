@@ -171,7 +171,7 @@ jobs:
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |
-              {"username":"Retrying Failed Backup on Standby","icon_emoji":"spinning-circle-of-death","text":"Retrying Failed Backup on Standby","blocks":[{"type": "section","text": "Retrying backup on:${{ env.RmanTarget }}"}]}]}
+              {"username":"Retrying Failed Backup on Standby","icon_emoji":"spinning-circle-of-death","text":"Retrying backup on:${{ env.RmanTarget }}"}
         env:
           SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
           RmanTarget: "test_target"
