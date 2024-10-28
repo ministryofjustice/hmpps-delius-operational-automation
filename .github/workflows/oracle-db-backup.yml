@@ -420,7 +420,6 @@ jobs:
           # If BackupStandbyOnPrimaryFailue is set to "yes" and a Standby database exists, then the
           # backup may be retried on the Standby.  Otherwise the job aborts with a failure since there
           # is notwhere else where the backup may be attempted.
-          # *** START DEBUG
           echo "BackupStatus: $BackupStatus"
           echo "BackupStandbyOnPrimaryFailure: $BackupStandbyOnPrimaryFailure"
           echo "RmanTarget: $RmanTarget"
@@ -429,13 +428,18 @@ jobs:
           fi
           if [[ "$RmanTarget" =~ "standbydb1" ]]; then
              echo "Target is 1st Standby"
+             echo "Standby Config File is ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml"
+             if [[ ! -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml ]]; then
+               echo "Standby config file does not exist"
+             fi
           fi
-          echo "Standby Config File is ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml"
-          if [[ ! -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml ]]; then
-             echo "Standby config file does not exist"
+          if [[ "$RmanTarget" =~ "standbydb1" ]]; then
+             echo "Target is 2nd Standby"
+             echo "Standby Config File is ${inventory}/group_vars/${RmanTarget/primarydb/standbydb2}.yml"
+             if [[ ! -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb2}.yml ]]; then
+               echo "Standby config file does not exist"
+             fi
           fi
-          echo "End of Debug"
-          #  *** END OF DEBUG
           if [[ "$BackupStatus" == "failed" ]]; then
              if [[ "$BackupStandbyOnPrimaryFailure" == "no" ]]; then
                 echo "Backup Failed And No Retry Allowed"
@@ -508,6 +512,7 @@ jobs:
 
       - name: Record Job Failure in SSM Parameter Store
         if: failure()
+        shell: bash
         run: |
             Inputs=$(echo $Inputs | jq -r | jq '.Phase += " -- Failed"' | jq @json)
             if [[ ! $(echo $Inputs | jq -r | jq '.Phase') =~ Concurrent ]]; then
