@@ -164,3 +164,14 @@ jobs:
                 {"username":"Username Three","icon_emoji":"large_purple_circle","text":"Test Message 3","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Failed Backup Message 3:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
         env:
             SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
+
+      - name: Report Backup Retry Attempt
+        id: slack-retry
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+            channel-id: "${{ env.SlackChannel }}"
+            payload: |
+              {"username":"Retrying Failed Backup on Standby","icon_emoji":"spinning-circle-of-death","text":"Retrying Failed Backup on Standby","blocks":[{"type": "section","text": "Retrying backup on:${{ env.RmanTarget }}"}]}]}
+        env:
+          SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
+          RmanTarget: "test_target"
