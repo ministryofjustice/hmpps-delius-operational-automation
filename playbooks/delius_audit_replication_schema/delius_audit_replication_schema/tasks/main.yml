@@ -100,7 +100,7 @@
 # Enable the Audited Interaction Data Checksum Validation Scheduler Job once the Replication has started.
 # We only require this for Repository Databases
 - name: Start Audited Interaction Data Checksum Validation
-  script: enable_checksum_calculation.sh
+  script: enable_checksum_validation.sh
   when: not is_audit_client
 
 # Note: Audited Interaction Compression Job is created separately under "delius_audited_interaction" as unrelated to DMS
