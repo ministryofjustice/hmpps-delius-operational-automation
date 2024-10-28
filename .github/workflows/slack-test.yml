@@ -141,7 +141,7 @@ jobs:
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |
-              {"icon_emoji":"large_purple_circle","text":"Test Message","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Failed Backup:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
+              {"icon_emoji":"large_green_circle","text":"Test Message","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Failed Backup:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
         env:
           SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
 
