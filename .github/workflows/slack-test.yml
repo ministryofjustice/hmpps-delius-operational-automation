@@ -1,6 +1,9 @@
 name: "Oracle: Slack Test"
 run-name: "Oracle: Slack Test"
 on:
+  push:
+    branches:
+      - "DBA-784"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
