@@ -134,7 +134,6 @@ jobs:
 
       - name: Slack Notification
         id: slack-failure
-        if: failure()
         uses: slackapi/slack-github-action@v1.26.0
         with:
             channel-id: "${{ env.SlackChannel }}"
