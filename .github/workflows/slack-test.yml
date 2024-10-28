@@ -69,9 +69,9 @@ jobs:
       backup_command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
       validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
       inventory: inventory/ansible
-      TargetEnvironment: "${{needs.build_rman_target_name.outputs.TargetEnvironment}}"
-      SourceCodeVersion:  "${{needs.build_rman_target_name.outputs.SourceCodeVersion}}"
-      SourceConfigVersion:  "${{needs.build_rman_target_name.outputs.SourceConfigVersion}}"
+      TargetEnvironment: "${{github.event.inputs.TargetEnvironment}}"
+      SourceCodeVersion:  "${{github.event.inputs.SourceCodeVersion}}"
+      SourceConfigVersion:  "${{github.event.inputs.SourceConfigVersion}}"
       SlackChannel: ${{ needs.build_rman_target_name.outputs.SlackChannel }}
       ansible_config: operations/playbooks/ansible.cfg
     continue-on-error: false
