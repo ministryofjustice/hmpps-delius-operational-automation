@@ -430,6 +430,7 @@ jobs:
           if [[ "$RmanTarget" =~ "standbydb1" ]]; then
              echo "Target is 1st Standby"
           fi
+          ls -l  ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml
           echo "Standby Config File is ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml"
           if [[ ! -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml ]]; then
              echo "Standby config file exists"
