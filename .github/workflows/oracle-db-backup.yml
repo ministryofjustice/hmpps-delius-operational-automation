@@ -401,6 +401,7 @@ jobs:
         if: env.BackupStatus != 'success'
         id: backup
         continue-on-error: false
+        shell: bash
         run: |
           # This step starts running the backup by calling the Ansible backup play
           # with the appropriate inputs.   
