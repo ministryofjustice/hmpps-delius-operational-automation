@@ -60,14 +60,12 @@ jobs:
   oracle-backup:
     name: oracle-backup
     needs: build_rman_target_name
-    environment: ${{needs.build_rman_target_name.outputs.TargetEnvironment}}
+    environment: ${{github.event.inputs.TargetEnvironment}}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     timeout-minutes: 1440
     env:
-      backup_command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
-      validate_command: ansible-playbook operations/playbooks/oracle_backup/validate.yml
       inventory: inventory/ansible
       TargetEnvironment: "${{github.event.inputs.TargetEnvironment}}"
       SourceCodeVersion:  "${{github.event.inputs.SourceCodeVersion}}"
