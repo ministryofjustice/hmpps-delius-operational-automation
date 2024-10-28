@@ -115,6 +115,6 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e read_host=${{ steps.preparetargetname.outputs.TargetHost }} \
-          -e include_analytics_platform=${{ github.events.inputs.IncludeAnalyticsPlatform }} \
-          -e include_audited_interaction=${{ github.events.inputs.IncludeAuditedInteraction }}
+          -e include_analytics_platform=${{ github.event.inputs.IncludeAnalyticsPlatform }} \
+          -e include_audited_interaction=${{ github.event.inputs.IncludeAuditedInteraction }}
           

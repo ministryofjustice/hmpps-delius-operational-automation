@@ -4,7 +4,6 @@
 # (2) In the non-production databases (CLIENT DB) it is used to Stage and Store incoming USER_ and STAFF data changes.
 # Staging tables for both directions are created in all Delius databases for consistency and to allow roles to be readily changed.
 
-
 - name: Get Database Environment
   set_fact:
     database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
@@ -30,7 +29,7 @@
 
 - name: This is an Audited Interaction Client Environment if a Source Endpoint Exists
   set_fact:
-     is_audit_client: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten | select('string') | select('!=','') | list | length > 0 }}"
+    is_audit_client: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten | select('string') | select('!=','') | list | length > 0 }}"
 
 - name: Is Audit Client
   debug:
@@ -42,12 +41,11 @@
   changed_when: false
 
 - name: Show Installed Schemas
-  debug:
-     var=get_installed_schemas.stdout_lines
+  debug: var=get_installed_schemas.stdout_lines
 
 - name: Abort if DELIUS_AUDIT_DMS_POOL Does Not Already Exist
   fail:
-     msg: "Before running this job you must pre-create the DELIUS_AUDIT_DMS_POOL user by running the Oracle DMS Setup job."
+    msg: "Before running this job you must pre-create the DELIUS_AUDIT_DMS_POOL user by running the Oracle DMS Setup job."
   when: not "DELIUS_AUDIT_DMS_POOL" in get_installed_schemas.stdout_lines
 
 - debug:
@@ -73,7 +71,7 @@
 
 - name: Get Names of All Delius Databases in All Environments
   set_fact:
-      all_databases: "{{ all_databases | default([]) + ( [ item.ansible_facts.delius_primarydb_config.database_primary_sid | default('') ] ) }}"
+    all_databases: "{{ all_databases | default([]) + ( [ item.ansible_facts.delius_primarydb_config.database_primary_sid | default('') ] ) }}"
   loop: "{{ delius_primarydb_configs.results }}"
   no_log: true
 
@@ -84,10 +82,10 @@
 - name: Populate DELIUS_AUDIT_DMS_POOL Schema
   script: create_delius_audit_dms_pool_schema.sh
   environment:
-      DATABASE_NAMES: "{{ all_databases | join(',') }}"
+    DATABASE_NAMES: "{{ all_databases | join(',') }}"
 
 # Disable User Updates for Client Environments Only
-- name:  Disable Client-Side User Updates
+- name: Disable Client-Side User Updates
   include_tasks: disable_user_update.yml
   when: is_audit_client
 
@@ -100,7 +98,6 @@
 # Enable the Audited Interaction Data Checksum Validation Scheduler Job once the Replication has started.
 # We only require this for Repository Databases
 - name: Start Audited Interaction Data Checksum Validation
-  script: enable_checksum_calculation.sh
+  script: enable_checksum_validation.sh
   when: not is_audit_client
-
 # Note: Audited Interaction Compression Job is created separately under "delius_audited_interaction" as unrelated to DMS

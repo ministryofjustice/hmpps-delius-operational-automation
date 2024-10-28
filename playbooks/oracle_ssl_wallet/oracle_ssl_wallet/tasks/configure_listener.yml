@@ -38,6 +38,25 @@
     insertafter: "^\\s*\\(ADDRESS.*\\)$"
     backup: true
 
+# In systems with standby databases, the SID_LIST_LISTENER configuration will
+# have already been set by the HA build process.  However, if there is no
+# standby this may be absent.  It is required for subsequent listener.ora changes
+# to reference, so add it now.
+- name: Setup primary listener
+  blockinfile:
+    path: "{{ grid_oracle_home }}/network/admin/listener.ora"
+    block: |
+      SID_LIST_LISTENER=
+       (SID_LIST =
+         (SID_DESC =
+           (GLOBAL_DBNAME = {{ database_primary_unique }})
+           (ORACLE_HOME = {{ database_oracle_home }})
+           (SID_NAME = {{ database_primary_sid }})
+         )
+       )
+    marker: "# {mark} ANSIBLE MANAGED BLOCK PRIMARY SERVICE NAMES"
+  when: high_availability_count.delius == 0
+
 # The Wallet Location needs to be specified in 3 separate places:
 #   * listener.ora -- to secure the listener endpoint
 #   * the database's sqlnet.ora -- to define incoming database connections

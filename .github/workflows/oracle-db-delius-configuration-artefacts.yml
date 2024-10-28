@@ -56,13 +56,6 @@ on:
         options:
           - "yes"
           - "no"
-      DeployAuditedInteraction:
-        description: "Create Delius Audited Interaction Data Consolidation schema?"
-        type: choice
-        default: "no"
-        options:
-          - "yes"
-          - "no"
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -141,6 +134,5 @@ jobs:
           -e deploy_alfresco_wallet=${{ github.event.inputs.DeployAlfrescoWallet }} \
           -e deploy_gdpr=${{ github.event.inputs.DeployGdpr }} \
           -e deploy_mms=${{ github.event.inputs.DeployMMSApi }} \
-          -e deploy_audited_interaction=${{ github.event.inputs.DeployAuditedInteraction }} \
           -e deploy_davfs=${{ github.event.inputs.DeployDavfs }} \
           -e deploy_cfo=${{ github.event.inputs.DeployCfo }}
