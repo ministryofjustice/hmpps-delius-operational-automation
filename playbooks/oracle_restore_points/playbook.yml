@@ -431,6 +431,7 @@
   when:
     - required_action == "Flashback to Restore Point"
     - is_aws_environment | default(false)
+    - database_primary_sid is defined
 
 # This step is NOT required for AWS databases as it will have already been performed by the Password
 # Rotation.   (Password Rotation is not run on non-AWS Databases)
