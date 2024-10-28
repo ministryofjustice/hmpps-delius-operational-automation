@@ -401,6 +401,7 @@ jobs:
         if: env.BackupStatus != 'success'
         id: backup
         continue-on-error: false
+        shell: bash
         run: |
           # This step starts running the backup by calling the Ansible backup play
           # with the appropriate inputs.   
@@ -419,6 +420,26 @@ jobs:
           # If BackupStandbyOnPrimaryFailue is set to "yes" and a Standby database exists, then the
           # backup may be retried on the Standby.  Otherwise the job aborts with a failure since there
           # is notwhere else where the backup may be attempted.
+          echo "BackupStatus: $BackupStatus"
+          echo "BackupStandbyOnPrimaryFailure: $BackupStandbyOnPrimaryFailure"
+          echo "RmanTarget: $RmanTarget"
+          if [[ "$BackupStatus" == "failed" ]]; then
+             echo "The Backup Failed"
+          fi
+          if [[ "$RmanTarget" =~ "standbydb1" ]]; then
+             echo "Target is 1st Standby"
+             echo "Standby Config File is ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml"
+             if [[ ! -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb1}.yml ]]; then
+               echo "Standby config file does not exist"
+             fi
+          fi
+          if [[ "$RmanTarget" =~ "standbydb2" ]]; then
+             echo "Target is 2nd Standby"
+             echo "Standby Config File is ${inventory}/group_vars/${RmanTarget/primarydb/standbydb2}.yml"
+             if [[ ! -e ${inventory}/group_vars/${RmanTarget/primarydb/standbydb2}.yml ]]; then
+               echo "Standby config file does not exist"
+             fi
+          fi
           if [[ "$BackupStatus" == "failed" ]]; then
              if [[ "$BackupStandbyOnPrimaryFailure" == "no" ]]; then
                 echo "Backup Failed And No Retry Allowed"
@@ -452,7 +473,7 @@ jobs:
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |
-              {"icon_emoji":"arrows_counterclockwise","text":"Retrying Failed Backup on Standby","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Retrying Failed Backup on Standby:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
+              {"username":"Retrying Failed Backup on Standby","icon_emoji":"spinning-circle-of-death","text":"Retrying backup on: ${{ env.RmanTarget }}"}
         env:
           SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
 
@@ -464,7 +485,7 @@ jobs:
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |
-              {"icon_emoji":"white_check_mark","text":"Retrying Failed Backup on Standby Successful","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Retrying Failed Backup on Standby Successful:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
+              {"username":"Retrying Failed Backup on Standby Successful","icon_emoji":"github-tick","text":"Retrying Failed Backup on Standby Successful for: ${{ env.RmanTarget }}"}
         env:
           SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
 
@@ -491,6 +512,7 @@ jobs:
 
       - name: Record Job Failure in SSM Parameter Store
         if: failure()
+        shell: bash
         run: |
             Inputs=$(echo $Inputs | jq -r | jq '.Phase += " -- Failed"' | jq @json)
             if [[ ! $(echo $Inputs | jq -r | jq '.Phase') =~ Concurrent ]]; then
@@ -506,6 +528,6 @@ jobs:
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |
-              {"icon_emoji":"large_purple_circle","text":"Failed Backup","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Failed Backup:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
+              {"username":"Failed Backup","icon_emoji":"red_circle","text":"Failed Backup","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Failed Backup:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
         env:
           SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
