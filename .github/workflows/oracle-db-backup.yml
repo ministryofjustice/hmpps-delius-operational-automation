@@ -252,6 +252,7 @@ jobs:
           echo "EnableTrace="${EnableTrace:-"no"} >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$SourceCodeVersion" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$SourceConfigVersion" >> $GITHUB_OUTPUT
+          echo "IsRetryJob=$IsRetryJob" >> $GITHUB_OUTPUT
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
