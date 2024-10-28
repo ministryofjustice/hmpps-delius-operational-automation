@@ -60,7 +60,7 @@ jobs:
   oracle-backup:
     name: oracle-backup
     needs: build_rman_target_name
-    environment: ${{github.event.inputs.TargetEnvironment}}
+    environment: ${{github.event.inputs.TargetEnvironment}}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
