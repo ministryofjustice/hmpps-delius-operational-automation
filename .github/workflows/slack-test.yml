@@ -142,12 +142,12 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
 
-          - name: Slack Notification 2
-          id: slack-failure
-          uses: slackapi/slack-github-action@v1.26.0
-          with:
+      - name: Slack Notification 2
+        id: slack-failure-2
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
               channel-id: "${{ env.SlackChannel }}"
               payload: |
                 {"icon_emoji":"large_red_circle","text":"Test Message","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Failed Backup:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
-          env:
+        env:
             SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
