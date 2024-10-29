@@ -14,19 +14,9 @@
   set_fact:
     delius_primarydb: "{{ read_host | replace (read_host.split('_')[-1], 'primarydb') }}"
 
-- name: Build Secret Name From EC2 Tags
-  shell: |
-    export PATH=$PATH:/usr/local/bin
-    INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-    ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-    DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-    APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
-    echo ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-application-passwords
-  register: build_secret_name
-
 - name: Set Secret Manager Name
   set_fact:
-    secret_name: "{{ build_secret_name.stdout }}"
+    secret_name: "{{ environment_name }}-oracle-db-application-passwords"
 
 - block:
     # If we are reading from a standby database then ADG must be enabled
