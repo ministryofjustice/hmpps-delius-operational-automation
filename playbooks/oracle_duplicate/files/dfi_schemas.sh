@@ -9,6 +9,7 @@ ACTION=${1}
 if [ "${ACTION}" == "check" ]
 then
   sqlplus -s / as sysdba << EOF
+  WHENEVER SQLERROR EXIT FAILURE
   SET ECHO OFF
   SET FEED OFF
   SET LINES 132
