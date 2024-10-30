@@ -29,10 +29,10 @@
         action_type: "{{ act | default('create') }}"
       when: deploy_users | default('no') == "yes"
 
-    - name: Deploy Alfresco Wallet
-      include_role:
-        name: "{{ playbook_dir }}/alfresco_wallet/alfresco_wallet"
-      when: deploy_alfresco_wallet | default('no') == "yes"
+    # - name: Deploy Alfresco Wallet
+    #   include_role:
+    #     name: "{{ playbook_dir }}/alfresco_wallet/alfresco_wallet"
+    #   when: deploy_alfresco_wallet | default('no') == "yes"
 
     - name: Deploy Gdpr
       include_tasks: delius_gdpr/playbook.yml
@@ -80,3 +80,12 @@
       include_role:
         name: "{{ playbook_dir }}/oracle_mv_refresh_purge_child_cursors/oracle_mv_refresh_purge_child_cursors"
       when: deploy_mv_refresh_purge_child | default('no') == "yes"
+
+# Unlike the preceding artefacts, we want the Alfesco wallet to be installed on all Delius
+# hosts (primary and standby), so we create a new group which contains them
+- hosts: "{{ hosts | replace('primarydb','dbs') }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+  roles:
+    - { role: "{{ playbook_dir }}/alfresco_wallet/alfresco_wallet", when: ( deploy_alfresco_wallet | default('no') == "yes" ) }
