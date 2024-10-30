@@ -84,10 +84,10 @@
     - alfresco_host != 'NOT CONFIGURED'
     - not check_alfresco_url.failed
   block:
-      # We use the OpenSSL Client to get the SSL certificates from the Alfresco server.
-      # This will create a file on the target called /tmp/alf_certs.txt but we do not consider this
-      # a configuration change as it is only a temporary file for fetching information so we
-      # set changed_when to be false.
+    # We use the OpenSSL Client to get the SSL certificates from the Alfresco server.
+    # This will create a file on the target called /tmp/alf_certs.txt but we do not consider this
+    # a configuration change as it is only a temporary file for fetching information so we
+    # set changed_when to be false.
     - name: Fetch Alfresco SSL Certificates
       shell: |
         echo Q | openssl s_client -connect {{ alfresco_host }}:443 -tls1_2 -showcerts > /tmp/alf_certs.txt
@@ -303,7 +303,6 @@
     - name: Poll Alfresco from Database to Check Connectivity
       when: (database_primary_sid is defined) or active_data_guard
       block:
-
         - name: Test Connectivity to Alfresco
           script: test_connectivity.sh
           changed_when: false
