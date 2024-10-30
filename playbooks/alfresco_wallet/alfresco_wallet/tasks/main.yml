@@ -9,11 +9,32 @@
   register: check_alfresco_url
   ignore_errors: true
 
-  # We only run the wallet setup if an Alfresco URL has been configured in the Terraform and the address resolves
-- name: Setup Alfresco Wallet
+- name: Get Oracle Base
+  shell: |
+    . ~/.bash_profile
+    echo $ORACLE_BASE
+  register: oracle_base_result
+  changed_when: false
+
+- name: Set Oracle Base
+  set_fact:
+    oracle_base: "{{ oracle_base_result.stdout }}"
+
+- name: Define Location for Oracle Wallet
+  set_fact:
+    wallet_dir: "{{ oracle_base }}/wallets/alfresco_wallet"
+
+- name: Create Wallet Directory
+  file:
+    path: "{{ wallet_dir }}"
+    state: directory
+
+  # We only run the wallet setup if an Alfresco URL has been configured and the address resolves
+- name: Setup Primary Database Configuration for Alfresco Wallet
   when:
     - alfresco_host != 'NOT CONFIGURED'
     - not check_alfresco_url.failed
+    - database_primary_sid is defined
   block:
     - name: Get Alfresco URL Currently Configured
       script: get_alfresco_url.sh
@@ -43,6 +64,26 @@
         - prev_alfresco_host != 'NOT CONFIGURED'
         - prev_alfresco_host != alfresco_host
 
+    - name: Get Alfresco Wallet Location currently in SPG_CONTROL
+      script: get_alfresco_wallet_location.sh
+      register: get_alfresco_wallet_location
+      changed_when: false
+
+    - debug:
+        msg: "Changing Wallet Location from {{ get_alfresco_wallet_location.stdout }} to {{ wallet_dir }}"
+      when: ( get_alfresco_wallet_location.stdout | trim ) != ( wallet_dir | trim )
+
+    - name: Set Alfresco Wallet Location to Intended Value
+      script: set_alfresco_wallet_location.sh
+      environment:
+        ALFRESCO_WALLET_LOCATION: "{{ wallet_dir }}"
+      when: ( get_alfresco_wallet_location.stdout | trim ) != ( wallet_dir | trim )
+
+- name: Setup Alfresco Wallet on All Database Hosts
+  when:
+    - alfresco_host != 'NOT CONFIGURED'
+    - not check_alfresco_url.failed
+  block:
       # We use the OpenSSL Client to get the SSL certificates from the Alfresco server.
       # This will create a file on the target called /tmp/alf_certs.txt but we do not consider this
       # a configuration change as it is only a temporary file for fetching information so we
@@ -80,44 +121,9 @@
         /-----END CERTIFICATE-----/{INFLAG=0}' /tmp/alf_certs.txt | csplit --prefix='/tmp/alf.' --suffix-format='%02d.crt' --elide-empty-files  - "/-----END CERTIFICATE-----/+1" {*}
       changed_when: false
 
-    - name: Get Oracle Base
-      shell: |
-        . ~/.bash_profile
-        echo $ORACLE_BASE
-      register: oracle_base_result
-      changed_when: false
-
-    - name: Set Oracle Base
-      set_fact:
-        oracle_base: "{{ oracle_base_result.stdout }}"
-
-    - name: Define Location for Oracle Wallet
-      set_fact:
-        wallet_dir: "{{ oracle_base }}/wallets/alfresco_wallet"
-
-    - name: Create Wallet Directory
-      file:
-        path: "{{ wallet_dir }}"
-        state: directory
-
     - name: Define Working Directory for Recreating Oracle Wallet
       set_fact:
         wallet_working_dir: "{{ wallet_dir }}_work"
-
-    - name: Get Alfresco Wallet Location currently in SPG_CONTROL
-      script: get_alfresco_wallet_location.sh
-      register: get_alfresco_wallet_location
-      changed_when: false
-
-    - debug:
-        msg: "Changing Wallet Location from {{ get_alfresco_wallet_location.stdout }} to {{ wallet_dir }}"
-      when: ( get_alfresco_wallet_location.stdout | trim ) != ( wallet_dir | trim )
-
-    - name: Set Alfresco Wallet Location to Intended Value
-      script: set_alfresco_wallet_location.sh
-      environment:
-        ALFRESCO_WALLET_LOCATION: "{{ wallet_dir }}"
-      when: ( get_alfresco_wallet_location.stdout | trim ) != ( wallet_dir | trim )
 
     # We will use the System Password as the Wallet Password
     - name: Get system password from Secrets Manager
@@ -293,15 +299,20 @@
         state: absent
       when: not password_correct
 
+    # We can only poll from the primary and ADG standby databases
     - name: Poll Alfresco from Database to Check Connectivity
-      script: test_connectivity.sh
-      changed_when: false
-      register: test_connectivity
+      when: (database_primary_sid is defined) or active_data_guard
+      block:
 
-    - name: Display Alfresco Response
-      debug:
-        var: test_connectivity.stdout
+        - name: Test Connectivity to Alfresco
+          script: test_connectivity.sh
+          changed_when: false
+          register: test_connectivity
 
-    - fail:
-        msg: "Forbidden URL"
-      when: test_connectivity.stdout is search('.*403 Forbidden.*')
+        - name: Display Alfresco Response
+          debug:
+            var: test_connectivity.stdout
+
+        - fail:
+            msg: "Forbidden URL"
+          when: test_connectivity.stdout is search('.*403 Forbidden.*')
