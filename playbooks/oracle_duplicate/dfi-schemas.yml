@@ -14,7 +14,7 @@
 
     - name: Set Database Instance Available Flag
       set_fact:
-        instance_available: "{{ ('UNKNOWN' not in check_instance_role.stdout) }}"
+        instance_available: "{{ ('UNKNOWN' not in check_instance_role.stdout) and ('ORA-01034' not in check_instance_role.stdout) }}"
 
     - name: Export Only When Instance Is Available
       when: instance_available and action == 'export'
