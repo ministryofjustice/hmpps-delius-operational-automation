@@ -19,7 +19,7 @@ export DBID=$1
 if [[ "${CATALOG}" != "NOCATALOG" ]]
 then
    get_rman_password
-   CONNECT_TO_CATALOG="connect catalog ${CONNECT_TO_CATALOG}"
+   CONNECT_TO_CATALOG="connect catalog rcvcatowner/${RMANPASS}@${CATALOG}"
 fi
 
 rman <<EOF
