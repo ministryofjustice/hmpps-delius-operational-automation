@@ -1,8 +1,5 @@
 name: "Oracle: Schedule Deletion of DBIDs Not In Use (Delete Obsolete Backups)"
 on:
-  push:
-    branches:
-       - "DBA-785"
   schedule:
     - cron: '10 14 * * TUE'
     - cron: '10 16 * * TUE'
