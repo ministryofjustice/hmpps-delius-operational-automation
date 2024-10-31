@@ -92,7 +92,13 @@ COMPOUND TRIGGER
                     -- did not impact data that was replicated.
                     :new.last_updated_user_id  := :old.last_updated_user_id;
                     :new.last_updated_datetime := :old.last_updated_datetime;
-                END IF;    
+                END IF;
+                -- Staff IDs in stage and pre-prod are independent of those in production
+                -- since these are not relevant to audit, and it may be necessary for
+                -- some users to have staff records in stage and pre-prod without having
+                -- corresponding records in production.  Therefore we prevent any overwriting
+                -- of the staff ID                
+                :new.staff_id := :old.staff_id;
             END IF;
         END IF;
 
