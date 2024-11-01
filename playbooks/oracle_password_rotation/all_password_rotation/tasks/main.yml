@@ -2,10 +2,10 @@
 
 - name: Rotate Database Passwords
   include_tasks: non_oem_database_passwords.yml
-  when: not target_environment is search('hmpps-oem')
+  when: not target_environment_name is search('hmpps-oem')
 
 # Distinguish OEM environments
 
 - name: Rotate OEM Database Passwords
   include_tasks: oem_database_passwords.yml
-  when: target_environment is search('hmpps-oem')
+  when: target_environment_name is search('hmpps-oem')
