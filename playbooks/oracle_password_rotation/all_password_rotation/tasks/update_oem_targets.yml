@@ -3,11 +3,9 @@
 
 - name: Synchronize OEM Monitoring Credentials
   block:
-
     - name: Emcli Setup
       when: not target_environment_name is search('hmpps-oem')
       block:
-
         - name: Copy EMCLI Login scripts
           template:
             src: "{{ playbook_dir }}/../../common/templates/emcli_login.sh.j2"
