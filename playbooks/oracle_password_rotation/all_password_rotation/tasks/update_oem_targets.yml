@@ -3,15 +3,20 @@
 
 - name: Synchronize OEM Monitoring Credentials
   block:
-    - name: Copy EMCLI Login scripts
-      template:
-        src: "{{ playbook_dir }}/../../common/templates/emcli_login.sh.j2"
-        dest: "{{ stage }}/emcli_login.sh"
-        mode: "0700"
 
-    - name: Set Emcli Login Script Variable
-      set_fact:
-        emcli_login: ". {{ stage }}/emcli_login.sh > /dev/null 2>&1"
+    - name: Emcli Setup
+      when: not target_environment_name is search('hmpps-oem')
+      block:
+
+        - name: Copy EMCLI Login scripts
+          template:
+            src: "{{ playbook_dir }}/../../common/templates/emcli_login.sh.j2"
+            dest: "{{ stage }}/emcli_login.sh"
+            mode: "0700"
+
+        - name: Set Emcli Login Script Variable
+          set_fact:
+            emcli_login: ". {{ stage }}/emcli_login.sh > /dev/null 2>&1"
 
     - name: Include Set Monitoring Password Task From Oem Password Rotation Role
       include_role:
@@ -26,3 +31,4 @@
       file:
         path: "{{ stage }}/emcli_login.sh"
         state: absent
+      when: not target_environment_name is search('hmpps-oem')
