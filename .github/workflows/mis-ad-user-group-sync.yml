@@ -80,21 +80,32 @@ jobs:
 
       - name: Sync Users
         run: |
-          # Get list of existing users from AD
+          # Get list of all users from AD first
+          echo "Fetching existing AD users..."
           existing_users=$(aws ds-data list-users \
             --directory-id ${{ steps.directory.outputs.directory_id }} \
-            --query 'Users[].SAMAccountName' \
-            --output text | tr '\t' '\n' | sort)
+            --query 'Users[].{username:SAMAccountName,enabled:Enabled}' \
+            --output json)
 
-          # Create/Update users
-          yq e '.users[]' mis-directory/mis-users.yml | while read -r user; do
-            username=$(echo "$user" | yq e '.username' -)
-            firstname=$(echo "$user" | yq e '.first_name' -)
-            lastname=$(echo "$user" | yq e '.last_name' -)
-            email=$(echo "$user" | yq e '.email' -)
+          # Get users to be disabled
+          disabled_users=$(yq e '.disabled_users[]' mis-directory/mis-users.yml | jq -R -s 'split("\n") | map(select(length > 0))')
 
-            if ! echo "$existing_users" | grep -q "^${username}$"; then
-              echo "Creating user: $username"
+          # Create/Update active users
+          echo "Processing active users..."
+          active_users=$(yq eval-all -o=json mis-directory/mis-users.yml | \
+            jq -c '.users[] | {username:.username, first_name:.first_name, last_name:.last_name, email:.email}')
+
+          echo "$active_users" | while read -r user_json; do
+            username=$(echo "$user_json" | jq -r '.username')
+            firstname=$(echo "$user_json" | jq -r '.first_name')
+            lastname=$(echo "$user_json" | jq -r '.last_name')
+            email=$(echo "$user_json" | jq -r '.email')
+
+            # Check if user exists in AD
+            user_exists=$(echo "$existing_users" | jq -r --arg uname "$username" '.[] | select(.username == $uname) | .username')
+
+            if [ -z "$user_exists" ]; then
+              echo "Creating new user: $username"
               aws ds-data create-user \
                 --directory-id ${{ steps.directory.outputs.directory_id }} \
                 --sam-account-name "$username" \
@@ -102,7 +113,7 @@ jobs:
                 --surname "$lastname" \
                 --email-address "$email"
             else
-              echo "Updating user: $username"
+              echo "Updating existing user: $username"
               aws ds-data update-user \
                 --directory-id ${{ steps.directory.outputs.directory_id }} \
                 --sam-account-name "$username" \
@@ -113,38 +124,40 @@ jobs:
             fi
           done
 
-          # Process disabled users
-          yq e '.disabled_users[]' mis-directory/mis-users.yml | while read -r username; do
-            if [ ! -z "$username" ]; then
-              echo "Checking disabled user: $username"
-              # Check if user exists before trying to disable
-              if aws ds-data describe-user \
+          # Process users to be disabled
+          echo "Processing users to be disabled..."
+          echo "$disabled_users" | jq -r '.[]' | while read -r username; do
+            # Check if user exists and is enabled in AD
+            is_enabled=$(echo "$existing_users" | jq -r --arg uname "$username" '.[] | select(.username == $uname) | .enabled')
+
+            if [ "$is_enabled" = "true" ]; then
+              echo "Disabling user: $username"
+
+              # Remove from all groups
+              current_groups=$(aws ds-data list-groups-for-member \
                 --directory-id ${{ steps.directory.outputs.directory_id }} \
-                --sam-account-name "$username" 2>/dev/null; then
-                echo "Disabling user: $username"
+                --sam-account-name "$username" \
+                --query 'Groups[].SAMAccountName' \
+                --output text | tr '\t' '\n' || echo "")
 
-                # First remove from all groups
-                current_groups=$(aws ds-data list-groups-for-member \
-                  --directory-id ${{ steps.directory.outputs.directory_id }} \
-                  --sam-account-name "$username" \
-                  --query 'Groups[].SAMAccountName' \
-                  --output text | tr '\t' '\n' || echo "")
+              for group in $current_groups; do
+                if [ ! -z "$group" ]; then
+                  echo "Removing $username from group: $group"
+                  aws ds-data remove-group-member \
+                    --directory-id ${{ steps.directory.outputs.directory_id }} \
+                    --group-name "$group" \
+                    --member-name "$username"
+                fi
+              done
 
-                for group in $current_groups; do
-                  if [ ! -z "$group" ]; then
-                    echo "Removing $username from group: $group"
-                    aws ds-data remove-group-member \
-                      --directory-id ${{ steps.directory.outputs.directory_id }} \
-                      --group-name "$group" \
-                      --member-name "$username"
-                  fi
-                done
-
-                # Then disable the user
-                aws ds-data disable-user \
-                  --directory-id ${{ steps.directory.outputs.directory_id }} \
-                  --sam-account-name "$username"
-              fi
+              # Disable the user
+              aws ds-data disable-user \
+                --directory-id ${{ steps.directory.outputs.directory_id }} \
+                --sam-account-name "$username"
+            elif [ ! -z "$is_enabled" ]; then
+              echo "User $username is already disabled"
+            else
+              echo "User $username not found in AD"
             fi
           done
 
