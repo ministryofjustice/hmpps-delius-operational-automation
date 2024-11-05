@@ -61,12 +61,14 @@ jobs:
           yaml_groups=$(yq e '.groups[]' mis-directory/mis-users.yml | sort)
 
           # Get list of existing groups from AD
+          echo "Fetching existing AD groups..."
           existing_groups=$(aws ds-data list-groups \
             --directory-id ${{ steps.directory.outputs.directory_id }} \
             --query 'Groups[].SAMAccountName' \
             --output text | tr '\t' '\n' | sort)
 
           # Create new groups
+          echo "Processing groups..."
           for group in $yaml_groups; do
             if ! echo "$existing_groups" | grep -q "^${group}$"; then
               echo "Creating group: $group"
@@ -75,6 +77,8 @@ jobs:
                 --sam-account-name "$group" \
                 --group-scope "Global" \
                 --group-type "Security"
+            else
+              echo "Group already exists: $group"
             fi
           done
 
