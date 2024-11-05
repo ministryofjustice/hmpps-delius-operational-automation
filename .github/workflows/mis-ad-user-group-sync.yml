@@ -56,7 +56,7 @@ jobs:
       - name: Sync Groups
         run: |
           # Get list of defined groups from YAML
-          yaml_groups=$(yq e '.groups[]' mis-directory/mis-users.yaml | sort)
+          yaml_groups=$(yq e '.groups[]' mis-directory/mis-users.yml | sort)
 
           # Get list of existing groups from AD
           existing_groups=$(aws ds-data list-groups \
@@ -89,7 +89,7 @@ jobs:
       - name: Sync Users
         run: |
           # Get list of defined users from YAML
-          yaml_users=$(yq e '.users[].username' mis-directory/mis-users.yaml | sort)
+          yaml_users=$(yq e '.users[].username' mis-directory/mis-users.yml | sort)
 
           # Get list of existing users from AD
           existing_users=$(aws ds-data list-users \
@@ -98,7 +98,7 @@ jobs:
             --output text | tr '\t' '\n' | sort)
 
           # Create/Update users
-          yq e '.users[]' mis-directory/mis-users.yaml | while read -r user; do
+          yq e '.users[]' mis-directory/mis-users.yml | while read -r user; do
             username=$(echo "$user" | yq e '.username' -)
             firstname=$(echo "$user" | yq e '.first_name' -)
             lastname=$(echo "$user" | yq e '.last_name' -)
@@ -139,7 +139,7 @@ jobs:
       - name: Sync Group Memberships
         run: |
           # Process each user's group memberships
-          yq e '.users[]' mis-directory/mis-users.yaml | while read -r user; do
+          yq e '.users[]' mis-directory/mis-users.yml | while read -r user; do
             username=$(echo "$user" | yq e '.username' -)
             yaml_groups=$(echo "$user" | yq e '.groups[]' - | sort)
 
