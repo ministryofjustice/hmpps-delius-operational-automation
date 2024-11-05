@@ -76,21 +76,8 @@ jobs:
             fi
           done
 
-          # Delete groups that no longer exist in YAML
-          for group in $existing_groups; do
-            if ! echo "$yaml_groups" | grep -q "^${group}$"; then
-              echo "Deleting group: $group"
-              aws ds-data delete-group \
-                --directory-id ${{ steps.directory.outputs.directory_id }} \
-                --sam-account-name "$group"
-            fi
-          done
-
       - name: Sync Users
         run: |
-          # Get list of defined users from YAML
-          yaml_users=$(yq e '.users[].username' mis-directory/mis-users.yml | sort)
-
           # Get list of existing users from AD
           existing_users=$(aws ds-data list-users \
             --directory-id ${{ steps.directory.outputs.directory_id }} \
@@ -124,15 +111,38 @@ jobs:
             fi
           done
 
-          # Disable users that no longer exist in YAML
-          for username in $existing_users; do
-            if ! echo "$yaml_users" | grep -q "^${username}$"; then
-              echo "Disabling user: $username"
-
-              # Disable the user
-              aws ds-data disable-user \
+          # Process disabled users
+          yq e '.disabled_users[]' mis-directory/mis-users.yml | while read -r username; do
+            if [ ! -z "$username" ]; then
+              echo "Checking disabled user: $username"
+              # Check if user exists before trying to disable
+              if aws ds-data describe-user \
                 --directory-id ${{ steps.directory.outputs.directory_id }} \
-                --sam-account-name "$username"
+                --sam-account-name "$username" 2>/dev/null; then
+                echo "Disabling user: $username"
+
+                # First remove from all groups
+                current_groups=$(aws ds-data list-groups-for-member \
+                  --directory-id ${{ steps.directory.outputs.directory_id }} \
+                  --sam-account-name "$username" \
+                  --query 'Groups[].SAMAccountName' \
+                  --output text | tr '\t' '\n' || echo "")
+
+                for group in $current_groups; do
+                  if [ ! -z "$group" ]; then
+                    echo "Removing $username from group: $group"
+                    aws ds-data remove-group-member \
+                      --directory-id ${{ steps.directory.outputs.directory_id }} \
+                      --group-name "$group" \
+                      --member-name "$username"
+                  fi
+                done
+
+                # Then disable the user
+                aws ds-data disable-user \
+                  --directory-id ${{ steps.directory.outputs.directory_id }} \
+                  --sam-account-name "$username"
+              fi
             fi
           done
 
