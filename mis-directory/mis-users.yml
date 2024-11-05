@@ -1,0 +1,22 @@
+---
+groups:
+  - group1
+  - group2
+
+users:
+  - username: jsmith
+    first_name: John
+    last_name: Smith
+    email: jsmith@company.com
+    groups:
+      - group1
+      - group2
+  - username: jdoe
+    first_name: Jane
+    lastjson_name: Doe
+    email: jdoe@company.com
+    groups:
+      - group2
+
+disabled_users:
+  - bbob
