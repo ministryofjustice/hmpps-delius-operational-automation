@@ -1,8 +1,10 @@
 name: "Oracle: Schedule Deletion of DBIDs Not In Use (Delete Obsolete Backups)"
 on:
   schedule:
-    - cron: '10 14 * * TUE'
-    - cron: '10 16 * * TUE'
+    - cron: '10 11 * * MON'
+    - cron: '10 11 * * TUE'
+    - cron: '10 11 * * WED'
+    - cron: '10 11 * * THU'
 
 jobs:
   prepare-run-matrix:
