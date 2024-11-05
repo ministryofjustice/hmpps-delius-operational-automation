@@ -27,7 +27,7 @@ jobs:
 
     runs-on: ubuntu-latest
     environment: delius-mis-${{ matrix.env_name }}-preapproved
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.2.2
@@ -44,7 +44,7 @@ jobs:
         run: |
           DIRECTORY_NAME="delius-mis-${{ matrix.env_name }}"
           DIRECTORY_ID=$(aws ds describe-directories \
-            --query "DirectoryDescriptions[?Name=='${{ env.DIRECTORY_NAME }}.internal'].DirectoryId" \
+            --query "DirectoryDescriptions[?Name=='$DIRECTORY_NAME.internal'].DirectoryId" \
             --output text)
 
           if [ -z "$DIRECTORY_ID" ]; then
