@@ -1,0 +1,214 @@
+name: "MIS: Sync AD Users and Groups"
+
+on:
+  # push:
+  #   paths:
+  #     - "mis-directory/mis-users.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to sync (dev/stage/preprod)"
+        required: true
+        type: choice
+        options:
+          - dev
+          - stage
+          - preprod
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  sync-ad-objects:
+    strategy:
+      matrix:
+        env_name: ${{ github.event_name == 'push' && fromJson('["dev", "stage", "preprod"]') || fromJson(format('["{0}"]', github.event.inputs.environment)) }}
+
+    runs-on: ubuntu-latest
+    environment: delius-mis-${{ matrix.env_name }}-preapproved
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "mis-ad-user-group-sync-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      - name: Get Directory ID
+        id: directory
+        run: |
+          DIRECTORY_NAME="delius-mis-${{ matrix.env_name }}"
+          DIRECTORY_ID=$(aws ds describe-directories \
+            --query "DirectoryDescriptions[?Name=='$DIRECTORY_NAME.internal'].DirectoryId" \
+            --output text)
+
+          if [ -z "$DIRECTORY_ID" ]; then
+            echo "Error: Could not find directory with name ${DIRECTORY_NAME}"
+            exit 1
+          fi
+
+          echo "Found directory ID: $DIRECTORY_ID for ${DIRECTORY_NAME}"
+          echo "directory_id=${DIRECTORY_ID}" >> $GITHUB_OUTPUT
+
+      - name: Sync Groups
+        run: |
+          # Get list of defined groups from YAML
+          yaml_groups=$(yq e '.groups[]' mis-directory/mis-users.yml | sort)
+
+          # Get list of existing groups from AD
+          echo "Fetching existing AD groups..."
+          existing_groups=$(aws ds-data list-groups \
+            --directory-id ${{ steps.directory.outputs.directory_id }} \
+            --query 'Groups[].SAMAccountName' \
+            --output text | tr '\t' '\n' | sort)
+
+          # Create new groups
+          echo "Processing groups..."
+          for group in $yaml_groups; do
+            if ! echo "$existing_groups" | grep -q "^${group}$"; then
+              echo "Creating group: $group"
+              aws ds-data create-group \
+                --directory-id ${{ steps.directory.outputs.directory_id }} \
+                --sam-account-name "$group" \
+                --group-scope "Global" \
+                --group-type "Security"
+            else
+              echo "Group already exists: $group"
+            fi
+          done
+
+      - name: Sync Users
+        run: |
+          # Get list of all users from AD first
+          echo "Fetching existing AD users..."
+          existing_users=$(aws ds-data list-users \
+            --directory-id ${{ steps.directory.outputs.directory_id }} \
+            --query 'Users[].{username:SAMAccountName,enabled:Enabled}' \
+            --output json)
+
+          # Get users to be disabled
+          disabled_users=$(yq e '.disabled_users[]' mis-directory/mis-users.yml | jq -R -s 'split("\n") | map(select(length > 0))')
+
+          # Create/Update active users
+          echo "Processing active users..."
+          active_users=$(yq eval-all -o=json mis-directory/mis-users.yml | \
+            jq -c '.users[] | {username:.username, first_name:.first_name, last_name:.last_name, email:.email}')
+
+          echo "$active_users" | while read -r user_json; do
+            username=$(echo "$user_json" | jq -r '.username')
+            firstname=$(echo "$user_json" | jq -r '.first_name')
+            lastname=$(echo "$user_json" | jq -r '.last_name')
+            email=$(echo "$user_json" | jq -r '.email')
+
+            # Check if user exists in AD
+            user_exists=$(echo "$existing_users" | jq -r --arg uname "$username" '.[] | select(.username == $uname) | .username')
+
+            if [ -z "$user_exists" ]; then
+              echo "Creating new user: $username"
+              aws ds-data create-user \
+                --directory-id ${{ steps.directory.outputs.directory_id }} \
+                --sam-account-name "$username" \
+                --given-name "$firstname" \
+                --surname "$lastname" \
+                --email-address "$email"
+            else
+              echo "Updating existing user: $username"
+              aws ds-data update-user \
+                --directory-id ${{ steps.directory.outputs.directory_id }} \
+                --sam-account-name "$username" \
+                --given-name "$firstname" \
+                --surname "$lastname" \
+                --email-address "$email" \
+                --update-type REPLACE
+            fi
+          done
+
+          # Process users to be disabled
+          echo "Processing users to be disabled..."
+          echo "$disabled_users" | jq -r '.[]' | while read -r username; do
+            # Check if user exists and is enabled in AD
+            is_enabled=$(echo "$existing_users" | jq -r --arg uname "$username" '.[] | select(.username == $uname) | .enabled')
+
+            if [ "$is_enabled" = "true" ]; then
+              echo "Disabling user: $username"
+
+              # Remove from all groups
+              current_groups=$(aws ds-data list-groups-for-member \
+                --directory-id ${{ steps.directory.outputs.directory_id }} \
+                --sam-account-name "$username" \
+                --query 'Groups[].SAMAccountName' \
+                --output text | tr '\t' '\n' || echo "")
+
+              for group in $current_groups; do
+                if [ ! -z "$group" ]; then
+                  echo "Removing $username from group: $group"
+                  aws ds-data remove-group-member \
+                    --directory-id ${{ steps.directory.outputs.directory_id }} \
+                    --group-name "$group" \
+                    --member-name "$username"
+                fi
+              done
+
+              # Disable the user
+              aws ds-data disable-user \
+                --directory-id ${{ steps.directory.outputs.directory_id }} \
+                --sam-account-name "$username"
+            elif [ ! -z "$is_enabled" ]; then
+              echo "User $username is already disabled"
+            else
+              echo "User $username not found in AD"
+            fi
+          done
+
+      - name: Sync Group Memberships
+        run: |
+          # Get list of managed groups from YAML
+          managed_groups=$(yq e '.groups[]' mis-directory/mis-users.yml | jq -R -s 'split("\n") | map(select(length > 0))')
+
+          # Process each active user's group memberships
+          active_users=$(yq eval-all -o=json mis-directory/mis-users.yml | jq -c '.users[]')
+
+          echo "$active_users" | while read -r user_json; do
+            username=$(echo "$user_json" | jq -r '.username')
+            yaml_groups=$(echo "$user_json" | jq -r '.groups[]' 2>/dev/null || echo "")
+
+            # Get user's current groups from AD
+            existing_groups=$(aws ds-data list-groups-for-member \
+              --directory-id ${{ steps.directory.outputs.directory_id }} \
+              --sam-account-name "$username" \
+              --query 'Groups[].SAMAccountName' \
+              --output text | tr '\t' '\n' || echo "")
+
+            # Add user to new groups (only from managed groups)
+            for group in $yaml_groups; do
+              # Check if this is a group we manage
+              if echo "$managed_groups" | jq -e --arg g "$group" 'contains([$g])' >/dev/null; then
+                if ! echo "$existing_groups" | grep -q "^${group}$"; then
+                  echo "Adding $username to group: $group"
+                  aws ds-data add-group-member \
+                    --directory-id ${{ steps.directory.outputs.directory_id }} \
+                    --group-name "$group" \
+                    --member-name "$username"
+                fi
+              fi
+            done
+
+            # Remove user from managed groups they should no longer be in
+            for group in $existing_groups; do
+              # Only process if it's a group we manage
+              if echo "$managed_groups" | jq -e --arg g "$group" 'contains([$g])' >/dev/null; then
+                if ! echo "$yaml_groups" | grep -q "^${group}$"; then
+                  echo "Removing $username from group: $group"
+                  aws ds-data remove-group-member \
+                    --directory-id ${{ steps.directory.outputs.directory_id }} \
+                    --group-name "$group" \
+                    --member-name "$username"
+                fi
+              fi
+            done
+          done
