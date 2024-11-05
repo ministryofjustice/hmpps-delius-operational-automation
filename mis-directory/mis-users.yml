@@ -17,3 +17,6 @@ users:
     email: jdoe@company.com
     groups:
       - group2
+
+disabled_users:
+  - bbob
