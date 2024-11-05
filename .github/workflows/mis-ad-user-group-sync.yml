@@ -163,37 +163,48 @@ jobs:
 
       - name: Sync Group Memberships
         run: |
-          # Process each user's group memberships
-          yq e '.users[]' mis-directory/mis-users.yml | while read -r user; do
-            username=$(echo "$user" | yq e '.username' -)
-            yaml_groups=$(echo "$user" | yq e '.groups[]' - | sort)
+          # Get list of managed groups from YAML
+          managed_groups=$(yq e '.groups[]' mis-directory/mis-users.yml | jq -R -s 'split("\n") | map(select(length > 0))')
+
+          # Process each active user's group memberships
+          active_users=$(yq eval-all -o=json mis-directory/mis-users.yml | jq -c '.users[]')
+
+          echo "$active_users" | while read -r user_json; do
+            username=$(echo "$user_json" | jq -r '.username')
+            yaml_groups=$(echo "$user_json" | jq -r '.groups[]' 2>/dev/null || echo "")
 
             # Get user's current groups from AD
             existing_groups=$(aws ds-data list-groups-for-member \
               --directory-id ${{ steps.directory.outputs.directory_id }} \
               --sam-account-name "$username" \
               --query 'Groups[].SAMAccountName' \
-              --output text | tr '\t' '\n' | sort || echo "")
+              --output text | tr '\t' '\n' || echo "")
 
-            # Add user to new groups
-            echo "$yaml_groups" | while read -r group; do
-              if [ ! -z "$group" ] && ! echo "$existing_groups" | grep -q "^${group}$"; then
-                echo "Adding $username to group: $group"
-                aws ds-data add-group-member \
-                  --directory-id ${{ steps.directory.outputs.directory_id }} \
-                  --group-name "$group" \
-                  --member-name "$username"
+            # Add user to new groups (only from managed groups)
+            for group in $yaml_groups; do
+              # Check if this is a group we manage
+              if echo "$managed_groups" | jq -e --arg g "$group" 'contains([$g])' >/dev/null; then
+                if ! echo "$existing_groups" | grep -q "^${group}$"; then
+                  echo "Adding $username to group: $group"
+                  aws ds-data add-group-member \
+                    --directory-id ${{ steps.directory.outputs.directory_id }} \
+                    --group-name "$group" \
+                    --member-name "$username"
+                fi
               fi
             done
 
-            # Remove user from groups they should no longer be in
-            echo "$existing_groups" | while read -r group; do
-              if [ ! -z "$group" ] && ! echo "$yaml_groups" | grep -q "^${group}$"; then
-                echo "Removing $username from group: $group"
-                aws ds-data remove-group-member \
-                  --directory-id ${{ steps.directory.outputs.directory_id }} \
-                  --group-name "$group" \
-                  --member-name "$username"
+            # Remove user from managed groups they should no longer be in
+            for group in $existing_groups; do
+              # Only process if it's a group we manage
+              if echo "$managed_groups" | jq -e --arg g "$group" 'contains([$g])' >/dev/null; then
+                if ! echo "$yaml_groups" | grep -q "^${group}$"; then
+                  echo "Removing $username from group: $group"
+                  aws ds-data remove-group-member \
+                    --directory-id ${{ steps.directory.outputs.directory_id }} \
+                    --group-name "$group" \
+                    --member-name "$username"
+                fi
               fi
             done
           done
