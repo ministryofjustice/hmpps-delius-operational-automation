@@ -26,6 +26,8 @@ jobs:
         env_name: ${{ github.event_name == 'push' && fromJson('["dev", "stage", "preprod"]') || fromJson(format('["{0}"]', github.event.inputs.environment)) }}
 
     runs-on: ubuntu-latest
+    environment: delius-mis-${{ matrix.env_name }}-preapproved
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.2.2
