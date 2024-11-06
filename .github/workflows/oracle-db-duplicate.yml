@@ -22,6 +22,7 @@ on:
           - "delius_primarydb"
           - "mis_primarydb"
           - "dsd_primarydb"
+          - "boe_primarydb"
       SourceLegacy:
         description: "Duplicate From AWS Legacy"
         type: choice
