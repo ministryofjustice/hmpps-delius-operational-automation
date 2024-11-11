@@ -20,7 +20,7 @@ FOR x IN (SELECT grantee,privilege
           WHERE  owner = 'DELIUS_APP_SCHEMA'
           AND    table_name = 'USER_'
           AND    grantee != 'DELIUS_AUDIT_DMS_POOL'
-          AND    privilege != 'UPDATE')
+          AND    privilege IN ('DELETE','INSERT'))
 LOOP
   EXECUTE IMMEDIATE 'REVOKE '||x.privilege||' ON DELIUS_APP_SCHEMA.USER_ FROM '||x.grantee;
   DBMS_OUTPUT.put_line('Revoked '||x.privilege||' on USER_ from '||x.grantee);
