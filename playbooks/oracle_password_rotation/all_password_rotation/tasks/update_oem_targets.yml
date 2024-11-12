@@ -1,32 +1,6 @@
-- name: Get SYSMAN Password
-  include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
-
-- name: Synchronize OEM Monitoring Credentials
-  block:
-    - name: Emcli Setup
-      when: not target_environment_name is search('hmpps-oem')
-      block:
-        - name: Copy EMCLI Login scripts
-          template:
-            src: "{{ playbook_dir }}/../../common/templates/emcli_login.sh.j2"
-            dest: "{{ stage }}/emcli_login.sh"
-            mode: "0700"
-
-        - name: Set Emcli Login Script Variable
-          set_fact:
-            emcli_login: ". {{ stage }}/emcli_login.sh > /dev/null 2>&1"
-
-    - name: Include Set Monitoring Password Task From Oem Password Rotation Role
-      include_role:
-        name: "{{ playbook_dir }}/oem_password_rotation"
-        tasks_from: set_monitoring_passwords
-      vars:
-        sysman_password: "{{ oem_sysman_password }}"
-        target_environment_name: "{{ environment_name }}"
-
-  always:
-    - name: Remove Temporary Files from Stage Area
-      file:
-        path: "{{ stage }}/emcli_login.sh"
-        state: absent
-      when: not target_environment_name is search('hmpps-oem')
+- name: Include Set Monitoring Password Task From Oem Password Rotation Role
+  include_role:
+    name: "{{ playbook_dir }}/oem_password_rotation"
+    tasks_from: set_monitoring_passwords
+  vars:
+    target_environment_name: "{{ environment_name }}"
