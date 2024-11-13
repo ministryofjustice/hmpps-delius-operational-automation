@@ -1,0 +1,19 @@
+#!/bin/bash
+
+. ~/.bash_profile
+
+SYSMAN_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /oracle/database/EMREP/shared-passwords --query SecretString --output text | jq -r .sysman)
+
+set_agent_password () {
+  AGENT_REGISTRATION_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /oracle/oem/shared-passwords --query SecretString --output text | jq -r .agentreg)
+  {{ emctl_oem }} secure setpwd ${SYSMAN_PASSWORD} ${AGENT_REGISTRATION_PASSWORD}
+}
+
+set_oms_password () {
+  SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /oracle/database/EMREP/passwords --query SecretString --output text | jq -r .sys)
+  {{ emctl_oem }} config oms -change_repos_pwd -use_sys_pwd -sys_pwd ${SYS_PASSWORD} -new_pwd ${SYSMAN_PASSWORD}
+}
+
+[[ "${ROTATE}" == "AGENT" ]] && set_agent_password
+[[ "${ROTATE}" == "OMS" ]] && set_oms_password
+[[ "${ROTATE}" == "MGMT_VIEW" ]] && {{ emctl_oem }} config oms -change_view_user_pwd -sysman_pwd ${SYSMAN_PASSWORD} -auto_generate

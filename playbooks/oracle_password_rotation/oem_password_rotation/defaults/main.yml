@@ -23,3 +23,5 @@ agent_secretsmanager_passwords:
       - agentreg:
 
 asm_monitoring_secret_name: "/ec2/{{ ec2_name }}/asm-passwords"
+
+stage: /u02/stage
