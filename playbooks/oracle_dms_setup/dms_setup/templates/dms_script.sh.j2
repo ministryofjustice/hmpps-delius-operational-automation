@@ -1,0 +1,78 @@
+#!/bin/bash
+
+. ~/.bash_profile
+
+DMS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id {{ secret_name }} --region {{ region }} --query SecretString --output text| jq -r .{{ dms_user }})
+
+if [ "${STEP}" == "CHECKDBLINK" ]
+then
+    sqlplus -s /nolog << EOF
+    WHENEVER SQLERROR EXIT FAILURE
+    SET ECHO OFF
+    SET HEAD OFF 
+    SET PAGES 0 
+    SET FEED OFF 
+    SET DEFINE OFF
+    SET SERVEROUTPUT ON
+
+    connect {{ dms_user }}/${DMS_PASSWORD}
+
+    DECLARE
+
+        l_db_link     user_db_links.db_link%TYPE;
+
+        PROCEDURE check_db_link_functional IS
+            l_db_info     VARCHAR2(1);
+        BEGIN
+            SELECT *
+            INTO l_db_info
+            FROM dual@awsdms_dblink;
+        EXCEPTION WHEN OTHERS THEN
+            EXECUTE IMMEDIATE 'DROP DATABASE LINK awsdms_dblink';
+            DBMS_OUTPUT.PUT_LINE('DROPPEDDBLINK');
+        END;
+
+    BEGIN
+
+        SELECT db_link
+        INTO l_db_link
+        FROM user_db_links
+        WHERE db_link = 'AWSDMS_DBLINK';
+
+        IF l_db_link IS NOT NULL
+        THEN
+            check_db_link_functional;
+        END IF;
+
+    END;
+    /
+EOF
+elif [ "${STEP}" == "CREATEDBLINK" ]
+then
+    sqlplus -s /nolog << EOF
+    WHENEVER SQLERROR EXIT FAILURE
+    SET ECHO OFF
+    SET HEAD OFF 
+    SET PAGES 0 
+    SET FEED OFF 
+    SET DEFINE OFF
+    SET SERVEROUTPUT ON
+
+    connect / as sysdba
+
+    -- The DMS User does not normally have privileges to
+    -- create a database link so we grant this temporarily
+    GRANT CREATE DATABASE LINK TO {{ dms_user }};
+
+    connect {{ dms_user }}/${DMS_PASSWORD}
+
+    CREATE DATABASE LINK awsdms_dblink
+    CONNECT TO {{ dms_user }} IDENTIFIED BY "${DMS_PASSWORD}"
+    USING '{{ delius_primary_sid | upper }}';
+
+    connect / as sysdba
+
+    REVOKE CREATE DATABASE LINK FROM {{ dms_user }};
+
+EOF
+fi
