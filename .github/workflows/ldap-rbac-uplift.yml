@@ -8,6 +8,7 @@ on:
           options:
             - "dev"
             - "test"
+            - "stage"
       rbac_tag:
         required: true
         type: string
