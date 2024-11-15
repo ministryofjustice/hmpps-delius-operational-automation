@@ -68,6 +68,7 @@ jobs:
       - name: Get Database Targets For Environment
         id: databasetargets
         working-directory: ${{ env.inventory }}
+        shell: bash
         run: |
           targets=""
           prefix="environment_name_$(echo ${{ matrix.environment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')"
