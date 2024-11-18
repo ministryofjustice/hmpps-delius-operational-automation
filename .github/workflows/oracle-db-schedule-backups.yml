@@ -1,8 +1,8 @@
 name: "Oracle: Schedule Backups"
 on:
   schedule:
-    - cron: '0 8 * * 1,2,4,5'
-    - cron: '0 8 * * 3'
+    - cron: '0 7 * * 1,2,4,5'
+    - cron: '0 7 * * 3'
     - cron: '30 6 * * 3'
 
 jobs:
