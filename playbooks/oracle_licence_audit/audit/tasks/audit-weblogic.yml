@@ -106,4 +106,4 @@
   become: no
   shell: |
     export PATH=$PATH:/usr/local/bin
-    aws s3 cp {{ weblogic_output }} s3://{{ dependencies_bucket.name }}/{{ audit_output }}/ {{ general_kms_key_option }}
+    aws s3 cp {{ weblogic_output }} s3://{{ dependencies_bucket.name }}/{{ audit_output }}/ --acl bucket-owner-full-control {{ general_kms_key_option }}

@@ -33,8 +33,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        environment: [delius-core-dev,delius-core-test,delius-mis-dev]
-    #,delius-core-training,delius-core-stage,delius-core-preprod,delius-core-prod,delius-mis-stage,delius-mis-preprod,delius-mis-prod
+        environment: [delius-core-dev,delius-mis-dev,delius-core-test,delius-core-stage,delius-mis-stage]
     environment: ${{ matrix.environment }}-preapproved
     timeout-minutes: 1440
     continue-on-error: true
@@ -68,6 +67,7 @@ jobs:
       - name: Get Database Targets For Environment
         id: databasetargets
         working-directory: ${{ env.inventory }}
+        shell: bash
         run: |
           targets=""
           prefix="environment_name_$(echo ${{ matrix.environment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')"
