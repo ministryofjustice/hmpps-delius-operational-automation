@@ -48,8 +48,8 @@
 
 - name: Set Environment Variables Required For Shell And Script Modules
   set_fact:
-    assume_role_name: "{{ secretsmanager_passwords['catalog'].assume_role_name }}"
-    secret_account_id: "{{ account_ids[secretsmanager_passwords['catalog'].account_name] }}"
+    assume_role_name: "{{ assume_role_name }}"
+    secret_account_id: "{{ account_ids[account_name] }}"
     secret: "{{ secretsmanager_passwords['catalog'].secret }}"
 
 - name: Get DBID

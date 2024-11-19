@@ -1,15 +1,13 @@
 - name: Set Secrets Dictionary
   set_fact:
+    account_name: "hmpps-oem-{{ aws_environment }}"
+    assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
     secretsmanager_passwords:
       emrep:
-        account_name: "hmpps-oem-{{ aws_environment }}"
-        assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
         secret: "/oracle/database/EMREP/shared-passwords"
         users:
           - sysman:
       catalog:
-        account_name: "hmpps-oem-{{ aws_environment }}"
-        assume_role_name: "EC2OracleEnterpriseManagementSecretsRole"
         secret: "/oracle/database/{{ catalog }}/shared-passwords"
         users:
           - rcvcatowner:
@@ -18,50 +16,58 @@
   set_fact:
     account_ids: "{{ lookup('aws_ssm', 'account_ids', region='eu-west-2') }}"
 
-- name: Get OEM secrets
-  import_role:
-    name: secretsmanager-passwords
-  vars:
-    secretsmanager_passwords: "{{ secretsmanager_passwords }}"
-
-- name: Set password facts
-  set_fact:
-    sysman_password: "{{ secretsmanager_passwords_dict['emrep'].passwords['sysman'] }}"
-    rcvcatowner_password: "{{ secretsmanager_passwords_dict['catalog'].passwords['rcvcatowner'] }}"
-    getslacktoken: "{{ secretsmanager_passwords_dict['emrep'].passwords['slack_token'] }}"
-
-- name: Catalog Host Name
-  when:
-    - tnsnames_entry_exists is defined
-    - not tnsnames_entry_exists
+- name: Copy Get Facts Script On Conditions
+  when: (tnsnames_entry_exists is defined and not tnsnames_entry_exists) or (get_slack_channel is defined) or (copy_script | default(false) | bool)
   block:
-    - name: Get Catalog Host Name
-      shell: |
-        . ~/.bash_profile
-        export PATH=$PATH:/u01/app/oracle/product/oem-agent/agent_{{ OEM_AGENT_VERSION }}/oracle_common/jdk/jre/bin
-        {{ emcli }} sync 1>/dev/null 2>&1 || ( {{ emcli }} login -username=sysman -password=${SYSMAN_PASSWORD} -force && {{ emcli }} sync ) 1>/dev/null 2>&1
-        {{ emcli }} get_targets -noheader -targets="%:oracle_oms" | awk '{print $NF}' | cut -d: -f1
-      environment:
-        SYSMAN_PASSWORD: "{{ sysman_password }}"
-      register: getcataloghostname
+    - name: Copy Get Facts Script
+      template:
+        src: get_facts_script.sh.j2
+        dest: /u02/stage/get_facts_script.sh
+        mode: "0700"
 
-    - name: Set Catalog Host Name
-      set_fact:
-        catalog_hostname: "{{ getcataloghostname.stdout }}"
+    - name: Catalog Host Name
+      when:
+        - tnsnames_entry_exists is defined
+        - not tnsnames_entry_exists
+      block:
+        - name: Set Emcli Catalog Host Name Command
+          set_fact:
+            emcli_commands: |
+              {{ emcli }} get_targets -noheader -targets="%:oracle_oms" | awk '{print $NF}' | cut -d: -f1
 
-- name: Slack Channel
-  when: get_slack_channel is defined
-  block:
-    - name: Get Slack Channel
-      shell: |
-        . ~/.bash_profile
-        export PATH=$PATH:/u01/app/oracle/product/oem-agent/agent_{{ OEM_AGENT_VERSION }}/oracle_common/jdk/jre/bin
-        {{ emcli }} sync 1>/dev/null 2>&1 || ( {{ emcli }} login -username=sysman -password=${SYSMAN_PASSWORD} -force && {{ emcli }} sync ) 1>/dev/null 2>&1
-        {{ emcli }} list -resource=TargetProperties -search="TARGET_NAME='{{ database_sid }}'"  -search="PROPERTY_NAME='orcl_gtp_contact'" -columns="PROPERTY_VALUE" -colsize="PROPERTY_VALUE:30" -noheader -format="name:script"
-      environment:
-        SYSMAN_PASSWORD: "{{ sysman_password }}"
-      register: getslackchannel
+        - name: Get Catalog Host Name
+          ansible.builtin.command: >
+            /u02/stage/get_facts_script.sh
+          environment:
+            ACCOUNT_NAME: "{{ account_name }}"
+            ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+            EMCLI_COMMANDS: "{{ emcli_commands }}"
+          register: getcataloghostname
+          changed_when: false
 
-    - name: Setup Slack Configuration
-      set_fact:
-        slack_channel: "{{ getslackchannel.stdout }}"
+        - name: Set Catalog Host Name
+          set_fact:
+            catalog_hostname: "{{ getcataloghostname.stdout }}"
+
+    - name: Slack Channel
+      when: get_slack_channel is defined
+      block:
+        - name: Set Emcli Slack Channel Command
+          set_fact:
+            emcli_commands: |
+              {{ emcli }} list -resource=TargetProperties -search="TARGET_NAME='{{ database_sid }}'"  -search="PROPERTY_NAME='orcl_gtp_contact'" -columns="PROPERTY_VALUE" -colsize="PROPERTY_VALUE:30" -noheader -format="name:script"
+
+        - name: Get Slack Channel
+          ansible.builtin.command: >
+            /u02/stage/get_facts_script.sh
+          environment:
+            ACCOUNT_NAME: "{{ account_name }}"
+            ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+            CATALOG_SECRET: "{{ secretsmanager_passwords['catalog'].secret }}"
+            EMCLI_COMMANDS: "{{ emcli_commands }}"
+          register: getslackchannel
+          changed_when: false
+
+        - name: Setup Slack Configuration
+          set_fact:
+            slack_channel: "{{ getslackchannel.stdout }}"
