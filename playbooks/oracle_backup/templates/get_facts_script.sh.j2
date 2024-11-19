@@ -1,0 +1,26 @@
+#!/bin/bash
+
+. ~/.bash_profile
+
+OEM_ACCOUNT_ID=$(aws ssm get-parameters --with-decryption --name account_ids |  jq --arg ACCOUNT_NAME ${ACCOUNT_NAME} -r 'with_entries(if (.key|test($ACCOUNT_NAME)) then ( {key: .key, value: .value}) else empty end)' | jq -r 'to_entries|.[0].value')
+OEM_SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:${OEM_SECRET}"
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+OEM_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ASSUME_ROLE_NAME}"
+CREDS=$(aws sts assume-role --role-arn "${OEM_ROLE_ARN}" --role-session-name "from-ansible"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")
+export AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
+export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
+export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
+
+SYSMAN_PASSWORD=$(aws secretsmanager get-secret-value --secret-id "${OEM_SECRET_ARN}" --query SecretString --output text | jq -r .sysman)
+export PATH=$PATH:/u01/app/oracle/product/oem-agent/agent_{{ OEM_AGENT_VERSION }}/oracle_common/jdk/jre/bin
+{{ emcli }} sync 1>/dev/null 2>&1 || ( {{ emcli }} login -username=sysman -password=${SYSMAN_PASSWORD} -force && {{ emcli }} sync ) 1>/dev/null 2>&1
+
+[[ ! -z "${EMCLI_COMMANDS}" ]] && eval ${EMCLI_COMMANDS}
+if [[ "${STEP}" == "CONNECT_CATALOG" ]]
+then
+  RCVCATOWNER_PASSWORD=$(aws secretsmanager get-secret-value --secret-id "arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:${CATALOG_SECRET}" --query SecretString --output text | jq -r .rcvcatowner) 
+  sqlplus -s /nolog << EOF
+  whenever sqlerror exit failure
+  connect rcvcatowner/${RCVCATOWNER_PASSWORD}@{{ catalog }}
+EOF
+fi
