@@ -26,6 +26,8 @@
 
 - name: Get Passwords
   include_tasks: get_facts.yml
+  vars:
+    copy_script: true
 
 - name: Add catalog connect identifier to {{ oracle_home.stdout }}/network/admin/tnsnames.ora
   blockinfile:
@@ -51,16 +53,15 @@
   when: not tnsnames_entry_exists
 
 - name: Attempt to connect to the catalog as rman
-  shell:
-    cmd: |
-      . ~/.bash_profile
-      sqlplus -s /nolog<< EOF
-      whenever sqlerror exit failure
-      connect rcvcatowner/{{ rcvcatowner_password }}@{{ catalog }}
-      EOF
-  changed_when: false
+  ansible.builtin.command: >
+    /u02/stage/get_facts_script.sh
+  environment:
+    STEP: CONNECT_CATALOG
+    ACCOUNT_NAME: "{{ account_name }}"
+    ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+    CATALOG_SECRET: "{{ secretsmanager_passwords['catalog'].secret }}"
   register: rman_connect
-  no_log: true
+  changed_when: false
 
 - name: Display connection result
   debug:
