@@ -19,19 +19,17 @@
 - name: Copy Get Facts Script On Conditions
   when: (tnsnames_entry_exists is defined and not tnsnames_entry_exists) or (get_slack_channel is defined) or (copy_script | default(false) | bool)
   block:
-
     - name: Copy Get Facts Script
       template:
-          src: get_facts_script.sh.j2
-          dest: /u02/stage/get_facts_script.sh
-          mode: "0700"
+        src: get_facts_script.sh.j2
+        dest: /u02/stage/get_facts_script.sh
+        mode: "0700"
 
     - name: Catalog Host Name
       when:
         - tnsnames_entry_exists is defined
         - not tnsnames_entry_exists
       block:
-
         - name: Set Emcli Catalog Host Name Command
           set_fact:
             emcli_commands: |
@@ -54,7 +52,6 @@
     - name: Slack Channel
       when: get_slack_channel is defined
       block:
-
         - name: Set Emcli Slack Channel Command
           set_fact:
             emcli_commands: |
