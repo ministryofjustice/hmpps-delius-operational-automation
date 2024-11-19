@@ -1,21 +1,31 @@
 ---
-name: CP Helm RDS Data Refresh
+name: CP RDS Data Refresh
 
 on:
   workflow_dispatch:
     inputs:
+      component:
+        description: Delius Core component to refresh data for
+        required: true
+        type: choice
+        options:
+          - gdpr
+          - merge
       source_env:
         description: Environment to copy data from
         required: true
         type: choice
         options:
           - dev
+          - test
       destination_env:
         description: Environment to copy data to
         required: true
         type: choice
         options:
           - poc
+          - dev
+          - test
 
 permissions:
   contents: read
