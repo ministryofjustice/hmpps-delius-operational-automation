@@ -17,7 +17,7 @@
     account_ids: "{{ lookup('aws_ssm', 'account_ids', region='eu-west-2') }}"
 
 - name: Copy Get Facts Script On Conditions
-  when: (tnsnames_entry_exists is defined and not tnsnames_entry_exists) or (get_slack_channel is defined)
+  when: (tnsnames_entry_exists is defined and not tnsnames_entry_exists) or (get_slack_channel is defined) or (copy_script | default(false) | bool)
   block:
 
     - name: Copy Get Facts Script
