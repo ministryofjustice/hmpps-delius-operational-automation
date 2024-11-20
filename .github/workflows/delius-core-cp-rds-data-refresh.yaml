@@ -16,16 +16,13 @@ on:
         required: true
         type: choice
         options:
-          - dev
           - test
       destination_env:
         description: Environment to copy data to
         required: true
         type: choice
         options:
-          - poc
           - dev
-          - test
 
 permissions:
   contents: read
@@ -49,8 +46,7 @@ jobs:
 
     - name: Stop ${{ github.event.inputs.destination_env }} Environment
       run: |
-        kubectl scale deployment [gdpr deployment name here] --replicas=0
-        kubectl scale deployment [merge deployment name here] --replicas=0
+        kubectl scale deployment ${{ github.event.inputs.component }} --replicas=0
 
   refresh-db:
     name: Refresh DB
@@ -114,5 +110,4 @@ jobs:
     - name: Start ${{ github.event.inputs.destination_env }} Environment
       run: |
 
-        kubectl scale deployment [gdpr deployment name here] --replicas=1
-        kubectl scale deployment [merge deployment name here] --replicas=1
+        kubectl scale deployment ${{ github.event.inputs.component }} --replicas=1
