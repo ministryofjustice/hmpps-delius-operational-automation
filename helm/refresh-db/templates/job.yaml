@@ -48,7 +48,7 @@ spec:
     spec:
       containers:
         - name: refresh-db
-          image: ghcr.io/ministryofjustice/REPLACE ME
+          image: ghcr.io/ministryofjustice/REPLACE ME # replace with image similar to the afresco db utils
           imagePullPolicy: IfNotPresent
           resources:
             limits:
@@ -121,8 +121,8 @@ spec:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
-      serviceAccount: hmpps-migration-dev
-      serviceAccountName: hmpps-migration-dev
+      serviceAccount: cd-serviceaccount
+      serviceAccountName: cd-serviceaccount
       restartPolicy: Never
       volumes:
         - name: refresh-db-script
