@@ -80,7 +80,7 @@
     {
         "TargetEnvironment":"delius-mis-stage",
         "TargetHost":"mis_primarydb",
-        "CronSchedule":"0 7 * * 3",
+        "CronSchedule":"30 6 * * 3",
         "Period": "weekly"
     },
     {
