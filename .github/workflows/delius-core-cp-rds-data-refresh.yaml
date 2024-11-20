@@ -86,7 +86,7 @@ jobs:
         run: helm uninstall refresh-db --ignore-not-found
 
       - name: DB Refresh
-        working-directory: jobs/refresh-db
+        working-directory: helm/refresh-db
         run: |
           helm install refresh-db . \
             --set sourceEnvironment=${{ github.event.inputs.source_env }} \
