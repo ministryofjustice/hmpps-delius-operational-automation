@@ -72,7 +72,7 @@ spec:
             - name: SRC_DB_PASS
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output
+                  name: rds-instance-output-{{ .Values.component }}
                   key: DATABASE_PASSWORD
             - name: SRC_DB_HOST
               valueFrom:
