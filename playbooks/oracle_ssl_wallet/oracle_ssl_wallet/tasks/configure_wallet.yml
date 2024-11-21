@@ -86,7 +86,6 @@
   loop:
     - "{{ private_key }}"
     - "{{ self_signed_ca_csr }}"
-    - "{{ self_signed_csr }}"
     - cwallet.sso
   loop_control:
     loop_var: file_name
