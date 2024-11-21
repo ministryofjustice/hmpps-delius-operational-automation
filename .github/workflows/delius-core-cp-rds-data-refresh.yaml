@@ -84,10 +84,11 @@ jobs:
       - name: DB Refresh
         working-directory: helm/refresh-db
         run: |
-          helm install refresh-db . \
+          helm install refresh-db-${{ github.events.inputs.component }} . \
             --set sourceEnvironment=${{ github.event.inputs.source_env }} \
             --set destinationEnvironment=${{ github.event.inputs.destination_env }} \
-            --set slackWebhookUrl=${{ secrets.SLACK_WEBHOOK_URL }}
+            --set slackWebhookUrl=${{ secrets.SLACK_WEBHOOK_URL }} \ 
+            --set component=${{ github.events.inputs.component }}
 
   start-destination-environment:
     name: Start ${{ github.event.inputs.destination_env }} Environment
