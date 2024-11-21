@@ -33,7 +33,7 @@
         - name: Set Emcli Catalog Host Name Command
           set_fact:
             emcli_commands: |
-              {{ emcli }} get_targets -noheader -targets="%:oracle_oms" | awk '{print $NF}' | cut -d: -f1
+              {{ emcli }} get_targets -noheader -targets="%:oracle_oms" | awk '{print $NF}' | cut -d: -f1 | head -1
 
         - name: Get Catalog Host Name
           ansible.builtin.command: >
@@ -41,6 +41,7 @@
           environment:
             ACCOUNT_NAME: "{{ account_name }}"
             ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+            OEM_SECRET: "{{ secretsmanager_passwords['emrep'].secret }}"
             EMCLI_COMMANDS: "{{ emcli_commands }}"
           register: getcataloghostname
           changed_when: false
@@ -63,7 +64,7 @@
           environment:
             ACCOUNT_NAME: "{{ account_name }}"
             ASSUME_ROLE_NAME: "{{ assume_role_name }}"
-            CATALOG_SECRET: "{{ secretsmanager_passwords['catalog'].secret }}"
+            OEM_SECRET: "{{ secretsmanager_passwords['emrep'].secret }}"
             EMCLI_COMMANDS: "{{ emcli_commands }}"
           register: getslackchannel
           changed_when: false
