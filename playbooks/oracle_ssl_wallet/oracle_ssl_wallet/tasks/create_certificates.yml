@@ -22,7 +22,7 @@
 
 # We use the same certificate on all database servers in the system (primary and standby),
 # so we only need to create it once, which we do on the primary.
-# We are using the Self Signed CA Certificate.  Note that we do not need to create a 
+# We are using the Self Signed CA Certificate.  Note that we do not need to create a
 # separate leaf certificate, as we authenticate using the root certificate.
 - name: Create Certificate on Primary Database Server
   when: database_primary_sid is defined
