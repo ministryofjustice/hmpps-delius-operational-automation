@@ -2,10 +2,10 @@
 # Example:
 *   @ministryofjustice/hmpps-migration
 
-.github/workflows/oracle-* @ministryofjustice/hmpps-dba @ministryofjustice/hmpps-migration
+.github/workflows/oracle-* @ministryofjustice/hmpps-dba @ministryofjustice/hmpps-migration @ministryofjustice/hosting-migrations
 
-.github/workflows/delius-* @ministryofjustice/unilink @ministryofjustice/hmpps-migration
+.github/workflows/delius-* @ministryofjustice/unilink @ministryofjustice/hmpps-migration @ministryofjustice/hosting-migrations
 
-playbooks/** @ministryofjustice/hmpps-dba @ministryofjustice/hmpps-migration
-docker/** @ministryofjustice/hmpps-migration
-ansible/** @ministryofjustice/hmpps-migration
+playbooks/** @ministryofjustice/hmpps-dba @ministryofjustice/hmpps-migration @ministryofjustice/hosting-migrations
+docker/** @ministryofjustice/hmpps-migration @ministryofjustice/hosting-migrations
+ansible/** @ministryofjustice/hmpps-migration @ministryofjustice/hosting-migrations
