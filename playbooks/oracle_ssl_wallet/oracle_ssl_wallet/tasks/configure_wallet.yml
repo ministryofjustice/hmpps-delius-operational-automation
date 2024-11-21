@@ -13,7 +13,10 @@
 # exposure of the password within an environment file between the Ansible controller
 # and the target host, so we must use the AWS CLI to look up the secret directly on the host.
 #
-# We only create the PKCS#12 file on the primary as it will not exist on the standby hosts
+# We only create the PKCS#12 file on the primary as the private key and CA certificate files
+# will not exist on the standby hosts at this point.  We use the PKCS#12 file to copy these to
+# the wallet on the standby.   NB: We need to include the private key as this is the server-side
+# wallet used by the listener.
 - name: Get System password from secrets manager and use it to create a PKCS#12 file
   shell: |
     cd {{ wallet_directory }}
@@ -22,7 +25,7 @@
     DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
     APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
     export SYSTEMPWD=$(aws secretsmanager get-secret-value --secret-id ${APPLICATION}-core-${DELIUS_ENVIRONMENT}-oracle-db-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .system)
-    openssl pkcs12 -export -in {{ wallet_working_directory }}/{{ self_signed_crt }} -inkey {{ wallet_working_directory }}/{{ private_key }} -certfile {{ wallet_working_directory }}/{{ self_signed_ca_crt }} -out openssl.p12 -passout env:SYSTEMPWD
+    openssl pkcs12 -export -in {{ wallet_working_directory }}/{{ self_signed_ca_crt }} -inkey {{ wallet_working_directory }}/{{ private_key }} -out openssl.p12 -passout env:SYSTEMPWD
   when: database_primary_sid is defined
 
 - name: Check if Wallet Already Exists
@@ -84,7 +87,6 @@
     - "{{ private_key }}"
     - "{{ self_signed_ca_csr }}"
     - "{{ self_signed_csr }}"
-    - "{{ self_signed_crt }}"
     - cwallet.sso
   loop_control:
     loop_var: file_name

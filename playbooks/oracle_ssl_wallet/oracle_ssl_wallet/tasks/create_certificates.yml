@@ -22,6 +22,8 @@
 
 # We use the same certificate on all database servers in the system (primary and standby),
 # so we only need to create it once, which we do on the primary.
+# We are using the Self Signed CA Certificate.  Note that we do not need to create a 
+# separate leaf certificate, as we authenticate using the root certificate.
 - name: Create Certificate on Primary Database Server
   when: database_primary_sid is defined
   block:
@@ -55,22 +57,3 @@
         path: "{{ wallet_working_directory }}"
         mode: "0755"
         recurse: yes
-
-    - name: Generate a CSR (Certificate Signing Request) for the leaf certificate
-      ansible.builtin.command: >
-        openssl req -new -key {{ wallet_working_directory }}/{{ private_key }} -out {{ wallet_working_directory }}/{{ self_signed_csr }} -subj "{{ crt_subject }}"
-      args:
-        creates: "{{ wallet_working_directory }}/{{ self_signed_csr }}"
-
-    - name: Sign the CSR with the Root CA to create the leaf certificate
-      ansible.builtin.command: >
-        openssl x509 -req -in {{ wallet_working_directory }}/{{ self_signed_csr }}
-        -CA {{ wallet_working_directory }}/{{ self_signed_ca_crt }} -CAkey {{ wallet_working_directory }}/{{ private_key }}
-        -CAcreateserial -out {{ wallet_working_directory }}/{{ self_signed_crt }} -days 365
-      args:
-        creates: "{{ wallet_working_directory }}/{{ self_signed_crt }}"
-
-    - name: Set permissions on the leaf certificate
-      ansible.builtin.file:
-        path: "{{ wallet_working_directory }}/{{ self_signed_crt }}"
-        mode: "0600"
