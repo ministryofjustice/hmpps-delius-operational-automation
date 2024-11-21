@@ -67,7 +67,7 @@ spec:
             - name: SRC_DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output
+                  name: rds-instance-output-{{ .Values.component }}
                   key: DATABASE_USERNAME
             - name: SRC_DB_PASS
               valueFrom:
@@ -82,22 +82,22 @@ spec:
             - name: DST_DB_NAME
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.destinationEnvironment }}
+                  name: rds-instance-output-{{ .Values.destinationEnvironment }}-{{ .Values.component }}
                   key: DATABASE_NAME
             - name: DST_DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.destinationEnvironment }}
+                  name: rds-instance-output-{{ .Values.destinationEnvironment }}-{{ .Values.component }}
                   key: DATABASE_USERNAME
             - name: DST_DB_PASS
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.destinationEnvironment }}
+                  name: rds-instance-output-{{ .Values.destinationEnvironment }}-{{ .Values.component }}
                   key: DATABASE_PASSWORD
             - name: DST_DB_HOST
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.destinationEnvironment }}
+                  name: rds-instance-output-{{ .Values.destinationEnvironment }}-{{ .Values.component }}
                   key: RDS_INSTANCE_ADDRESS
             - name: SLACK_WEBHOOK_URL
               value: "{{ .Values.slackWebhookUrl }}"
