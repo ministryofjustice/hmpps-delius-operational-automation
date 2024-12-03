@@ -125,6 +125,7 @@ jobs:
             playbooks/delius_users
             playbooks/delius-artefacts-playbook.yml
             playbooks/ansible.cfg
+            common/*
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
