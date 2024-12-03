@@ -71,11 +71,11 @@
     sql_cmd: "HOST aws ssm get-parameters --with-decryption --name account_ids | jq -r .Parameters[].Value | jq -r 'with_entries(if (.key|test(\\\"{{ delius_account_name }}\\\")) then ( {key: .key, value: .value}) else empty end)' | jq -r 'to_entries|.[0].value'"
 
 - name: Get SYSMAN Password
-  include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
+  include_tasks: "../../common/tasks/get_facts.yml"
 
 - name: Copy EMCLI Login script
   template:
-    src: "{{ playbook_dir }}/../../common/templates/emcli_login.sh.j2"
+    src: "../../common/templates/emcli_login.sh.j2"
     dest: "/tmp/emcli_login.sh"
     mode: "0700"
 
