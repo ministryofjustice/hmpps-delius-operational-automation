@@ -1,0 +1,9 @@
+#!/bin/bash
+
+. ~/.bash_profile
+
+# At this point no other user passwords besides the system password have updated the secret
+# Safe to retrieve the old system password from AWSPREVIOUS secret
+OLD_SYSTEM_PASSWORD=$(aws secretsmanager get-secret-value --secret-id {{ secret_name }} --version-stage "AWSPREVIOUS" --query SecretString --output text | jq -r .system)
+SYSTEM_PASSWORD=$(aws secretsmanager get-secret-value --secret-id {{ secret_name }} --query SecretString --output text | jq -r .system)
+echo 'orapki wallet change_pwd -wallet {{ path_to_wallet }} -oldpwd "${OLD_SYSTEM_PASSWORD}" -newpwd "${SYSTEM_PASSWORD}"'

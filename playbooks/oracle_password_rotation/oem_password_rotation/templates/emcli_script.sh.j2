@@ -1,0 +1,45 @@
+#!/bin/bash
+
+. ~/.bash_profile
+
+OEM_ACCOUNT_ID=$(aws ssm get-parameters --with-decryption --name account_ids | jq -r .Parameters[].Value |  jq -r 'with_entries(if (.key|test("hmpps-oem.*$")) then ( {key: .key, value: .value}) else empty end)' | jq -r 'to_entries|.[0].value')
+OEM_SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+OEM_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/EC2OracleEnterpriseManagementSecretsRole"
+SECRET_ACCOUNT_ID=$(aws ssm get-parameters --with-decryption --name account_ids | jq -r .Parameters[].Value |  jq --arg ACCOUNT_NAME ${ACCOUNT_NAME} -r 'with_entries(if (.key|test($ACCOUNT_NAME)) then ( {key: .key, value: .value}) else empty end)' | jq -r 'to_entries|.[0].value')
+
+[[ "${SECRET_ACCOUNT_ID}" == "null" ]] && SECRET_ACCOUNT_ID=${ACCOUNT_ID}
+
+function get_sysman_password () {
+  SYSMAN_PASSWORD=$(aws secretsmanager get-secret-value --secret-id "${OEM_SECRET_ARN}" --query SecretString --output text | jq -r .sysman)
+}
+
+function get_db_password () {
+  if [ -n "${DB_USERNAME}" ]
+  then
+    SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:${SECRET_NAME}"
+    PASSWORD=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .${DB_USERNAME})
+  fi
+}
+
+function get_creds (){
+  CREDS=$(aws sts assume-role --role-arn "${OEM_ROLE_ARN}" --role-session-name "from-ansible"  --output text --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]")
+  export AWS_ACCESS_KEY_ID=$(echo "${CREDS}" | tail -1 | cut -f1)
+  export AWS_SECRET_ACCESS_KEY=$(echo "${CREDS}" | tail -1 | cut -f2)
+  export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
+}
+
+if [[ "${ACCOUNT_ID}" != "${OEM_ACCOUNT_ID}" ]]
+then
+  export JAVA_HOME=$ORACLE_HOME/jdk/jre
+  get_db_password
+  get_creds
+  get_sysman_password
+else
+  get_sysman_password
+  ! [[ "${ACCOUNT_NAME}" =~ ^hmpps-oem.*$ ]] && get_creds 
+  get_db_password
+fi
+
+{{ emcli }} sync 1>/dev/null 2>&1 || ( {{ emcli }} login -username=sysman -password=${SYSMAN_PASSWORD} -force && {{ emcli }} sync ) 1>/dev/null 2>&1
+eval ${EMCLI_COMMANDS}

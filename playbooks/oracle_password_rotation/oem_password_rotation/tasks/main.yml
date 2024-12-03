@@ -23,12 +23,35 @@
       poll: 0
       register: lock_notification_polling
 
+    - name: Set Emctl & Emcli Script Variables
+      set_fact:
+        emctl_script: "{{ stage }}/emctl_script.sh"
+        emcli_script: "{{ stage }}/emcli_script.sh"
+
+    - name: Copy Emctl & Emcli scripts
+      template:
+        src: "{{ item }}"
+        dest: "{{ stage }}/{{ item.split('.')[:-1] | join('.') }}"
+        mode: "0700"
+      with_items:
+        - emctl_script.sh.j2
+        - emcli_script.sh.j2
+
     - name: Rotate OEM Passwords
       include_tasks: rotate_oem_passwords.yml
 
     # If we are rotating the OEM passwords then we should also rotate the Agent Registration Passwords
     - name: Rotate Agent Registration Password
       include_tasks: rotate_agent_registration_password.yml
+
+  always:
+    - name: Remove Temporary Files from Stage Area
+      file:
+        path: "{{ stage }}/{{ item }}"
+        state: absent
+      with_items:
+        - emctl_script.sh
+        - emcli_script.sh
 
 - name: Ensure OEM Target Passwords are in Sync with Secrets
   include_tasks: sync_monitoring_passwords.yml

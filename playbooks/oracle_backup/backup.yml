@@ -162,8 +162,8 @@
           async: "{{ allowable_duration|default(28800) }}"
           poll: 0
           environment:
-            ASSUME_ROLE_NAME: "{{ secretsmanager_passwords['catalog'].assume_role_name | default() }}"
-            SECRET_ACCOUNT_ID: "{{ account_ids[secretsmanager_passwords['catalog'].account_name] | default() }}"
+            ASSUME_ROLE_NAME: "{{ assume_role_name | default() }}"
+            SECRET_ACCOUNT_ID: "{{ account_ids[account_name] | default() }}"
             SECRET: "{{ secretsmanager_passwords['catalog'].secret | default() }}"
           register: backup_cmd_output
 

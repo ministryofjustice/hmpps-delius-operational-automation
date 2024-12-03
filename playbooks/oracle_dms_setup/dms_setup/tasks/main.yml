@@ -88,6 +88,7 @@
 
     - name: (main) Flush shared pool on standby to fix Oracle Bug 17344971
       script: flush_shared_pool.sh
+      when: read_host is not search('delius_primarydb')
 
   become: yes
   become_user: oracle
