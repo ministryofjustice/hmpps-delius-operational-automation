@@ -31,21 +31,6 @@
         . {{ stage }}/emcli_login.sh >/dev/null
         {{ emcli }} delete_target -name="{{ existing_target_name.stdout }}" -type="{{ target_type }}"
 
-    # - name: Copy SQL Script to Wait for Target Deletion
-    #   template:
-    #     src: wait_for_target_deletion.sql.j2
-    #     dest: "{{ stage }}/wait_for_target_deletion.sql"
-    #     mode: "0600"
-    #   vars:
-    #     deletion_target: "{{ existing_target_name.stdout }}"
-
-    # Pause Until OEM has Finished Deleting the Target
-    # (Otherwise it will fail when we try to add the new target)
-    # - name: Wait for Existing Target Deletion
-    #   shell: |
-    #     . {{ stage }}/emcli_login.sh >/dev/null
-    #     {{ emcli }} execute_sql -sql="FILE" -input_file="FILE:{{ stage }}/wait_for_target_deletion.sql" -targets="EMREP:oracle_database"
-
     - name: Wait for Existing Target Deletion
       shell: |
         . {{ stage }}/emcli_login.sh >/dev/null
