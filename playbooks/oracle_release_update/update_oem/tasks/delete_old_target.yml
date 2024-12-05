@@ -45,3 +45,11 @@
       shell: |
         . {{ stage }}/emcli_login.sh >/dev/null
         {{ emcli }} execute_sql -sql="FILE" -input_file="FILE:{{ stage }}/wait_for_target_deletion.sql" -targets="EMREP:oracle_database"
+
+    - name: Check Target Has Been Deleted
+      shell: |
+        . {{ stage }}/emcli_login.sh >/dev/null
+        {{ emcli }} get_targets -targets="{{ existing_target_name.stdout }}:{{ target_type }}" -noheader -script | wc -l
+      register: target_deleted
+      failed_when: target_deleted.rc > 0 or target_deleted.stdout | int > 0
+      changed_when: false
