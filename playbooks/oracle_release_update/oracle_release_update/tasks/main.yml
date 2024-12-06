@@ -133,7 +133,7 @@
 # If "default" is specified then we use the values from hmpps_env_configs instead
 - name: Override Required OPatch ID and Filename
   set_fact:
-    opatch_id: "{{ opatch_info.split(':')[0] }}"
+    opatch_id: "{{ opatch_info.split(':')[2] | regex_replace('^\\((.*)\\)$', '\\1') }}"
     opatch_zip: "{{ opatch_info.split(':')[1] }}"
   when: opatch_info != 'default'
 
