@@ -133,7 +133,7 @@
 # If "default" is specified then we use the values from hmpps_env_configs instead
 - name: Override Required OPatch ID and Filename
   set_fact:
-    opatch_id: "{{ opatch_info.split(':')[0] }}"
+    opatch_id: "{{ opatch_info.split(':')[2] | regex_replace('^\\((.*)\\)$', '\\1') }}"
     opatch_zip: "{{ opatch_info.split(':')[1] }}"
   when: opatch_info != 'default'
 
@@ -194,6 +194,12 @@
 
 - name: Get Current and Target Version Information
   include_tasks: get_versioning_information.yml
+
+- name: Fail if OPatch Version Is Not Equal To Greater Than Required Minimum Version
+  fail:
+    msg: "OPatch version is less than the required minimum version"
+  when: opatch_id < minimum_opatch_version
+
 
 # Existing Restore Points will Cause Failure of Compatibility Setting Changes
 - name: Count Existing Restore Points
