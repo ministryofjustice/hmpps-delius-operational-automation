@@ -50,7 +50,7 @@
 - fail:
     msg: "Overriding Release Update configuration is not supported in switch-clone or apply-ojvm-standby modes.  The correct values must be set in oracle_software in hmpps_env_configs."
   when:
-    - gi_ru_patch_info not in ['','default'] or ojvm_ru_patch_info not in ['','default'] or opatch_info != 'default' or combo_patch_info not in ['','default']
+    - gi_ru_patch_info not in ['','default'] or ojvm_ru_patch_info not in ['','default'] or combo_patch_info not in ['','default']
     - apply_mode != 'prepare-clone'
 
 # As of 19.18 onwards, we can now support installing from the Combo Patch (Which contains GI, DB and OJVM Patches)
@@ -127,21 +127,6 @@
   when:
     - ojvm_ru_patch_info == 'default'
     - hostvars[primary_host].oracle_software.superset_patch is defined
-
-# OPatch details should be provided in variable opatch_info in the format <patch id>:<zip file name>
-# For example: "6880880:p6880880_190000_Linux-x86-64.zip" if you wish to override the defaults
-# If "default" is specified then we use the values from hmpps_env_configs instead
-- name: Override Required OPatch ID and Filename
-  set_fact:
-    opatch_id: "{{ opatch_info.split(':')[2] | regex_replace('^\\((.*)\\)$', '\\1') }}"
-    opatch_zip: "{{ opatch_info.split(':')[1] }}"
-  when: opatch_info != 'default'
-
-- name: Set Default OPatch ID and Filename
-  set_fact:
-    opatch_id: "{{ hostvars[primary_host].oracle_software.opatch.version }}"
-    opatch_zip: "{{ hostvars[primary_host].oracle_software.opatch.filename }}"
-  when: opatch_info == 'default'
 
 - name: Get Dependencies Bucket
   set_fact:
