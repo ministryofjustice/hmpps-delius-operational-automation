@@ -148,8 +148,3 @@
 
 - name: Show Minimum OPatch Version
   debug: var=minimum_opatch_version
-
-- name: Fail if OPatch Version Is Less Than Required Minimum Version
-  fail:
-    msg: "OPatch version is less than the required minimum version"
-  when: opatch_id < minimum_opatch_version
