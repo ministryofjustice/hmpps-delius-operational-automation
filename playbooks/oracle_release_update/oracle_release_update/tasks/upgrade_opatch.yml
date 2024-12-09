@@ -16,6 +16,22 @@
 
 - debug: var=minimum_opatch_version
 
+- name: List OPatch Software Versions Available In S3
+  shell: aws s3 ls s3://{{ dependencies_bucket_name }}/dependencies/oracle/rdbms/ | grep -E "p6880880.*_{{ expected_version.split('.')[0] }}[0]{4}_.*$" | awk '{print $NF}' | sort
+  register: opatch_versions
+
+- name: Set Latest OPatch Software Value
+  set_fact:
+    opatch_zip: "{{ opatch_versions.stdout_lines | last | default() }}"
+
+- fail:
+    msg: "No OPatch Software Exists"
+  when: opatch_zip | length == 0
+
+- fail:
+    msg: Opatch Software Version Is Not Equal To Or Greater Than {{ minimum_opatch_version }}"
+  when: opatch_zip.split('.')[1:6] | join('.') is version(minimum_opatch_version,'<')
+
 - name: Upgrade OPatch
   block:
     # Always move old OPatch out of the way so we are not unzipping into it
