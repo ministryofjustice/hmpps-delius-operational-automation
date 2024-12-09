@@ -57,13 +57,6 @@ on:
         options:
           - "default"
           - "36522439:p36522439_190000_Linux-x86-64.zip:(19.24)"
-      OPatch:
-        description: "OPatch Utility to Use (default = use value from environment configuration)"
-        required: true
-        type: choice
-        options: 
-          - "default"
-          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.43.zip:(12.2.0.1.43)"
       AWSSnapshot:
         description: "Number of Days to Keep AWS Snapshot of Primary Database Host"
         required: true
