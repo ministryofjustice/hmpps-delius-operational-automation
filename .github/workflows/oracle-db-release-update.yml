@@ -57,13 +57,6 @@ on:
         options:
           - "default"
           - "36522439:p36522439_190000_Linux-x86-64.zip:(19.24)"
-      OPatch:
-        description: "OPatch Utility to Use (default = use value from environment configuration)"
-        required: true
-        type: choice
-        options: 
-          - "default"
-          - "6880880:p6880880_190000_Linux-x86-64.12.2.0.1.43.zip:(12.2.0.1.43)"
       AWSSnapshot:
         description: "Number of Days to Keep AWS Snapshot of Primary Database Host"
         required: true
@@ -190,7 +183,6 @@ jobs:
           -e apply_mode=${{ github.event.inputs.ApplyMode }} \
           -e oracle_patch_directory=${{ github.event.inputs.OraclePatchDirectory }} \
           -e combo_patch_info='${{ github.event.inputs.ComboPatch }}' \
-          -e opatch_info='${{github.event.inputs.Opatch }}' \
           -e "keep_aws_snapshot='${{github.event.inputs.AWSSnapShot }}'" \
           -e gi_ru_patch_info='' \
           -e ojvm_ru_patch_info=''
