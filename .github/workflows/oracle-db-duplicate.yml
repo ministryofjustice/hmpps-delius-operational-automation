@@ -781,7 +781,7 @@ jobs:
 
       - name: Slack Failure Notification
         id: slack
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@v2.0.0
         with:
             channel-id: "delius-aws-oracle-dev-alerts"
             payload: |
