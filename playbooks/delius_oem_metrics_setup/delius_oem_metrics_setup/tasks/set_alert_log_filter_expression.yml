@@ -22,3 +22,4 @@
       file:
         path: "{{ stage }}/set_alert_log_filter_expression.sql"
         state: absent
+      tags: remove_temporary_files
