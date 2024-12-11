@@ -1,4 +1,13 @@
 ---
+- name: Check if Table SMON_SCN_TIME is clustered
+  script: check_if_index_cluster_exists.sh
+  register: cluster_name
+  changed_when: false
+
+- name: Recreate the table system.smon_scn_time_org 
+  script: recreate_smon_scn_time_table.sh
+  when: cluster_name.stdout is search("SMON_SCN_TO_AUX")
+
 - name: Check if Flashback Data Archive Tablespace Exists
   script: check_if_fda_tablespace_exists.sh
   register: tablespace_name
