@@ -9,6 +9,7 @@ on:
             - "dev"
             - "test"
             - "stage"
+            - "preprod"
       rbac_tag:
         required: true
         type: string
