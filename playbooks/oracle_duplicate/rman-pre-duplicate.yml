@@ -18,12 +18,12 @@
       when: "'ORA-01507: database not mounted' in get_database_state.stdout or 'MOUNTED' in get_database_state.stdout"
       ignore_errors: true
       block:
-          - include_tasks: shutdown_database.yml
-          - include_tasks: startup_database.yml
-          - name: Re-Check Database State
-            script: ../../common/files/get_database_state.sh
-            register: new_database_state
-            changed_when: false
+        - include_tasks: shutdown_database.yml
+        - include_tasks: startup_database.yml
+        - name: Re-Check Database State
+          script: ../../common/files/get_database_state.sh
+          register: new_database_state
+          changed_when: false
 
     - name: Set Fact For Database State
       delegate_to: localhost
