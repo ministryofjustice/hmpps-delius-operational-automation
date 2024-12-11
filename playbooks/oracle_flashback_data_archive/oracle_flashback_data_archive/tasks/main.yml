@@ -4,7 +4,7 @@
   register: cluster_name
   changed_when: false
 
-- name: Recreate the table system.smon_scn_time_org 
+- name: Recreate the table system.smon_scn_time_org
   script: recreate_smon_scn_time_table.sh
   when: cluster_name.stdout is search("SMON_SCN_TO_AUX")
 
