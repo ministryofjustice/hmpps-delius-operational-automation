@@ -15,21 +15,21 @@
     # just ignore it, as it is possible the database is completely broken for some previous
     # reason.  In this case we just continue without attempting to export any data.
     - name: Open Database
-      when: "'ORA-01507: database not mounted' is search(get_database_state.stdout) or 'MOUNTED' is search(get_database_state.stdout)"
+      when: "'ORA-01507: database not mounted' in get_database_state.stdout or 'MOUNTED' in get_database_state.stdout"
       ignore_errors: true
       block:
           - include_tasks: shutdown_database.yml
           - include_tasks: startup_database.yml
           - name: Re-Check Database State
             script: ../../common/files/get_database_state.sh
-            register: get_database_state
+            register: new_database_state
             changed_when: false
 
     - name: Set Fact For Database State
       delegate_to: localhost
       delegate_facts: true
       set_fact:
-        database_open: "{{ ('READ WRITE' in get_database_state.stdout) }}"
+        database_open: "{{ ('READ WRITE' in get_database_state.stdout) or ('READ WRITE' in new_database_state.stdout | default('')) }}"
 
     - name: Include Tasks
       when: hostvars.localhost.database_open
