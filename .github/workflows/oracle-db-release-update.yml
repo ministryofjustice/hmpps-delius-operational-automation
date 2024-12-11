@@ -57,6 +57,7 @@ on:
         options:
           - "default"
           - "36522439:p36522439_190000_Linux-x86-64.zip:(19.24)"
+          - "36866740:p36866740_190000_Linux-x86-64.zip:(19.25)"
       AWSSnapshot:
         description: "Number of Days to Keep AWS Snapshot of Primary Database Host"
         required: true
