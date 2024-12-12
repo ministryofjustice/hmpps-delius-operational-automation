@@ -28,16 +28,20 @@
     openssl pkcs12 -export -in {{ wallet_working_directory }}/{{ self_signed_ca_crt }} -inkey {{ wallet_working_directory }}/{{ private_key }} -out openssl.p12 -passout env:SYSTEMPWD
   when: database_primary_sid is defined
 
-- name: Check if Wallet Already Exists
-  stat:
-    path: "{{ wallet_directory }}/cwallet.sso"
-  register: wallet_check
+# We remove any existing wallet as we will be importing a new certificate and if it has the same DN value
+# as one already in the wallet this may result in a failure for the correct certificate to be used
+- name: Remove Any Existing Wallet and Lock File
+  file:
+    path: "{{ wallet_directory }}/{{ item }}"
+  state: absent
+  loop:
+     - cwallet.sso
+     - cwallet.sso.lck
 
 - name: Create Oracle Wallet
   shell: |
     . ~/.bash_profile
     orapki wallet create -wallet {{ wallet_directory }}  -auto_login_only
-  when: not wallet_check.stat.exists
 
 - name: Copy PKCS#12 File from Primary to Standbys
   block:
