@@ -122,3 +122,4 @@
       loop:
         - oem_threshold.txt
         - emcli_login.sh
+      tags: remove_temporary_files

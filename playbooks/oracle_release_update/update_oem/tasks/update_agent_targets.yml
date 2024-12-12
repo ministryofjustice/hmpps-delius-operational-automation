@@ -297,4 +297,3 @@
         state: absent
       loop:
         - emcli_login.sh
-        - wait_for_target_deletion.sql
