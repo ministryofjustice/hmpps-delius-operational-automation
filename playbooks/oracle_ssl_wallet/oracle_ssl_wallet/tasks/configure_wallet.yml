@@ -33,7 +33,7 @@
 - name: Remove Any Existing Wallet and Lock File
   file:
     path: "{{ wallet_directory }}/{{ item }}"
-  state: absent
+    state: absent
   loop:
      - cwallet.sso
      - cwallet.sso.lck
