@@ -35,8 +35,8 @@
     path: "{{ wallet_directory }}/{{ item }}"
     state: absent
   loop:
-     - cwallet.sso
-     - cwallet.sso.lck
+    - cwallet.sso
+    - cwallet.sso.lck
 
 - name: Create Oracle Wallet
   shell: |
