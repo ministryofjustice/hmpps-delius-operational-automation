@@ -29,7 +29,7 @@
       delegate_to: "{{ primary_hostname }}"
       when: is_audit_client
       register: enable_checksumming
-      changed_when: enable_checksumming.stdout is search ('Audit checksumming disabled.')
+      changed_when: enable_checksumming.stdout is search ('Audit checksumming enabled.')
 
     - name: Convert snapshot standby database to physical standby database
       shell: |
@@ -38,7 +38,7 @@
         INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
         ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
         DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-        SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME%-*0}-${DELIUS_ENVIRONMENT}-oracle-db-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .sys) 
+        SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME%-*}-${DELIUS_ENVIRONMENT}-oracle-db-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .sys) 
         dgmgrl / << EOF
         connect sys/${SYS_PASSWORD}@{{ primary_database }};
         convert database '{{ database_standby_unique | lower }}' to physical standby;
