@@ -48,7 +48,7 @@
     - name: Get Database Environment
       set_fact:
         database_environment: "{{ groups | select('match','.*_delius_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
- 
+
     # The following code is used to identify if the current environment is a client for audited interaction replication; we
     # use this to determine if audited interaction checksumming needs to be temporarily suspended whilst using the snapshot
     # standby database.

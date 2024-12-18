@@ -17,7 +17,6 @@
 
 - name: Actions to convert to snapshot standby only if it's currently in physical standby role
   block:
-
     # We disable audit replication checksums whilst we are using a snapshot standby database.
     # This is because audit data will be getting collected on the snapshot standy and will
     # not be replicated to the target until after it is converted back to a physical standby.
@@ -30,7 +29,7 @@
     # anyway.
     - name: Temporarily Disable Audit Replication Checksumming
       script: |
-              control_checksum_calculation.sh DISABLED
+        control_checksum_calculation.sh DISABLED
       delegate_to: "{{ primary_hostname }}"
       when: is_audit_client
       register: disable_checksumming

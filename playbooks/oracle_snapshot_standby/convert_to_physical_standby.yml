@@ -25,7 +25,7 @@
     # which would have been previously disabled whilst using the Snapshot Standby
     - name: Re-Enable Audit Replication Checksumming
       script: |
-              control_checksum_calculation.sh ENABLED
+        control_checksum_calculation.sh ENABLED
       delegate_to: "{{ primary_hostname }}"
       when: is_audit_client
       register: enable_checksumming
