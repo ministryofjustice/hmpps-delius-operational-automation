@@ -502,6 +502,8 @@
       register: reportrestorepoints
       changed_when: false
 
+    # After migration to Mod Platform we started to get 2 additional carriage returns in the output of
+    # the above command when run from the docker container, so we strip empty elements of the list prior to display
     - name: Display Report of Oracle Restore Points
       debug:
-        msg: "Restore Points:  {{ reportrestorepoints.stdout_lines }}"
+        msg: "Restore Points:  {{ reportrestorepoints.stdout_lines | reject('equalto', '') | reject('equalto', None) | reject('equalto', []) | list }}"
