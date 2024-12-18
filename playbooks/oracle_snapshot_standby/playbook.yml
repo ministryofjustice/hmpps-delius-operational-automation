@@ -43,6 +43,36 @@
 
     - debug: var=fsfo_targets
 
+    # We get the database environment by checking all Ansible groups that this standby is a member of, and find the corresponding primary.
+    # We are only interested in Delius groups
+    - name: Get Database Environment
+      set_fact:
+        database_environment: "{{ groups | select('match','.*_delius_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
+
+    # The following code is used to identify if the current environment is a client for audited interaction replication; we
+    # use this to determine if audited interaction checksumming needs to be temporarily suspended whilst using the snapshot
+    # standby database.
+    # (There is currently no DMS Functionality in the Amazon.Aws Collection so we will use the AWSCLI instead.)
+    # We need to run the describe endpoints on the Ansible controller as the EC2 instance will not have privileges for this;
+    # we force the output to be successful using the true command, as the non-existence of a source endpoint is not an error
+    - name: For all possible Database Sources, find any Endpoints which are used by an outbound Audit Replication Task
+      shell: |
+        aws dms describe-endpoints \
+        --filters Name=endpoint-type,Values=source Name=endpoint-id,Values={{ simple_environment_name }}-audit-data-from-{{ item | lower }} \
+        --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
+      register: get_source_endpoint
+      changed_when: false
+      delegate_to: localhost
+      become: no
+      loop:
+        - "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
+        - "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
+        - "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
+
+    - name: This is an Audited Interaction Client Environment if any Source Endpoints Found in Use for Outbound Replication
+      set_fact:
+        is_audit_client: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten | select('string') | select('!=','') | list | length > 0 }}"
+
     - name: Convert to snapshot standby database
       include_tasks: convert_to_snapshot_standby.yml
       when: action == "Convert Physical To Snapshot"

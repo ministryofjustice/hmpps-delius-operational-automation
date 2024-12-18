@@ -1,15 +1,3 @@
-- name: Get sys password from ssm
-  shell: |
-    export PATH=$PATH:/usr/local/bin
-    INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
-    ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
-    DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-    APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text)
-    aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region {{ region }} --query SecretString --output text| jq -r .sys
-  changed_when: false
-  register: sys_password
-  no_log: true
-
 - name: Get data guard broker role configuration for the standby database to be converted
   shell: |
     . ~/.bash_profile
@@ -29,6 +17,24 @@
 
 - name: Actions to convert to snapshot standby only if it's currently in physical standby role
   block:
+    # We disable audit replication checksums whilst we are using a snapshot standby database.
+    # This is because audit data will be getting collected on the snapshot standy and will
+    # not be replicated to the target until after it is converted back to a physical standby.
+    # Therefore any checksums calculated during this period may not include audit data from
+    # the snapshot standby and may therefore be incorrect.  The simplest solution is to
+    # suspend checksumming until after converting back to physical when all audit data is
+    # then in place on the primary.   It is not anticipated that a database will be a
+    # Snapshot Standby for extended periods of time, therefore the checksumming will only
+    # be disabled for a few hours, which is similar to the gaps between scheduled runs
+    # anyway.
+    - name: Temporarily Disable Audit Replication Checksumming
+      script: |
+        control_checksum_calculation.sh DISABLED
+      delegate_to: "{{ primary_hostname }}"
+      when: is_audit_client
+      register: disable_checksumming
+      changed_when: disable_checksumming.stdout is search ('Audit checksumming disabled.')
+
     - name: Check standby database apply lag - fail conversion if consistently non zero
       shell: |
         . ~/.bash_profile
