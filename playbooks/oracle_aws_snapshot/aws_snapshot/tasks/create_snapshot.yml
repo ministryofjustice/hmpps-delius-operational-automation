@@ -1,73 +1,69 @@
-- name: Create AWS Snapshot of EC2 Instance
-  delegate_to: localhost
-  become: no
-  block:
-    - name: Get the current caller identity information
-      amazon.aws.aws_caller_info:
-      register: caller_info
-      changed_when: false
+- name: Get the current caller identity information
+  amazon.aws.aws_caller_info:
+  register: caller_info
+  changed_when: false
 
-    - name: Get Database Type
-      set_fact:
-        database_type: "{{ group_names | select('match','.*_dbs') | list | first | regex_replace('^.*_(.*)_dbs', '\\1') }}"
+- name: Get Database Type
+  set_fact:
+    database_type: "{{ group_names | select('match','.*_dbs') | list | first | regex_replace('^.*_(.*)_dbs', '\\1') }}"
 
-    - name: Setup Backup Vault Name
-      set_fact:
-        backup_vault_name: "{{ simple_environment_name }}{% if database_type != 'delius' %}-{{ database_type }}{% endif %}-db-oracle-backup-vault"
+- name: Setup Backup Vault Name
+  set_fact:
+    backup_vault_name: "{{ simple_environment_name }}{% if database_type != 'delius' %}-{{ database_type }}{% endif %}-db-oracle-backup-vault"
 
-    - name: Get Name of Backup Vault
-      shell: |
-        set -o pipefail
-        aws backup list-backup-vaults --region {{ region }} | jq -r 'first( .BackupVaultList[].BackupVaultName | select (contains("{{ backup_vault_name }}")) ) '
-      register: get_backup_vault
-      changed_when: false
-      args:
-        executable: /bin/bash
+- name: Get Name of Backup Vault
+  shell: |
+    set -o pipefail
+    aws backup list-backup-vaults --region {{ region }} | jq -r 'first( .BackupVaultList[].BackupVaultName | select (contains("{{ backup_vault_name }}")) ) '
+  register: get_backup_vault
+  changed_when: false
+  args:
+    executable: /bin/bash
 
-    - fail:
-        msg: "No Oracle Backup Vault Available"
-      when: ( get_backup_vault.stdout_lines | length ) < 1
+- fail:
+    msg: "No Oracle Backup Vault Available"
+  when: ( get_backup_vault.stdout_lines | length ) < 1
 
-    - name: Run Backup Job
-      shell: |
-        set -o pipefail
-        aws backup start-backup-job --backup-vault-name {{ get_backup_vault.stdout }} --resource-arn arn:aws:ec2:{{ region }}:{{ caller_info.account }}:instance/{{ backup_hostname }} --iam-role-arn arn:aws:iam::{{ caller_info.account }}:role/service-role/AWSBackupDefaultServiceRole --lifecycle DeleteAfterDays={{ delete_after_days | default(7) }} --region {{ region }} | jq -r '.BackupJobId'
-      register: start_backup_job
-      args:
-        executable: /bin/bash
+- name: Run Backup Job
+  shell: |
+    set -o pipefail
+    aws backup start-backup-job --backup-vault-name {{ get_backup_vault.stdout }} --resource-arn arn:aws:ec2:{{ region }}:{{ caller_info.account }}:instance/{{ backup_hostname }} --iam-role-arn arn:aws:iam::{{ caller_info.account }}:role/service-role/AWSBackupDefaultServiceRole --lifecycle DeleteAfterDays={{ delete_after_days | default(7) }} --region {{ region }} | jq -r '.BackupJobId'
+  register: start_backup_job
+  args:
+    executable: /bin/bash
 
-    # If the Backup Job is at Status CREATED then wait until this changes.   This simply means it is in a queue to run.
-    - name: Get Backup Job Status
-      shell: |
-        set -o pipefail
-        aws backup describe-backup-job --backup-job-id "{{ start_backup_job.stdout }}"  --region "{{ region }}" | jq -r '.State'
-      register: get_backup_job_status
-      until: not get_backup_job_status.stdout is search("CREATED")
-      retries: 60
-      delay: 30
-      changed_when: false
-      args:
-        executable: /bin/bash
+# If the Backup Job is at Status CREATED then wait until this changes.   This simply means it is in a queue to run.
+- name: Get Backup Job Status
+  shell: |
+    set -o pipefail
+    aws backup describe-backup-job --backup-job-id "{{ start_backup_job.stdout }}"  --region "{{ region }}" | jq -r '.State'
+  register: get_backup_job_status
+  until: not get_backup_job_status.stdout is search("CREATED")
+  retries: 60
+  delay: 30
+  changed_when: false
+  args:
+    executable: /bin/bash
 
-    - name: Get Backup AMI Name
-      shell: |
-        set -o pipefail
-        aws backup describe-backup-job --backup-job-id "{{ start_backup_job.stdout }}"  --region "{{ region }}" | jq -r '.RecoveryPointArn | split("/")[1]'
-      register: get_ami_name
-      changed_when: false
-      args:
-        executable: /bin/bash
+- name: Get Backup AMI Name
+  shell: |
+    set -o pipefail
+    aws backup describe-backup-job --backup-job-id "{{ start_backup_job.stdout }}"  --region "{{ region }}" | jq -r '.RecoveryPointArn | split("/")[1]'
+  register: get_ami_name
+  changed_when: false
+  args:
+    executable: /bin/bash
 
-    # We do not need to wait for completion of the backup as it is run asynchronously but it should be more than 0% complete on all EBS volumes before we move on.
-    # Note that tghe "//" below sets the Progress to 0% if no snapshots are found.   If Progress of any snapshot is 0% then report the Snapshot as Pending.
-    - name: Wait for All Snapshots for the Backup to Be Above 0% Complete
-      shell: |
-        set -o pipefail
-        aws ec2 describe-snapshots --filters Name=description,Values="*for {{ get_ami_name.stdout }}" --region={{ region }} | jq '.Snapshots[].Progress // "0%" | match("^0%") | "SNAPSHOT_PENDING"'
-      register: get_snapshot_status
-      until: not get_snapshot_status.stdout is search("SNAPSHOT_PENDING")
-      retries: 60
-      delay: 30
-      changed_when: false
-      args:
-        executable: /bin/bash
+# We do not need to wait for completion of the backup as it is run asynchronously but it should be more than 0% complete on all EBS volumes before we move on.
+# Note that tghe "//" below sets the Progress to 0% if no snapshots are found.   If Progress of any snapshot is 0% then report the Snapshot as Pending.
+- name: Wait for All Snapshots for the Backup to Be Above 0% Complete
+  shell: |
+    set -o pipefail
+    aws ec2 describe-snapshots --filters Name=description,Values="*for {{ get_ami_name.stdout }}" --region={{ region }} | jq '.Snapshots[].Progress // "0%" | match("^0%") | "SNAPSHOT_PENDING"'
+  register: get_snapshot_status
+  until: not get_snapshot_status.stdout is search("SNAPSHOT_PENDING")
+  retries: 60
+  delay: 30
+  changed_when: false
+  args:
+    executable: /bin/bash
