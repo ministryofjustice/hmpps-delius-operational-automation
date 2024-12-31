@@ -13,7 +13,9 @@
 # Release Update is not responsible for configuring OSBWS so only
 # prepare it in new home if a configuration file already exists
 - name: Re-Install Only If OSBWS Already Configured
-  when: osbws_config_exists.stat.exists
+  when: false
+  # Skip this step for now since the x-aws-date being returned by AWS S3 is incorrect
+  # when: osbws_config_exists.stat.exists
   block:
     - name: Check osbw installer exists
       stat:
