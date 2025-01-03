@@ -22,6 +22,8 @@
   become_user: oracle
   roles:
     - { role: oracle_interim_patch, when: ( apply_mode == 'switch-clone' and database_role == 'primary' ) or ( apply_mode == 'apply-ojvm-standby') }
+  vars:
+    install_absent_patches: true
 
 # Update OEM Targets after Switch Clone Phase of Patching
 - hosts: "{{ target_hosts }}"
