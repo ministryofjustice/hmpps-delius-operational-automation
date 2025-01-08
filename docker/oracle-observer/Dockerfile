@@ -42,7 +42,7 @@ RUN export CV_ASSUME_DISTID=OEL7.8 && \
 
 USER root
 
-RUN /u01/app/oraInventory/orainstRoot.sh
+# RUN /u01/app/oraInventory/orainstRoot.sh
 RUN rm -rf /opt/client
 
 USER oracle:oinstall
