@@ -1,0 +1,23 @@
+# Trivy Ignore file https://aquasecurity.github.io/trivy/v0.51/docs/configuration/filtering/
+# Ignore old python vulnerabilities from ansible_collections
+CVE-2022-40897
+CVE-2022-40898
+
+## TODO: use yaml formatted trivyignore
+## Vulnerabilites above should only be ignored for certain paths. Trivy supports granular rules through yaml formatted (.trivyignore.yaml) ignore files
+## However, the current version of the trivy-action ignores the yaml ignore file:
+## https://github.com/aquasecurity/trivy-action/issues/284
+## https://github.com/aquasecurity/trivy-action/issues/348
+# vulnerabilities:
+#   - id: CVE-2022-40897
+#     paths:
+#       - usr/local/lib/python3.12/site-packages/ansible_collections/kaytus/ksmanage/venv/Lib/site-packages/setuptools-57.0.0.dist-info/METADATA
+#       - usr/local/lib/python3.12/site-packages/ansible_collections/inspur/ispim/venv/Lib/site-packages/setuptools-57.0.0.dist-info/METADATA
+#
+#   - id: CVE-2022-40898
+#     paths:
+#       - usr/local/lib/python3.12/site-packages/ansible_collections/kaytus/ksmanage/venv/Lib/site-packages/wheel-0.36.2.dist-info/METADATA
+#       - usr/local/lib/python3.12/site-packages/ansible_collections/inspur/ispim/venv/Lib/site-packages/wheel-0.36.2.dist-info/METADATA
+
+# open issue https://github.com/mikefarah/yq/issues/2151
+CVE-2024-34156
