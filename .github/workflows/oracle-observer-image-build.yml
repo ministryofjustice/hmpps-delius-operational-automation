@@ -25,6 +25,12 @@ permissions:
   packages: read
   id-token: write
 
+# We split the build into 2 jobs, one to download the Oracle client software
+# and one to run the docker image build.   This is because these require
+# different runner contains - downloading the software requires an OIDC ID token
+# to access the AWS S3 dependencies bucket, but this image cannot run
+# Docker to build the image, so with start a new runner for this.  The software
+# is passed between the 2 jobs as a build artifact.
 jobs:
   download-client-software:
     runs-on: ubuntu-latest
