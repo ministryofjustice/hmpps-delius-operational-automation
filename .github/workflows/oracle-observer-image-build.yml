@@ -150,6 +150,14 @@ jobs:
           trivyignores: 'docker/oracle-observer/.trivyignore'
           ignore-unfixed: 'true'
           output: 'trivy-results.sarif'
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-file
+          path: trivy-results.sarif
+          retention-days: 1
+
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: failure() # If Trivy found vulnerabilities
