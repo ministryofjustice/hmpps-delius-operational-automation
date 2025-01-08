@@ -80,7 +80,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: oracle-client-zip
-          path: ./docker/LINUX.X64_193000_client.zip
+          path: /tmp/LINUX.X64_193000_client.zip
 
       - name: Set up Docker Buildx
         id: setup_buildx
