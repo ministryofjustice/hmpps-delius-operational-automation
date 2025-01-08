@@ -42,36 +42,9 @@ RUN export CV_ASSUME_DISTID=OEL7.8 && \
 
 USER root
 
-# RUN /u01/app/oraInventory/orainstRoot.sh
+RUN ${ORACLE_HOME}/root.sh
 RUN rm -rf /opt/client
 
 USER oracle:oinstall
 
 CMD ["bash"]
-
-
-
-
-
-
-# mkdir -p /u01/app/oracle/product/19.3/client
-# chown oracle:oracle -R /u01
-# 35  dnf -y install make
-# 40  dnf -y install binutils
-# 44  dnf -y install glibc-devel
-# 19  useradd -m -d /home/oracle -s /bin/bash oracle
-# vi /etc/oraInst.loc
-# inventory_loc=/u01/app/oracle/oraInventory
-# inst_group=oinstall
-
-# 12  cd /opt
-# 13  cp /downloads/LINUX.X64_193000_client.zip .
-# 15  dnf -y install make binutils glibc-devel zip
-# 16  unzip LINUX.X64_193000_client.zip
-
-# export CV_ASSUME_DISTID=OEL7.8
-# # /
-
-# client/runInstaller  -silent -responseFile /client/response/client_install.rsp -ignoreSysPrereqs ORACLE_BASE=/u01/app/oracle ORACLE_HOME=/u01/app/oracle/product/19.3/client INSTALL_TYPE="Administrator"
-
-# /opt/client/runInstaller  -silent -ignoreSysPrereqs ORACLE_BASE=/u01/app/oracle ORACLE_HOME=/u01/app/oracle/product/19.3/client INSTALL_TYPE="Administrator"
