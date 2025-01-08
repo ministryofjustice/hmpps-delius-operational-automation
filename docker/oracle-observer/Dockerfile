@@ -17,7 +17,7 @@ RUN dnf -y install make binutils glibc-devel zip
 RUN mkdir -p ${ORACLE_HOME} && \
     chown -R oracle:oinstall /u01
 
-COPY --chown=oracle:oinstall /tmp/LINUX.X64_193000_client.zip /opt
+COPY --chown=oracle:oinstall LINUX.X64_193000_client.zip /opt
 
 WORKDIR /opt
 
