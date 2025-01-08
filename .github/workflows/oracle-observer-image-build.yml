@@ -19,10 +19,11 @@ on:
   #     - docker/delius-ansible-aws/**
   #     - .github/workflows/ansible-aws-image-build.yml
 
+  # Allow permissions on repository and docker image and OIDC token
 permissions:
-  packages: write
   contents: read
-
+  packages: read
+  id-token: write
 
 jobs:
   build-image:
@@ -38,7 +39,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          role-duration-seconds: 21600
+          aws-region: "eu-west-2"
             
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
