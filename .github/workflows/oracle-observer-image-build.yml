@@ -72,7 +72,7 @@ jobs:
           name: oracle-client-zip
           path: /tmp/LINUX.X64_193000_client.zip
 
-  build-image:
+  build-observer-image:
     runs-on: ubuntu-22.04
     needs: download-client-software
 
@@ -112,9 +112,9 @@ jobs:
           path: /tmp/oracle-observer-image.tar
           retention-days: 1
 
-  scan-image:
+  scan-observer-image:
     name: Scan Image
-    needs: build-image
+    needs: build-observer-image
     permissions:
       # required for all workflows
       security-events: write
@@ -156,9 +156,9 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-  publish-image:
+  publish-observer-image:
     name: Publish image
-    needs: [build-image, scan-image]
+    needs: [build-observer-image, scan-observer-image]
     permissions:
       contents: write
       packages: write
