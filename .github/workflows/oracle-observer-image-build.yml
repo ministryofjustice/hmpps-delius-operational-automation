@@ -147,7 +147,7 @@ jobs:
           image-ref: 'hmpps-delius-operational-automation:${{ github.sha }}'
           exit-code: '1'
           scan-type: 'image'
-          trivyignores: 'docker/oracle-observer-aws/.trivyignore'
+          trivyignores: 'docker/oracle-observerß/.trivyignore'
           ignore-unfixed: 'true'
           output: 'trivy-results.sarif'
       - name: Upload Trivy scan results to GitHub Security tab
