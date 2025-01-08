@@ -23,9 +23,14 @@ permissions:
   packages: write
   contents: read
 
+
 jobs:
   build-image:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+    timeout-minutes: 1440
+    continue-on-error: false
 
     steps:
       - name: Checkout Code
