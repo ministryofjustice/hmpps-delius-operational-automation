@@ -27,6 +27,7 @@ permissions:
 jobs:
   build-image:
     runs-on: ubuntu-latest
+    environment: delius-core-development
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     timeout-minutes: 1440
