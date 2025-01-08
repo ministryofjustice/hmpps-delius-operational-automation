@@ -68,6 +68,7 @@ jobs:
 
   build-image:
     runs-on: ubuntu-22.04
+    needs: download-client-software
 
     steps:
       - name: Checkout Code
