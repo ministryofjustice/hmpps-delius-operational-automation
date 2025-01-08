@@ -153,6 +153,7 @@ jobs:
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
+        if: failure() # If Trivy found vulnerabilities
         with:
           name: trivy-file
           path: trivy-results.sarif
