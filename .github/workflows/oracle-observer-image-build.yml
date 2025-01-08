@@ -26,7 +26,7 @@ permissions:
   id-token: write
 
 jobs:
-  build-image:
+  download-client-software:
     runs-on: ubuntu-latest
     environment: delius-core-dev-preapproved
     container:
@@ -58,7 +58,28 @@ jobs:
 
       - name: Copy Oracle Client ZIP file from S3
         run: |
-          aws s3 cp s3://mod-platform-image-artefact-bucket20230203091453221500000001/dependencies/oracle/rdbms/LINUX.X64_193000_client.zip ./docker/oracle-observer
+          aws s3 cp s3://mod-platform-image-artefact-bucket20230203091453221500000001/dependencies/oracle/rdbms/LINUX.X64_193000_client.zip /tmp/LINUX.X64_193000_client.zip
+
+      - name: Upload Oracle Client ZIP as Artifact for the Build
+        uses: actions/upload-artifact@v3
+        with:
+          name: oracle-client-zip
+          path: /tmp/LINUX.X64_193000_client.zip
+
+build-image:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Oracle Client ZIP File
+        uses: actions/download-artifact@v3
+        with:
+          name: oracle-client-zip
+          path: ./docker/LINUX.X64_193000_client.zip
 
       - name: Set up Docker Buildx
         id: setup_buildx
