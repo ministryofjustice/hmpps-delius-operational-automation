@@ -169,8 +169,9 @@ jobs:
     name: Publish image
     needs: [build-observer-image, scan-observer-image]
     permissions:
-      contents: write
+      contents: read
       packages: write
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
