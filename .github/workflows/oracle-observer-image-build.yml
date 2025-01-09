@@ -67,7 +67,7 @@ jobs:
           aws s3 cp s3://mod-platform-image-artefact-bucket20230203091453221500000001/dependencies/oracle/rdbms/LINUX.X64_193000_client.zip /tmp/LINUX.X64_193000_client.zip
 
       - name: Upload Oracle Client ZIP as Artifact for the Build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: oracle-client-zip
           path: /tmp/LINUX.X64_193000_client.zip
