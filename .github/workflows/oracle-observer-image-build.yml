@@ -83,7 +83,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download Oracle Client ZIP File
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: oracle-client-zip
           path: ./docker/oracle-observer/LINUX.X64_193000_client.zip
