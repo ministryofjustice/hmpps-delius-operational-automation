@@ -172,6 +172,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
+    environment: delius-core-dev-preapproved
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
