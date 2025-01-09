@@ -100,7 +100,7 @@ jobs:
           file: ./docker/oracle-observer/Dockerfile
           platforms: linux/amd64
           push: false
-          tags: hmpps-delius-operational-automation:${{ github.sha }}
+          tags: hmpps-delius-operational-automation-oracle-observer:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           outputs: type=docker,dest=/tmp/oracle-observer-image.tar
@@ -194,7 +194,9 @@ jobs:
           path: /tmp
 
       - name: Load and retag image for publish
-        run: docker tag /tmp/oracle-observer-image.tar 374269020027.dkr.ecr.eu-west-2.amazonaws.com/delius-core-oracle-observer:${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          docker load --input /tmp/oracle-observer-image.tar
+          docker tag delius-core-oracle-observer:${{ github.sha }} 374269020027.dkr.ecr.eu-west-2.amazonaws.com/delius-core-oracle-observer:${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Login to ECR
         run: aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 374269020027.dkr.ecr.eu-west-2.amazonaws.com
