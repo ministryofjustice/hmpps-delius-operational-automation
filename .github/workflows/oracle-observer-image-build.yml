@@ -196,12 +196,12 @@ jobs:
       - name: Load and retag image for publish
         run: |
           docker load --input /tmp/oracle-observer-image.tar
-          docker tag delius-core-oracle-observer:${{ github.sha }} 374269020027.dkr.ecr.eu-west-2.amazonaws.com/delius-core-oracle-observer:${{ github.run_id }}-${{ github.run_attempt }}
+          docker tag delius-core-oracle-observer:${{ github.sha }} 374269020027.dkr.ecr.eu-west-2.amazonaws.com/delius-core-oracle-observer:latest
 
       - name: Login to ECR
         run: aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 374269020027.dkr.ecr.eu-west-2.amazonaws.com
   
       - name: Publish image
-        run: docker push 374269020027.dkr.ecr.eu-west-2.amazonaws.com/delius-core-oracle-observer:${{ github.run_id }}-${{ github.run_attempt }}, 374269020027.dkr.ecr.eu-west-2.amazonaws.com/delius-core-oracle-observer:latest
+        run: docker push 374269020027.dkr.ecr.eu-west-2.amazonaws.com/delius-core-oracle-observer:latest
 
 
