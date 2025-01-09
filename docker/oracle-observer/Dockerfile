@@ -12,7 +12,7 @@ RUN chown -R oracle:oinstall /home/oracle && \
     usermod -d /home/oracle oracle && \
     usermod -s /bin/bash oracle
 
-RUN dnf -y install make binutils glibc-devel zip
+RUN dnf -y install make binutils glibc-devel zip less
 
 RUN mkdir -p ${ORACLE_HOME} && \
     chown -R oracle:oinstall /u01
@@ -25,6 +25,11 @@ RUN unzip LINUX.X64_193000_client.zip
 
 RUN echo "inventory_loc=/u01/app/oracle/oraInventory" > /etc/oraInst.loc
 RUN echo "inst_group=oinstall" >> /etc/oraInst.loc
+
+# Install v2 of AWS CLI (v1 is installed by default)
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+RUN unzip awscliv2.zip
+RUN /opt/aws/install
 
 USER oracle:oinstall
 
@@ -44,6 +49,7 @@ USER root
 
 RUN ${ORACLE_HOME}/root.sh
 RUN rm -rf /opt/client
+RUN rm -rf /opt/aws
 
 USER oracle:oinstall
 
