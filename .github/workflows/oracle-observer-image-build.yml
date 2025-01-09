@@ -100,7 +100,7 @@ jobs:
           file: ./docker/oracle-observer/Dockerfile
           platforms: linux/amd64
           push: false
-          tags: hmpps-delius-operational-automation-oracle-observer:${{ github.sha }}
+          tags: delius-core-oracle-observer:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           outputs: type=docker,dest=/tmp/oracle-observer-image.tar
