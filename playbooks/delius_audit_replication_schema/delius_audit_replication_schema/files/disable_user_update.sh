@@ -28,10 +28,16 @@ END LOOP;
 END;
 /
 
+-- Incoming USER_ INSERTs may contain STAFF_IDs which may or may not exist in stage
+-- or pre-prod; we allow the DELIUS_USER_SUPPORT audit control check if they exist
+-- so that we can set any invalid STAFF_IDs to NULL and allow the rest of the USER_
+-- record to be created.
+GRANT SELECT ON delius_app_schema.staff TO delius_user_support;
+
 -- Additionally we add a trigger to enforce the same restrictions for the Application Schema itself.
 -- This trigger is also used to workaround a difference between NLS Date formats used in DMS
 -- and those used by the Delius application.
-CREATE OR REPLACE TRIGGER delius_user_support.audit_control_on_user_
+create or replace TRIGGER delius_user_support.audit_control_on_user_
 FOR delete OR update OR insert ON delius_app_schema.user_
 COMPOUND TRIGGER
 
@@ -51,6 +57,7 @@ COMPOUND TRIGGER
   END BEFORE STATEMENT;
 
   BEFORE EACH ROW IS
+     l_staff_id_exists INTEGER;
   BEGIN
         IF USER = 'DELIUS_AUDIT_DMS_POOL'
         THEN
@@ -69,10 +76,10 @@ COMPOUND TRIGGER
             */
             EXECUTE IMMEDIATE 'ALTER SESSION SET nls_date_format = ''YYYY-MM-DD HH24:MI:SS''';
             EXECUTE IMMEDIATE 'ALTER SESSION SET nls_timestamp_format = ''YYYY-MM-DD HH24:MI:SS.FF9''';
-            
-                        
+
+
             /*
-            There are multiple reasons why the Delius application may update the 
+            There are multiple reasons why the Delius application may update the
             LAST_UPDATED_USER_ID and LAST_UPDATED_DATETIME columns, but not all of these involve
             attributes which are replicated to the client database.   This can cause confusion
             if these attributes are updated but nothing appears to have changed.
@@ -101,6 +108,19 @@ COMPOUND TRIGGER
                 -- corresponding records in production.  Therefore we prevent any overwriting
                 -- of the staff ID                
                 :new.staff_id := :old.staff_id;
+            ELSIF INSERTING THEN
+               -- Also, not all Staff IDs from production will exist in stage & pre-prod
+               -- so it we are attempting to insert a new user with a non-existent staff_id
+               -- we simply set it to NULL
+               SELECT CASE WHEN EXISTS (
+                  SELECT 1
+                  FROM delius_app_schema.staff
+                  WHERE staff_id = :new.staff_id
+                ) THEN 1 ELSE 0 END
+                INTO l_staff_id_exists FROM DUAL;
+                IF l_staff_id_exists = 0 THEN
+                   :new.staff_id := NULL;
+                END IF;
             END IF;
         END IF;
 
