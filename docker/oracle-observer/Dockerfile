@@ -53,4 +53,5 @@ RUN rm -rf /opt/aws
 
 USER oracle:oinstall
 
-CMD ["bash"]
+# Dummy command to keep container running during development
+CMD ["tail","-f","/dev/null"]
