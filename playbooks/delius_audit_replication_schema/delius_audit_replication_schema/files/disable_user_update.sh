@@ -34,6 +34,12 @@ END;
 -- record to be created.
 GRANT SELECT ON delius_app_schema.staff TO delius_user_support;
 
+-- We do not wish to generate CDC records for LAST_ACCESSED_DATETIME as user access
+-- times in the repository database have no baring on those on the client.  We
+-- use the Unilink-supplied PKG_TRIGGERSUPPORT package to temporarily disable
+-- CDC capture on USER_ if no personal details have been changed.
+GRANT EXECUTE ON delius_app_schema.pkg_triggersupport TO delius_user_support; 
+
 -- Additionally we add a trigger to enforce the same restrictions for the Application Schema itself.
 -- This trigger is also used to workaround a difference between NLS Date formats used in DMS
 -- and those used by the Delius application.
@@ -101,6 +107,12 @@ COMPOUND TRIGGER
                     -- did not impact data that was replicated.
                     :new.last_updated_user_id  := :old.last_updated_user_id;
                     :new.last_updated_datetime := :old.last_updated_datetime;
+                    -- Also do not update the row version as no actual change has been made
+                    :new.row_version := :old.row_version;
+                    -- Disable CDC for the user record if no actual personal data change
+                    -- (This is to prevent last accessed datetime records from production
+                    -- triggering CDC even when we suppress the change in the trigger).
+                    delius_app_schema.pkg_triggersupport.procSetCDCFlag(FALSE);
                 END IF;
                 -- Staff IDs in stage and pre-prod are independent of those in production
                 -- since these are not relevant to audit, and it may be necessary for
@@ -108,6 +120,9 @@ COMPOUND TRIGGER
                 -- corresponding records in production.  Therefore we prevent any overwriting
                 -- of the staff ID                
                 :new.staff_id := :old.staff_id;
+                -- We ignore changes to LAST_ACCESSED_DATETIME as this is the time the user was
+                -- accessed in the repository which is not relevant to the local database
+                :new.last_accessed_datetime := :old.last_accessed_datetime;
             ELSIF INSERTING THEN
                -- Also, not all Staff IDs from production will exist in stage & pre-prod
                -- so it we are attempting to insert a new user with a non-existent staff_id
@@ -152,6 +167,8 @@ COMPOUND TRIGGER
   BEGIN
    IF USER = 'DELIUS_AUDIT_DMS_POOL'
      THEN
+        -- Reset CDC Flag to default value
+        delius_app_schema.pkg_triggersupport.procSetCDCFlag(NULL);
         EXECUTE IMMEDIATE 'ALTER SESSION SET nls_date_format = ''YYYY-MM-DD HH24:MI:SS''';
         EXECUTE IMMEDIATE 'ALTER SESSION SET nls_timestamp_format = ''YYYY-MM-DD HH24:MI:SS.FF9''';
      END IF;
