@@ -87,5 +87,8 @@
   gather_facts: no
   become: yes
   become_user: oracle
-  roles:
-    - { role: "{{ playbook_dir }}/alfresco_wallet/alfresco_wallet", when: ( deploy_alfresco_wallet | default('no') == "yes" ) }
+  tasks:
+    - name: Deploy Alfresco Wallet
+      include_role:
+        name: "{{ playbook_dir }}/alfresco_wallet/alfresco_wallet"
+      when: deploy_alfresco_wallet | default('no') == "yes"
