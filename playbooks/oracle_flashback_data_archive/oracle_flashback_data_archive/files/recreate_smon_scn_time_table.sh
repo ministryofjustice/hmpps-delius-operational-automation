@@ -2,15 +2,6 @@
 
 # Source oracle bash profile
 . ~/.bash_profile
-                   
-# Shutdown the database
-srvctl stop database -d $ORACLE_SID
-
-# Start the database in upgrade mode
-srvctl start database -d $ORACLE_SID -o upgrade
-
-# Wait for 60 seconds
-sleep 60
 
 # Modify the table and indexes
 sqlplus -s / as sysdba <<EOF
@@ -19,6 +10,8 @@ SET PAGESIZE 0
 SET FEEDBACK OFF            
 SET HEADING OFF
 WHENEVER SQLERROR EXIT FAILURE          
+
+startup upgrade;
 
 rename smon_scn_time to smon_scn_time_org;
 
@@ -34,9 +27,3 @@ create unique index smon_scn_time_scn_idx on smon_scn_time(scn) tablespace SYSAU
 
 exit
 EOF
-
-# Shutdown the database 
-srvctl stop database -d $ORACLE_SID
-
-# Start the database 
-srvctl start database -d $ORACLE_SID
