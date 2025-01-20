@@ -58,4 +58,4 @@ COPY dummyfile.txt /opt/response.txt
 EXPOSE 8080
 
 # Dummy command to keep container running during development
-CMD ["while true; do cat /opt/response.txt | nc -l -p 8080; done"]
+CMD ["/bin/bash","-c","while true; do cat /opt/response.txt | nc -l -p 8080; done"]
