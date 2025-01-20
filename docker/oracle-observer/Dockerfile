@@ -12,7 +12,7 @@ RUN chown -R oracle:oinstall /home/oracle && \
     usermod -d /home/oracle oracle && \
     usermod -s /bin/bash oracle
 
-RUN dnf -y install make binutils glibc-devel zip less
+RUN dnf -y install make binutils glibc-devel zip less nmap-ncat
 
 RUN mkdir -p ${ORACLE_HOME} && \
     chown -R oracle:oinstall /u01
@@ -53,5 +53,9 @@ RUN rm -rf /opt/aws
 
 USER oracle:oinstall
 
+COPY dummyfile.txt /tmp/response.txt
+
+EXPOSE 8080
+
 # Dummy command to keep container running during development
-CMD ["tail","-f","/dev/null"]
+CMD ["while true; do cat /tmp/response.txt | nc -l -p 8080; done"]
