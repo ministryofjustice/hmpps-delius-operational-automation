@@ -1,12 +1,31 @@
 ---
+
+# Proactive change to the SMON_SCN_TIME table as discussed here:  
+#    https://jonathanlewis.wordpress.com/2014/03/03/flashback-fail/
+# This is required for data retention beyond 3 years & 6 months.
+# NOTE: THIS CAUSES A DATABASE OUTAGE
 - name: Check if Table SMON_SCN_TIME is clustered
   script: check_if_index_cluster_exists.sh
   register: cluster_name
   changed_when: false
 
 - name: Recreate the table system.smon_scn_time_org
-  script: recreate_smon_scn_time_table.sh
-  when: cluster_name.stdout is search("SMON_SCN_TO_AUX")
+  when: cluster_name.stdout is search("SMON_SCN_TO_TIME_AUX")
+  block:
+
+      - name: Shutdown database (prepare for upgrade mode)
+        shell: |
+               . ~/.bash_profile
+               [[ $(srvctl status database -d $ORACLE_SID) == "Database is running." ]] && srvctl stop database -d $ORACLE_SID
+
+      - name: Recreate the table system.smon_scn_time_org
+        script: recreate_smon_scn_time_table.sh
+
+      - name: Restart database (disable upgrade mode)
+        shell: |
+               . ~/.bash_profile
+               [[ $(srvctl status database -d $ORACLE_SID) == "Database is running." ]] && srvctl stop database -d $ORACLE_SID
+               srvctl start database -d $ORACLE_SID
 
 - name: Check if Flashback Data Archive Tablespace Exists
   script: check_if_fda_tablespace_exists.sh
@@ -21,39 +40,52 @@
   script: check_if_fda_exists.sh
   register: flashback_archive_name
   changed_when: false
-  environment:
-    NUMBER_OF_YEARS: "{{ number_of_years }}"
+  environment: 
+     NUMBER_OF_YEARS: "{{ number_of_years }}"
   loop: "{{ fda_contents | map(attribute='number_of_years') | list | unique }}"
   loop_control:
-    loop_var: number_of_years
+     loop_var: number_of_years
 
 - name: Create Flashback Data Archives Exists for All Required Numbers of Years
   script: create_fda.sh
-  environment:
-    NUMBER_OF_YEARS: "{{ check_results.number_of_years }}"
+  environment: 
+     NUMBER_OF_YEARS: "{{ check_results.number_of_years }}"
   loop: "{{ flashback_archive_name.results }}"
   loop_control:
-    loop_var: check_results
+     loop_var: check_results
   when: check_results.stdout is not search("YEAR_FDA")
 
 - name: Check if Required Tables in Flashback Archive
   script: check_if_table_in_fda.sh
   register: flashback_archive_tables
   changed_when: false
-  environment:
-    OWNER_NAME: "{{ database_table.owner_name | upper }}"
-    TABLE_NAME: "{{ database_table.table_name | upper }}"
+  environment: 
+     OWNER_NAME: "{{ database_table.owner_name | upper }}"
+     TABLE_NAME: "{{ database_table.table_name | upper }}"
+     NUMBER_OF_YEARS: "{{ database_table.number_of_years }}"
   loop: "{{ fda_contents }}"
   loop_control:
-    loop_var: database_table
+     loop_var: database_table
 
+# Run this task if the table is not in any flashback archive
 - name: Add Table to Flashback Archive
   script: add_table_to_fda.sh
-  environment:
-    OWNER_NAME: "{{ check_results.database_table.owner_name | upper }}"
-    TABLE_NAME: "{{ check_results.database_table.table_name | upper }}"
-    NUMBER_OF_YEARS: "{{ check_results.database_table.number_of_years }}"
+  environment: 
+     OWNER_NAME: "{{ check_results.database_table.owner_name | upper }}"
+     TABLE_NAME: "{{ check_results.database_table.table_name | upper }}"
+     NUMBER_OF_YEARS: "{{ check_results.database_table.number_of_years }}"
   loop: "{{ flashback_archive_tables.results }}"
   loop_control:
-    loop_var: check_results
+     loop_var: check_results
   when: check_results.stdout is not search(check_results.database_table.owner_name + ',' + check_results.database_table.table_name | upper)
+
+- name: Move Table to Different Flashback Archive
+  script: move_table_to_different_fda.sh
+  environment: 
+     OWNER_NAME: "{{ check_results.database_table.owner_name | upper }}"
+     TABLE_NAME: "{{ check_results.database_table.table_name | upper }}"
+     NUMBER_OF_YEARS: "{{ check_results.database_table.number_of_years }}"
+  loop: "{{ flashback_archive_tables.results }}"
+  loop_control:
+     loop_var: check_results
+  when: check_results.stdout is search(check_results.database_table.owner_name + ',' + check_results.database_table.table_name + ',INCORRECT_RETENTION' | upper)
