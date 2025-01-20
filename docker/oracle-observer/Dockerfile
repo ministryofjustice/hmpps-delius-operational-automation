@@ -40,8 +40,6 @@ RUN echo "export ORACLE_HOME=${ORACLE_HOME}" >> .bash_profile
 RUN echo "export PATH=\$PATH:\$ORACLE_HOME/bin" >> .bash_profile
 RUN echo "export LD_LIBRARY_PATH=\$ORACLE_HOME/lib:/lib:/usr/lib" >> .bash_profile
 RUN chmod u+x .bash_profile
-COPY configure_tnsnames.sh /home/oracle/configure_tnsnames.sh
-RUN chmod u+x configure_tnsnames.sh
 
 # We treat a return code of 6 as success since that is only an ignorable warning -> convert to 0 to continue
 RUN export CV_ASSUME_DISTID=OEL7.8 && \
@@ -53,8 +51,10 @@ RUN ${ORACLE_HOME}/root.sh
 RUN rm -rf /opt/client
 RUN rm -rf /opt/aws
 
-USER oracle:oinstall
+COPY configure_tnsnames.sh /home/oracle/configure_tnsnames.sh
+RUN chown oracle:oracle /home/oracle/configure_tnsnames.sh && chmod +x /home/oracle/configure_tnsnames.sh
 
+USER oracle:oinstall
 
 COPY dummyfile.txt /opt/response.txt
 
