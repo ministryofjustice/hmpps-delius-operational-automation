@@ -53,9 +53,9 @@ RUN rm -rf /opt/aws
 
 USER oracle:oinstall
 
-COPY dummyfile.txt /tmp/response.txt
+COPY dummyfile.txt /opt/response.txt
 
 EXPOSE 8080
 
 # Dummy command to keep container running during development
-CMD ["while true; do cat /tmp/response.txt | nc -l -p 8080; done"]
+CMD ["while true; do cat /opt/response.txt | nc -l -p 8080; done"]
