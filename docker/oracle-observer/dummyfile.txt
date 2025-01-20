@@ -4,6 +4,6 @@ Content-Length: 56
 
 <html>
 <body>
-<h1>Hello from the Oracle Observer Container!</h1>
+<h1>Hello from the Oracle Observer Containe (${TEST_VAR})!</h1>
 </body>
 </html>
