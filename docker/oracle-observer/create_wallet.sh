@@ -1,7 +1,7 @@
 #!/bin/bash
 
 . ~/.bash_profile
-WALLET_DIR="$ORACLE_HOME/network/admin/wallet"
+WALLET_DIR="/u01/app/oracle/wallets"
 
 # Remove existing wallet if it exists
 if [ -d "$WALLET_DIR" ]; then
@@ -17,7 +17,7 @@ chmod 700 "$WALLET_DIR"
 # Retrieve the SYS password from AWS Secrets Manager
 echo "Retrieving SYS password from AWS Secrets Manager..."
 SYS_PASSWORD=$(aws secretsmanager get-secret-value \
-               --secret-id "${SECRET_ID}" \
+               --secret-id "${DATABASE_SECRETS}" \
                --region eu-west-2 --query 'SecretString' \
                --output json | jq -r '.' | jq -r '.sys')
 
@@ -33,9 +33,9 @@ cd "$WALLET_DIR" || exit 1
 echo "Creating auto-login only Oracle wallet with orapki..."
 $ORACLE_HOME/bin/orapki wallet create -wallet "$WALLET_DIR" -auto_login_only
 
-# Add SYS password to the wallet for the ABCDEF database
-echo "Adding SYS password to the Oracle wallet for the ABCDEF database..."
-$ORACLE_HOME/bin/orapki wallet add -wallet "$WALLET_DIR" -dbalias "$DB_ALIAS" -user "SYS" -password "$SYS_PASSWORD"
+# Add SYS password to the wallet for the target database
+echo "Adding SYS password to the Oracle wallet for the ${DATABASE_NAME} database..."
+$ORACLE_HOME/bin/orapki wallet add -wallet "$WALLET_DIR" -dbalias "${DATABASE_NAME}" -user "SYS" -password "$SYS_PASSWORD"
 
 # Verify the wallet contents
 echo "Verifying wallet contents..."

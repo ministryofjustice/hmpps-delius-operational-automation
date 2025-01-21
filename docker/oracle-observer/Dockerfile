@@ -51,8 +51,12 @@ RUN ${ORACLE_HOME}/root.sh
 RUN rm -rf /opt/client
 RUN rm -rf /opt/aws
 
+COPY sqlnet.ora ${ORACLE_HOME}/network/admin
+RUN chown oracle:oracle ${ORACLE_HOME}/network/admin/sqlnet.ora
 COPY configure_tnsnames.sh /home/oracle/configure_tnsnames.sh
 RUN chown oracle:oracle /home/oracle/configure_tnsnames.sh && chmod +x /home/oracle/configure_tnsnames.sh
+COPY create_wallet.sh /home/oracle/create_wallet.sh
+RUN chown oracle:oracle /home/oracle/create_wallet.sh && chmod +x /home/oracle/create_wallet.sh
 
 USER oracle:oinstall
 
@@ -61,4 +65,4 @@ COPY dummyfile.txt /opt/response.txt
 EXPOSE 8080
 
 # Dummy command to keep container running during development
-CMD ["/bin/bash","-c","/home/oracle/configure_tnsnames.sh; while true; do cat /opt/response.txt | nc -l -p 8080; done"]
+CMD ["/bin/bash","-c","/home/oracle/configure_tnsnames.sh; /home/oracle/create_wallet.sh; while true; do cat /opt/response.txt | nc -l -p 8080; done"]
