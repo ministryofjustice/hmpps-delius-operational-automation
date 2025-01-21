@@ -12,7 +12,7 @@ RUN chown -R oracle:oinstall /home/oracle && \
     usermod -d /home/oracle oracle && \
     usermod -s /bin/bash oracle
 
-RUN dnf -y install make binutils glibc-devel zip less nmap-ncat
+RUN dnf -y install make binutils glibc-devel zip less nmap-ncat jq
 
 RUN mkdir -p ${ORACLE_HOME} && \
     chown -R oracle:oinstall /u01
