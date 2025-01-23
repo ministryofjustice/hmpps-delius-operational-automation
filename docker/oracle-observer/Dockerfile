@@ -12,7 +12,7 @@ RUN chown -R oracle:oinstall /home/oracle && \
     usermod -d /home/oracle oracle && \
     usermod -s /bin/bash oracle
 
-RUN dnf -y install make binutils glibc-devel zip less nmap-ncat jq
+RUN dnf -y install make binutils glibc-devel zip less jq
 
 RUN mkdir -p ${ORACLE_HOME} && \
     chown -R oracle:oinstall /u01
@@ -57,12 +57,10 @@ COPY configure_tnsnames.sh /home/oracle/configure_tnsnames.sh
 RUN chown oracle:oracle /home/oracle/configure_tnsnames.sh && chmod +x /home/oracle/configure_tnsnames.sh
 COPY create_wallet.sh /home/oracle/create_wallet.sh
 RUN chown oracle:oracle /home/oracle/create_wallet.sh && chmod +x /home/oracle/create_wallet.sh
+COPY run_observer.sh /home/oracle/run_observer.sh
+RUN chown oracle:oracle /home/oracle/run_observer.sh && chmod +x /home/oracle/run_observer.sh
 
 USER oracle:oinstall
 
-COPY dummyfile.txt /opt/response.txt
-
-EXPOSE 8080
-
 # Dummy command to keep container running during development
-CMD ["/bin/bash","-c","/home/oracle/configure_tnsnames.sh; /home/oracle/create_wallet.sh; while true; do cat /opt/response.txt | nc -l -p 8080; done"]
+CMD ["/bin/bash","-c","/home/oracle/configure_tnsnames.sh; /home/oracle/create_wallet.sh; /home/oracle/run_observer.sh"]
