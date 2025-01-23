@@ -14,15 +14,10 @@ echo "Creating wallet directory at $WALLET_DIR..."
 mkdir -p "$WALLET_DIR"
 chmod 700 "$WALLET_DIR"
 
-# Retrieve the SYS password from AWS Secrets Manager
-echo "Retrieving SYS password from AWS Secrets Manager..."
-SYS_PASSWORD=$(aws secretsmanager get-secret-value \
-               --secret-id "${DATABASE_SECRETS}" \
-               --region eu-west-2 --query 'SecretString' \
-               --output json | jq -r '.' | jq -r '.sys')
+SYS_PASSWORD=$(echo ${DATABASE_SECRETS_JSON} | jq -r '.sys')
 
 if [ -z "$SYS_PASSWORD" ]; then
-    echo "Failed to retrieve the SYS password. Please check your AWS CLI configuration and secret name."
+    echo "Failed to find the SYS password."
     exit 1
 fi
 
