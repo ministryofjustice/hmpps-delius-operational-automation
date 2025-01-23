@@ -9,15 +9,6 @@ on:
       - docker/oracle-observer/**
       - .github/workflows/oracle-observer-image-build.yml
 
-  # Commented out while spiking this work out
-  # pull_request:
-  #   branches:
-  #     - main
-  #   types: [opened, edited, reopened, synchronize]
-  #   paths:
-  #     - docker/delius-ansible-aws/**
-  #     - .github/workflows/ansible-aws-image-build.yml
-
   # Allow permissions on repository and docker image and OIDC token
 permissions:
   contents: read
@@ -136,33 +127,6 @@ jobs:
       - name: Load image
         run: |
           docker load --input /tmp/oracle-observer-image.tar
-
-      # - name: Trivy scan
-      #   uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2
-      #   with:
-      #     format: 'sarif'
-      #     severity: 'CRITICAL,HIGH'
-      #     limit-severities-for-sarif: 'true'
-      #     image-ref: 'hmpps-delius-operational-automation:${{ github.sha }}'
-      #     exit-code: '1'
-      #     scan-type: 'image'
-      #     trivyignores: 'docker/oracle-observer/.trivyignore'
-      #     ignore-unfixed: 'true'
-      #     output: 'trivy-results.sarif'
-
-      # - name: Upload artifact
-      #   uses: actions/upload-artifact@v4
-      #   if: failure() # If Trivy found vulnerabilities
-      #   with:
-      #     name: trivy-file
-      #     path: trivy-results.sarif
-      #     retention-days: 1
-
-      # - name: Upload Trivy scan results to GitHub Security tab
-      #   uses: github/codeql-action/upload-sarif@v3
-      #   if: failure() # If Trivy found vulnerabilities
-      #   with:
-      #     sarif_file: 'trivy-results.sarif'
 
   publish-observer-image:
     name: Publish image
