@@ -1,7 +1,7 @@
 #!/bin/bash
 
 . ~/.bash_profile
-WALLET_DIR="/u01/app/oracle/wallets"
+WALLET_DIR="/u01/app/oracle/wallets/dg_wallet"
 
 # Remove existing wallet if it exists
 if [ -d "$WALLET_DIR" ]; then
@@ -30,14 +30,14 @@ $ORACLE_HOME/bin/orapki wallet create -wallet "$WALLET_DIR" -auto_login_only
 
 # Add SYS password to the wallet for the target database
 echo "Adding SYS password to the Oracle wallet for the ${DATABASE_NAME} database..."
-$ORACLE_HOME/bin/orapki wallet add -wallet "$WALLET_DIR" -dbalias "${DATABASE_NAME}" -user "SYS" -password "$SYS_PASSWORD"
+$ORACLE_HOME/bin/mkstore -wrl ${WALLET_DIR} -createCredential ${DATABASE_NAME} sys ${SYS_PASSWORD}
 
 # Verify the wallet contents
 echo "Verifying wallet contents..."
-$ORACLE_HOME/bin/orapki wallet display -wallet "$WALLET_DIR"
+$ORACLE_HOME/bin/mkstore -wrl ${WALLET_DIR} -listCredential
 
 # Clean up sensitive data
 unset SYS_PASSWORD
 
 # Success message
-echo "Auto-login only Oracle wallet successfully created and SYS password added for the ABCDEF database."
+echo "Auto-login only Oracle wallet successfully created and SYS password added for the ${DATABASE_NAME} database."
