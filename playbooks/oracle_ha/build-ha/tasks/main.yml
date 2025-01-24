@@ -18,9 +18,6 @@
     post_restore: true
   when: method is defined and method == "post"
 
-- debug:
-    var: method
-
 - name: (main) Set fact to only carry out FSFO Setup
   set_fact:
     fsfo_setup: true
