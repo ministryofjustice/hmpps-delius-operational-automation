@@ -63,5 +63,4 @@ RUN chown oracle:oracle /home/oracle/run_observer.sh && chmod +x /home/oracle/ru
 USER oracle:oinstall
 
 # Dummy command to keep container running during development
-# CMD ["/bin/bash","-c","/home/oracle/configure_tnsnames.sh; /home/oracle/create_wallet.sh; /home/oracle/run_observer.sh"]
-CMD ["/bin/bash","-c","/home/oracle/configure_tnsnames.sh; /home/oracle/create_wallet.sh; sleep 14400"]
+CMD ["/bin/bash","-c","/home/oracle/configure_tnsnames.sh; /home/oracle/create_wallet.sh; /home/oracle/run_observer.sh"]
