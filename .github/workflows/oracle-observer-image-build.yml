@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - "DBA-834"
     paths:
       - docker/oracle-observer/**
       - .github/workflows/oracle-observer-image-build.yml
