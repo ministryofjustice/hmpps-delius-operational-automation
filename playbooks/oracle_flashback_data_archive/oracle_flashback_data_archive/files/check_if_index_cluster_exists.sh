@@ -11,6 +11,5 @@ WHENEVER SQLERROR EXIT FAILURE
 select cluster_name 
 from dba_tables 
 where table_name = 'SMON_SCN_TIME';                    
-
 EXIT
 EOF
