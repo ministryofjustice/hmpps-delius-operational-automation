@@ -2,7 +2,8 @@
 # Proactive change to the SMON_SCN_TIME table as discussed here:
 #    https://jonathanlewis.wordpress.com/2014/03/03/flashback-fail/
 # This is required for data retention beyond 3 years & 6 months.
-# NOTE: THIS CAUSES A DATABASE OUTAGE
+# NOTE: THIS CAUSES A DATABASE OUTAGE, REMEMBER TO DISABLE ACTIVE DATAGUARD WHILE IN UPGRADE MODE.
+
 - name: Check if Table SMON_SCN_TIME is clustered
   script: check_if_index_cluster_exists.sh
   register: cluster_name
