@@ -1,7 +1,9 @@
-- name: (main/set-standby-config) Setup standby oratab
+- name: (main/set-standby-config) Ensure standby oratab entry exists without duplicates
   lineinfile:
     dest: /etc/oratab
     line: "{{ database_standby_sid }}:{{ oracle_database_oracle_home }}:N"
+    regexp: "^{{ database_standby_sid }}:.*:N(\\s*#.*)?$"
+    state: present
     owner: "{{ rdbms_service_user.name }}"
 
 - name: (main/set-standby-config) Setup standby tnsnames
