@@ -59,6 +59,9 @@
   delay: 60
   retries: 60
 
+- debug:
+    var: fsfo_mode
+
 # Prepare for Mode Change if Needed
 - name: Disable Fast-Start Failover
   shell: |
