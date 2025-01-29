@@ -1,3 +1,13 @@
+# Before we start we must ensure we have all the required redo logs available on the host
+# that DMS uses as the repolication source
+- name: Restore Archivelogs
+  script: restore_archivelogs.sh
+  delegate_to: "{{ source_endpoint_host }}"
+  environment: 
+     OEM_SECRET_ROLE: "{{ oem_secret_role }}"
+     CATALOG_DB: "{{ catalog_db }}"
+     MAX_SEQNO: "{{ max_seqno }}"
+     
 - name: Restart Business Interaction Replication Task
   include_tasks: restart_business_interaction_task.yml
 
