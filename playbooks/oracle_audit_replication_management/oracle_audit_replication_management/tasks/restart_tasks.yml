@@ -3,6 +3,8 @@
 - name: Restore Archivelogs
   script: restore_archivelogs.sh
   delegate_to: "{{ groups[source_endpoint_host][0] }}"
+  become: true
+  become_user: oracle
   environment: 
      OEM_SECRET_ROLE: "{{ oem_secret_role }}"
      CATALOG_DB: "{{ catalog }}"
