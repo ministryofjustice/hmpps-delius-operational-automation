@@ -1,4 +1,7 @@
 #!/bin/bash
+
+. ~/.bash_profile
+
 # Restore Archivelogs Up to the requested MAX_SEQNO
 [[ -z $MAX_SEQNO ]] && echo "The Maximum Sequence Number to restore archivelogs to must be supplied" && exit 9
 
