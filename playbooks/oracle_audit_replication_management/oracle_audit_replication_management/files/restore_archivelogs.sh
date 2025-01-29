@@ -26,7 +26,7 @@ CPU_COUNT=$(grep -c processor /proc/cpuinfo)
 # previous value so we can reset it afterwards
 DEFAULT_PARALLELISM=$(echo "show device type;" | rman target / | grep "'SBT_TAPE'" | grep -oP '(?<=PARALLELISM )\d+')
 
-rman target / <<EOL/
+rman target / <<EOL
 connect catalog rcvcatowner/$RMANPASS@${CATALOG_DB}
 # We can max out the CPUs for restoring archivelogs as nobody will be using the DB when we run this
 CONFIGURE DEVICE TYPE 'SBT_TAPE' PARALLELISM ${CPU_COUNT};
