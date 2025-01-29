@@ -55,12 +55,12 @@
           set_fact:
             rman_options: "-t HOT -i 0 -b Y"
           when: daily_weekly == 'weekly'
-  
+
         - fail:
-             msg: "The range of sequence numbers to be backed up must be specified in archivelog mode"
+            msg: "The range of sequence numbers to be backed up must be specified in archivelog mode"
           when:
-             - daily_weekly == 'archivelog'
-             - min_seq is not defined
+            - daily_weekly == 'archivelog'
+            - min_seq is not defined
 
         - name: Set rman_options when "archivelog"
           set_fact:
@@ -193,7 +193,7 @@
             SECRET: "{{ secretsmanager_passwords['catalog'].secret | default() }}"
           when: run_in_foreground | default(false)
           vars:
-             - ansible_aws_ssm_timeout: 3600
+            - ansible_aws_ssm_timeout: 3600
 
         - name: Running RMAN script in Background
           shell: "{{ rman_command }}"

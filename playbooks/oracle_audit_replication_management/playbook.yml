@@ -31,12 +31,12 @@
   import_playbook: ../oracle_backup/backup.yml
   when: replication_action == 'restart'
   vars:
-             rman_target: "{{ target_hosts }}"
-             json_inputs: {}
-             daily_weekly: archivelog
-             min_seq: 1
-             max_seq: "{{ get_max_seq.stdout | trim }}"
-             run_in_foreground: true
+    rman_target: "{{ target_hosts }}"
+    json_inputs: {}
+    daily_weekly: archivelog
+    min_seq: 1
+    max_seq: "{{ get_max_seq.stdout | trim }}"
+    run_in_foreground: true
 
 - hosts: "{{ target_hosts }}"
   gather_facts: no
@@ -44,7 +44,6 @@
   become_user: oracle
 
   tasks:
-
     # Include role inside a block so that it may be delegated
     - name: Restart Audited Interaction Replication
       delegate_to: localhost
