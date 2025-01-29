@@ -24,10 +24,6 @@
           register: get_max_seq
           changed_when: false
 
-        - name: Get Maximum Sequence Number
-          set_fact:
-             max_seq_no: "{{ get_max_seq.stdout | trim }}"
-
 # Prior to restarting the replication tasks we take a backup of all archivelogs
 # so that we can restore them onto the standby database used by DMS to ensure
 # it can read all changes since resetlogs
@@ -59,3 +55,4 @@
           vars:
             replication_action: restart
             audit_cdc_scn: "{{ get_db_startup_scn.stdout | default('') | trim }}"
+            max_seqno: "{{ get_max_seq.stdout | trim }}"
