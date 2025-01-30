@@ -242,8 +242,8 @@ jobs:
       SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
 
   oracle-rman-export-schema:
-    if: ${{ github.event.inputs.SourceLegacy == 'no' && github.event_name != 'repository_dispatch' }}
-    needs: [oracle-rman-pre-duplicate]
+    if: ${{ github.event.inputs.SourceLegacy == 'no' && github.event_name != 'repository_dispatch'  && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' )  }}
+    needs: stop-audit-replication
     name: oracle-rman-export-schema
     environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }}-preapproved
     runs-on: ubuntu-latest
