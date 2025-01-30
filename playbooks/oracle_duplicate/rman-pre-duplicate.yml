@@ -104,7 +104,15 @@
     action: "block"
   when: duplicate_target |  regex_search('.*_delius_primarydb')
 
-# Once users have been locked out, we can run one final checksum of all audited interaction data
-- name: Calculate Final Audited Interaction Checksum
-  script: ../../common/files/calculate_audited_interaction_checksum.sh
-  when: duplicate_target |  regex_search('.*_delius_primarydb')
+- name: Pre database duplicate tasks
+  hosts: "{{ duplicate_target }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+
+    # Once users have been locked out, we can run one final checksum of all audited interaction data
+    - name: Calculate Final Audited Interaction Checksum
+      script: ../../common/files/calculate_audited_interaction_checksum.sh
+      when: duplicate_target |  regex_search('.*_delius_primarydb')
