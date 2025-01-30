@@ -85,18 +85,8 @@ permissions:
 
 jobs:
 
-  stop-audit-replication:
-    if: ${{ (github.event_name != 'repository_dispatch') && (startsWith(github.event.inputs.TargetHost, 'delius_')) }}
-    uses: ./.github/workflows/oracle-db-audit-replication-management.yml
-    with:
-      TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
-      Action: "stop"
-      SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}
-      SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
-
   oracle-rman-pre-duplicate:
-    if: ${{ always() && (github.event_name != 'repository_dispatch') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
-    needs: [stop-audit-replication]
+    if: ${{ always() && (github.event_name != 'repository_dispatch') }}
     name: oracle-rman-pre-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -249,6 +239,16 @@ jobs:
           -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} \
           -e skip_audited_interaction_archival=${{ github.event.inputs.SkipAudit }}
 
+  stop-audit-replication:
+    if: ${{ success('oracle-rman-pre-duplicate')  && (github.event_name != 'repository_dispatch') && (startsWith(github.event.inputs.TargetHost, 'delius_')) }}
+    needs: [oracle-rman-pre-duplicate]
+    uses: ./.github/workflows/oracle-db-audit-replication-management.yml
+    with:
+      TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
+      Action: "stop"
+      SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
+
   oracle-rman-export-schema:
     if: ${{ github.event.inputs.SourceLegacy == 'no' && github.event_name != 'repository_dispatch' }}
     needs: [oracle-rman-pre-duplicate]
@@ -396,13 +396,13 @@ jobs:
           -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   oracle-rman-duplicate:
-    if: ${{ success('oracle-rman-pre-duplicate') && github.event_name != 'repository_dispatch' && (needs.oracle-rman-import-schema.result == 'skipped' || needs.oracle-rman-import-schema.result == 'success') }}
+    if: ${{ success('oracle-rman-pre-duplicate') && github.event_name != 'repository_dispatch' && (needs.oracle-rman-import-schema.result == 'skipped' || needs.oracle-rman-import-schema.result == 'success') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
     name: oracle-rman-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
-    needs: [oracle-rman-import-schema,oracle-rman-pre-duplicate]
+    needs: [oracle-rman-import-schema,oracle-rman-pre-duplicate,stop-audit-replication]
     timeout-minutes: 1440
     continue-on-error: false
     env:
