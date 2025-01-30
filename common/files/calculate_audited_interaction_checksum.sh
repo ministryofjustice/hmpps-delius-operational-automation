@@ -5,8 +5,15 @@
 
 . ~/.bash_profile
 
-sqlplus / as sysdba <<-EOSQL
+sqlplus /nolog <<-EOSQL
 
+-- We do not care if this fails (due to the database being unavailable for example),
+-- as we are about to wipe it out anyway.   Therefore simply exit with success
+-- in the event of an error.
+WHENEVER OSERROR EXIT SUCCESS
+WHENEVER SQLERROR EXIT SUCCESS
+
+connect / as sysdba
 SET SERVEROUT ON
 
 DECLARE
