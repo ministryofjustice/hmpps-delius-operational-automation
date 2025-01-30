@@ -209,6 +209,7 @@ jobs:
             playbooks/awr_export
             playbooks/block_sessions
             playbooks/oem_blackout
+            playbooks/oracle_audit_replication_management
             common/*
             playbooks/ansible.cfg
           path: operations
