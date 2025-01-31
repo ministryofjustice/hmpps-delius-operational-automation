@@ -16,11 +16,10 @@
         msg: "No rman catalog specified...exiting"
       when: catalog is not defined and catalog_tns is not defined
 
-    - name: Set S3 Source Bucket And Catalog If Duplicating From Legacy On Lower Environments
+    - name: Set S3 Source Bucket And Catalog To Handle Legacy
       set_fact:
-        s3_source_bucket: "{{ s3_source_bucket if (source_legacy == 'yes') else db_backup_s3_bucket_name }}"
-        catalog: "{{ catalog_tns if (source_legacy == 'yes') else catalog }}"
-      when: aws_environment | regex_search('development|test|preproduction')
+        s3_source_bucket: "{{ s3_source_bucket if (source_legacy != 'no') else db_backup_s3_bucket_name }}"
+        catalog: "{{ catalog_tns if (source_legacy != 'no') else catalog }}"
 
     - name: Check s3 bucket is accessible
       block:
@@ -122,6 +121,11 @@
         source_catalog_schema_option: "-u {{ source_catalog_schema }}"
       when: source_catalog_schema is defined
 
+    - name: Set Source Legacy Option
+      set_fact:
+        source_legacy_option: "-o {{ source_legacy }}"
+      when: source_legacy != "no"
+
     # The quotes in the JSON inputs can get messed up by unwanted shell interpretation.
     # To avoid this we send the JSON as an encoded string to be decoded by the shell script.
     - name: Enable Repository Dispatch Event if supplied
@@ -143,7 +147,7 @@
 
         - name: Generate Command to Run RMAN Script
           set_fact:
-            run_rman_script: '/home/oracle/admin/rman_scripts/rman_duplicate.sh -d {{ database_primary_sid}} -s {{ source_db }} -c "{{ catalog }}" {{ local_disk_backup | default() }} {{ noop_flag | default() }} {{ rman_datetime_option | default() }} {{ ssm_parameter_option|default() }} {{ source_catalog_schema_option|default() }} {{ "-f" if ((spfile_parameters_option | default("")) != "") else "" }} "{{ spfile_parameters_option|default()|trim }}" {{ repository_dispatch_flag|default() }}'
+            run_rman_script: '/home/oracle/admin/rman_scripts/rman_duplicate.sh -d {{ database_primary_sid}} -s {{ source_db }} -c "{{ catalog }}" {{ local_disk_backup | default() }} {{ noop_flag | default() }} {{ rman_datetime_option | default() }} {{ ssm_parameter_option|default() }} {{ source_catalog_schema_option|default() }} {{ "-f" if ((spfile_parameters_option | default("")) != "") else "" }} "{{ spfile_parameters_option|default()|trim }}" {{ repository_dispatch_flag|default() }} {{ source_legacy_option|default() }}'
 
         - name: Show Script to Run
           debug:
