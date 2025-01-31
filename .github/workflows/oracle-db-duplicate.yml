@@ -708,7 +708,7 @@ jobs:
   # Set new passwords for the database and associated components for monitoring
   password-rotation:
     needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
-    if:  ${{ always() && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
+    if:  ${{ ( needs.oracle-rman-post-duplicate.result == 'success' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
     name: Password Rotation
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-password-rotation.yml@main
