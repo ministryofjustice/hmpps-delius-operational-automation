@@ -8,11 +8,9 @@ on:
         required: true
         type: choice
         options:
-          - "delius-core-dev"
           - "delius-core-test"
           - "delius-core-stage"
           - "delius-core-preprod"
-          - "delius-mis-dev"
           - "delius-mis-stage"
           - "delius-mis-preprod"
       TargetHost:
