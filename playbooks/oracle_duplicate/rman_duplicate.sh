@@ -802,6 +802,11 @@ fi
 DUPLICATEPFILE=${ORACLE_HOME}/dbs/init${TARGET_DB}_duplicate.ora
 info "Create ${DUPLICATEPFILE} pfile"
 echo "db_name=${TARGET_DB}" > ${DUPLICATEPFILE}
+if [[ "${LEGACY_SOURCE"} == "restore" ]]
+then
+  echo "db_unique_name=${TARGET_DB}" > ${DUPLICATEPFILE}
+  echo "instance_name=${TARGET_DB}" > ${DUPLICATEPFILE}
+fi
 echo "${COMPATIBLE}" >> ${DUPLICATEPFILE}
 
 info "Place ${TARGET_DB} in nomount mode"
