@@ -715,15 +715,15 @@ jobs:
 
   # Restarting Audit Replication should not take place until after any HAs have been built as we
   # normally want to read from the standby database if available, to reduce load on the primary.
-  # restart-audit-replication:
-  #   uses: ./.github/workflows/oracle-db-audit-replication-management.yml
-  #   needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
-  #   if:  ${{ always() && startsWith(needs.oracle-rman-duplicate-check.outputs.TargetHost, 'delius_') && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
-  #   with:
-  #     TargetEnvironment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}
-  #     Action: "restart"
-  #     SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
-  #     SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
+  restart-audit-replication:
+    uses: ./.github/workflows/oracle-db-audit-replication-management.yml
+    needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
+    if:  ${{ always() && startsWith(needs.oracle-rman-duplicate-check.outputs.TargetHost, 'delius_') && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
+    with:
+      TargetEnvironment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}
+      Action: "restart"
+      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
 
   slack-notification:
     if: ${{ failure() }}
