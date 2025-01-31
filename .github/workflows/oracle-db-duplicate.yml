@@ -466,7 +466,7 @@ jobs:
              SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
              extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }} -e noop_mode=$NoOpMode"
           else
-             extra_vars="-e source_legacy=yes -e noop_mode=$NoOpMode"
+             extra_vars="-e source_legacy=${{ github.event.inputs.SourceLegacy }} -e noop_mode=$NoOpMode"
           fi        
           export ANSIBLE_CONFIG=$ansible_config
           $ansible_playbook_directory/rman-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
@@ -604,7 +604,7 @@ jobs:
           -e duplicate_target=${{ env.DuplicateTarget }}
 
   oracle-build-ha:
-    if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0' || needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == null) && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && (needs.oracle-rman-duplicate-check.outputs.SourceLegacy != 'restore' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy != 'recover') }}
+    if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0' || needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == null) && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && q(needs.oracle-rman-duplicate-check.outputs.SourceLegacy != 'restore' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy != 'recover') }}
     name: oracle-build-ha
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
