@@ -447,6 +447,7 @@ EOF
     echo "    set db_file_name_convert='+DATA/${SOURCE_DB}','+DATA/${TARGET_DB}'" >> $RMANDUPLICATECMDFILE
     echo "    set log_file_name_convert='+DATA/${SOURCE_DB}','+DATA/${TARGET_DB}','+FLASH/${SOURCE_DB}','+FLASH/${TARGET_DB}'" >> $RMANDUPLICATECMDFILE
   fi
+  [[ "${LEGACY_OPTION}" == "restore" ]] && echo "    set db_unique_name='${TARGET_DB}'" >> $RMANDUPLICATECMDFILE
   echo "    set fal_server=''" >> $RMANDUPLICATECMDFILE
   echo "    set log_archive_config=''" >> $RMANDUPLICATECMDFILE
   echo "    set log_archive_dest_2=''" >> $RMANDUPLICATECMDFILE
@@ -802,11 +803,11 @@ fi
 DUPLICATEPFILE=${ORACLE_HOME}/dbs/init${TARGET_DB}_duplicate.ora
 info "Create ${DUPLICATEPFILE} pfile"
 echo "db_name=${TARGET_DB}" > ${DUPLICATEPFILE}
-if [[ "${LEGACY_OPTION}" == "restore" ]]
-then
-  echo "db_unique_name=${TARGET_DB}" >> ${DUPLICATEPFILE}
-  echo "instance_name=${TARGET_DB}" >> ${DUPLICATEPFILE}
-fi
+# if [[ "${LEGACY_OPTION}" == "restore" ]]
+# then
+#   echo "db_unique_name=${TARGET_DB}" >> ${DUPLICATEPFILE}
+#   echo "instance_name=${TARGET_DB}" >> ${DUPLICATEPFILE}
+# fi
 echo "${COMPATIBLE}" >> ${DUPLICATEPFILE}
 
 info "Place ${TARGET_DB} in nomount mode"
