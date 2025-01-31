@@ -111,7 +111,6 @@
   become_user: oracle
 
   tasks:
-
     # Once users have been locked out, we can run one final checksum of all audited interaction data
     - name: Calculate Final Audited Interaction Checksum
       script: ../../common/files/calculate_audited_interaction_checksum.sh
