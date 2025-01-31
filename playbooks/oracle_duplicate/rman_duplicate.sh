@@ -760,6 +760,7 @@ if [[ ! -z "$JSON_INPUTS" ]]; then
    JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode )
 fi
 
+
 if [ "${SPFILE_PARAMETERS}" != "UNSPECIFIED" ]
 then
   for PARAM in ${SPFILE_PARAMETERS[@]}
@@ -771,52 +772,50 @@ then
   done
 fi
 
-info "Shutdown ${TARGET_DB}"
-  sqlplus -s / as sysdba <<EOF
-  shutdown abort;
+if [[ ! "${LEGACY_OPTION}" =~ ^(recover|open)$ ]]
+then
+  info "Shutdown ${TARGET_DB}"
+    sqlplus -s / as sysdba <<EOF
+    shutdown abort;
 EOF
 
-info "Modify database using Server Control with correct spfile location"
-srvctl modify database -d ${TARGET_DB} -p "+DATA/${TARGET_DB}/spfile${TARGET_DB}.ora"
+  info "Modify database using Server Control with correct spfile location"
+  srvctl modify database -d ${TARGET_DB} -p "+DATA/${TARGET_DB}/spfile${TARGET_DB}.ora"
 
-if [[ "${NOOP_MODE}" != "TRUE" ]];
-then
-    remove_asm_directory DATA ${TARGET_DB}
-    remove_asm_directory FLASH ${TARGET_DB}
+  if [[ "${NOOP_MODE}" != "TRUE" ]];
+  then
+      remove_asm_directory DATA ${TARGET_DB}
+      remove_asm_directory FLASH ${TARGET_DB}
 
-    info "Create ${TARGET_DB} in +DATA in readiness for duplicate"
-    asmcmd mkdir +DATA/${TARGET_DB}
+      info "Create ${TARGET_DB} in +DATA in readiness for duplicate"
+      asmcmd mkdir +DATA/${TARGET_DB}
 
-    info "Set environment for ${TARGET_DB}"
-    set_ora_env ${TARGET_DB}
+      info "Set environment for ${TARGET_DB}"
+      set_ora_env ${TARGET_DB}
 
-    INI_FILES=(${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora)
-    if [[ -f ${INI_FILES[0]} ]]
-    then
-      info "Remove all references to all ${TARGET_DB} initialization files to start fresh"
-      rm ${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora || error "Removing ${TARGET_DB} initialization files"
-    fi
-else
-   info "Skipping deleting data files in noop mode"
-fi
+      INI_FILES=(${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora)
+      if [[ -f ${INI_FILES[0]} ]]
+      then
+        info "Remove all references to all ${TARGET_DB} initialization files to start fresh"
+        rm ${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora || error "Removing ${TARGET_DB} initialization files"
+      fi
+  else
+    info "Skipping deleting data files in noop mode"
+  fi
 
-DUPLICATEPFILE=${ORACLE_HOME}/dbs/init${TARGET_DB}_duplicate.ora
-info "Create ${DUPLICATEPFILE} pfile"
-echo "db_name=${TARGET_DB}" > ${DUPLICATEPFILE}
-# if [[ "${LEGACY_OPTION}" == "restore" ]]
-# then
-#   echo "db_unique_name=${TARGET_DB}" >> ${DUPLICATEPFILE}
-#   echo "instance_name=${TARGET_DB}" >> ${DUPLICATEPFILE}
-# fi
-echo "${COMPATIBLE}" >> ${DUPLICATEPFILE}
+  DUPLICATEPFILE=${ORACLE_HOME}/dbs/init${TARGET_DB}_duplicate.ora
+  info "Create ${DUPLICATEPFILE} pfile"
+  echo "db_name=${TARGET_DB}" > ${DUPLICATEPFILE}
+  echo "${COMPATIBLE}" >> ${DUPLICATEPFILE}
 
-info "Place ${TARGET_DB} in nomount mode"
-if ! sqlplus -s / as sysdba << EOF
-  whenever sqlerror exit failure
-  startup force nomount pfile=${DUPLICATEPFILE}
+  info "Place ${TARGET_DB} in nomount mode"
+  if ! sqlplus -s / as sysdba << EOF
+    whenever sqlerror exit failure
+    startup force nomount pfile=${DUPLICATEPFILE}
 EOF
-then
-   error "Placing ${TARGET_DB} in nomount mode"
+  then
+    error "Placing ${TARGET_DB} in nomount mode"
+  fi
 fi
 
 info "Generating rman command file"
