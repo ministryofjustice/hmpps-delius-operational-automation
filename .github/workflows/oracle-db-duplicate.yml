@@ -705,11 +705,23 @@ jobs:
           -e primary_source_type=active \
           -e copy_redo_since_resetlogs=true
 
+  # Set new passwords for the database and associated components for monitoring
+  password-rotation:
+    needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
+    if:  ${{ always() && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
+    name: Password Rotation
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-password-rotation.yml@main
+    with:
+      TargetEnvironment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}
+      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
+      
   # Restarting Audit Replication should not take place until after any HAs have been built as we
   # normally want to read from the standby database if available, to reduce load on the primary.
   restart-audit-replication:
     uses: ./.github/workflows/oracle-db-audit-replication-management.yml
-    needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
+    needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate,password-rotation]
     if:  ${{ always() && startsWith(needs.oracle-rman-duplicate-check.outputs.TargetHost, 'delius_') && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
     with:
       TargetEnvironment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}
