@@ -424,6 +424,8 @@ EOF
     then
       echo '  sql "alter database active standby database";' >> $RMANDUPLICATECMDFILE
       echo '  sql "alter database open";' >> $RMANDUPLICATECMDFILE
+      echo "  host 'srvctl modify database -d ${TARGET_DB} -startoption OPEN';" >> $RMANDUPLICATECMDFILE
+      echo "  host 'srvctl modify database -d ${TARGET_DB} -role PRIMARY';" >> $RMANDUPLICATECMDFILE
     fi
     for (( i=1; i<=${CPU_COUNT}; i++ ))
     do
@@ -470,7 +472,11 @@ EOF
   else  
     echo "  until scn ${SCN};" >> $RMANDUPLICATECMDFILE 
   fi
-
+  if [[ "${LEGACY_OPTION}" == "restore" ]]
+  then
+    echo "  host 'srvctl modify database -d ${TARGET_DB} -startoption MOUNT';" >> $RMANDUPLICATECMDFILE
+    echo "  host 'srvctl modify database -d ${TARGET_DB} -role PHYSICAL_STANDBY';" >> $RMANDUPLICATECMDFILE
+  fi
   echo "}" >>$RMANDUPLICATECMDFILE
   echo "exit"	>>$RMANDUPLICATECMDFILE
 }
