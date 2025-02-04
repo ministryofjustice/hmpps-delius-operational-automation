@@ -95,9 +95,6 @@
         - name: Update objects
           include_tasks: ../delius_objects/playbook.yml
 
-        # Use a directory from the current repo as a role for Audited Interaction Preservation
-        # TO BE DEVELOPED
-
         - name: Create and restore delius users
           include_tasks: ../delius_users/playbook.yml
           vars:

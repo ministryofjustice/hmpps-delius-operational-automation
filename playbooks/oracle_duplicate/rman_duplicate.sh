@@ -59,6 +59,13 @@ usage () {
   echo "        RMAN duplicate script run, and a success code is returned.  No-op mode is intended primarily for"
   echo "        development purposes where we wish to avoid the lengthy runtime involved in running an RMAN duplicate."
   echo ""
+  echo "  If -o is specified then the duplicate is from legacy. Depending on the option value the appropriate action is taken."
+  echo "        option value:"
+  echo "           duplicate: RMAN duplicate command using source target"
+  echo "           restore: RMAN duplicate command for standby recover only"
+  echo "           recover: RMAN recover command (and possible restore command for additional datafiles added at source)"
+  echo "           open: RMAN recover command and convert standby database to primary"
+  echo ""
 
   exit $ERROR_STATUS
 }
@@ -332,6 +339,38 @@ EOF
   fi
 }
 
+get_new_data_files () {
+  V_DATABASE=v\$database
+  X=`sqlplus -s "/ as sysdba" <<EOF
+      whenever sqlerror exit failure
+      set feedback off heading off verify off echo off
+      select 'CURRENT_SCN="'||current_scn||'"'
+      from $V_DATABASE
+      where controlfile_type = 'STANDBY';
+EOF
+`
+  eval $X || error "Getting current scn from target scn"
+  [[ -z "${CURRENT_SCN}" ]] && error "Current scn is empty, please check if controlfile type of ${TARGET_DB} database is STANDBY"
+
+  Y=`sqlplus -s ${CATALOG_CONNECT} <<EOF
+      whenever sqlerror exit failure
+      set feedback off heading off verify off echo off
+      select 'NEW_DATAFILES="'||listagg(distinct(file#),' ')||'"'
+      from rc_database a,
+           rc_backup_datafile b,
+           rc_database_incarnation c
+      where a.name = '${SOURCE_DB}'
+      and a.db_key = b.db_key
+      and a.db_key = c.db_key
+      and a.dbinc_key = c.dbinc_key
+      and c.current_incarnation = 'YES'
+      and b.creation_change# between ${CURRENT_SCN} and ${SCN};
+EOF
+`
+  eval $Y || error "Getting rman new datafiles details"
+  [[ ! -z "${NEW_DATAFILES}" ]] && info "New datafile file# since last recovery = ${NEW_DATAFILES}"
+}
+
 build_rman_command_file () {
 
   V_PARAMETER=v\$parameter
@@ -347,26 +386,70 @@ EOF
   info "cpu count = $CPU_COUNT"
 
   >$RMANDUPLICATECMDFILE
+  if [[ "${LEGACY_OPTION}" =~ ^(recover|open)$ ]]
+  then
+    ALLOCATE_CHANNEL="allocate channel"
+    CONNECT_TYPE="connect target /"
+  else
+    ALLOCATE_CHANNEL="allocate auxiliary channel"
+    CONNECT_TYPE="connect auxiliary /"
+  fi
   echo "run {" >>$RMANDUPLICATECMDFILE
   TYPE="sbt\n  parms='SBT_LIBRARY=${ORACLE_HOME}/lib/libosbws.so,\n  ENV=(OSB_WS_PFILE=${THISDIRECTORY}/osbws_duplicate.ora)';"
   for (( i=1; i<=${CPU_COUNT}; i++ ))
   do
     if [[ "${LOCAL_DISK_BACKUP}" == "TRUE" ]]
     then
-       echo -e "  allocate auxiliary channel c${i} device type DISK;" >> $RMANDUPLICATECMDFILE
+       echo -e "  ${ALLOCATE_CHANNEL} c${i} device type DISK;" >> $RMANDUPLICATECMDFILE
     else
-       echo -e "  allocate auxiliary channel c${i} device type $TYPE" >> $RMANDUPLICATECMDFILE
+       echo -e "  ${ALLOCATE_CHANNEL} c${i} device type $TYPE" >> $RMANDUPLICATECMDFILE
     fi
   done
   get_source_db_rman_details
-  echo "  duplicate database ${SOURCE_DB} dbid ${DBID} to ${TARGET_DB}" >> $RMANDUPLICATECMDFILE
+  if [[ "${LEGACY_OPTION}" =~ ^(recover|open)$ ]]
+  then
+    echo "  set until scn ${SCN};" >> $RMANDUPLICATECMDFILE
+    get_new_data_files
+    if [[ ! -z "${NEW_DATAFILES}" ]]
+    then
+      for i in ${NEW_DATAFILES}
+      do
+        echo "  set newname for datafile $i to '+DATA';" >> $RMANDUPLICATECMDFILE
+        echo "  restore datafile $i;" >> $RMANDUPLICATECMDFILE
+      done
+      echo "  switch datafile all;" >> $RMANDUPLICATECMDFILE
+    fi
+    echo "  recover database;" >> $RMANDUPLICATECMDFILE
+    if [[ "${LEGACY_OPTION}" = "open" ]]
+    then
+      echo '  sql "alter database activate standby database";' >> $RMANDUPLICATECMDFILE
+      echo '  sql "alter database open";' >> $RMANDUPLICATECMDFILE
+      echo "  host 'srvctl modify database -d ${TARGET_DB} -startoption OPEN';" >> $RMANDUPLICATECMDFILE
+      echo "  host 'srvctl modify database -d ${TARGET_DB} -role PRIMARY';" >> $RMANDUPLICATECMDFILE
+    fi
+    for (( i=1; i<=${CPU_COUNT}; i++ ))
+    do
+      echo -e "  release channel c${i};" >> $RMANDUPLICATECMDFILE
+    done
+    echo "}" >>$RMANDUPLICATECMDFILE
+    return 0
+  fi
+  echo "  duplicate database ${SOURCE_DB} dbid ${DBID} "  >> $RMANDUPLICATECMDFILE
+  if [[ "${LEGACY_OPTION}" == "restore" ]]
+  then
+    echo "  for standby dorecover" >> $RMANDUPLICATECMDFILE
+  else
+    echo "  to ${TARGET_DB}" >> $RMANDUPLICATECMDFILE
+  fi
   echo "  spfile " >> $RMANDUPLICATECMDFILE
+  # No need to set spfile convert parameters if source and target databases are the same
   if [[ "${source_db}" != "${target_db}" ]]
   then
     echo "    parameter_value_convert ('${SOURCE_DB}','${TARGET_DB}','${source_db}','${target_db}')" >> $RMANDUPLICATECMDFILE
     echo "    set db_file_name_convert='+DATA/${SOURCE_DB}','+DATA/${TARGET_DB}'" >> $RMANDUPLICATECMDFILE
     echo "    set log_file_name_convert='+DATA/${SOURCE_DB}','+DATA/${TARGET_DB}','+FLASH/${SOURCE_DB}','+FLASH/${TARGET_DB}'" >> $RMANDUPLICATECMDFILE
   fi
+  [[ "${LEGACY_OPTION}" == "restore" ]] && echo "    set db_unique_name='${TARGET_DB}'" >> $RMANDUPLICATECMDFILE
   echo "    set fal_server=''" >> $RMANDUPLICATECMDFILE
   echo "    set log_archive_config=''" >> $RMANDUPLICATECMDFILE
   echo "    set log_archive_dest_2=''" >> $RMANDUPLICATECMDFILE
@@ -389,7 +472,11 @@ EOF
   else  
     echo "  until scn ${SCN};" >> $RMANDUPLICATECMDFILE 
   fi
-
+  if [[ "${LEGACY_OPTION}" == "restore" ]]
+  then
+    echo "  host 'srvctl modify database -d ${TARGET_DB} -startoption MOUNT';" >> $RMANDUPLICATECMDFILE
+    echo "  host 'srvctl modify database -d ${TARGET_DB} -role PHYSICAL_STANDBY';" >> $RMANDUPLICATECMDFILE
+  fi
   echo "}" >>$RMANDUPLICATECMDFILE
   echo "exit"	>>$RMANDUPLICATECMDFILE
 }
@@ -630,7 +717,8 @@ info "Retrieving arguments"
 TARGET_DB=UNSPECIFIED
 DATETIME=LATEST
 SPFILE_PARAMETERS=UNSPECIFIED
-while getopts "d:s:c:u:t:f:l:r:j:n" opt
+LEGACY_OPTION=UNSPECIFIED
+while getopts "d:s:c:u:t:f:l:r:j:o:n" opt
 do
   case $opt in
     d) TARGET_DB=$OPTARG ;;
@@ -643,6 +731,7 @@ do
     r) REPOSITORY_DISPATCH=$OPTARG ;;
     j) JSON_INPUTS=$OPTARG ;;
     n) NOOP_MODE=TRUE ;;
+    o) LEGACY_OPTION=$OPTARG ;;
     *) usage ;;
   esac
 done
@@ -652,6 +741,7 @@ info "Source         = $SOURCE_DB"
 info "Catalog db     = $CATALOG_DB"
 info "Catalog Schema = $CATALOG_SCHEMA"
 info "Restore Datetime = ${DATETIME}"
+info "Legacy Option  = ${LEGACY_OPTION}"
 [[ "${LOCAL_DISK_BACKUP}" == "TRUE" ]] && info "Local Disk Backup = ENABLED"
 target_db=$(echo "${TARGET_DB}" | tr '[:upper:]' '[:lower:]')
 source_db=$(echo "${SOURCE_DB}" | tr '[:upper:]' '[:lower:]')
@@ -676,6 +766,7 @@ if [[ ! -z "$JSON_INPUTS" ]]; then
    JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode )
 fi
 
+
 if [ "${SPFILE_PARAMETERS}" != "UNSPECIFIED" ]
 then
   for PARAM in ${SPFILE_PARAMETERS[@]}
@@ -687,47 +778,50 @@ then
   done
 fi
 
-info "Shutdown ${TARGET_DB}"
-  sqlplus -s / as sysdba <<EOF
-  shutdown abort;
+if [[ ! "${LEGACY_OPTION}" =~ ^(recover|open)$ ]]
+then
+  info "Shutdown ${TARGET_DB}"
+    sqlplus -s / as sysdba <<EOF
+    shutdown abort;
 EOF
 
-info "Modify database using Server Control with correct spfile location"
-srvctl modify database -d ${TARGET_DB} -p "+DATA/${TARGET_DB}/spfile${TARGET_DB}.ora"
+  info "Modify database using Server Control with correct spfile location"
+  srvctl modify database -d ${TARGET_DB} -p "+DATA/${TARGET_DB}/spfile${TARGET_DB}.ora"
 
-if [[ "${NOOP_MODE}" != "TRUE" ]];
-then
-    remove_asm_directory DATA ${TARGET_DB}
-    remove_asm_directory FLASH ${TARGET_DB}
+  if [[ "${NOOP_MODE}" != "TRUE" ]];
+  then
+      remove_asm_directory DATA ${TARGET_DB}
+      remove_asm_directory FLASH ${TARGET_DB}
 
-    info "Create ${TARGET_DB} in +DATA in readiness for duplicate"
-    asmcmd mkdir +DATA/${TARGET_DB}
+      info "Create ${TARGET_DB} in +DATA in readiness for duplicate"
+      asmcmd mkdir +DATA/${TARGET_DB}
 
-    info "Set environment for ${TARGET_DB}"
-    set_ora_env ${TARGET_DB}
+      info "Set environment for ${TARGET_DB}"
+      set_ora_env ${TARGET_DB}
 
-    INI_FILES=(${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora)
-    if [[ -f ${INI_FILES[0]} ]]
-    then
-      info "Remove all references to all ${TARGET_DB} initialization files to start fresh"
-      rm ${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora || error "Removing ${TARGET_DB} initialization files"
-    fi
-else
-   info "Skipping deleting data files in noop mode"
-fi
+      INI_FILES=(${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora)
+      if [[ -f ${INI_FILES[0]} ]]
+      then
+        info "Remove all references to all ${TARGET_DB} initialization files to start fresh"
+        rm ${ORACLE_HOME}/dbs/*${TARGET_DB}*.ora || error "Removing ${TARGET_DB} initialization files"
+      fi
+  else
+    info "Skipping deleting data files in noop mode"
+  fi
 
-DUPLICATEPFILE=${ORACLE_HOME}/dbs/init${TARGET_DB}_duplicate.ora
-info "Create ${DUPLICATEPFILE} pfile"
-echo "db_name=${TARGET_DB}" > ${DUPLICATEPFILE}
-echo "${COMPATIBLE}" >> ${DUPLICATEPFILE}
+  DUPLICATEPFILE=${ORACLE_HOME}/dbs/init${TARGET_DB}_duplicate.ora
+  info "Create ${DUPLICATEPFILE} pfile"
+  echo "db_name=${TARGET_DB}" > ${DUPLICATEPFILE}
+  echo "${COMPATIBLE}" >> ${DUPLICATEPFILE}
 
-info "Place ${TARGET_DB} in nomount mode"
-if ! sqlplus -s / as sysdba << EOF
-  whenever sqlerror exit failure
-  startup force nomount pfile=${DUPLICATEPFILE}
+  info "Place ${TARGET_DB} in nomount mode"
+  if ! sqlplus -s / as sysdba << EOF
+    whenever sqlerror exit failure
+    startup force nomount pfile=${DUPLICATEPFILE}
 EOF
-then
-   error "Placing ${TARGET_DB} in nomount mode"
+  then
+    error "Placing ${TARGET_DB} in nomount mode"
+  fi
 fi
 
 info "Generating rman command file"
@@ -738,14 +832,17 @@ then
     info "Running rman cmd file $RMANDUPLICATECMDFILE"
     info "Please check progress ${RMANDUPLICATELOGFILE} ..."
 rman log $RMANDUPLICATELOGFILE <<EOF > /dev/null
-connect auxiliary /
+$CONNECT_TYPE
 $CONNECT_TO_CATALOG
 @$RMANDUPLICATECMDFILE
 EOF
     info "Checking for errors"
     grep -i "ERROR MESSAGE STACK" $RMANDUPLICATELOGFILE>/dev/null 2>&1 && error "Rman Duplicate reported errors" || info "RMAN Duplicate Completed successfully"
-    info "Perform post actions"
-    post_actions
+    # Do not perform post actions when duplicating from legacy when the following options are specified
+    if [[ ! "${LEGACY_OPTION}" =~ ^(restore|recover)$ ]]; then
+      info "Perform post actions"
+      post_actions
+    fi
 else
     info "Skipping duplicating database in noop mode"
     sqlplus -s / as sysdba << EOSQL
