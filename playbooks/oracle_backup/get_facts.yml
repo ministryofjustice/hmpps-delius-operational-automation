@@ -72,3 +72,18 @@
         - name: Setup Slack Configuration
           set_fact:
             slack_channel: "{{ getslackchannel.stdout }}"
+
+        - name: Get Slack Token
+          ansible.builtin.command: >
+            /u02/stage/get_facts_script.sh
+          environment:
+            STEP: GET_SLACK_TOKEN
+            ACCOUNT_NAME: "{{ account_name }}"
+            ASSUME_ROLE_NAME: "{{ assume_role_name }}"
+            OEM_SECRET: "{{ secretsmanager_passwords['emrep'].secret }}"
+          register: get_slack_token
+          changed_when: false
+
+        - name: Setup Slack Token
+          set_fact:
+            getslacktoken: "{{ get_slack_token.stdout }}"
