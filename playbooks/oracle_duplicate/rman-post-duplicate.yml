@@ -92,8 +92,8 @@
         - name: Bump sequences
           script: bump_sequences.sh
 
-        # - name: Update objects
-        #   include_tasks: ../delius_objects/playbook.yml
+        - name: Update objects
+          include_tasks: ../delius_objects/playbook.yml
 
         - name: Create and restore delius users
           include_tasks: ../delius_users/playbook.yml
