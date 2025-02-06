@@ -207,13 +207,9 @@
       with_items: "{{ certificate_files.files }}"
       register: tmp_certificates
 
-    - name: Initialise Dictionary of Certificates
-      set_fact:
-        certificate_dict: {}
-
     - name: Create Dictionary of Certificates Available to be Loaded into Wallet
       set_fact:
-        certificate_dict: "{{ certificate_dict | combine(item, list_merge='append') }}"
+        certificate_dict: "{{ certificate_dict | default({}) | combine(item, list_merge='append') }}"
       loop: "{{ tmp_certificates.results | map(attribute='ansible_facts.tmp_certificate') | list }}"
 
     - name: Calculate Checksums for all Certificates Available to be Loaded
