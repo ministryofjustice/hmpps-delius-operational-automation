@@ -461,7 +461,7 @@ EOF
       echo "    set ${PARAM}" >> $RMANDUPLICATECMDFILE
     done
   fi
-  # Source database and target database maybe the same name. Introduce  namecheck to avoid rman failures.
+  # Source database and target database maybe the same name. Introduce nofilenamecheck to avoid rman failures.
   if [[ "${source_db}" == "${target_db}" ]]
   then
     echo "  nofilenamecheck " >> $RMANDUPLICATECMDFILE
