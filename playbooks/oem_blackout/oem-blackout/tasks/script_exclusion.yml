@@ -52,7 +52,8 @@
     metric_name: "{{ item }}"
   loop:
     - dataguard_11gR2
-    
+    - fsfo_observers
+
 - name: Re-Include Hosts in Monitoring After Job Completion
   when: action == 'stop'
   block:
