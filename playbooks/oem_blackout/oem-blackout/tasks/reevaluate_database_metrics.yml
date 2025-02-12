@@ -13,7 +13,7 @@
 
     - name: Set Metric Exists
       set_fact:
-        metric_exists: "{{ get_metric_exists.stdout_lines | select('match','^' + metric_name + '\\s+.*') | list | length > 0 }}"
+        metric_exists: "{{ get_metric_exists.stdout_lines | select('match','^' + metric_name) | list | length > 0 }}"
 
     - name: Run Collection for Metric
       shell: |
