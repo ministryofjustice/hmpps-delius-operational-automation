@@ -22,7 +22,7 @@
 
     - name: Define Exclude Comment For Host
       set_fact:
-        exclude_comment: "{{ blackout | default('UNNAMED_BLACKOUT') + '_' + exclude_timeout }}"
+        exclude_comment: "{{ 'Excluded from monitoring due to ' + ( blackout | default('UNNAMED_EXCLUSION')) + ' until ' + exclude_timeout }}"
 
     - name: Get Sysman Password
       include_tasks: get_facts.yml
@@ -36,8 +36,8 @@
       register: updatecomment
 
 # Some metrics should be explicitly re-evaluated as they are not gathered frequently and may be out of date when the exclusion is removed
-- name: Re-Evaluate Named Metrics
-  include_tasks: reevaluate_metrics.yml
+- name: Re-Evaluate Named Host Metrics
+  include_tasks: reevaluate_host_metrics.yml
   when: action == 'stop'
   vars:
     agent_target: "{{ get_agent_host.stdout | trim }}"
@@ -45,6 +45,14 @@
   loop:
     - "ME$DATA_GUARD_ACTIVE_TARGET"
 
+- name: Re-Evaluate Named Database Metrics
+  include_tasks: reevaluate_database_metrics.yml
+  when: action == 'stop'
+  vars:
+    metric_name: "{{ item }}"
+  loop:
+    - dataguard_11gR2
+    
 - name: Re-Include Hosts in Monitoring After Job Completion
   when: action == 'stop'
   block:
