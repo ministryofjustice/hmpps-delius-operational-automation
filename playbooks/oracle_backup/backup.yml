@@ -64,6 +64,17 @@
 
         - name: Set rman_options when "archivelog"
           set_fact:
+            rman_options: "-t HOT -i 0 -b Y -A {{ min_seq }},{{ max_seq | default(min_seq) }}"
+          when: daily_weekly == 'archivelog'
+
+        - fail:
+            msg: "The range of sequence numbers to be backed up must be specified in archivelog mode"
+          when:
+            - daily_weekly == 'archivelog'
+            - min_seq is not defined
+
+        - name: Set rman_options when "archivelog"
+          set_fact:
             rman_options: "-t HOT -i 0 -b Y -a {{ min_seq }},{{ max_seq | default(min_seq) }}"
           when: daily_weekly == 'archivelog'
 
@@ -168,6 +179,22 @@
           debug:
             msg: "About to run:  {{ rman_command }}"
 
+        # We will either run in blocking mode (in the foreground) or
+        # asynchronously in the background depending on the value of run_in_foreground
+        # (Foreground backups are capped at 1 hour maximum)
+        - name: Running RMAN script in Foreground
+          shell: "{{ rman_command }}"
+          async: 3600
+          poll: 60
+          register: backup_cmd_output
+          environment:
+            ASSUME_ROLE_NAME: "{{ assume_role_name | default() }}"
+            SECRET_ACCOUNT_ID: "{{ account_ids[account_name] | default() }}"
+            SECRET: "{{ secretsmanager_passwords['catalog'].secret | default() }}"
+          when: run_in_foreground | default(false)
+          vars:
+            - ansible_aws_ssm_timeout: 3600
+
         - name: Running RMAN script in Background
           shell: "{{ rman_command }}"
           async: "{{ allowable_duration|default(28800) }}"
@@ -177,6 +204,7 @@
             SECRET_ACCOUNT_ID: "{{ account_ids[account_name] | default() }}"
             SECRET: "{{ secretsmanager_passwords['catalog'].secret | default() }}"
           register: backup_cmd_output
+          when: not (run_in_foreground | default(false))
 
       rescue:
         - name: Block Failure

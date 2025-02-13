@@ -98,6 +98,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
                playbooks/oracle_audit_replication_management
+               playbooks/oracle_backup
                playbooks/ansible.cfg
                common/*
           path: operations

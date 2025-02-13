@@ -2,7 +2,7 @@
 # incident but was suppressed by a scripted exclusion, may still raise an incident after the exclusion
 # has been removed.   Therefore we force re-evaluation of any named metrics to ensure they are
 # in the current state before that exclusion is removed.
-- name: Re-evaluate Metric {{ metric_name }}
+- name: Re-evaluate Host Metric {{ metric_name }}
   block:
     - name: Check if Metric Exists
       shell: |
