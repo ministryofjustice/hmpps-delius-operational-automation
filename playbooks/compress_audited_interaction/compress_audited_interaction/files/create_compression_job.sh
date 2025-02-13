@@ -108,7 +108,7 @@ BEGIN
                     
                     -- Apply BASIC compression only as this is included with Enterprise Edition
                     EXECUTE IMMEDIATE 'ALTER TABLE delius_app_schema.audited_interaction MOVE PARTITION '
-                                      ||l_oldest_uncomp_partition||' COMPRESS';
+                                      ||l_oldest_uncomp_partition||' COMPRESS READ ONLY';
                 
                     -- Update statistics for the newly compressed partition
                     DBMS_STATS.gather_table_stats(ownname  => 'DELIUS_APP_SCHEMA'
