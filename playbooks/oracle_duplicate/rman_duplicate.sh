@@ -424,6 +424,7 @@ EOF
     then
       echo '  sql "alter database activate standby database";' >> $RMANDUPLICATECMDFILE
       echo '  sql "alter database open";' >> $RMANDUPLICATECMDFILE
+      echo '  sql "alter database flashback on";' >> $RMANDUPLICATECMDFILE
       echo "  host 'srvctl modify database -d ${TARGET_DB} -startoption OPEN';" >> $RMANDUPLICATECMDFILE
       echo "  host 'srvctl modify database -d ${TARGET_DB} -role PRIMARY';" >> $RMANDUPLICATECMDFILE
     fi
