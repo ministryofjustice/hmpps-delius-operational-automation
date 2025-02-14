@@ -12,7 +12,7 @@
     {
         "TargetEnvironment":"delius-core-test",
         "TargetHost":"delius_primarydb",
-        "CronSchedule":"20 16 * * WED"
+        "CronSchedule":"00 18 * * TUE"
     },
     {
         "TargetEnvironment":"delius-mis-dev",
