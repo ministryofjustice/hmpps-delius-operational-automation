@@ -3,7 +3,7 @@ on:
   schedule:
     - cron: '20 14 * * WED'
     - cron: '20 15 * * WED'
-    - cron: '20 16 * * WED'
+    - cron: '00 18 * * TUE'
 jobs:
   prepare-run-matrix:
     runs-on: ubuntu-latest
