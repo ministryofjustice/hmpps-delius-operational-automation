@@ -89,8 +89,8 @@
 
         - name: Import the Certificate to Engineering DMS Instance
           shell: |
-            cd {{ fetch_location }}
-            aws dms import-certificate --certificate-identifier {{ certificate_name }} --certificate-wallet fileb://{{ client_wallet_directory }}/cwallet.sso --region {{ region }}
+            cd {{ client_wallet_directory }}
+            aws dms import-certificate --certificate-identifier {{ certificate_name }} --certificate-wallet fileb://cwallet.sso --region {{ region }}
 
         - name: Get ARN of Newly Imported Certificate
           shell: |
