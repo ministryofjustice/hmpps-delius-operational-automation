@@ -69,7 +69,7 @@
     - name: Find Standby Host Leaf Certificate(s) on the Ansible Controller
       find:
          paths: "{{ controller_working_directory }}"
-         patterns: "certificate_*.log"
+         patterns: "certificate_*.pem"
       register: leaf_pem_files
       delegate_to: localhost
       become: no
