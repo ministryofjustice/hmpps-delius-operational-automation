@@ -1,17 +1,10 @@
 # Note that when using Oracle as a DMS Endpoint, the certificate supplied must be
 # inside an Oracle Auto Login Wallet (.sso file) - do not provide the base PEM file.
 # In the context of DMS this wallet is called a certificate.
-
-- name: Create A Temporary Local Wallet Location
-  tempfile:
-    state: file
-    suffix: ".sso"
-  register: temp_wallet_file
-
 - name: Fetch the Prepared Wallet from the Database Server
   fetch:
     src: "{{ client_wallet_directory }}/cwallet.sso"
-    dest: "{{ temp_wallet_file.path }}"
+    dest: /tmp
     flat: yes
   register: fetch_wallet
 
@@ -89,7 +82,7 @@
 
         - name: Import the Certificate to Engineering DMS Instance
           shell: |
-            cd {{ client_wallet_directory }}
+            cd /tmp
             aws dms import-certificate --certificate-identifier {{ certificate_name }} --certificate-wallet fileb://cwallet.sso --region {{ region }}
 
         - name: Get ARN of Newly Imported Certificate
