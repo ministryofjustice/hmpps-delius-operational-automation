@@ -1,0 +1,31 @@
+- name: Create Listener SSL Wallet Parent Directory
+  file:
+    path: "{{ listener_wallet_directory | dirname }}"
+    state: directory
+
+- name: Create Listener SSL Wallet Directory
+  file:
+    path: "{{ listener_wallet_directory }}"
+    state: directory
+
+# We remove any existing wallet as we will be importing a new certificate and if it has the same DN value
+# as one already in the wallet this may result in a failure for the correct certificate to be used
+- name: Remove Any Existing Wallet and Lock File
+  file:
+    path: "{{ listener_wallet_directory }}/{{ item }}"
+    state: absent
+  loop:
+    - cwallet.sso
+    - cwallet.sso.lck
+
+- name: Create Oracle Wallet
+  shell: |
+    . ~/.bash_profile
+    orapki wallet create -wallet {{ listener_wallet_directory }}  -auto_login_only
+
+- name: Import PKCS12 File into Oracle Wallet
+  shell: |
+     . ~/.bash_profile
+     orapki wallet import_pkcs12 -wallet {{ listener_wallet_directory }} -pkcs12file {{ wallet_working_directory }}/listener.p12 -auto_login_only -pkcs12pwd ${PKCS12PASSWORD}
+  environment:
+     PKCS12PASSWORD: "{{ pkcs12password }}"

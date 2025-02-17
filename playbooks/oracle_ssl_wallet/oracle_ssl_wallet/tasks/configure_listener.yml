@@ -69,7 +69,7 @@
          (SOURCE =
             (METHOD = FILE)
             (METHOD_DATA =
-                 (DIRECTORY = {{ wallet_directory }})
+                 (DIRECTORY = {{ listener_wallet_directory }})
             )
           )
       SSL_CLIENT_AUTHENTICATION = FALSE
