@@ -4,7 +4,7 @@
 - name: Fetch the Prepared Wallet from the Database Server
   fetch:
     src: "{{ client_wallet_directory }}/cwallet.sso"
-    dest: /tmp
+    dest: /tmp/
     flat: yes
   register: fetch_wallet
 
