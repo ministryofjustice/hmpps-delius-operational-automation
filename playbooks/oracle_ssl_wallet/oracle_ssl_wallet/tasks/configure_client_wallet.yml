@@ -71,6 +71,8 @@
          paths: "{{ controller_working_directory }}"
          patterns: "certificate_*.log"
       register: leaf_pem_files
+      delegate_to: localhost
+      become: no
  
     - name: Fetch Standby Host Leaf Certificates from Ansible Controller to Primary Host
       copy:
@@ -84,7 +86,7 @@
     - name: List All Standby Host Leaf Certificate Files
       find:
          paths: "{{ client_wallet_directory }}"
-         patterns: "certificate_*.pem"
+         patterns: "certificate*.pem"
       register: pem_files
 
     - name: Import All Standby Leaf Certificates into Oracle Wallet as Trusted Certificate
