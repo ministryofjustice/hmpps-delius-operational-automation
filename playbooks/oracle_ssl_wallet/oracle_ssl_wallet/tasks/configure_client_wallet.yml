@@ -89,12 +89,12 @@
          patterns: "certificate*.pem"
       register: pem_files
 
-    - name: Import All Standby Leaf Certificates into Oracle Wallet as Trusted Certificate
-      shell: |
-        . ~/.bash_profile
-        orapki wallet add -wallet {{ client_wallet_directory }} -trusted_cert -cert {{ cert_file.path }} -auto_login_only
-      loop_control:
-         loop_var: cert_file
-      loop: "{{ pem_files.files }}"
+    # - name: Import All Standby Leaf Certificates into Oracle Wallet as Trusted Certificate
+    #   shell: |
+    #     . ~/.bash_profile
+    #     orapki wallet add -wallet {{ client_wallet_directory }} -trusted_cert -cert {{ cert_file.path }} -auto_login_only
+    #   loop_control:
+    #      loop_var: cert_file
+    #   loop: "{{ pem_files.files }}"
 
 
