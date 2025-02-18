@@ -55,10 +55,10 @@
         . ~/.bash_profile
         orapki wallet create -wallet {{ client_wallet_directory }}  -auto_login_only
 
-    - name: Import Primary Leaf Certificate into Oracle Wallet as Trusted Certificate
-      shell: |
-        . ~/.bash_profile
-        orapki wallet add -wallet {{ client_wallet_directory }} -trusted_cert -cert {{ wallet_working_directory }}/certificate.pem -auto_login_only
+    # - name: Import Primary Leaf Certificate into Oracle Wallet as Trusted Certificate
+    #   shell: |
+    #     . ~/.bash_profile
+    #     orapki wallet add -wallet {{ client_wallet_directory }} -trusted_cert -cert {{ wallet_working_directory }}/certificate.pem -auto_login_only
 
     # The Intermediate Certificate (Certificate Chain) is the same for all hosts, so we only need to import the one from the Primary
     - name: Import Intermediate Certificate into Oracle Wallet as Trusted Certificate
@@ -66,28 +66,28 @@
         . ~/.bash_profile
         orapki wallet add -wallet {{ client_wallet_directory }} -trusted_cert -cert {{ wallet_working_directory }}/certificatechain.pem -auto_login_only
 
-    - name: Find Standby Host Leaf Certificate(s) on the Ansible Controller
-      find:
-         paths: "{{ controller_working_directory }}"
-         patterns: "certificate_*.pem"
-      register: leaf_pem_files
-      delegate_to: localhost
-      become: no
+    # - name: Find Standby Host Leaf Certificate(s) on the Ansible Controller
+    #   find:
+    #      paths: "{{ controller_working_directory }}"
+    #      patterns: "certificate_*.pem"
+    #   register: leaf_pem_files
+    #   delegate_to: localhost
+    #   become: no
  
-    - name: Fetch Standby Host Leaf Certificates from Ansible Controller to Primary Host
-      copy:
-        src: "{{ cert_file.path }}"
-        dest: "{{ client_wallet_directory }}/"
-        owner: oracle
-      loop_control:
-         loop_var: cert_file
-      loop: "{{ leaf_pem_files.files }}"
+    # - name: Fetch Standby Host Leaf Certificates from Ansible Controller to Primary Host
+    #   copy:
+    #     src: "{{ cert_file.path }}"
+    #     dest: "{{ client_wallet_directory }}/"
+    #     owner: oracle
+    #   loop_control:
+    #      loop_var: cert_file
+    #   loop: "{{ leaf_pem_files.files }}"
 
-    - name: List All Standby Host Leaf Certificate Files
-      find:
-         paths: "{{ client_wallet_directory }}"
-         patterns: "certificate*.pem"
-      register: pem_files
+    # - name: List All Standby Host Leaf Certificate Files
+    #   find:
+    #      paths: "{{ client_wallet_directory }}"
+    #      patterns: "certificate*.pem"
+    #   register: pem_files
 
     # - name: Import All Standby Leaf Certificates into Oracle Wallet as Trusted Certificate
     #   shell: |
