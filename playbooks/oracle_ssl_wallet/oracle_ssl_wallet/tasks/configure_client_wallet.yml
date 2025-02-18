@@ -1,35 +1,12 @@
-# Copy certificates from the Standby host(s) to the Ansible Controller ready for
-# copying to the primary host for creation of the client wallet.
-- name: Create a working directory on the Ansible Controller
-  ansible.builtin.file:
-    path: "{{ controller_working_directory }}"
-    state: directory
-    mode: "0755"
-  delegate_to: localhost
-  become: no
-  run_once: yes
-
-- name: Fetch Certificates from Standby Host(s) to Ansible Controller
-  fetch:
-    src: "{{ wallet_working_directory }}/{{ filename_prefix }}.pem"
-    dest: "{{ controller_working_directory }}/{{ filename_prefix }}_{{ inventory_hostname }}.pem"
-    flat: true
-  when: not database_primary_sid is defined
-  loop_control:
-     loop_var: filename_prefix
-  loop:
-     - certificate
-     - certificatechain
-
-# We only need to create the Client Wallet once - we then upload it to the DMS instance
-# We perform the creation on the primary host, but copy certificates from the standby
-# instances as well so that they may be used interchangeably in a failover event
+# We only need to create the Client Wallet once - we then upload it to the DMS instance.
+# It only needs to contain the Subordinate CA Certificate.
+# We perform the creation on the primary host.
 - name: Create Client Wallet
   when: database_primary_sid is defined
   block:
 
     # Ensure we are starting fresh by removing any existing client wallet
-    - name: Remove SSL Wallet Parent Directory
+    - name: Remove SSL Wallet Directory
       file:
         path: "{{ client_wallet_directory }}"
         state: absent
@@ -40,61 +17,12 @@
         path: "{{ client_wallet_directory }}"
         state: directory
 
-    # We remove any existing wallet as we will be importing a new certificate and if it has the same DN value
-    # as one already in the wallet this may result in a failure for the correct certificate to be used
-    - name: Remove Any Existing Wallet and Lock File
-      file:
-        path: "{{ client_wallet_directory }}/{{ item }}"
-        state: absent
-      loop:
-        - cwallet.sso
-        - cwallet.sso.lck
-
     - name: Create Oracle Wallet
       shell: |
         . ~/.bash_profile
         orapki wallet create -wallet {{ client_wallet_directory }}  -auto_login_only
 
-    # - name: Import Primary Leaf Certificate into Oracle Wallet as Trusted Certificate
-    #   shell: |
-    #     . ~/.bash_profile
-    #     orapki wallet add -wallet {{ client_wallet_directory }} -trusted_cert -cert {{ wallet_working_directory }}/certificate.pem -auto_login_only
-
-    # The Intermediate Certificate (Certificate Chain) is the same for all hosts, so we only need to import the one from the Primary
-    - name: Import Intermediate Certificate into Oracle Wallet as Trusted Certificate
+    - name: Import Subordinate CA Certificate into Oracle Wallet as Trusted Certificate
       shell: |
         . ~/.bash_profile
         orapki wallet add -wallet {{ client_wallet_directory }} -trusted_cert -cert {{ wallet_working_directory }}/certificatechain.pem -auto_login_only
-
-    # - name: Find Standby Host Leaf Certificate(s) on the Ansible Controller
-    #   find:
-    #      paths: "{{ controller_working_directory }}"
-    #      patterns: "certificate_*.pem"
-    #   register: leaf_pem_files
-    #   delegate_to: localhost
-    #   become: no
- 
-    # - name: Fetch Standby Host Leaf Certificates from Ansible Controller to Primary Host
-    #   copy:
-    #     src: "{{ cert_file.path }}"
-    #     dest: "{{ client_wallet_directory }}/"
-    #     owner: oracle
-    #   loop_control:
-    #      loop_var: cert_file
-    #   loop: "{{ leaf_pem_files.files }}"
-
-    # - name: List All Standby Host Leaf Certificate Files
-    #   find:
-    #      paths: "{{ client_wallet_directory }}"
-    #      patterns: "certificate*.pem"
-    #   register: pem_files
-
-    # - name: Import All Standby Leaf Certificates into Oracle Wallet as Trusted Certificate
-    #   shell: |
-    #     . ~/.bash_profile
-    #     orapki wallet add -wallet {{ client_wallet_directory }} -trusted_cert -cert {{ cert_file.path }} -auto_login_only
-    #   loop_control:
-    #      loop_var: cert_file
-    #   loop: "{{ pem_files.files }}"
-
-

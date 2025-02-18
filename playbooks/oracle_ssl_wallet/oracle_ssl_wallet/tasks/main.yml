@@ -27,10 +27,9 @@
     when: database_primary_sid is defined
     tags: upload
 
-# *** DEBUG ***
-  # always:
+  always:
 
-  #   - name: Clean Up Working Directory
-  #     file:
-  #        path: "{{ wallet_working_directory }}"
-  #        state: absent
+    - name: Clean Up Working Directory
+      file:
+         path: "{{ wallet_working_directory }}"
+         state: absent
