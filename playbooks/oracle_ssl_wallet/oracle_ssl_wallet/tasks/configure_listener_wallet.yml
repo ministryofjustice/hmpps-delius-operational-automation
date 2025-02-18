@@ -25,7 +25,7 @@
 
 - name: Import PKCS12 File into Oracle Wallet
   shell: |
-     . ~/.bash_profile
-     orapki wallet import_pkcs12 -wallet {{ listener_wallet_directory }} -pkcs12file {{ wallet_working_directory }}/listener.p12 -auto_login_only -pkcs12pwd ${PKCS12PASSWORD}
+    . ~/.bash_profile
+    orapki wallet import_pkcs12 -wallet {{ listener_wallet_directory }} -pkcs12file {{ wallet_working_directory }}/listener.p12 -auto_login_only -pkcs12pwd ${PKCS12PASSWORD}
   environment:
-     PKCS12PASSWORD: "{{ pkcs12password }}"
+    PKCS12PASSWORD: "{{ pkcs12password }}"

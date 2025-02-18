@@ -1,35 +1,33 @@
 - name: Generate Random Password for PKCS12 File
   set_fact:
-      pkcs12password: "{{ lookup('password', '/dev/null', length=16) }}"
+    pkcs12password: "{{ lookup('password', '/dev/null', length=16) }}"
 
 - block:
+    - name: Download CA Certificate from ACM
+      include_tasks: download_certificates.yml
+      tags: create
 
-  - name: Download CA Certificate from ACM
-    include_tasks: download_certificates.yml
-    tags: create
+    - name: Configure Listener Wallet
+      include_tasks: configure_listener_wallet.yml
+      tags: wallet
 
-  - name: Configure Listener Wallet
-    include_tasks: configure_listener_wallet.yml
-    tags: wallet
+    - name: Configure Listener
+      include_tasks: configure_listener.yml
+      tags: listener
 
-  - name: Configure Listener
-    include_tasks: configure_listener.yml
-    tags: listener
+    - name: Configure Client Wallet
+      include_tasks: configure_client_wallet.yml
+      tags: wallet
 
-  - name: Configure Client Wallet
-    include_tasks: configure_client_wallet.yml
-    tags: wallet
-
-  # The Client Wallet is prepared on the primary database host so
-  # we only need to upload it from there
-  - name: Upload Certificate to DMS
-    include_tasks: upload_certificate.yml
-    when: database_primary_sid is defined
-    tags: upload
+    # The Client Wallet is prepared on the primary database host so
+    # we only need to upload it from there
+    - name: Upload Certificate to DMS
+      include_tasks: upload_certificate.yml
+      when: database_primary_sid is defined
+      tags: upload
 
   always:
-
     - name: Clean Up Working Directory
       file:
-         path: "{{ wallet_working_directory }}"
-         state: absent
+        path: "{{ wallet_working_directory }}"
+        state: absent

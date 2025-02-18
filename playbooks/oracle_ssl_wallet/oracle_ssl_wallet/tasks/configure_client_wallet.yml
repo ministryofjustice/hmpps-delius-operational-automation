@@ -4,7 +4,6 @@
 - name: Create Client Wallet
   when: database_primary_sid is defined
   block:
-
     # Ensure we are starting fresh by removing any existing client wallet
     - name: Remove SSL Wallet Directory
       file:

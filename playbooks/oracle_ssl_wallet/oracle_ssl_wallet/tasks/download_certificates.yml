@@ -20,7 +20,7 @@
     state: absent
   loop: "{{ files_to_delete.files }}"
 
-# We use a different certificate for each instance which we download from 
+# We use a different certificate for each instance which we download from
 # AWS Certificate Manager (ACM).
 
 # Download the Certificate (Note that there is an Ansible ACM module but
@@ -29,8 +29,8 @@
 
 - name: Get ARN of Certificate for this Host
   shell: |
-       aws acm list-certificates --query "CertificateSummaryList" --output json | \
-       jq -r --arg hostname "$(hostname)" ' map(select(.SubjectAlternativeNameSummaries[]? | contains($hostname))) | .[].CertificateArn'
+    aws acm list-certificates --query "CertificateSummaryList" --output json | \
+    jq -r --arg hostname "$(hostname)" ' map(select(.SubjectAlternativeNameSummaries[]? | contains($hostname))) | .[].CertificateArn'
   register: get_certificate_arn
   changed_when: false
 
@@ -38,27 +38,27 @@
 # See: https://docs.aws.amazon.com/acm/latest/userguide/export-private.html
 - name: Create a Random Passphrase
   shell: |
-       openssl rand -base64 32  | tr -d '\n' > {{ wallet_working_directory }}/passphrase.txt
+    openssl rand -base64 32  | tr -d '\n' > {{ wallet_working_directory }}/passphrase.txt
 
 - name: Download Certificate from ACM
   shell: |
-      aws acm export-certificate \
-      --certificate-arn {{ get_certificate_arn.stdout | trim }} \
-      --passphrase fileb://{{ wallet_working_directory }}/passphrase.txt > {{ wallet_working_directory }}/certificate.json
+    aws acm export-certificate \
+    --certificate-arn {{ get_certificate_arn.stdout | trim }} \
+    --passphrase fileb://{{ wallet_working_directory }}/passphrase.txt > {{ wallet_working_directory }}/certificate.json
 
 - name: Extract PEM Files from Downloaded Certificate
   shell: |
-      jq -r '.Certificate' {{ wallet_working_directory }}/certificate.json > {{ wallet_working_directory }}/certificate.pem
-      jq -r '.CertificateChain' {{ wallet_working_directory }}/certificate.json > {{ wallet_working_directory }}/certificatechain.pem
-      jq -r '.PrivateKey' {{ wallet_working_directory }}/certificate.json > {{ wallet_working_directory }}/privatekey.pem
+    jq -r '.Certificate' {{ wallet_working_directory }}/certificate.json > {{ wallet_working_directory }}/certificate.pem
+    jq -r '.CertificateChain' {{ wallet_working_directory }}/certificate.json > {{ wallet_working_directory }}/certificatechain.pem
+    jq -r '.PrivateKey' {{ wallet_working_directory }}/certificate.json > {{ wallet_working_directory }}/privatekey.pem
 
 - name: Create PKCS12 File for Use with Listener
   shell: |
-      openssl pkcs12 -export -in {{ wallet_working_directory }}/certificate.pem \
-      -certfile {{ wallet_working_directory }}/certificatechain.pem \
-      -inkey {{ wallet_working_directory }}/privatekey.pem \
-      -out {{ wallet_working_directory }}/listener.p12 \
-      -passout env:PKCS12PASSWORD \
-      -passin file:{{ wallet_working_directory }}/passphrase.txt
+    openssl pkcs12 -export -in {{ wallet_working_directory }}/certificate.pem \
+    -certfile {{ wallet_working_directory }}/certificatechain.pem \
+    -inkey {{ wallet_working_directory }}/privatekey.pem \
+    -out {{ wallet_working_directory }}/listener.p12 \
+    -passout env:PKCS12PASSWORD \
+    -passin file:{{ wallet_working_directory }}/passphrase.txt
   environment:
-     PKCS12PASSWORD: "{{ pkcs12password }}"
+    PKCS12PASSWORD: "{{ pkcs12password }}"
