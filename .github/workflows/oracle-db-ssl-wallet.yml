@@ -24,6 +24,15 @@ on:
         type: choice
         options: 
           - "delius_dbs"
+      Verbose: 
+        description: "Verbose Output level"
+        type: choice
+        options:
+          - ""
+          - "-v"
+          - "-vv"
+          - "-vvv"
+          - "-vvvv"
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -106,4 +115,4 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-          -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }}
+          -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }} ${{ github.event.inputs.Verbose }}
