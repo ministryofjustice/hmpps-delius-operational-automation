@@ -51,3 +51,14 @@ dgmgrl /@${DATABASE_NAME} <<EOL
 stop observer all;
 start observer file is '${OBSERVER_DIR}/dg_broker.ora' logfile is '${OBSERVER_DIR}/dg_broker.log';
 EOL
+
+RC=$?
+
+echo "Observer exited unexpectedly with code $RC"
+
+# Keep task alive for debug purposes
+while true;
+do
+echo "Staying alive"
+sleep 60
+done
