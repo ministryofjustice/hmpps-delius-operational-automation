@@ -59,6 +59,13 @@ on:
         options: 
           - "yes"
           - "no"
+      DeployAudit:
+        description: "Deploy Database Audit Management?"
+        type: choice
+        default: "no"
+        options:
+          - "yes"
+          - "no"
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -172,3 +179,11 @@ jobs:
           -e hosts=${{ steps.prepareinventorynames.outputs.TargetHost }} \
           -e deploy_users=${{ github.event.inputs.DeployUsers }}
           
+      - name: Run Deploy Audit Playbook
+        if: ${{ github.event.inputs.DeployAudit == 'yes' }}
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          ansible-playbook operations/playbooks/delius-artefacts-playbook.yml -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+          -e hosts=${{ steps.prepareinventorynames.outputs.TargetHost }} \
+          -e deploy_audit=${{ github.event.inputs.DeployAudit }}
+  

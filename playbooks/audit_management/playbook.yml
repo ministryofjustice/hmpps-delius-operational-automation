@@ -1,63 +1,93 @@
 ---
-- include_vars: main.yml
+- hosts: "{{ hosts }}"
+  gather_facts: false
+  become: true
+  become_user: oracle
+  become_method: sudo
+  serial: 1
+  any_errors_fatal: true
 
-- debug:
-    msg: "{{ default_audit_options |  to_nice_json }}"
+  tasks:
+  - name: Get Database Role
+    script: ../../common/files/get_database_role.sh
+    register: getdatabaserole
+    changed_when: false
 
-- name: Enable Database Auditing Options
-  script: |
-    set_audit_options.sh '{{ audit_options | default(default_audit_options) |  to_nice_json }}'
-  register: setauditoptions
+  - name: Set Database Role
+    set_fact:
+      database_role: "{{ getdatabaserole.stdout_lines[-1] }}"
+        
+  - name: Check Unified Audit Management is enabled
+    script: get_unified_auditing.sh
+    register: unified_audit_enabled
+    changed_when: false
 
-- name: Report Setting Audit Options
-  debug: var=setauditoptions.stdout_lines
+  - name: Run Audit Management on Primary Databases
+    when: 
+      - database_role == 'PRIMARY'
+    block:
+      - name: Copy SQL files
+        copy:
+          src: "{{ item }}"
+          dest: "/tmp"
+          owner: oracle
+          group: oinstall
+        with_items:
+          - delius_audit_management.sql
+          - delius_audit_unified_setup.sql
+          - delius_audit_archive_job.sql
+          - delius_audit_timestamp_job.sql
+          - gen_uniaud_policies.sql
+        changed_when: false
 
-- name: Check if Audit Archive Table HIST_AUD$ Exists
-  shell: |
-    . ~/.bash_profile
-    sqlplus -s / as sysdba <<EOF
-      set echo off feed off head off 
-      select table_name
-      from dba_tables
-      where table_name = 'HIST_AUD$'
-      and owner = 'SYS';
-    EOF
-  register: hist_aud_table
-  changed_when: false
-  ignore_errors: yes
+      - name: Compile Audit Package
+        shell: |
+          . ~/.bash_profile
+          sqlplus -s / as sysdba <<EOF
+          @/tmp/delius_audit_management.sql
+          EOF
+        register: sql_result
+        changed_when: false
+        failed_when: "'Package body created.' not in sql_result.stdout"
 
-- name: Only Create Audit Archive Job if HIST_AUD$ exists
-  block:
-    - name: Copy required sql files over
-      copy:
-        src: "{{ item }}"
-        dest: "/tmp"
-        owner: oracle
-        group: oinstall
-      with_items:
-        - delius_audit_management.sql
-        - delius_audit_archive.sql
+      - name: Configure Audit in Database
+        shell: |
+          . ~/.bash_profile
+          sqlplus -s / as sysdba <<EOF
+          @/tmp/delius_audit_unified_setup.sql
+          EOF
+        register: sql_result
+        changed_when: false
+        failed_when: "'Audit Management' not in sql_result.stdout"
 
-    - name: Compile and schedule package as sys user
-      block:
-        - name: Compile audit package
-          shell: |
-            . ~/.bash_profile
-            sqlplus -s / as sysdba <<EOF
-            @/tmp/delius_audit_management.sql
-            EOF
-          register: sql_result
-          changed_when: false
-          failed_when: "'Package body created.' not in sql_result.stdout_lines"
+      - name: Schedule Audit Cleanup Job
+        shell: |
+          . ~/.bash_profile
+          sqlplus -s / as sysdba <<EOF
+          @/tmp/delius_audit_archive_job.sql
+          EOF
+        register: sql_result
+        changed_when: false
+        failed_when: "'Audit Management' not in sql_result.stdout"
 
-        - name: Schedule package
-          shell: |
-            . ~/.bash_profile
-            sqlplus -s / as sysdba <<EOF
-            @/tmp/delius_audit_archive.sql
-            EOF
-          register: sql_result
-          changed_when: false
-          failed_when: "'Audit Management' not in sql_result.stdout"
+      - name: Schedule Archiving Timestamp Job
+        shell: |
+          . ~/.bash_profile
+          sqlplus -s / as sysdba <<EOF
+          @/tmp/delius_audit_timestamp_job.sql
+          EOF
+        register: sql_result
+        changed_when: false
+        failed_when: "'Audit Management' not in sql_result.stdout"
 
-  when: "'HIST_AUD$' in hist_aud_table.stdout"
+      - name: Configure Audit Policies
+        import_tasks: recreate_uniaud_policies.yml
+
+  # server side tasks that need to be run on all hosts
+  - name: Enable Unified Audit on Host
+    when: 
+      - "'FALSE' in unified_audit_enabled.stdout"
+    import_tasks: enable_unified_audit.yml
+
+
+
