@@ -57,6 +57,7 @@ RC=$?
 echo "Observer exited unexpectedly with code $RC"
 
 # Keep task alive for debug purposes
+# *** REMOVE THIS BEFORE PRODUCTION USE ***
 while true;
 do
 echo "Staying alive"
