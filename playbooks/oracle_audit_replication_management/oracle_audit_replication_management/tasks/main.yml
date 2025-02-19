@@ -53,10 +53,10 @@
 - name: Skip Message
   debug:
     msg: "This environment is not configured as an Audited Interaction data client.  No action taken."
-  when: source_endpoint == ''
+  when: source_endpoint | default() == ''
 
 - name: Perform Requested Actions on Replication Tasks
-  when: source_endpoint != ''
+  when: source_endpoint | default() != ''
   block:
     - debug:
         msg: "Source Endpoint ARN: {{ source_endpoint }}"
