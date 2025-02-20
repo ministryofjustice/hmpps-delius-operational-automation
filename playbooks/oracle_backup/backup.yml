@@ -15,10 +15,22 @@
 
     - name: RMAN script
       block:
+
+        # Under normal circumstances, the primary host will be up and running so we can get the database_global_database name from the inventory
+        # (Exclude the case where it is not in hostvars groups dictionary)
         - name: Set database_global_database
           set_fact:
             database_global_database: "{{ hostvars[groups[ ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb'][0]]['database_global_database'] }}"
-          when: ((database_global_database is defined) and (database_global_database|length == 0)) or (database_global_database is not defined)
+          when: 
+             - ((database_global_database is defined) and (database_global_database|length == 0)) or (database_global_database is not defined)
+             - ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb' in groups
+
+        # If the primary host is not running, database_global_database will not appear in the inventory.
+        # Under this circumstance derive it using naming conventions by stripping S1 or S2 off the standby SID
+        - name: Set database_global_database
+          set_fact:
+            database_global_database: "{{ database_standby_sid | regex_replace('(S1|S2)$','') }}"
+          when: not ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb' in groups
 
         - name: Check variables are defined
           fail:
