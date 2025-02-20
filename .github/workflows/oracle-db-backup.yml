@@ -418,7 +418,7 @@ jobs:
           echo "Period: "$(echo "$Inputs" | jq -r | jq -r '.Period' )
           # The following section determines what happens if the previous attempt to run the backup has
           # failed:
-          # If BackupStandbyOnPrimaryFailue is set to "yes" and a Standby database exists, then the
+          # If BackupStandbyOnPrimaryFailure is set to "yes" and a Standby database exists, then the
           # backup may be retried on the Standby.  Otherwise the job aborts with a failure since there
           # is notwhere else where the backup may be attempted.
           echo "BackupStatus: $BackupStatus"
@@ -426,6 +426,16 @@ jobs:
           echo "RmanTarget: $RmanTarget"
           if [[ "$BackupStatus" == "failed" ]]; then
              echo "The Backup Failed"
+          fi
+          # If the target host does not exist in the Ansible inventory then treat that as a failure -
+          # the inventory is dynamic, so if the host is down then it will not appear in the inventory.
+          # This allows the primary job to run on the standby if needed (so this is a different type
+          # of failure to running it on the primary and getting an RMAN error, i.e. it doesn't run at all,
+          # but we just want to do the same thing, namely re-try on standby).
+          if [[ $(ansible-inventory -i $inventory --list | grep -c $RmanTarget) -eq 0 ]];
+          then
+             echo "Target does not appear in the inventory"
+             BackupStatus = "failed"
           fi
           if [[ "$RmanTarget" =~ "standbydb1" ]]; then
              echo "Target is 1st Standby"
