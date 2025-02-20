@@ -422,7 +422,7 @@ jobs:
           # backup may be retried on the Standby.  Otherwise the job aborts with a failure since there
           # is notwhere else where the backup may be attempted.
           echo "BackupStatus: $BackupStatus"
-          echo "BackupStandbyOnPrimaryFailure: $BackupStandbyOnPrimaryFailure"
+          echo "BackupStandbyOnPrimaryFailure: ${BackupStandbyOnPrimaryFailure:-yes}"
           echo "RmanTarget: $RmanTarget"
           if [[ "$BackupStatus" == "failed" ]]; then
              echo "The Backup Failed"
@@ -435,7 +435,7 @@ jobs:
           if [[ $(ansible-inventory -i $inventory --list | grep -c $RmanTarget) -eq 0 ]]; then
              echo "Target does not appear in the inventory"
              BackupStatus="failed"
-             if [[ "$BackupStandbyOnPrimaryFailure" == "yes" ]]; then
+             if [[ "${BackupStandbyOnPrimaryFailure:-yes}" == "yes" ]]; then
                         # Determine what standby to use - subsequent steps will confirm its existence
                         RmanTarget=$(echo $RmanTarget | sed 's/standbydb1/standbydb2/')
                         RmanTarget=$(echo $RmanTarget | sed 's/primarydb/standbydb1/')
