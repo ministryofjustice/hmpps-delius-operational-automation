@@ -208,8 +208,6 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/audit_management
-            playbooks/block_sessions
-            playbooks/oem_blackout
             playbooks/ansible.cfg
             common/*
           path: operations
