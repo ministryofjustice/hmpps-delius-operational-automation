@@ -435,7 +435,7 @@ jobs:
           if [[ $(ansible-inventory -i $inventory --list | grep -c $RmanTarget) -eq 0 ]];
           then
              echo "Target does not appear in the inventory"
-             BackupStatus = "failed"
+             BackupStatus="failed"
           fi
           if [[ "$RmanTarget" =~ "standbydb1" ]]; then
              echo "Target is 1st Standby"
