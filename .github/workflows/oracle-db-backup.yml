@@ -484,6 +484,7 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           # A symlink is used to access the Backup Role as if it were a standalone Ansible Role
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
+          echo "$backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo \"$Inputs\" | jq -r | jq -r '.Period' ) -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter -e repository_dispatch=\"${{ github.repository }}\" -e json_inputs=\"$Inputs\" $(echo \"$Inputs\" | jq -r | jq -r '.VerboseOutput // \"\"') "
           $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo "$Inputs" | jq -r | jq -r '.Period' ) -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
 
       - name: Report Backup Retry Attempt
