@@ -1,6 +1,7 @@
 - name: Get database role
   script: ../../../../common/files/get_database_role.sh
   register: db_role
+  changed_when: false
 
 - name: Set facts adg
   set_fact:
