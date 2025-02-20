@@ -123,6 +123,7 @@ jobs:
             playbooks/mis_temp_space_management
             playbooks/mis-artefacts-playbook.yml
             playbooks/delius_users
+            playbooks/delius-artefacts-playbook.yml
             playbooks/ansible.cfg
             common/*
           path: operations
