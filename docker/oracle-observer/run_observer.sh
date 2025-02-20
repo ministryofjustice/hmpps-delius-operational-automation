@@ -52,14 +52,4 @@ stop observer all;
 start observer file is '${OBSERVER_DIR}/dg_broker.ora' logfile is '${OBSERVER_DIR}/dg_broker.log';
 EOL
 
-RC=$?
-
-echo "Observer exited unexpectedly with code $RC"
-
-# Keep task alive for debug purposes
-# *** REMOVE THIS BEFORE PRODUCTION USE ***
-while true;
-do
-echo "Staying alive"
-sleep 60
-done
+# Note that the Observer (and this script) will exit if it receives ORA-01017 from the database.
