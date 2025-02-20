@@ -25,7 +25,7 @@
              - ((database_global_database is defined) and (database_global_database|length == 0)) or (database_global_database is not defined)
              - ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb' in groups
 
-        # If the primary host is not running, database_global_database will not appear in the inventory.
+        # If the primary host is not running, database_global_database will not appear in the Ansible variables.
         # Under this circumstance derive it using naming conventions by stripping S1 or S2 off the standby SID
         - name: Set database_global_database
           set_fact:
