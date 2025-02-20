@@ -141,7 +141,7 @@
           changed_when: false
 
     - name: Get Database Role
-      script: get_database_role.sh
+      script: ../../common/files/get_database_role.sh
       register: getdatabaserole
       changed_when: false
 

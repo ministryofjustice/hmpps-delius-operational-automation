@@ -1,0 +1,44 @@
+---
+- name: Check Oracle Binary Unified Audit Option is enabled
+  shell: |
+    . ~/.bash_profile
+    ar -tv $ORACLE_HOME/rdbms/lib/libknlopt.a | grep -c kzaiang.o || true
+  register: unified_audit_option
+  changed_when: false
+
+- name: Run Audit Management on Primary Databases
+  when:
+    - unified_audit_option is defined
+    - unified_audit_option.stdout | trim == '0'
+  block:
+    - debug:
+        msg: "Unified Auditing is NOT enabled, proceeding with relinking..."
+
+    # Turn off traditional auditing
+    - name: Disable Traditional Auditing
+      shell: |
+        . ~/.bash_profile
+        sqlplus -s / as sysdba <<EOF
+          alter system set audit_trail=none scope=spfile;
+          alter system set audit_sys_operations=false scope=spfile;
+        EOF
+      register: sql_result
+      failed_when: "'System altered' not in sql_result.stdout"
+
+    - name: Stop Database
+      shell: |
+        . ~/.bash_profile
+        srvctl stop database -d $ORACLE_SID -stopoption immediate
+      changed_when: false
+
+    - name: Link Oracle binary with uniaud_on to Enable Unified Auditing
+      shell: |
+        . ~/.bash_profile
+        cd $ORACLE_HOME/rdbms/lib
+        make -f ins_rdbms.mk uniaud_on ioracle ORACLE_HOME=$ORACLE_HOME
+
+    - name: Start Database
+      shell: |
+        . ~/.bash_profile
+        srvctl start database -d $ORACLE_SID
+      changed_when: false
