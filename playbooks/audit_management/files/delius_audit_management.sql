@@ -4,7 +4,7 @@ SET VERIFY OFF
 
 DECLARE
 
-  l_obj_exists NUMBER(1);
+  l_obj_exists NUMBER(3);
   l_owner     VARCHAR2(30) := 'SYS';
   l_obj_name  VARCHAR2(30) := 'DELIUS_AUDIT_MANAGEMENT';
 
@@ -15,7 +15,8 @@ BEGIN
   INTO   l_obj_exists
   FROM   dba_objects
   WHERE  object_name = l_obj_name
-  AND    owner = l_owner;
+  AND    owner = l_owner
+  AND    object_type = 'PACKAGE';
 
   IF l_obj_exists = 1 THEN
     EXECUTE IMMEDIATE 'DROP PACKAGE '||l_owner||'.'||l_obj_name;
@@ -26,7 +27,7 @@ END;
 
 DECLARE
 
-  l_obj_exists NUMBER(1);
+  l_obj_exists NUMBER(3);
   l_owner     VARCHAR2(30) := 'SYS';
   l_obj_name  VARCHAR2(30) := 'HIST_AUD$';
 
@@ -37,7 +38,8 @@ BEGIN
   INTO   l_obj_exists
   FROM   dba_objects
   WHERE  object_name = l_obj_name
-  AND    owner = l_owner;
+  AND    owner = l_owner
+  AND    object_type = 'TABLE';
 
   IF l_obj_exists = 1 THEN
     EXECUTE IMMEDIATE 'GRANT INSERT ON '||l_owner||'.'||l_obj_name||' TO AUDSYS';
