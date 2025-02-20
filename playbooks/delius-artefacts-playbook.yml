@@ -94,4 +94,3 @@
     - name: Deploy Audit Management
       include_tasks: audit_management/playbook.yml
       when: deploy_audit | default('no') == "yes"
-
