@@ -8,86 +8,83 @@
   any_errors_fatal: true
 
   tasks:
-  - name: Get Database Role
-    script: ../../common/files/get_database_role.sh
-    register: getdatabaserole
-    changed_when: false
+    - name: Get Database Role
+      script: ../../common/files/get_database_role.sh
+      register: getdatabaserole
+      changed_when: false
 
-  - name: Set Database Role
-    set_fact:
-      database_role: "{{ getdatabaserole.stdout_lines[-1] }}"
-        
-  - name: Check Unified Audit Management is enabled
-    script: get_unified_auditing.sh
-    register: unified_audit_enabled
-    changed_when: false
+    - name: Set Database Role
+      set_fact:
+        database_role: "{{ getdatabaserole.stdout_lines[-1] }}"
 
-  - name: Run Audit Management on Primary Databases
-    when: 
-      - database_role == 'PRIMARY'
-    block:
-      - name: Copy SQL files
-        copy:
-          src: "{{ item }}"
-          dest: "/tmp"
-          owner: oracle
-          group: oinstall
-        with_items:
-          - delius_audit_management.sql
-          - delius_audit_unified_setup.sql
-          - delius_audit_archive_job.sql
-          - delius_audit_timestamp_job.sql
-          - gen_uniaud_policies.sql
-        changed_when: false
+    - name: Check Unified Audit Management is enabled
+      script: get_unified_auditing.sh
+      register: unified_audit_enabled
+      changed_when: false
 
-      - name: Compile Audit Package
-        shell: |
-          . ~/.bash_profile
-          sqlplus -s / as sysdba <<EOF
-          @/tmp/delius_audit_management.sql
-          EOF
-        register: sql_result
-        changed_when: false
-        failed_when: "'Package body created.' not in sql_result.stdout"
+    - name: Run Audit Management on Primary Databases
+      when:
+        - database_role == 'PRIMARY'
+      block:
+        - name: Copy SQL files
+          copy:
+            src: "{{ item }}"
+            dest: "/tmp"
+            owner: oracle
+            group: oinstall
+          with_items:
+            - delius_audit_management.sql
+            - delius_audit_unified_setup.sql
+            - delius_audit_archive_job.sql
+            - delius_audit_timestamp_job.sql
+            - gen_uniaud_policies.sql
+          changed_when: false
 
-      - name: Configure Audit in Database
-        shell: |
-          . ~/.bash_profile
-          sqlplus -s / as sysdba <<EOF
-          @/tmp/delius_audit_unified_setup.sql
-          EOF
-        register: sql_result
-        changed_when: false
-        failed_when: "'Audit Management' not in sql_result.stdout"
+        - name: Compile Audit Package
+          shell: |
+            . ~/.bash_profile
+            sqlplus -s / as sysdba <<EOF
+            @/tmp/delius_audit_management.sql
+            EOF
+          register: sql_result
+          changed_when: false
+          failed_when: "'Package body created.' not in sql_result.stdout"
 
-      - name: Schedule Audit Cleanup Job
-        shell: |
-          . ~/.bash_profile
-          sqlplus -s / as sysdba <<EOF
-          @/tmp/delius_audit_archive_job.sql
-          EOF
-        register: sql_result
-        changed_when: false
-        failed_when: "'Audit Management' not in sql_result.stdout"
+        - name: Configure Audit in Database
+          shell: |
+            . ~/.bash_profile
+            sqlplus -s / as sysdba <<EOF
+            @/tmp/delius_audit_unified_setup.sql
+            EOF
+          register: sql_result
+          changed_when: false
+          failed_when: "'Audit Management' not in sql_result.stdout"
 
-      - name: Schedule Archiving Timestamp Job
-        shell: |
-          . ~/.bash_profile
-          sqlplus -s / as sysdba <<EOF
-          @/tmp/delius_audit_timestamp_job.sql
-          EOF
-        register: sql_result
-        changed_when: false
-        failed_when: "'Audit Management' not in sql_result.stdout"
+        - name: Schedule Audit Cleanup Job
+          shell: |
+            . ~/.bash_profile
+            sqlplus -s / as sysdba <<EOF
+            @/tmp/delius_audit_archive_job.sql
+            EOF
+          register: sql_result
+          changed_when: false
+          failed_when: "'Audit Management' not in sql_result.stdout"
 
-      - name: Configure Audit Policies
-        import_tasks: recreate_uniaud_policies.yml
+        - name: Schedule Archiving Timestamp Job
+          shell: |
+            . ~/.bash_profile
+            sqlplus -s / as sysdba <<EOF
+            @/tmp/delius_audit_timestamp_job.sql
+            EOF
+          register: sql_result
+          changed_when: false
+          failed_when: "'Audit Management' not in sql_result.stdout"
 
-  # server side tasks that need to be run on all hosts
-  - name: Enable Unified Audit on Host
-    when: 
-      - "'FALSE' in unified_audit_enabled.stdout"
-    import_tasks: enable_unified_audit.yml
+        - name: Configure Audit Policies
+          import_tasks: recreate_uniaud_policies.yml
 
-
-
+    # server side tasks that need to be run on all hosts
+    - name: Enable Unified Audit on Host
+      when:
+        - "'FALSE' in unified_audit_enabled.stdout"
+      import_tasks: enable_unified_audit.yml

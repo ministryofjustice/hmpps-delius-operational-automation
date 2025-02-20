@@ -34,8 +34,8 @@
     EOF
   register: sql_result
   changed_when: false
-  failed_when: 
-  - "'ORA-' in sql_result.stdout"
+  failed_when:
+    - "'ORA-' in sql_result.stdout"
 
 - name: Remove Existing Policies
   shell: |
@@ -47,8 +47,8 @@
     EOF
   register: sql_result
   changed_when: false
-  failed_when: 
-  - "'ORA-' in sql_result.stdout"
+  failed_when:
+    - "'ORA-' in sql_result.stdout"
 
 - name: Create Auditing Policies
   shell: |
@@ -58,5 +58,5 @@
     EOF
   register: sql_result
   changed_when: false
-  failed_when: 
-  - "'ORA-' in sql_result.stdout"
+  failed_when:
+    - "'ORA-' in sql_result.stdout"
