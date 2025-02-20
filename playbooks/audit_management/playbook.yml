@@ -17,6 +17,9 @@
       set_fact:
         database_role: "{{ getdatabaserole.stdout_lines[-1] }}"
 
+    - debug:
+        msg: "Database Role is {{ database_role }}"
+
     - name: Check Unified Audit Management is enabled
       script: get_unified_auditing.sh
       register: unified_audit_enabled
