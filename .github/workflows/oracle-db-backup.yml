@@ -432,10 +432,15 @@ jobs:
           # This allows the primary job to run on the standby if needed (so this is a different type
           # of failure to running it on the primary and getting an RMAN error, i.e. it doesn't run at all,
           # but we just want to do the same thing, namely re-try on standby).
-          if [[ $(ansible-inventory -i $inventory --list | grep -c $RmanTarget) -eq 0 ]];
-          then
+          if [[ $(ansible-inventory -i $inventory --list | grep -c $RmanTarget) -eq 0 ]]; then
              echo "Target does not appear in the inventory"
              BackupStatus="failed"
+             if [[ "$BackupStandbyOnPrimaryFailure" == "yes" ]]; then
+                        # Determine what standby to use - subsequent steps will confirm its existence
+                        RmanTarget=$(echo $RmanTarget | sed 's/standbydb1/standbydb2/')
+                        RmanTarget=$(echo $RmanTarget | sed 's/primarydb/standbydb1/')
+                        echo "Changing Target to $RmanTarget"
+             fi
           fi
           if [[ "$RmanTarget" =~ "standbydb1" ]]; then
              echo "Target is 1st Standby"
