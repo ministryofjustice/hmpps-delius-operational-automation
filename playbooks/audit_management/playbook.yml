@@ -15,7 +15,7 @@
 
     - name: Set Database Role
       set_fact:
-        database_role: "{{ getdatabaserole.stdout_lines[-1] }}"
+        database_role: "{{ getdatabaserole.stdout | trim  }}"
 
     - debug:
         msg: "Database Role is {{ database_role }}"
