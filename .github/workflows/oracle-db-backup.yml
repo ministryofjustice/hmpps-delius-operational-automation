@@ -438,9 +438,9 @@ jobs:
              if [[ "${BackupStandbyOnPrimaryFailure:-yes}" == "yes" ]]; then
                         echo "I1: $Inputs"
                         # Determine what standby to use - subsequent steps will confirm its existence
-                        Inputs=$(echo $Inputs | jq -r | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")' | sed 's/"/\\"/g')
+                        Inputs=$(echo "$Inputs" | jq -r | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")' | sed 's/"/\\"/g')
                         echo "I2: $Inputs"
-                        Inputs=$(echo $Inputs | jq -r | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")' | sed 's/"/\\"/g')
+                        Inputs=$(echo "$Inputs" | jq -r | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")' | sed 's/"/\\"/g')
                         echo "I3: $Inputs"
                         RmanTarget=$(echo "$Inputs" | jq -r | jq -r '.RmanTarget')
                         echo "I4: $Inputs"
