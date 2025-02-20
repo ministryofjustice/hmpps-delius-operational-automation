@@ -436,11 +436,13 @@ jobs:
              echo "Target does not appear in the inventory"
              BackupStatus="failed"
              if [[ "${BackupStandbyOnPrimaryFailure:-yes}" == "yes" ]]; then
+                        echo "I1: $Inputs"
                         # Determine what standby to use - subsequent steps will confirm its existence
                         Inputs=$(echo $Inputs | jq -r | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")')
                         Inputs=$(echo $Inputs | jq -r | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")')
                         RmanTarget=$(echo "$Inputs" | jq -r | jq -r '.RmanTarget')
                         SSMParameter="/oracle-backups/$RmanTarget"
+                        echo "I2: $Inputs"
              fi
           fi
           if [[ "$RmanTarget" =~ "standbydb1" ]]; then
