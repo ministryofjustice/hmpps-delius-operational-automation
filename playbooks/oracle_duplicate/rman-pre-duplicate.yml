@@ -52,6 +52,7 @@
   when:
     - duplicate_target | regex_search('.*_mis_primarydb$')
     - database_primary_sid | regex_search('STGMIS.*$')
+    - hostvars.localhost.database_open
 
 - name: Keep delius datasets required
   import_playbook: delius-datasets.yml
