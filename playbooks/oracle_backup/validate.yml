@@ -22,7 +22,8 @@
         - name: Set database_global_database
           set_fact:
             database_global_database: "{{ database_standby_sid | regex_replace('(S1|S2)$','') }}"
-          when: not ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb' in groups
+          when:
+            not ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb' in groups
 
             # Create local copy of fix_absent_chunks called run_fix as we cannot
         # override externally supplied extra variables to prevent the fix attempt running twice
