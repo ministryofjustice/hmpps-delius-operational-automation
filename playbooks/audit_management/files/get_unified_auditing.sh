@@ -8,7 +8,8 @@ SET FEEDBACK OFF
 SET HEADING OFF
 SET PAGES 0
 
-SELECT database_role
-FROM   V\$DATABASE;
+SELECT value
+FROM v\$option
+WHERE parameter = 'Unified Auditing';
 
 EOF
