@@ -51,3 +51,5 @@ dgmgrl /@${DATABASE_NAME} <<EOL
 stop observer all;
 start observer file is '${OBSERVER_DIR}/dg_broker.ora' logfile is '${OBSERVER_DIR}/dg_broker.log';
 EOL
+
+# Note that the Observer (and this script) will exit if it receives ORA-01017 from the database.
