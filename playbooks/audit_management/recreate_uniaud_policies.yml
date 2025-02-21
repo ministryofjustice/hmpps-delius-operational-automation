@@ -1,0 +1,62 @@
+- name: Copy SQL Files
+  copy:
+    src: "{{ item }}"
+    dest: "/tmp"
+    owner: oracle
+    group: oinstall
+  with_items:
+    - gen_uniaud_policies.sql
+    - delius_audit_policies.sql
+  changed_when: false
+
+- name: Rename Existing Policy Scripts
+  shell: |
+    . ~/.bash_profile
+    if [ -f /tmp/uniaud_policies_set.sql ]; then
+      mv /tmp/uniaud_policies_set.sql /tmp/uniaud_policies_set_$(date +%Y%m%d).sql
+    fi
+    if [ -f /tmp/uniaud_policies_remove.sql ]; then
+      mv /tmp/uniaud_policies_remove.sql /tmp/uniaud_policies_remove_$(date +%Y%m%d).sql
+    fi
+    if [ -f /tmp/uniaud_policies_cleanup.sql ]; then
+      mv /tmp/uniaud_policies_cleanup.sql /tmp/uniaud_policies_cleanup_$(date +%Y%m%d).sql
+    fi
+  changed_when: false
+
+# Run the Oracle provided script to create the scripts of existing custom Database Auditing Policies.
+# See Doc ID 2157022.1
+- name: Generate Existing Policy Scripts
+  shell: |
+    . ~/.bash_profile
+    cd /tmp
+    sqlplus -s / as sysdba <<EOF
+    @gen_uniaud_policies.sql
+    EOF
+  register: sql_result
+  changed_when: false
+  failed_when:
+    - "'ORA-' in sql_result.stdout"
+
+- name: Remove Existing Policies
+  shell: |
+    . ~/.bash_profile
+    cd /tmp
+    sqlplus -s / as sysdba <<EOF
+    @uniaud_policies_remove.sql
+    @uniaud_policies_cleanup.sql
+    EOF
+  register: sql_result
+  changed_when: false
+  failed_when:
+    - "'ORA-' in sql_result.stdout"
+
+- name: Create Auditing Policies
+  shell: |
+    . ~/.bash_profile
+    sqlplus -s / as sysdba <<EOF
+    @/tmp/delius_audit_policies.sql
+    EOF
+  register: sql_result
+  changed_when: false
+  failed_when:
+    - "'ORA-' in sql_result.stdout"
