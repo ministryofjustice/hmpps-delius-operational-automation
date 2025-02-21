@@ -57,7 +57,6 @@ BEGIN
               end_date => NULL,
               enabled => TRUE,
               auto_drop => FALSE,
-              store_output => TRUE,
               comments => 'Move Database Audit Records to the History Table');
       -- enable dbms_output to DBA_SCHEDULER_JOB_RUN_DETAILS
       DBMS_SCHEDULER.SET_ATTRIBUTE ( 
