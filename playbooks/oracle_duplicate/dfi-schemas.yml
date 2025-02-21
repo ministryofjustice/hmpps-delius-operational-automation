@@ -42,4 +42,4 @@
         - name: Assert dfi schemas import
           assert:
             that:
-              - (import_dfischemas.stdout_lines is search('COMPLETED')) or (import_dfischemas.stdout_lines is search('NODFISCHEMAS')) or (import_dfischemas.stdout_lines is search('NODUMPFILE')) or (export_dfischemas.stdout_lines is search('NOTHINGTODO'))
+              - (import_dfischemas.stdout_lines is search('COMPLETED')) or (import_dfischemas.stdout_lines is search('NODFISCHEMAS')) or (import_dfischemas.stdout_lines is search('NODUMPFILE')) or (import_dfischemas.stdout_lines is search('NOTHINGTODO'))
