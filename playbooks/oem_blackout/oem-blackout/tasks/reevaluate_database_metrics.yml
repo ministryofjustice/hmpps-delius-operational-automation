@@ -18,5 +18,7 @@
     - name: Run Collection for Metric
       shell: |
         . ~/.bash_profile
-        {{ emctl_agent }} control agent runCollection {{ item.split(':')[0] }}:oracle_database {{ metric_name }}
+        {{ emctl_agent }} control agent runCollection {{ metric.split(':')[0] }}:oracle_database {{ metric_name }}
       loop: "{{ metric_list }}"
+      loop_control:
+        loop_var: metric
