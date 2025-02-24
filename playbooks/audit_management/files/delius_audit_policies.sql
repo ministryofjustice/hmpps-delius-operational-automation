@@ -14,6 +14,7 @@ SET VERIFY OFF
 prompt --Monitor common security relevant activities
 
 AUDIT POLICY ORA_SECURECONFIG;
+
 AUDIT POLICY ORA_ACCOUNT_MGMT;
 
 --Monitor common suspicious activities
@@ -107,12 +108,15 @@ AUDIT POLICY delius;
 
 -- create a separate policy for logon auditing so we can exlcude those from the DMS pool
 CREATE AUDIT POLICY delius_logon
+PRIVILEGES
+        CREATE SESSION
 ACTIONS 
         LOGON
 ONLY TOPLEVEL;
 
 AUDIT POLICY delius_logon EXCEPT DELIUS_AUDIT_DMS_POOL;
-
+-- See this article for details about DMS implementation https://dsdmoj.atlassian.net/wiki/spaces/DSTT/pages/5195465768/AWS+DMS+For+Delius+Audit+Preservation
+-- There is no way to tune the DMS connection pool.
 
 prompt --Audit database-management events
 CREATE AUDIT POLICY TABLESPACE_CHANGES

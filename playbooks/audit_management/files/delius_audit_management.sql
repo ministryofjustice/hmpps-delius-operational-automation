@@ -111,6 +111,7 @@ AS
   l_audit_option    VARCHAR2(10);
   l_hist_aud_found  INTEGER;
   l_tablespace      VARCHAR2(50);
+  l_output          VARCHAR2(2000);
   --
 BEGIN
 
@@ -144,7 +145,7 @@ BEGIN
       use_last_arch_timestamp => TRUE
       );
     -- Check output in DBA_SCHEDULER_JOB_RUN_DETAILS
-    DBMS_OUTPUT.put_line('Unified recs archived to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.');
+    l_output := 'Unified recs archived to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.';
   END IF;
 
   -- TRADITIONAL AUDITING
@@ -157,7 +158,7 @@ BEGIN
   -- Skip if there are no records in the old audit trail
   IF l_record_chk = 1
   THEN
-    DBMS_OUTPUT.put_line('Found records in legacy sys.aud$ table.');
+    l_output := l_output || 'Found records in legacy sys.aud$ table.';
     -- We use the built-in audit trail cleanup pointer to track the timestamp for the audit trail to
     -- be archived, although the built-in purge job is not used.
     IF NOT DBMS_AUDIT_MGMT.IS_CLEANUP_INITIALIZED(DBMS_AUDIT_MGMT.audit_trail_aud_std)
@@ -245,7 +246,7 @@ BEGIN
 
     -- From 18c we can now include output in the scheduler job logs using DBMS_OUTPUT
     -- Check output in DBA_SCHEDULER_JOB_RUN_DETAILS
-    DBMS_OUTPUT.put_line('Archived '||SQL%ROWCOUNT||' rows from sys.aud$ to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.');
+    l_output := l_output || 'Archived '||SQL%ROWCOUNT||' rows from sys.aud$ to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.';
 
     COMMIT;
 
@@ -291,7 +292,7 @@ BEGIN
     -- NB you can't drop the last partition left in the table.
     IF l_partition_count > 1 THEN
       FOR r_partitions IN cur_partitions LOOP
-        DBMS_OUTPUT.put_line('Dropping partition '||r_partitions.partition_name||' from legacy sys.hist_aud$ table.');
+        l_output := l_output || 'Dropping partition '||r_partitions.partition_name||' from legacy sys.hist_aud$ table.';
         l_sql := 'ALTER TABLE sys.hist_aud$ DROP PARTITION ' || r_partitions.partition_name;
         EXECUTE IMMEDIATE l_sql;
       END LOOP;
@@ -301,6 +302,8 @@ BEGIN
       WHERE  ntimestamp# <= ADD_MONTHS(TRUNC(SYSDATE),-13)';
     END IF;
   END;
+
+  DBMS_OUTPUT.put_line(l_output);
 
 END archive_audit_trail;
 
