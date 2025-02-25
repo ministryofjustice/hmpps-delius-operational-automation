@@ -6,7 +6,7 @@
   become: true
   become_user: "{{ rdbms_service_user.name }}"
 
-- name: (main/set-primary-dgbroker) Run Oracle Data Guard script for standby
+- name: (main/set-primary-dgbroker) Run Oracle Data Guard script for primary
   shell: ". ~/.bash_profile; /tmp/setup_primary_dgbroker.sh -t {{ database_primary_unique_name }} -s {{ database_standby_unique_name }}"
   environment:
     ENVIRONMENT_NAME: "{{ environment_name }}"
@@ -14,3 +14,21 @@
   become_user: "{{ rdbms_service_user.name }}"
   register: dg_result
   failed_when: dg_result.rc != 0
+
+# We set the LogXptMode property for the primary database to be SYNC.
+# This has no immediate effect but it means that if this database were
+# to become the standby database due to a subsequent failover or switchover event it will be able
+# to support the required MAXIMUM AVAILABILITY protection mode.
+# Although this property is set for the standby database, (i.e. original primary after failover)
+# it is indirectly related to the redo transport services for the database that is 
+# sending redo. The broker propagates the setting you specify on the standby database 
+# to the corresponding attributes of the LOG_ARCHIVE_DEST_n value of the database
+#  that is sending redo data. Note that if a database receives redo from a database
+# where the RedoRoutes property has been configured with a redo transport mode, 
+# then the mode specified by that RedoRoutes property value overrides the value of the LogXptMode property.
+- name: (main/set-primary-dgbroker) Set LogXptMode for Primary
+  shell: |
+       . ~/.bash_profile
+       echo "edit database {{ database_primary_unique_name }} set property LogXptMode='SYNC';" | dgmgrl /
+  become: true
+  become_user: "{{ rdbms_service_user.name }}"
