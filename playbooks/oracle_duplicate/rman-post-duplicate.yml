@@ -206,13 +206,12 @@
   when: duplicate_target | regex_search('.*_delius_primarydb')
 
 - name: Re-enable probation integration updates
-  hosts: '{{ duplicate_target }}'
+  hosts: "{{ duplicate_target }}"
   gather_facts: no
   become: yes
   become_user: oracle
 
   tasks:
-
     - name: Trigger GitHub Actions workflow to switch probation integration services back to read-write mode
       shell: |
         token=$(aws secretsmanager get-secret-value --secret-id {{ environment_name }}-probation-integration --region {{ region }} --query SecretString --output text| jq -r .github_token)
