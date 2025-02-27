@@ -1,13 +1,8 @@
 [
     {
         "TargetEnvironment":"delius-core-dev",
-        "TargetHost":"delius_primarydb",
-        "CronSchedule":"20 14 * * WED"
-    },
-    {
-        "TargetEnvironment":"delius-core-dev",
         "TargetHost":"delius_standbydb1",
-        "CronSchedule":"20 15 * * WED"
+        "CronSchedule":"20 15 * * THU"
     },
     {
         "TargetEnvironment":"delius-core-test",
@@ -17,16 +12,16 @@
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"mis_primarydb",
-        "CronSchedule":"20 15 * * WED"
+        "CronSchedule":"20 15 * * THU"
     },
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"boe_primarydb",
-        "CronSchedule":"20 15 * * WED"
+        "CronSchedule":"20 15 * * THU"
     },
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"dsd_primarydb",
-        "CronSchedule":"20 15 * * WED"
+        "CronSchedule":"20 15 * * THU"
     }
 ]
