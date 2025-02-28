@@ -146,7 +146,7 @@ jobs:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
           sparse-checkout: |
-            ansible/roles/oracle-oem-setup
+            ansible/roles/oracle-oms-setup
             ansible/roles/oracle-oem-agent-setup
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-ec2-facts
@@ -170,7 +170,7 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory --limit server_type_hmpps_oem -e oem_target="environment_name_${{ needs.build_target_names.outputs.TargetOemHost }}" ${{ github.event.inputs.VerboseOutput }}
+          $command -i $inventory --limit server_type_hmpps_oem -e target="environment_name_${{ needs.build_target_names.outputs.TargetOemHost }}" ${{ github.event.inputs.VerboseOutput }}
 
   oracle-agent-patching:
     needs: build_target_names
