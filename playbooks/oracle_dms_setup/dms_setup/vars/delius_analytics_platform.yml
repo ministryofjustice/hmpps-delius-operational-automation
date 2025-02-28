@@ -126,6 +126,9 @@ dms_tables:
   - name: APPROVED_PREMISES_RESIDENCE
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
+  - name: ARMED_SERVICE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
   - name: ASSESSMENT
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
