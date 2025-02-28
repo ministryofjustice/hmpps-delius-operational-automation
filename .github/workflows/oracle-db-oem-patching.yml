@@ -102,7 +102,12 @@ jobs:
           echo "TargetOemHost=${TargetOemHost}" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=${TargetEnvironment}" >> $GITHUB_OUTPUT
           echo "TargetHost=${TargetHost}" >> $GITHUB_OUTPUT
-
+      - name: Print Output Values (Verbose Mode)
+        run: |
+          echo "TargetOemEnvironment: ${{ steps.prepare.outputs.TargetOemEnvironment }}"
+          echo "TargetOemHost: ${{ steps.prepare.outputs.TargetOemHost }}"
+          echo "TargetEnvironment: ${{ steps.prepare.outputs.TargetEnvironment }}"
+          echo "TargetHost: ${{ steps.prepare.outputs.TargetHost }}"
   
   oracle-oem-patching:
     needs: build_target_names
@@ -170,7 +175,7 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory --limit server_type_hmpps_oem -e target="environment_name_${{ needs.build_target_names.outputs.TargetOemHost }}" ${{ github.event.inputs.VerboseOutput }}
+          $command -i $inventory --limit server_type_hmpps_oem -e target="${{ needs.build_target_names.outputs.TargetOemHost }}" ${{ github.event.inputs.VerboseOutput }}
 
   oracle-agent-patching:
     needs: build_target_names
