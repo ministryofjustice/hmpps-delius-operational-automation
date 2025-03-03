@@ -147,54 +147,23 @@
     #
     #########################################
 
-    - name: Find Out Grid Home of Osm Instance from Cloud Control
-      shell: |
-        . {{ stage }}/emcli_login.sh >/dev/null
-        {{ emcli }} list -resource="TargetProperties" -search="TARGET_NAME='+ASM_{{ agent_host }}'" -column="PROPERTY_NAME,PROPERTY_VALUE" -script | grep OracleHome | awk '{print $2}'
-      changed_when: false
-      register: grid_home_in_cloud
-
-    - name: Modify Existing ASM Target
-      shell: |
-        . {{ stage }}/emcli_login.sh >/dev/null
-        {{ emcli }} modify_target -name="+ASM_{{ agent_host }}" -type="osm_instance" -properties="OracleHome:{{ target_gi_home }}"
-      when: grid_home_in_cloud.stdout != target_gi_home
+    - name: Modify ASM Target
+      include_tasks: modify_target.yml
+      vars:
+        target_type: osm_instance
 
     #########################################
     #
     # (4)  LISTENER TARGET
     #
-    #      Create New Listener Target
+    #      Modify Listener Target
     #
     #########################################
 
-    # Find out if we have a target for the previous Listener; delete it if it does exist so we can add the new one
-    - name: Delete Old Listener Target
-      include_tasks: delete_old_target.yml
+    - name: Modify Listener Target
+      include_tasks: modify_target.yml
       vars:
         target_type: oracle_listener
-
-    - name: Get listener name
-      shell: |
-        . ~/.bash_profile 
-        srvctl config listener | grep "Name: " | awk '{print $NF}'
-      register: listener_name
-      changed_when: false
-
-    # Get Listener Port
-    - name: Get listener port
-      shell: |
-        . ~/.bash_profile 
-        srvctl config listener | grep "End points" | awk -F':' '{print $NF}'
-      changed_when: false
-      register: listener_port
-
-    # Create New Listener Target if one does not already exist
-    - name: Create New Listener Target
-      shell: |
-        . {{ stage }}/emcli_login.sh
-        {{ emcli }} add_target -name="{{ listener_name.stdout }}_{{ agent_host }}" -type="oracle_listener" -host="{{ agent_host }}" -properties="LsnrName:{{ listener_name.stdout }};ListenerOraDir:{{ target_gi_home }}/network/admin/;Port:{{ listener_port.stdout }};OracleHome:{{ target_gi_home }};Machine:{{ agent_host }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }};orcl_gtp_line_of_bus:{{ application }}"
-      when: existing_target_name.stdout == ''  or get_target_home_match.stdout != '1'
 
     #########################################################
     #
