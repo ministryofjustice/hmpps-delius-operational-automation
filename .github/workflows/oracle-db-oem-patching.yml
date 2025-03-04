@@ -119,7 +119,7 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     timeout-minutes: 1440
     env:
-      command: ansible-playbook operations/ansible/site.yml -e force_role=oracle-oms-setup -e role=oracle-oms-setup --tags oracle_oem_patch_upgrade 
+      command: ansible-playbook operations/ansible/site.yml -v -e force_role=oracle-oms-setup -e role=oracle-oms-setup --tags oracle_oem_patch_upgrade 
       inventory: inventory/ansible
     continue-on-error: false
     steps:
