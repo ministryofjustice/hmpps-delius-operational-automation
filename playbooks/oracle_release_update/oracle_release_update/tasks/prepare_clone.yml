@@ -2,6 +2,9 @@
 - name: Upgrade OPatch
   include_tasks: upgrade_opatch.yml
 
+- name: Delete Inactive Patches
+  include_tasks: delete_inactive_patches.yml
+  
 - name: Creating a Home Mapping for Out of Place Upgrade
   copy:
     dest: "/tmp/home_map.properties"
