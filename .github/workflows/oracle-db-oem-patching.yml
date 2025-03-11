@@ -122,6 +122,8 @@ jobs:
       command: ansible-playbook operations/ansible/site.yml -v -e force_role=oracle-oms-setup -e role=oracle-oms-setup --tags oracle_oem_patch_upgrade 
       inventory: inventory/ansible
     continue-on-error: false
+    outputs:
+      aws_account_id: ${{ steps.save-aws-account-id.outputs.aws_account_id }}
     steps:
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@v4
@@ -163,6 +165,10 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
+      - name: Save AWS Account ID
+        id: save-aws-account-id
+        run: echo "aws_account_id=${{ vars.AWS_ACCOUNT_ID }}" >> $GITHUB_OUTPUT
+  
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
@@ -235,7 +241,7 @@ jobs:
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID != '' && vars.AWS_ACCOUNT_ID || needs.oracle-oem-patching.outputs.aws_account_id }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           role-duration-seconds: 21600
           aws-region: "eu-west-2"
