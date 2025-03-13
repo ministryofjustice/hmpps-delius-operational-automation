@@ -3,6 +3,14 @@ run-name: "Oracle: ${{ github.event.inputs.TargetOemEnvironment }}-oem-patching"
 on:
   workflow_dispatch:
     inputs:
+      PatchOEMHost:
+        description: "Patch OEM Host (yes/no)"
+        required: true
+        type: choice
+        default: "no"
+        options:
+          - "yes"
+          - "no"
       TargetOemEnvironment:
         description: "Target OEM Environment"
         required: true
@@ -134,6 +142,7 @@ jobs:
 
   oracle-oem-patching:
     needs: [build_target_names,get_oem_account_id]
+    if: ${{ github.event.inputs.PatchOEMHost == 'yes' }}
     name: oracle-oem-patching
     environment: ${{ needs.build_target_names.outputs.TargetOemEnvironment }}-preapproved
     runs-on: ubuntu-latest
