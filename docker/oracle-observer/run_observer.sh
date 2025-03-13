@@ -43,6 +43,8 @@ then
    exit 1
 fi
 
+function start_observer()
+{
 echo "Starting observer..."
 # We first stop any previous observers in the configuration which may have been left
 # inactive from a previous task run.
@@ -51,5 +53,34 @@ dgmgrl /@${DATABASE_NAME} <<EOL
 stop observer all;
 start observer file is '${OBSERVER_DIR}/dg_broker.ora' logfile is '${OBSERVER_DIR}/dg_broker.log';
 EOL
+}
 
-# Note that the Observer (and this script) will exit if it receives ORA-01017 from the database.
+function check_password()
+{
+echo "Checking password..."
+# Wait for a minute first to avoid repeatedly checking the password during ASM startup
+sleep 60
+PASSWORD_CHECK=$(echo ${SQL_TEST} | sqlplus -S -L /@{DATABASE_NAME} as sysdba 2>&1 | grep -q ORA-01017 && echo "WRONG_PASSWORD")
+[[ -z ${PASSWORD_CHECK} ]] && echo "Password OK" || echo "Password Failure"
+[[ -z ${PASSWORD_CHECK} ]] && return 0 || return 1
+}
+
+# Note that the Observer (and this script) will exit if it receives ORA-01017 from the database 3 times in a row.
+# We need to allow a few unsuccessful attempts as the password file is on ASM and may not be immediately available
+# if the host has only just restarted, and the database has not yet established a connection to ASM.
+while true
+do
+   start_observer
+   check_password
+   for ATTEMPT in {1..3}; do
+     if [[ check_password ]]; then
+       break
+     else
+       if [[ $ATTEMPT -ge 3 ]]; then
+         echo "Repeatedly failed to login with known password.  Aborting."
+         exit 10
+       fi
+     fi
+   done
+   echo "Resuming observer..."
+done
