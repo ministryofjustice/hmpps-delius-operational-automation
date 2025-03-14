@@ -51,7 +51,7 @@
 
 - name: Declare Named Database Metrics Lists
   set_fact:
-    dataguard_named_database_metrics: ["dataguard_11gR2","fsfo_observers"]
+    dataguard_named_database_metrics: ["dataguard_11gR2", "fsfo_observers"]
     named_database_metrics: []
 
 # Check dataguard configured for none OEM enviroments
