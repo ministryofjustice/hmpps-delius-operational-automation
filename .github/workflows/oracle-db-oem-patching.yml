@@ -171,7 +171,7 @@ jobs:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: |
-            playbooks/oem_blackout
+            playbooks/oem_blackout/oem_blackout
           path: roles
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
@@ -252,7 +252,7 @@ jobs:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: |
-            playbooks/oem_blackout
+            playbooks/oem_blackout/oem_blackout
           path: roles
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
