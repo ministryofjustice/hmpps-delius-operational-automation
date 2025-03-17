@@ -219,13 +219,11 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -svf $PWD/roles/playbooks/oem_blackout $PWD/operations/ansible/roles/oem_blackout
-          ls -la $PWD/roles/playbooks/oem_blackout/
-          ls -la $PWD/operations/ansible/roles/
           $command -i $inventory --limit server_type_hmpps_oem -e target="${{ needs.build_target_names.outputs.TargetOemHost }}" ${{ github.event.inputs.VerboseOutput != '' && github.event.inputs.VerboseOutput || '-v' }}
 
   oracle-agent-patching:
-    needs: [build_target_names,get_agent_account_id,oracle-oem-patching]
-    if: ${{ github.event.inputs.PatchAgents == 'yes' }}
+    needs: [build_target_names,get_agent_account_id]
+    if: ${{ github.event.inputs.PatchAgents == 'yes' && (github.event.inputs.PatchOEMHost == 'no' || needs.oracle-oem-patching.outputs.oem_patching_done == 'true') }}
     name: oracle-agent-patching
     environment: ${{ needs.build_target_names.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
