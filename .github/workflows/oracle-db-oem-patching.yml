@@ -165,6 +165,17 @@ jobs:
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oem_blackout
+          path: roles
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
         with:
@@ -207,6 +218,7 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
+          ln -svf $PWD/roles/playbooks/oem_blackout/oem_blackout $PWD/operations/ansible/roles/oem_blackout
           $command -i $inventory --limit server_type_hmpps_oem -e target="${{ needs.build_target_names.outputs.TargetOemHost }}" ${{ github.event.inputs.VerboseOutput != '' && github.event.inputs.VerboseOutput || '-v' }}
 
   oracle-agent-patching:
@@ -231,6 +243,17 @@ jobs:
           sparse-checkout: |
             playbooks/ansible.cfg
           path: ansible
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout From hmpps-delius-operational-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oem_blackout
+          path: roles
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
@@ -274,5 +297,6 @@ jobs:
       - name: Start OEM Agent Update
         run: |
           export ANSIBLE_CONFIG=$ansible_config
+          ln -svf $PWD/roles/playbooks/oem_blackout/oem_blackout $PWD/operations/ansible/roles/oem_blackout
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e target=${{needs.build_target_names.outputs.TargetHost}} ${{ github.event.inputs.VerboseOutput != '' && github.event.inputs.VerboseOutput || '-v' }}
         
