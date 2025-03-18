@@ -49,14 +49,25 @@
   loop:
     - "ME$DATA_GUARD_ACTIVE_TARGET"
 
+- name: Declare Named Database Metrics Lists
+  set_fact:
+    dataguard_named_database_metrics: ["dataguard_11gR2", "fsfo_observers"]
+    named_database_metrics: []
+
+# Check dataguard configured for none OEM enviroments
+- name: Check Dataguard Configured
+  set_fact:
+    dataguard_configured: "{{ high_availability_count[group_names | select('match','.*_dbs') | first | regex_replace('^.*_(.*)_dbs', '\\1') | regex_replace('^(dsd|boe)$', 'mis\\1') ] | int > 0 }}"
+  when: high_availability_count is defined
+
 - name: Re-Evaluate Named Database Metrics
   include_tasks: reevaluate_database_metrics.yml
-  when: action == 'stop'
+  when:
+    - action == 'stop'
+    - ((item in dataguard_named_database_metrics and dataguard_configured | default(false)) or (item in named_database_metrics))
   vars:
     metric_name: "{{ item }}"
-  loop:
-    - dataguard_11gR2
-    - fsfo_observers
+  loop: "{{ dataguard_named_database_metrics + named_database_metrics }}"
 
 - name: Re-Include Hosts in Monitoring After Job Completion
   when: action == 'stop'
