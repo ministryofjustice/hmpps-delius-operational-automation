@@ -218,7 +218,7 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          ln -svf $PWD/roles/playbooks/oem_blackout/oem_blackout $PWD/operations/ansible/roles/oem_blackout
+          ln -svf $PWD/roles/playbooks/oem_blackout/oem-blackout $PWD/operations/ansible/roles/oem_blackout
           $command -i $inventory --limit server_type_hmpps_oem -e target="${{ needs.build_target_names.outputs.TargetOemHost }}" ${{ github.event.inputs.VerboseOutput != '' && github.event.inputs.VerboseOutput || '-v' }}
 
   oracle-agent-patching:
@@ -297,6 +297,6 @@ jobs:
       - name: Start OEM Agent Update
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          ln -svf $PWD/roles/playbooks/oem_blackout/oem_blackout $PWD/operations/ansible/roles/oem_blackout
+          ln -svf $PWD/roles/playbooks/oem_blackout/oem-blackout $PWD/operations/ansible/roles/oem_blackout
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e target=${{needs.build_target_names.outputs.TargetHost}} ${{ github.event.inputs.VerboseOutput != '' && github.event.inputs.VerboseOutput || '-v' }}
         
