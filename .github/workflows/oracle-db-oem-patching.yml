@@ -63,6 +63,10 @@ on:
           - "dsd_primarydb"
           - "dsd_standbydb1"
           - "dsd_dbs"
+      GoldImageName:
+        description: "OPTIONAL [Gold Image name].  If not specified then default from the oracle-oem-agent-setup role will be used."
+        type: string
+        default: ""
       VerboseOutput:
         description: "Verbose Output level"
         type: choice
@@ -298,5 +302,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -svf $PWD/roles/playbooks/oem_blackout/oem-blackout $PWD/operations/ansible/roles/oem_blackout
-          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e target=${{needs.build_target_names.outputs.TargetHost}} ${{ github.event.inputs.VerboseOutput != '' && github.event.inputs.VerboseOutput || '-v' }}
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+          -e target=${{needs.build_target_names.outputs.TargetHost}} \
+          -e goldimagename=${{ github.event.inputs.GoldImageName }} ${{ github.event.inputs.VerboseOutput != '' && github.event.inputs.VerboseOutput || '-v' }}
         
