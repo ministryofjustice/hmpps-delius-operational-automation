@@ -157,26 +157,26 @@
       dest: /home/oracle/admin/stats_scripts/stats.sh
       owner: oracle
       group: oinstall
-      mode: 0544   
+      mode: 0544
 
- #   - name: Set SSM Parameter used for Runtime details when variable is not null
- #     set_fact:
- #     ssm_parameter_path: '-s "{{ ssm_parameter }}"'
- #     when: (ssm_parameter is defined)      
+    #   - name: Set SSM Parameter used for Runtime details when variable is not null
+    #     set_fact:
+    #     ssm_parameter_path: '-s "{{ ssm_parameter }}"'
+    #     when: (ssm_parameter is defined)
 
     # The quotes in the JSON inputs can get messed up by unwanted shell interpretation.
-        # To avoid this we send the JSON as an encoded string to be decoded by the shell script.
+    # To avoid this we send the JSON as an encoded string to be decoded by the shell script.
     - name: Enable Repository Dispatch Event if supplied
       set_fact:
-          repository_dispatch_flag: "-r {{ repository_dispatch }} -j {{ json_inputs | b64encode }}"
+        repository_dispatch_flag: "-r {{ repository_dispatch }} -j {{ json_inputs | b64encode }}"
       when:
         - repository_dispatch is defined
-        - json_inputs is defined    
+        - json_inputs is defined
 
     - name: Create STATS Command
       set_fact:
-            stats_command: "/home/oracle/admin/stats_scripts/stats.sh {{ schemas }} {{ parallelism}} {{{ repository_dispatch_flag|default() }} "
-    
+        stats_command: "/home/oracle/admin/stats_scripts/stats.sh {{ schemas }} {{ parallelism}} {{{ repository_dispatch_flag|default() }} "
+
     - name: Show STATS Command
       debug:
         msg: "About to run:  {{ stats_command }}"
