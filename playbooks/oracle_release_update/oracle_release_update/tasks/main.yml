@@ -420,6 +420,32 @@
       register: get_standby_role
       when: standby_db_configured
 
+
+    - name: High Availability Count
+      debug:
+         var: high_availability_count
+
+    - name: Primary Host
+      debug:
+         var: primary_host
+
+    - name: Primary Inventory Hostname
+      debug:
+         var: hostvars[primary_host]['inventory_hostname']
+
+    - name: Application
+      debug:
+         var: application
+
+    - name: FSFO Mode
+      debug:
+         var: hostvars[primary_host]['fsfo_mode']
+
+    - name: Groups
+      debug:
+         var: groups
+
+        
     # Re-Enable FSFO from Associated Primary
     # (Only run from First Standby for each Database Type to avoid competing startups)
     - name: Re-enable FSFO
