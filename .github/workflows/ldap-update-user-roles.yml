@@ -8,6 +8,7 @@ on:
           options:
             - "dev"
             - "test"
+            - "preprod"
       roles:
         required: true
         type: string
