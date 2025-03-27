@@ -69,6 +69,10 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
+
+  repository_dispatch:
+    types: ["oracle-db-stats-success","oracle-db-stats-failure"]     
+        
 env:
   ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/playbooks/oracle_statistics/oracle_statistics.yml
@@ -80,21 +84,78 @@ permissions:
   id-token: write
 
 jobs:          
-  oracle_gather_delius_statistics:
+  oracle-gather-delius-statistics:
     if: ${{ github.event.inputs.ImportSourceEnvironment == 'None' }}
-    name: oracle-gather-delius-statistics
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
     timeout-minutes: 1440
     continue-on-error: false
+
     steps:
 
       - name: Prepare Target Name
         id: preparetargetname
-        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT
+        run: |
+            echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT      
+    jobs:
+  example-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare Target Name
+        id: preparetargetname
+        run: |
+          echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT      
+          if [[ "${{ github.event_name }}" != "repository_dispatch" ]]; then
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+              TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
+              GatherNewStatistics="${{ github.event.inputs.GatherNewStatistics }}"
+              GatherParallelism="${{ github.event.inputs.GatherParallelism }}"
+              ExportBackupStatisticsToS3="${{ github.event.inputs.ExportBackupStatisticsToS3 }}"
+              StatisticsIdentifier="${{ github.event.inputs.StatisticsIdentifier }}"
+              ImportSourceEnvironment="${{ github.event.inputs.ImportSourceEnvironment }}"
+              SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
+              SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
+            fi
 
+            # Build a JSON variable capturing all the inputs which have been supplied
+            Inputs="{"
+            Inputs=$Inputs"\"TargetEnvironment\": \"$TargetEnvironment\","
+            Inputs=$Inputs"\"GatherNewStatistics\": \"$GatherNewStatistics\","
+            Inputs=$Inputs"\"GatherParallelism\": \"$GatherParallelism\","
+            Inputs=$Inputs"\"ExportBackupStatisticsToS3\": \"${ExportBackupStatisticsToS3}\","
+            Inputs=$Inputs"\"StatisticsIdentifier\": \"${StatisticsIdentifier:-yes}\","
+            Inputs=$Inputs"\"ImportSourceEnvironment\": \"$ImportSourceEnvironment\","
+            Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
+            Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
+            Inputs=$Inputs"}"
+          fi
+
+      - name: Repository Dispatch Event
+        if: ${{ github.event_name == 'repository_dispatch' }}
+        run: |
+          echo "Responding to Repository Dispatch event"
+          Inputs='${{ toJson(github.event.client_payload) }}'
+          Inputs=$(echo $Inputs | jq -r)
+          Action='${{ github.event.action }}'
+          if [[ "$Action" == "oracle-db-stats-success" ]]; then
+            StatsStatus="success"
+            Inputs=$(echo $Inputs | jq '.Phase = "Remove Transient Table Statistics Locks"')
+          else
+            echo "Stats has failed"
+            StatsStatus="failed"
+          fi                                                     
+ 
+      - name: Prepare Slack Channel Name
+        id: prepare-slack-channel-name
+        run: |
+            if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
+              echo "SlackChannel=delius-aws-oracle-prod-alerts" >> $GITHUB_OUTPUT
+            else
+              echo "SlackChannel=delius-aws-oracle-dev-alerts" >> $GITHUB_OUTPUT
+            fi
+ 
       - name: Checkout Ansible Playbooks and Roles From hmpps-delius-operation-automation
         uses: actions/checkout@v4
         with:
@@ -127,6 +188,20 @@ jobs:
           role-duration-seconds: 21600
           aws-region: "eu-west-2"
 
+      - name: Get Slack Token
+        id: get-slack-token
+        run:  |
+              # The OEM Account ID which is associated with this Delius account is held in the SSM Parameter Store.
+              OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
+                    jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
+                    jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
+              # We can then access the Slack Token from the AWS Secrets for that OEM Account
+              SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
+              SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
+              SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
+              echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT  
+  
+
       - name: Start Ansible Gather Delius Statistics
         shell: bash
         run: |
@@ -137,7 +212,21 @@ jobs:
           -e gather_new_statistics=${{ github.event.inputs.GatherNewStatistics }} \
           -e statistics_identifier=${{ github.event.inputs.StatisticsIdentifier }} \
           -e export_to_s3=${{ github.event.inputs.ExportBackupStatisticsToS3 }}  \
-          -e parallelism=${{ github.event.inputs.GatherParallelism }} ${{ github.event.inputs.VerboseOutput }}
+          -e parallelism=${{ github.event.inputs.GatherParallelism }} ${{ github.event.inputs.VerboseOutput }}  \
+          -e repository_dispatch="${{ github.repository }}"  \
+          -e json_inputs="$Inputs" $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
+
+            # To avoid clutter we do not report stats successes 
+      - name: Slack Failure Notification
+        id: slack-failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+            channel-id: "${{ env.SlackChannel }}"
+            payload: |
+              {"username":"Failed Stats","icon_emoji":"red_circle","text":"Failed Stats","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Failed Stats:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Stats Target:*\n${{ env.StatsTarget }}"}]}]}
+        env:
+          SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}       
 
   oracle_export_delius_statistics:
     if: ${{ github.event.inputs.ImportSourceEnvironment != 'None' }}
