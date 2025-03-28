@@ -60,6 +60,7 @@ on:
 env:
   ansible_config: operations/playbooks/ansible.cfg
   disable_command: ansible-playbook operations/playbooks/oracle_ha/disable-fsfo.yml
+  enable_command: ansible-playbook operations/playbooks/oracle_ha/enable-fsfo.yml
   inventory: inventory/ansible
 
 permissions:
