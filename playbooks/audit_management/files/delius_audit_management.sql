@@ -48,6 +48,14 @@ BEGIN
 END;
 /
 
+CREATE OR REPLACE PROCEDURE sys.drop_hist_aud_partition(p_partition_name VARCHAR2) AS
+-- Drop a partition from the sys.hist_aud$ table. Used by jobs run by AUDSYS
+BEGIN
+  EXECUTE IMMEDIATE 'ALTER TABLE sys.hist_aud$ DROP PARTITION ' || p_partition_name;
+END;
+/
+
+GRANT EXECUTE ON sys.drop_hist_aud_partition TO audsys;
 GRANT SELECT, DELETE ON SYS.AUD$ TO AUDSYS;
 
 CREATE OR REPLACE PACKAGE AUDSYS.delius_audit_management
@@ -56,6 +64,7 @@ AS
   -- Apply a cap on the number of days data to be archived at once to prevent overloading
   --
   -- This package should be installed into the AUDSYS schema. 
+  -- Requires invoker’s rights so it is executed with the privileges of the calling user e.g. SYS runs the scheduler jobs.
   --
   PROCEDURE archive_audit_trail (p_day_cap INTEGER DEFAULT 2);
 
@@ -73,7 +82,6 @@ END delius_audit_management;
 
 CREATE OR REPLACE PACKAGE BODY AUDSYS.delius_audit_management
 AS
-
 -- Archive audit records to history table
 -- Apply a cap on the number of days data to be archived at once to prevent overloading
 PROCEDURE     archive_audit_trail (p_day_cap IN INTEGER DEFAULT 2)
@@ -111,6 +119,7 @@ AS
   l_audit_option    VARCHAR2(10);
   l_hist_aud_found  INTEGER;
   l_tablespace      VARCHAR2(50);
+  l_output          VARCHAR2(4000);
   --
 BEGIN
 
@@ -144,7 +153,7 @@ BEGIN
       use_last_arch_timestamp => TRUE
       );
     -- Check output in DBA_SCHEDULER_JOB_RUN_DETAILS
-    DBMS_OUTPUT.put_line('Unified recs archived to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.');
+    l_output := 'Unified recs archived to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.';
   END IF;
 
   -- TRADITIONAL AUDITING
@@ -157,7 +166,7 @@ BEGIN
   -- Skip if there are no records in the old audit trail
   IF l_record_chk = 1
   THEN
-    DBMS_OUTPUT.put_line('Found records in legacy sys.aud$ table.');
+    l_output := l_output || 'Found records in legacy sys.aud$ table.';
     -- We use the built-in audit trail cleanup pointer to track the timestamp for the audit trail to
     -- be archived, although the built-in purge job is not used.
     IF NOT DBMS_AUDIT_MGMT.IS_CLEANUP_INITIALIZED(DBMS_AUDIT_MGMT.audit_trail_aud_std)
@@ -236,7 +245,7 @@ BEGIN
       -- which should run with minimal impact on other users.
       EXECUTE IMMEDIATE 'INSERT /*+ APPEND NOPARALLEL */ INTO sys.hist_aud$
       SELECT * FROM sys.aud$
-      WHERE  ntimestamp# <= l_archive_date';
+      WHERE  ntimestamp# <= :archive_date' using l_archive_date;
     END IF;
     
     -- Delete the old records from the audit table irrespective of whether the hist table exists
@@ -245,7 +254,7 @@ BEGIN
 
     -- From 18c we can now include output in the scheduler job logs using DBMS_OUTPUT
     -- Check output in DBA_SCHEDULER_JOB_RUN_DETAILS
-    DBMS_OUTPUT.put_line('Archived '||SQL%ROWCOUNT||' rows from sys.aud$ to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.');
+    l_output := l_output || 'Archived '||SQL%ROWCOUNT||' rows from sys.aud$ to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.';
 
     COMMIT;
 
@@ -276,7 +285,8 @@ BEGIN
         ) 
         SELECT partition_name, high_value_t-1 as high_value
         FROM date_partition
-        WHERE high_value_t < ADD_MONTHS(TRUNC(SYSDATE),-13);
+        WHERE high_value_t < ADD_MONTHS(TRUNC(SYSDATE),-13)
+        ORDER BY high_value;
     l_partition_count INTEGER;
     l_date_string VARCHAR2(10);
     l_sql varchar2(200);
@@ -291,9 +301,8 @@ BEGIN
     -- NB you can't drop the last partition left in the table.
     IF l_partition_count > 1 THEN
       FOR r_partitions IN cur_partitions LOOP
-        DBMS_OUTPUT.put_line('Dropping partition '||r_partitions.partition_name||' from legacy sys.hist_aud$ table.');
-        l_sql := 'ALTER TABLE sys.hist_aud$ DROP PARTITION ' || r_partitions.partition_name;
-        EXECUTE IMMEDIATE l_sql;
+        l_output := SUBSTR(l_output || 'Dropping partition '||r_partitions.partition_name||' from legacy sys.hist_aud$ table.', 1, 4000);
+        sys.drop_hist_aud_partition(r_partitions.partition_name);
       END LOOP;
     ELSIF l_partition_count = 1 THEN
       -- Continue to delete data from the last partition
@@ -301,6 +310,8 @@ BEGIN
       WHERE  ntimestamp# <= ADD_MONTHS(TRUNC(SYSDATE),-13)';
     END IF;
   END;
+
+  DBMS_OUTPUT.put_line(l_output);
 
 END archive_audit_trail;
 
