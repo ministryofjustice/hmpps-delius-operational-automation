@@ -114,7 +114,14 @@ ACTIONS
         LOGON
 ONLY TOPLEVEL;
 
-AUDIT POLICY delius_logon EXCEPT DELIUS_AUDIT_DMS_POOL;
+-- MIS databases don't have the DMS pool so this will fail.
+BEGIN
+  execute immediate 'AUDIT POLICY delius_logon EXCEPT DELIUS_AUDIT_DMS_POOL';
+EXCEPTION
+WHEN others THEN
+  execute immediate 'AUDIT POLICY delius_logon';
+END;
+/
 -- See this article for details about DMS implementation https://dsdmoj.atlassian.net/wiki/spaces/DSTT/pages/5195465768/AWS+DMS+For+Delius+Audit+Preservation
 -- There is no way to tune the DMS connection pool.
 
