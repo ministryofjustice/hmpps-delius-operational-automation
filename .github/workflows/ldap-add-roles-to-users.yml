@@ -8,6 +8,8 @@ on:
             options:
               - "dev"
               - "test"
+              - "preprod"
+              - "prod"
         # Example: username1,role1;role2;role3|username2,role1;role2
         user-role-list:
             required: true

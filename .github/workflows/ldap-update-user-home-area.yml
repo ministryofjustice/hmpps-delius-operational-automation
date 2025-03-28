@@ -8,6 +8,8 @@ on:
             options:
               - "dev"
               - "test"
+              - "preprod"
+              - "prod"
         old_home_area:
             required: true
             type: string
