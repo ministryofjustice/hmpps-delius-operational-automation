@@ -1,0 +1,14 @@
+[
+    {
+        "TargetEnvironment":"delius-core-dev",
+        "CronSchedule":" 45 20 * * 1-5",
+        "Action": "disable",
+        "SkipNonWorkingDays": true
+    },
+    {
+        "TargetEnvironment":"delius-core-dev",
+        "CronSchedule":" 45 6 * * 1-5",
+        "Action": "enable",
+        "SkipNonWorkingDays": true
+    }
+]
