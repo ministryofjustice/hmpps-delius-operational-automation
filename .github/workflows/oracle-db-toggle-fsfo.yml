@@ -67,7 +67,6 @@ permissions:
 
 jobs:          
   oracle_toggle_fsfo:
-    if: ${{ github.event.inputs.ImportSourceEnvironment == 'None' }}
     name: oracle-toggle-fsfo
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
