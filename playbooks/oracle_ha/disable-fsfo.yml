@@ -1,0 +1,11 @@
+- name: Disable FSFO
+  hosts: "{{ primary }}"
+  become: true
+  become_user: oracle
+  become_method: sudo
+  tasks:
+
+    - name: Disable FSFO
+      include_role:
+         name: build-ha
+         tasks_from: disable-fsfo.yml

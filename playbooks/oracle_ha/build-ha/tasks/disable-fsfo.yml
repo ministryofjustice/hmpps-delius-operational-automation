@@ -1,0 +1,6 @@
+- name: Disable FSFO if Enabled
+  shell: |
+         . ~/.bash_profile
+         echo "show fast_start failover" | dgmgrl / | grep "Fast-Start Failover: Enabled" && echo "disable fast_start failover" | dgmgrl / || true
+  register: disable_fsfo
+  changed_when: disable_fsfo.stdout | default('') is search('.*Disabled.*')
