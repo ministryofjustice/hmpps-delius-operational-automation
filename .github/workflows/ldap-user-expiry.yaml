@@ -8,6 +8,8 @@ on:
         options:
           - "dev"
           - "test"
+          - "preprod"
+          - "prod"
   workflow_call:
     inputs:
       environment:
