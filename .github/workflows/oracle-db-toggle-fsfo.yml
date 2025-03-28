@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "DBA-849"
+      
   workflow_dispatch:
     inputs:
       TargetEnvironment:
