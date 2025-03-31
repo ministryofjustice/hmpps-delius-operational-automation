@@ -22,7 +22,7 @@ jobs:
     deploy:
         name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}
         runs-on: ubuntu-latest
-        environment: delius-core-${{ github.event.inputs.environment }}
+        environment: delius-core-${{ github.event.inputs.environment }}-preapproved
         permissions:
           id-token: write
         steps:
