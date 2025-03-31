@@ -21,12 +21,12 @@ jobs:
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
-             .github/workflows/oracle-db-toggle-fsfo-schedule.json
+             .github/workflows/oracle-db-toggle-fsfo-schedule.json@DBA-849
           path: operations
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
 
-      - name: Filter Toggle FSFO Rotation Schedule
+      - name: Filter Toggle FSFO Schedule
         id: filter-toggle-fsfo-schedule
         run: |
              SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment"}]' operations/.github/workflows/oracle-db-toggle-fsfo-schedule.json | jq '{include: .}')
