@@ -16,7 +16,7 @@ on:
 jobs:
   create-backup:
     runs-on: ubuntu-latest
-    environment: delius-core-${{ inputs.environment }}
+    environment: delius-core-${{ inputs.environment }}-preapproved
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
