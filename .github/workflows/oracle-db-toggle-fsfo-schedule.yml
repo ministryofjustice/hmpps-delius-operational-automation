@@ -60,7 +60,7 @@ jobs:
       matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
     name: Toggle FSFO
     uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo.yml@main
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo.yml@DBA-849
     with:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       FSFOMode: ${{ matrix.FSFOMode }}
