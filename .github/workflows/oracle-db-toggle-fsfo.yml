@@ -116,8 +116,16 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          if [[ "${{ github.event.inputs.FSFOMode }}" == "disable"  ]];
+          if [[ "${{ github.event.inputs.FSFOMode }}" == "disable" ]];
           then
              $disable_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
              -e primary=${{ steps.preparetargetname.outputs.TargetHost }}
+          fi
+          if [[ "${{ github.event.inputs.FSFOMode }}" == "enable" ]];
+          then
+            # The standby_number is not relevant for enabling FSFO but must
+            # not be undefined, so we set it arbitrarily to 0
+             $enable_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+             -e primary=${{ steps.preparetargetname.outputs.TargetHost }} \
+             -e standby_number=0
           fi
