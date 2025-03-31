@@ -29,7 +29,7 @@ jobs:
       - name: Filter Toggle FSFO Schedule
         id: filter-toggle-fsfo-schedule
         run: |
-             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment"}]' operations/.github/workflows/oracle-db-toggle-fsfo-schedule.json | jq '{include: .}')
+             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","FSFOMode"}]' operations/.github/workflows/oracle-db-toggle-fsfo-schedule.json | jq '{include: .}')
              echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   report-schedule-toggle-fsfo:
@@ -64,3 +64,13 @@ jobs:
     with:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       FSFOMode: ${{ matrix.FSFOMode }}
+
+  toggle-fsfo-dev:
+    needs: prepare-run-matrix
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    name: Toggle FSFO for Development
+    uses:
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo.yml@DBA-849
+    with:
+      TargetEnvironment: delius-core-dev
+      FSFOMode: disable
