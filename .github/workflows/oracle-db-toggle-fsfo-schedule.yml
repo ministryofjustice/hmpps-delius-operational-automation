@@ -14,7 +14,7 @@ jobs:
   prepare-run-matrix:
     runs-on: ubuntu-latest
     outputs:
-      scheduled_matrix: ${{ steps.filter-toggle-fsfo-schedule.outputs.scheduling_matrix }}
+      scheduled_matrix: ${{ steps.filter-toggle-fsfo-schedule.outputs.scheduled_matrix }}
     steps:
       - name: Checkout Toggle FSFO Schedule
         uses: actions/checkout@v4
@@ -30,7 +30,7 @@ jobs:
         id: filter-toggle-fsfo-schedule
         run: |
              SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment"}]' operations/.github/workflows/oracle-db-toggle-fsfo-schedule.json | jq '{include: .}')
-             echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
+             echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   report-schedule-toggle-fsfo:
     needs: prepare-run-matrix
