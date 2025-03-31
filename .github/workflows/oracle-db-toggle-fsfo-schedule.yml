@@ -21,9 +21,9 @@ jobs:
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
-             .github/workflows/oracle-db-toggle-fsfo-schedule.json@DBA-849
+             .github/workflows/oracle-db-toggle-fsfo-schedule.json
           path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'DBA-849' }}
           fetch-depth: 0
 
       - name: Filter Toggle FSFO Schedule
