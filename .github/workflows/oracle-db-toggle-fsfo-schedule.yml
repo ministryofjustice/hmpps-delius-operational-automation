@@ -1,11 +1,14 @@
 name: "Oracle: Schedule Toggle Fast Start Failover"
 on:
+  push:
+    branches:
+      - "DBA-849"
   schedule:
     - cron: '00 12 * * TUE'
     - cron: '00 14 * * TUE'
     - cron: '00 10 * * THU'
     - cron: '00 14 * * THU'
-
+    
 jobs:
   prepare-run-matrix:
     runs-on: ubuntu-latest
