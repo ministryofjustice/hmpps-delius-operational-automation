@@ -1,5 +1,5 @@
 name: "Oracle: Toggle Fast Start Failover"
-run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-toggle-fsfo"
+run-name: "Oracle: ${{ inputs.TargetEnvironment }}-toggle-fsfo"
 on:
   workflow_dispatch:
     inputs:
@@ -68,7 +68,7 @@ permissions:
 jobs:          
   oracle_toggle_fsfo:
     name: oracle-toggle-fsfo
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+    environment: ${{ inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
@@ -78,7 +78,7 @@ jobs:
 
       - name: Prepare Target Name
         id: preparetargetname
-        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT
+        run: echo TargetHost="environment_name_$(echo ${{ inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT
 
       - name: Checkout Ansible Playbooks and Roles From hmpps-delius-operation-automation
         uses: actions/checkout@v4
@@ -88,7 +88,7 @@ jobs:
             playbooks/oracle_ha
             playbooks/ansible.cfg
           path: operations
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          ref: ${{ inputs.SourceCodeVersion }}
           fetch-depth: 0
 
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
@@ -100,7 +100,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          ref: ${{ inputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -116,12 +116,12 @@ jobs:
         shell: bash
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          if [[ "${{ github.event.inputs.FSFOMode }}" == "disable" ]];
+          if [[ "${{ inputs.FSFOMode }}" == "disable" ]];
           then
              $disable_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
              -e primary=${{ steps.preparetargetname.outputs.TargetHost }}
           fi
-          if [[ "${{ github.event.inputs.FSFOMode }}" == "enable" ]];
+          if [[ "${{ inputs.FSFOMode }}" == "enable" ]];
           then
             # NOTE: FSFO will only be enabled if fsfo_mode is "enabled" in the
             # relevant Ansible group_vars file for the primary database.
