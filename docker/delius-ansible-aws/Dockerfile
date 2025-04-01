@@ -19,6 +19,9 @@ RUN if curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ub
   dpkg -i session-manager-plugin.deb; \
   fi
 
+ENV TZ=Europe/London
+RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime && echo ${TZ} > /etc/timezone
+
 # Pip
 COPY requirements.txt requirements.yml ./
 RUN pip install -U pip && pip install --upgrade -r requirements.txt \
