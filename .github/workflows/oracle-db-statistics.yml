@@ -86,7 +86,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
     timeout-minutes: 1440
     continue-on-error: false
     steps:
@@ -145,7 +145,7 @@ jobs:
     environment: ${{ github.event.inputs.ImportSourceEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -217,7 +217,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
     timeout-minutes: 1440
     continue-on-error: false
     steps:
