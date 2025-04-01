@@ -1,5 +1,8 @@
 FROM python:3-slim
 
+ENV TZ=Europe/London
+RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime && echo ${TZ} > /etc/timezone
+
 LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-webops@digital.justice.gov.uk)" \
   org.opencontainers.image.vendor="Ministry of Justice" \
   org.opencontainers.image.title="delius-ansible-aws" \
@@ -18,9 +21,6 @@ RUN if curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ub
   curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_arm64/session-manager-plugin.deb" -o "session-manager-plugin.deb" && \
   dpkg -i session-manager-plugin.deb; \
   fi
-
-ENV TZ=Europe/London
-RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime && echo ${TZ} > /etc/timezone
 
 # Pip
 COPY requirements.txt requirements.yml ./
