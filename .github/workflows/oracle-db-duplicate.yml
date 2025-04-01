@@ -85,7 +85,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -249,7 +249,7 @@ jobs:
     environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -339,7 +339,7 @@ jobs:
     environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -394,7 +394,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     needs: [oracle-rman-import-schema,oracle-rman-pre-duplicate,stop-audit-replication]
     timeout-minutes: 1440
     continue-on-error: false
@@ -469,7 +469,7 @@ jobs:
     environment: ${{ github.event.client_payload.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     continue-on-error: false
     outputs:
       TargetEnvironment: ${{ steps.response.outputs.TargetEnvironment }}
@@ -522,7 +522,7 @@ jobs:
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     needs: [oracle-rman-duplicate-check]
     timeout-minutes: 1440
     continue-on-error: false
@@ -601,7 +601,7 @@ jobs:
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
     timeout-minutes: 1440
     continue-on-error: false
@@ -733,7 +733,7 @@ jobs:
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     needs: [oracle-rman-pre-duplicate,oracle-rman-export-schema,oracle-rman-import-schema,oracle-rman-duplicate,oracle-rman-duplicate-check,oracle-rman-post-duplicate,oracle-build-ha]
     environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     env:

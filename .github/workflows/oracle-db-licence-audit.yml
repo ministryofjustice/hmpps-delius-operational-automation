@@ -28,7 +28,7 @@ jobs:
     name: oracle-licence-audit
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     strategy:
       fail-fast: false
       max-parallel: 1
