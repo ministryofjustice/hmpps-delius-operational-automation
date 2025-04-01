@@ -91,7 +91,7 @@ jobs:
     name: oracle-aws-snapshot
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.79.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     environment: ${{ github.event.inputs.TargetEnvironment }}
     timeout-minutes: 1440
     continue-on-error: false
