@@ -25,7 +25,14 @@ on:
           - "delius-mis-stage"
           - "delius-mis-preprod"
           - "delius-mis-prod"
-          
+      FSFOMode:
+        description: "FSFO mode required."
+        type: choice
+        default: "disable"
+        options:
+          - "disable"
+          - "enable"
+
 env:
   ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/common/working_day.yml
@@ -50,9 +57,15 @@ jobs:
 
       - name: Filter Toggle FSFO Schedule
         id: filter-toggle-fsfo-schedule
+        shell: bash
         run: |
-             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Schedule","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
-             echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
+             # Schedule an immediate run if using Workflow Dispatch, otherwise check if a run is scheduled.
+             if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+                 echo "scheduled_matrix={\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"Schedule\": \"IMMEDIATE\",\"Action\": \"${{ inputs.FSFOMode }}\",\"SkipNonWorkingDays\": \"No\"}" >> $GITHUB_OUTPUT
+             else
+                SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Schedule","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
+                echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
+             fi
 
   report-schedule-toggle-fsfo:
     needs: prepare-run-matrix
