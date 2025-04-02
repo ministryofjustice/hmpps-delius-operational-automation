@@ -9,7 +9,23 @@ on:
     - cron: '00 10 * * THU'
     - cron: '00 14 * * THU'
   workflow_dispatch:
- 
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-preprod"
+          - "delius-core-prod"
+          - "delius-mis-dev"
+          - "delius-mis-stage"
+          - "delius-mis-preprod"
+          - "delius-mis-prod"
+          
 env:
   ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/common/working_day.yml
@@ -65,7 +81,7 @@ jobs:
   check-if-non-working-day:
     needs: prepare-run-matrix
     runs-on: ubuntu-latest
-    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
+    if: (${{ github.event_name == 'workflow_dispatch'}} or ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }})
     strategy:
       max-parallel: 1
       fail-fast: false
