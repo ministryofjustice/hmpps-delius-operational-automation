@@ -91,10 +91,12 @@ jobs:
   # toggling of the FSFO from the strategy matrix.  We set max-parallel to 1 for
   # this job as it updates the Schedule JSON file and we do not want concurrent
   # updates to be happening.
+  # (If using workflow dispatch we don't check the non-working days since we
+  #  have manually forced that option)
   check-if-non-working-day:
     needs: prepare-run-matrix
     runs-on: ubuntu-latest
-    if: (${{ github.event_name == 'workflow_dispatch'}} or ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }})
+    if: (${{ github.event_name == 'schedule'}} and ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }})
     strategy:
       max-parallel: 1
       fail-fast: false
