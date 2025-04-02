@@ -120,6 +120,7 @@ jobs:
     schema_update:
         name: Update schemas on ldap container ${{ github.event.inputs.environment }}-preapproved
         if: github.event.inputs.update_schemas == 'true'
+        needs: deploy
         runs-on: ubuntu-latest
         environment: delius-core-${{ github.event.inputs.environment }}-preapproved
         permissions:
@@ -165,7 +166,8 @@ jobs:
                 --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} \
                 --task "$TASK_ARN" \
                 --container ldap \
-                --command "ldapadd -Y EXTERNAL -H ldapi:/// -f hmpps-ndelius-rbac/schemas/delius.ldif"
+                --command "ldapadd -Y EXTERNAL -H ldapi:/// -f hmpps-ndelius-rbac/schemas/delius.ldif" \
+                --interactive
 
           - name: Add pwm schema
             run: |
@@ -173,4 +175,5 @@ jobs:
                 --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} \
                 --task "$TASK_ARN" \
                 --container ldap \
-                --command "ldapadd -Y EXTERNAL -H ldapi:/// -f hmpps-ndelius-rbac/schemas/pwm.ldif"
+                --command "ldapadd -Y EXTERNAL -H ldapi:/// -f hmpps-ndelius-rbac/schemas/pwm.ldif" \
+                --interactive
