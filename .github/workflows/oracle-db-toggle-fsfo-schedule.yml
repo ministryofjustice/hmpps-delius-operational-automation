@@ -61,11 +61,10 @@ jobs:
         run: |
              # Schedule an immediate run if using Workflow Dispatch, otherwise check if a run is scheduled.
              if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-                 echo "scheduled_matrix={\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"Schedule\": \"IMMEDIATE\",\"Action\": \"${{ inputs.FSFOMode }}\",\"SkipNonWorkingDays\": \"No\"}" >> $GITHUB_OUTPUT
-             else
-                SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Schedule","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
-                echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
+                 echo "{\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"Schedule\": \"IMMEDIATE\",\"Action\": \"${{ inputs.FSFOMode }}\",\"SkipNonWorkingDays\": \"No\"}" > $schedule_file
              fi
+             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Schedule","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
+             echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   report-schedule-toggle-fsfo:
     needs: prepare-run-matrix
@@ -96,7 +95,7 @@ jobs:
   check-if-non-working-day:
     needs: prepare-run-matrix
     runs-on: ubuntu-latest
-    if: (${{ github.event_name == 'schedule'}} and ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }})
+    if: (${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }})
     strategy:
       max-parallel: 1
       fail-fast: false
