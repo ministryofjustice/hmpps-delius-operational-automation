@@ -62,6 +62,7 @@ jobs:
              # Schedule an immediate run if using Workflow Dispatch, otherwise check if a run is scheduled.
              if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
                  echo "{\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"CronSchedule\": \"IMMEDIATE\",\"Action\": \"${{ inputs.FSFOMode }}\",\"SkipNonWorkingDays\": \"No\"}" > $schedule_file
+                 cat $schedule_file
                  SCHEDULED_JSON=$(jq $schedule_file | jq '{include: .}')
              else
                  SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Schedule","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
