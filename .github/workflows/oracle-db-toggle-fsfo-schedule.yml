@@ -39,6 +39,11 @@ env:
   inventory: inventory/ansible
   schedule_file: operations/.github/workflows/oracle-db-toggle-fsfo-schedule.json
 
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
 jobs:
   prepare-run-matrix:
     runs-on: ubuntu-latest
