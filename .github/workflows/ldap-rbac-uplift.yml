@@ -17,7 +17,7 @@ on:
         type: string
       
       update_schemas:
-        description: 'Optionally update schemas'
+        description: 'Update schemas'
         required: false
         default: false
         type: boolean
