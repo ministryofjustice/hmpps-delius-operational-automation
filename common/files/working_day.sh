@@ -17,11 +17,11 @@ SET PAGES 0
 SELECT
     CASE
         WHEN to_char(sysdate, 'DAY') IN ( 'SATURDAY', 'SUNDAY' ) THEN
-            'NON WORKING DAY'
+            'NO'
         WHEN rd.standard_reference_list_id IS NOT NULL THEN
-            'NON WORKING DAY'
+            'NO'
         ELSE
-            'WORKING DAY'
+            'YES'
     END working_day
 FROM
     dual d
