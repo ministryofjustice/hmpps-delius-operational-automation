@@ -1,5 +1,5 @@
 name: "Oracle: Statistics"
-run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-delius-oracle-statistics"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || 'iterative-call-for' }}-delius-oracle-statistics"
 on:
   workflow_dispatch:
     inputs:
@@ -71,7 +71,7 @@ on:
         default: "main"
 
   repository_dispatch:
-    types: ["oracle-db-stats-success","oracle-db-stats-failure"]     
+    types: ["oracle-db-statistics-success","oracle-db-statistics-failure"]     
         
 env:
   ansible_config: operations/playbooks/ansible.cfg
@@ -83,79 +83,77 @@ permissions:
   packages: read
   id-token: write
 
-jobs:          
+jobs:
+  oracle-pre-delius-statistics:
+    runs-on: ubuntu-latest
+    outputs:
+      TargetHost: ${{ steps.preparation.outputs.TargetHost }}
+      TargetEnvironment: ${{ steps.preparation.outputs.TargetEnvironment }}
+      ImportSourceEnvironment: ${{ steps.preparation.outputs.ImportSourceEnvironment }}
+      StatisticsIdentifier: ${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier }}
+      SourceCodeVersion: ${{ steps.preparation.outputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ steps.preparation.outputs.SourceConfigVersion }}
+      Verbose: ${{ steps.preparation.outputs.Verbose }}
+      Inputs: ${{ steps.preparation.outputs.Inputs }}
+      JobId: ${{ github.job }}
+    steps:
+      - name: Prepare Target Name And Json Input For Repository Dispatch Event
+        id: preparation
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
+          then
+            TargetHost=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_delius_primarydb   
+            # Build a JSON variable capturing all the inputs which have been supplied
+            Inputs="{"
+            Inputs=$Inputs"\"TargetHost\": \"$TargetHost\","
+            Inputs=$Inputs"\"TargetEnvironment\": \"${{ github.event.inputs.TargetEnvironment }}\","
+            Inputs=$Inputs"\"GatherNewStatistics\": \"${{ github.event.inputs.GatherNewStatistics }}\","
+            Inputs=$Inputs"\"GatherParallelism\": \"${{ github.event.inputs.GatherParallelism }}\","
+            Inputs=$Inputs"\"ExportBackupStatisticsToS3\": \"${{ github.event.inputs.ExportBackupStatisticsToS3 }}\","
+            Inputs=$Inputs"\"StatisticsIdentifier\": \"${{ github.event.inputs.StatisticsIdentifier }}\","
+            Inputs=$Inputs"\"ImportSourceEnvironment\": \"${{ github.event.inputs.ImportSourceEnvironment }}\","
+            Inputs=$Inputs"\"SourceCodeVersion\": \"${{ github.event.inputs.SourceCodeVersion }}\","
+            Inputs=$Inputs"\"SourceConfigVersion\": \"${{ github.event.inputs.SourceConfigVersion }\","
+            Inputs=$Inputs"\"VerboseOutput\": \"${{ github.event.inputs.VerboseOutput }\""
+            Inputs=$Inputs"}"
+          elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]
+          then
+            echo "${{ github.event.client_payload }}"
+            if [ "${{ github.event.action }}" = "oracle-db-statistics-failure" ]
+            then
+              echo "Gathering of Delius statistics failed."
+              exit 1
+            fi
+            Inputs='${{ toJson(github.event.client_payload) }}'
+          fi
+          echo "Inputs="$(echo $Inputs | jq @json)
+          Inputs=$(echo $Inputs | jq -r | jq @json)
+
+          echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
+
+          echo "TargetHost=$TargetHost" >> $GITHUB_OUTPUT
+          echo "TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')" >> $GITHUB_OUTPUT
+          echo "ImportSourceEnvironment=$(echo $Inputs | jq -r '.ImportSourceEnvironment')" >> $GITHUB_OUTPUT
+          echo "StatisticsIdentifier=$(echo $Inputs | jq -r '.StatisticsIdentifier')" >> $GITHUB_OUTPUT
+          echo "SourceCodeVersion="$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
+          echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
+          echo "Verbose=$(echo $Inputs | jq -r '.Verbose')" >> $GITHUB_OUTPUT
+
   oracle-gather-delius-statistics:
-    if: ${{ github.event.inputs.ImportSourceEnvironment == 'None' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.GatherNewStatistics == 'yes') }}
+    needs: [oracle-pre-delius-statistics]
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
-
-    steps:
-
-      - name: Prepare Target Name
-        id: preparetargetname
-        run: |
-            echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT      
-    jobs:
-  example-job:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Prepare Target Name
-        id: preparetargetname
-        run: |
-          echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT      
-          if [[ "${{ github.event_name }}" != "repository_dispatch" ]]; then
-            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-              TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
-              GatherNewStatistics="${{ github.event.inputs.GatherNewStatistics }}"
-              GatherParallelism="${{ github.event.inputs.GatherParallelism }}"
-              ExportBackupStatisticsToS3="${{ github.event.inputs.ExportBackupStatisticsToS3 }}"
-              StatisticsIdentifier="${{ github.event.inputs.StatisticsIdentifier }}"
-              ImportSourceEnvironment="${{ github.event.inputs.ImportSourceEnvironment }}"
-              SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
-              SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
-            fi
-
-            # Build a JSON variable capturing all the inputs which have been supplied
-            Inputs="{"
-            Inputs=$Inputs"\"TargetEnvironment\": \"$TargetEnvironment\","
-            Inputs=$Inputs"\"GatherNewStatistics\": \"$GatherNewStatistics\","
-            Inputs=$Inputs"\"GatherParallelism\": \"$GatherParallelism\","
-            Inputs=$Inputs"\"ExportBackupStatisticsToS3\": \"${ExportBackupStatisticsToS3}\","
-            Inputs=$Inputs"\"StatisticsIdentifier\": \"${StatisticsIdentifier:-yes}\","
-            Inputs=$Inputs"\"ImportSourceEnvironment\": \"$ImportSourceEnvironment\","
-            Inputs=$Inputs"\"SourceCodeVersion\": \"$SourceCodeVersion\","
-            Inputs=$Inputs"\"SourceConfigVersion\": \"$SourceConfigVersion\","
-            Inputs=$Inputs"}"
-          fi
-
-      - name: Repository Dispatch Event
-        if: ${{ github.event_name == 'repository_dispatch' }}
-        run: |
-          echo "Responding to Repository Dispatch event"
-          Inputs='${{ toJson(github.event.client_payload) }}'
-          Inputs=$(echo $Inputs | jq -r)
-          Action='${{ github.event.action }}'
-          if [[ "$Action" == "oracle-db-stats-success" ]]; then
-            StatsStatus="success"
-            Inputs=$(echo $Inputs | jq '.Phase = "Remove Transient Table Statistics Locks"')
-          else
-            echo "Stats has failed"
-            StatsStatus="failed"
-          fi                                                     
- 
-      - name: Prepare Slack Channel Name
-        id: prepare-slack-channel-name
-        run: |
-            if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
-              echo "SlackChannel=delius-aws-oracle-prod-alerts" >> $GITHUB_OUTPUT
-            else
-              echo "SlackChannel=delius-aws-oracle-dev-alerts" >> $GITHUB_OUTPUT
-            fi
- 
+    env:
+      Inputs: "${{ needs.oracle-pre-delius-statistics.outputs.Inputs }}"
+    outputs: 
+      JobId: ${{ github.job }}
+    steps:                                        
       - name: Checkout Ansible Playbooks and Roles From hmpps-delius-operation-automation
         uses: actions/checkout@v4
         with:
@@ -187,21 +185,7 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           role-duration-seconds: 21600
           aws-region: "eu-west-2"
-
-      - name: Get Slack Token
-        id: get-slack-token
-        run:  |
-              # The OEM Account ID which is associated with this Delius account is held in the SSM Parameter Store.
-              OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
-                    jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
-                    jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
-              # We can then access the Slack Token from the AWS Secrets for that OEM Account
-              SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
-              SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
-              SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
-              echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT  
   
-
       - name: Start Ansible Gather Delius Statistics
         shell: bash
         run: |
@@ -211,48 +195,44 @@ jobs:
           -e import_source_environment=None \
           -e gather_new_statistics=${{ github.event.inputs.GatherNewStatistics }} \
           -e statistics_identifier=${{ github.event.inputs.StatisticsIdentifier }} \
-          -e export_to_s3=${{ github.event.inputs.ExportBackupStatisticsToS3 }}  \
-          -e parallelism=${{ github.event.inputs.GatherParallelism }} ${{ github.event.inputs.VerboseOutput }}  \
-          -e repository_dispatch="${{ github.repository }}"  \
-          -e json_inputs="$Inputs" $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
+          -e export_to_s3=${{ github.event.inputs.ExportBackupStatisticsToS3 }} \
+          -e parallelism=${{ github.event.inputs.GatherParallelism }} \
+          -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" \
+          ${{ github.event.inputs.VerboseOutput }}
 
-            # To avoid clutter we do not report stats successes 
-      - name: Slack Failure Notification
-        id: slack-failure
-        if: failure()
-        uses: slackapi/slack-github-action@v1.27.0
-        with:
-            channel-id: "${{ env.SlackChannel }}"
-            payload: |
-              {"username":"Failed Stats","icon_emoji":"red_circle","text":"Failed Stats","blocks":[{"type": "section","text": {"type": "mrkdwn","text": "Failed Stats:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Stats Target:*\n${{ env.StatsTarget }}"}]}]}
-        env:
-          SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}       
-
-  oracle_export_delius_statistics:
-    if: ${{ github.event.inputs.ImportSourceEnvironment != 'None' }}
-    name: oracle-export-delius-statistics
-    environment: ${{ github.event.inputs.ImportSourceEnvironment }}
+  oracle-export-remote-delius-statistics:
+    if: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment != 'None' }}
+    needs: [oracle-pre-delius-statistics]
+    environment: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
+      TargetHost: ${{ needs.oracle-pre-delius-statistics.outputs.TargetHost }}
+      TargetEnvironment: ${{ needs.oracle-pre-delius-statistics.outputs.TargetEnvironment }}
+      ImportSourceEnvironment: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }}
+      StatisticsIdentifier: ${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier }}
+      SourceCodeVersion: ${{ needs.oracle-pre-delius-statistics.outputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ needs.oracle-pre-delius-statistics.outputs.SourceConfigVersion }}
+      Verbose: ${{ needs.oracle-pre-delius-statistics.outputs.Verbose }}
+      Inputs: ${{ needs.oracle-pre-delius-statistics.outputs.Inputs }}
+      JobId: ${{ github.job }}
       RemoteStatisticsIdentifier: ${{ steps.preparetargetname.outputs.RemoteStatisticsIdentifier }}
     steps:
-
-      - name: Prepare Target Name And Remote Statistics Identifier
-        id: preparetargetname
+      - name: Prepare Remote Target Name And Remote Statistics Identifier
+        id: preparation
         shell: bash
         run: |
-          echo TargetHost="environment_name_$(echo ${{ github.event.inputs.ImportSourceEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT
-          if [[ -z ${{ github.event.inputs.StatisticsIdentifier }} ]]
+          TargetHost="environment_name_$(echo ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_delius_primarydb" >> $GITHUB_OUTPUT
+          if [[ -z ${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier }} ]]
           then
             DATE=$(date +"%Y%m%dT%H%M%S")
-            ENV=$(echo ${{ github.event.inputs.ImportSourceEnvironment }} | awk -F- '{print $NF}')
+            ENV=$(echo ${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier.ImportSourceEnvironment }} | awk -F- '{print $NF}')
             RemoteStatisticsIdentifier="${ENV^^}_${DATE}"
           else
-            RemoteStatisticsIdentifier="${{ github.event.inputs.StatisticsIdentifier }}"
+            RemoteStatisticsIdentifier="${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier }}"
           fi
           echo RemoteStatisticsIdentifier="${RemoteStatisticsIdentifier}" >> $GITHUB_OUTPUT
 
@@ -264,7 +244,7 @@ jobs:
             playbooks/oracle_statistics
             playbooks/ansible.cfg
           path: operations
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          ref: ${{ needs.oracle-pre-delius-statistics.outputs.SourceCodeVersion }}
           fetch-depth: 0
 
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
@@ -276,7 +256,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          ref: ${{ needs.oracle-pre-delius-statistics.outputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -293,28 +273,23 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-          -e hosts=${{ steps.preparetargetname.outputs.TargetHost }} \
-          -e import_source_environment=${{ github.event.inputs.ImportSourceEnvironment }} \
+          -e hosts=${{ steps.preparation.outputs.TargetHost }} \
+          -e import_source_environment=${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }} \
+          -e statistics_identifier=${{ steps.preparation.outputs.RemoteStatisticsIdentifier }} \
           -e gather_new_statistics=no \
-          -e statistics_identifier=${{ steps.preparetargetname.outputs.RemoteStatisticsIdentifier }} \
-          -e export_to_s3=yes \
-          -e parallelism=${{ github.event.inputs.GatherParallelism }} ${{ github.event.inputs.VerboseOutput }}
+          -e export_to_s3=yes ${{ needs.oracle-pre-delius-statistics.outputs.VerboseOutput }}
 
-  oracle_import_delius_statistics:
-    needs: oracle_export_delius_statistics
-    name: oracle-import-delius-statistics
-    environment: ${{ github.event.inputs.TargetEnvironment }}
+  oracle-import-delius-statistics:
+    needs: [oracle-export-remote-delius-statistics]
+    environment: ${{ needs.oracle-export-remote-delius-statistics.outputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
+    outputs: 
+      JobId: ${{ github.job }}
     steps:
-
-      - name: Prepare Target Name
-        id: preparetargetname
-        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_delius_primarydb" >> $GITHUB_OUTPUT
-
       - name: Checkout Ansible Playbooks and Roles From hmpps-delius-operation-automation
         uses: actions/checkout@v4
         with:
@@ -323,7 +298,7 @@ jobs:
             playbooks/oracle_statistics
             playbooks/ansible.cfg
           path: operations
-          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          ref: ${{ needs.oracle-export-remote-delius-statistics.outputs.SourceCodeVersion }}
           fetch-depth: 0
 
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
@@ -335,7 +310,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          ref: ${{ needs.oracle-export-remote-delius-statistics.outputs.SourceConfigVersion }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
@@ -352,9 +327,102 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-          -e hosts=${{ steps.preparetargetname.outputs.TargetHost }} \
-          -e import_source_environment=${{ github.event.inputs.ImportSourceEnvironment }} \
+          -e hosts=${{needs.oracle-export-remote-delius-statistics.outputs.TargetHost }} \
+          -e import_source_environment=${{ needs.oracle-export-remote-delius-statistics.outputs.ImportSourceEnvironment }} \
           -e gather_new_statistics=no \
-          -e statistics_identifier=${{ needs.oracle_export_delius_statistics.outputs.RemoteStatisticsIdentifier }} \
-          -e export_to_s3=no \
-          -e parallelism=${{ github.event.inputs.GatherParallelism }} ${{ github.event.inputs.VerboseOutput }}
+          -e statistics_identifier=${{ needs.oracle-export-remote-delius-statistics.outputs.RemoteStatisticsIdentifier }} \
+          -e export_to_s3=no ${{ github.event.inputs.VerboseOutput }}
+
+  slack-notification:
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
+    needs: [oracle-pre-delius-statistics,oracle-gather-delius-statistics,oracle-export-remote-delius-statistics,oracle-import-delius-statistics]
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
+    env:
+      TargetHost: ${{ needs.oracle-pre-delius-statistic.outputs.TargetHost }}
+      TargetEnvironment: ${{ needs.oracle-pre-delius-statistic.outputs.TargetEnvironment }}
+    steps:
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      - name: Get Slack Token
+        id: get-slack-token
+        shell: bash
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
+                jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
+                jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
+          SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
+          SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
+          SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
+          echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
+
+          if [[ "${{ needs.oracle-pre-delius-statistics.result }}" == "failure" ]]
+          then
+            echo "jobid=${{ needs.oracle-pre-delius-statistics.outputs.JobId }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.oracle-gather-delius-statistics.result }}" == "failure" ]]
+          then
+            echo "jobid=${{ needs.oracle-gather-delius-statistics.outputs.JobId }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.oracle-export-remote-delius-statistics.result }}" == "failure" ]]
+          then
+            echo "jobid=${{ needs.oracle-export-remote-delius-statistics.outputs.JobId }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.oracle-import-delius-statistics.result }}" == "failure" ]]
+          then
+            echo "jobid=${{ needs.oracle-import-delius-statistics.outputs.JobId }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Slack Failure Notification
+        id: slack
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+            channel-id: "delius-aws-oracle-dev-alerts"
+            payload: |
+              { 
+                "icon_emoji":"large_purple_circle",
+                "text":"Failed Delius Oracle Statistics",
+                "blocks":[
+                  {
+                    "type": "section",
+                    "text": 
+                    {
+                      "type": "mrkdwn",
+                      "text": "Failed Delius Oracle Statistics:"}
+                    },
+                    {
+                      "type": "section",
+                      "fields":[
+                          {
+                            "type": "mrkdwn",
+                            "text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"
+                          },
+                          {
+                            "type": "mrkdwn",
+                            "text": "*Job:*\n${{ steps.get-slack-token.outputs.jobid }}"
+                          },
+                          {
+                            "type": "mrkdwn",
+                            "text": "*Repo:*\n${{ github.repository }}"
+                          },
+                          {
+                            "type": "mrkdwn",
+                            "text": "*Target Host:*\n${{ env.TargetHost }}"
+                          },
+                          {
+                            "type": "mrkdwn",
+                            "text": "*Target Environment:*\n${{ env.TargetEnvironment }}"
+                          },                         
+                        ]
+                    }  
+                  ]
+                }
+        env:
+          SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
