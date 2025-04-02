@@ -152,8 +152,6 @@ jobs:
 
           - name: Backup & remove existing schema files
             run: |
-              SCHEMA_DIR="/etc/openldap/slapd.d/cn=config/cn=schema"
-
               aws ecs execute-command \
                 --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} \
                 --task "$TASK_ARN" \
