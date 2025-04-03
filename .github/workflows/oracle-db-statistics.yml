@@ -144,7 +144,7 @@ jobs:
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
 
   oracle-gather-delius-statistics:
-    if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.GatherNewStatistics == 'yes' || github.event.inputs.ExportBackupStatisticsToS3 == 'yes') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.GatherNewStatistics == 'yes' || github.event.inputs.ExportBackupStatisticsToS3 == 'yes') }}
     needs: [oracle-pre-delius-statistics]
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
