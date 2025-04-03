@@ -128,10 +128,6 @@ jobs:
             fi
             Inputs='${{ toJson(github.event.client_payload) }}'
           fi
-          echo "Inputs="$(echo $Inputs | jq @json)
-          Inputs=$(echo $Inputs | jq -r | jq @json)
-
-          echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
 
           echo "TargetHost=$TargetHost" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')" >> $GITHUB_OUTPUT
@@ -140,6 +136,10 @@ jobs:
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "Verbose=$(echo $Inputs | jq -r '.Verbose')" >> $GITHUB_OUTPUT
+
+          echo "Inputs="$(echo $Inputs | jq @json)
+          Inputs=$(echo $Inputs | jq -r | jq @json)
+          echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
 
   oracle-gather-delius-statistics:
     if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.GatherNewStatistics == 'yes') }}
@@ -385,7 +385,7 @@ jobs:
         id: slack
         uses: slackapi/slack-github-action@v1.27.0
         with:
-            channel-id: "delius-aws-oracle-dev-alerts"
+            channel-id: "delius-aws-oracle-dev-alerts-test"
             payload: |
               { 
                 "icon_emoji":"large_purple_circle",
