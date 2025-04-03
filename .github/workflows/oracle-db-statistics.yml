@@ -91,8 +91,8 @@ jobs:
       TargetHost: ${{ steps.preparation.outputs.TargetHost }}
       TargetEnvironment: ${{ steps.preparation.outputs.TargetEnvironment }}
       ImportSourceEnvironment: ${{ steps.preparation.outputs.ImportSourceEnvironment }}
-      StatisticsIdentifier: ${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier }}
-      ExportBackupStatisticsToS3: ${{ needs.oracle-pre-delius-statistics.outputs.ExportBackupStatisticsToS3 }}
+      StatisticsIdentifier: ${{ steps.preparation.outputs.StatisticsIdentifier }}
+      ExportBackupStatisticsToS3: ${{ steps.preparation.outputs.ExportBackupStatisticsToS3 }}
       SourceCodeVersion: ${{ steps.preparation.outputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ steps.preparation.outputs.SourceConfigVersion }}
       Verbose: ${{ steps.preparation.outputs.Verbose }}
@@ -138,9 +138,6 @@ jobs:
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "Verbose=$(echo $Inputs | jq -r '.Verbose')" >> $GITHUB_OUTPUT
-
-          echo "ExportBackupStatisticsToS3=$(echo $Inputs | jq -r '.ExportBackupStatisticsToS3')"
-          echo "ImportSourceEnvironment=$(echo $Inputs | jq -r '.ImportSourceEnvironment')"
 
           echo "Inputs="$(echo $Inputs | jq @json)
           Inputs=$(echo $Inputs | jq -r | jq @json)
