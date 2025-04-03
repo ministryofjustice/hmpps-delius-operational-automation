@@ -92,6 +92,7 @@ jobs:
       TargetEnvironment: ${{ steps.preparation.outputs.TargetEnvironment }}
       ImportSourceEnvironment: ${{ steps.preparation.outputs.ImportSourceEnvironment }}
       StatisticsIdentifier: ${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier }}
+      ExportBackupStatisticsToS3: ${{ needs.oracle-pre-delius-statistics.outputs.ExportBackupStatisticsToS3 }}
       SourceCodeVersion: ${{ steps.preparation.outputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ steps.preparation.outputs.SourceConfigVersion }}
       Verbose: ${{ steps.preparation.outputs.Verbose }}
@@ -132,7 +133,9 @@ jobs:
           echo "TargetHost=$TargetHost" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')" >> $GITHUB_OUTPUT
           echo "ImportSourceEnvironment=$(echo $Inputs | jq -r '.ImportSourceEnvironment')" >> $GITHUB_OUTPUT
+          echo "ImportSourceEnEvironment=$(echo $Inputs | jq -r '.ImportSourceEnvironment')" >> $GITHUB_OUTPUT
           echo "StatisticsIdentifier=$(echo $Inputs | jq -r '.StatisticsIdentifier')" >> $GITHUB_OUTPUT
+          echo "ExportBackupStatisticsToS3=$(echo $Inputs | jq -r '.ExportBackupStatisticsToS3')" >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "Verbose=$(echo $Inputs | jq -r '.Verbose')" >> $GITHUB_OUTPUT
@@ -202,7 +205,7 @@ jobs:
           ${{ github.event.inputs.VerboseOutput }}
 
   oracle-export-remote-delius-statistics:
-    if: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment != 'None' }}
+    if: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment != 'None' || needs.oracle-pre-delius-statistics.outputs.ExportBackupStatisticsToS3 == 'yes' }}
     needs: [oracle-pre-delius-statistics]
     environment: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -281,6 +284,7 @@ jobs:
           -e export_to_s3=yes ${{ needs.oracle-pre-delius-statistics.outputs.VerboseOutput }}
 
   oracle-import-delius-statistics:
+    if: ${{ needs.oracle-export-remote-delius-statistics.outputs.ImportSourceEnvironment != 'None' }}
     needs: [oracle-export-remote-delius-statistics]
     environment: ${{ needs.oracle-export-remote-delius-statistics.outputs.TargetEnvironment }}
     runs-on: ubuntu-latest
