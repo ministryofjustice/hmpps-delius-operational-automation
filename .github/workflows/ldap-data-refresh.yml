@@ -88,7 +88,7 @@ jobs:
     needs:
         - pre-checks
     runs-on: ubuntu-latest
-    environment: delius-core-${{ github.event.inputs.destination_env }}
+    environment: delius-core-${{ github.event.inputs.destination_env }}-preapproved
     steps:
       - name: "Configure AWS Credentials"
         uses: aws-actions/configure-aws-credentials@v4
@@ -120,7 +120,7 @@ jobs:
     needs:
       - pre-checks
     runs-on: ubuntu-latest
-    environment: delius-core-${{ github.event.inputs.source_env }}
+    environment: delius-core-${{ github.event.inputs.source_env }}-preapproved
     steps:
       - name: "Configure AWS Credentials"
         uses: aws-actions/configure-aws-credentials@v4
@@ -284,7 +284,7 @@ jobs:
       - source
       - destination-pre
     runs-on: ubuntu-latest
-    environment: delius-core-${{ github.event.inputs.destination_env }}
+    environment: delius-core-${{ github.event.inputs.destination_env }}-preapproved
     steps:
       - name: "Configure AWS Credentials"
         uses: aws-actions/configure-aws-credentials@v4
@@ -367,7 +367,7 @@ jobs:
     needs:
       - destination
     runs-on: ubuntu-latest
-    environment: delius-core-${{ github.event.inputs.destination_env }}
+    environment: delius-core-${{ github.event.inputs.destination_env }}-preapproved
     steps:
       - name: "Configure AWS Credentials"
         uses: aws-actions/configure-aws-credentials@v4
@@ -393,7 +393,7 @@ jobs:
       - destination
       - destination-post
     runs-on: ubuntu-latest
-    environment: delius-core-${{ github.event.inputs.destination_env }}
+    environment: delius-core-${{ github.event.inputs.destination_env }}-preapproved
     steps:
       - name: "Configure AWS Credentials"
         uses: aws-actions/configure-aws-credentials@v4

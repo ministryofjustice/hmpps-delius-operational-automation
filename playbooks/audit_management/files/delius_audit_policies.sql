@@ -14,26 +14,48 @@ SET VERIFY OFF
 prompt --Monitor common security relevant activities
 
 AUDIT POLICY ORA_SECURECONFIG;
+
 AUDIT POLICY ORA_ACCOUNT_MGMT;
 
 --Monitor common suspicious activities
 prompt --Monitor multiple failed login attempts
+-- By default it should only audit when not successful.
+AUDIT POLICY ORA_LOGON_FAILURES WHENEVER NOT SUCCESSFUL;
 
-AUDIT POLICY ORA_LOGON_FAILURES;
+prompt --Audit that the Center for Internet Security (CIS) recommends.
+AUDIT POLICY ORA_CIS_RECOMMENDATIONS;
 
 /* **** */
 /* Custom audit policies */
 /* **** */
 
-CREATE AUDIT POLICY all_dba_actions
-ACTIONS ALL
-WHEN 'SYS_CONTEXT(''USERENV'',''ISDBA'') = ''TRUE'''
-EVALUATE PER STATEMENT
+-- Superfluous records for COMMIT where being added to the audit trail when using ACTIONS ALL.
+-- Can't use EXCLUDE with ACTIONS ALL so need to specify each action.
+-- Use SYS_SESSION_ROLES to check DBA role as USERENV.ISDBA wasn't picking up <username>_DBA users as DBAs.
+CREATE AUDIT POLICY all_dba_actions 
+ACTIONS
+ALTER CLUSTER,CREATE CLUSTER,DROP CLUSTER,TRUNCATE CLUSTER,
+ALTER FUNCTION,CREATE FUNCTION,DROP FUNCTION,
+ALTER INDEX,CREATE INDEX,DROP INDEX,
+ALTER OUTLINE,CREATE OUTLINE,DROP OUTLINE,
+ALTER PACKAGE,CREATE PACKAGE,DROP PACKAGE,
+ALTER PACKAGE BODY,CREATE PACKAGE BODY,DROP PACKAGE BODY,
+ALTER SEQUENCE,CREATE SEQUENCE,DROP SEQUENCE,
+ALTER TABLE,CREATE TABLE,DROP TABLE,TRUNCATE TABLE,
+ALTER TRIGGER,CREATE TRIGGER,DROP TRIGGER,
+ALTER TYPE,CREATE TYPE,DROP TYPE,
+ALTER TYPE BODY,CREATE TYPE BODY,DROP TYPE BODY,
+ALTER VIEW,CREATE VIEW,DROP VIEW,
+DELETE, INSERT, UPDATE
+WHEN 'SYS_CONTEXT(''SYS_SESSION_ROLES'',''DBA'') = ''TRUE'''
+EVALUATE PER SESSION
 ONLY TOPLEVEL;
 
 AUDIT POLICY all_dba_actions;
 
 prompt --Audit same as original traditional audit policy
+-- Have removed LOGON as we don't need to capture every single successful login for all accounts and failures are captured by ORA_LOGON_FAILURES.
+-- Logon auditing is convered by pre-defined ORA_LOGON_FAILURES policy (above) and delius_logon (below).
 CREATE AUDIT POLICY delius
 PRIVILEGES
         CREATE EXTERNAL JOB,
@@ -56,14 +78,12 @@ PRIVILEGES
         ALTER USER,
         BECOME USER,
         CREATE USER,
-        CREATE SESSION,
         AUDIT SYSTEM,
         ALTER SYSTEM,
         CREATE EXTERNAL JOB,
         CREATE PUBLIC SYNONYM,
         DROP PUBLIC SYNONYM
 ACTIONS 
-        LOGON,
         CREATE DATABASE LINK,
         ALTER DATABASE LINK,
         DROP DATABASE LINK,
@@ -80,11 +100,30 @@ ACTIONS
         REVOKE,
         CREATE PLUGGABLE DATABASE,
         ALTER PLUGGABLE DATABASE,
-        DROP PLUGGABLE DATABASE
+        DROP PLUGGABLE DATABASE,
+        CHANGE PASSWORD
 ONLY TOPLEVEL;
 
-AUDIT POLICY DELIUS;
+AUDIT POLICY delius;
 
+-- create a separate policy for logon auditing so we can exlcude those from the DMS pool
+CREATE AUDIT POLICY delius_logon
+PRIVILEGES
+        CREATE SESSION
+ACTIONS 
+        LOGON
+ONLY TOPLEVEL;
+
+-- MIS databases don't have the DMS pool so this will fail.
+BEGIN
+  execute immediate 'AUDIT POLICY delius_logon EXCEPT DELIUS_AUDIT_DMS_POOL';
+EXCEPTION
+WHEN others THEN
+  execute immediate 'AUDIT POLICY delius_logon';
+END;
+/
+-- See this article for details about DMS implementation https://dsdmoj.atlassian.net/wiki/spaces/DSTT/pages/5195465768/AWS+DMS+For+Delius+Audit+Preservation
+-- There is no way to tune the DMS connection pool.
 
 prompt --Audit database-management events
 CREATE AUDIT POLICY TABLESPACE_CHANGES

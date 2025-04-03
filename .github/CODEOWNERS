@@ -1,11 +1,9 @@
 # Add a team or username to this file
 # Example:
-*   @ministryofjustice/hmpps-migration
+*   @ministryofjustice/hosting-migrations
 
-.github/workflows/oracle-* @ministryofjustice/hmpps-dba @ministryofjustice/hmpps-migration @ministryofjustice/hosting-migrations
-
-.github/workflows/delius-* @ministryofjustice/unilink @ministryofjustice/hmpps-migration @ministryofjustice/hosting-migrations
-
-playbooks/** @ministryofjustice/hmpps-dba @ministryofjustice/hmpps-migration @ministryofjustice/hosting-migrations
-docker/** @ministryofjustice/hmpps-migration @ministryofjustice/hosting-migrations
-ansible/** @ministryofjustice/hmpps-migration @ministryofjustice/hosting-migrations
+* @ministryofjustice/hosting-migrations
+.github/workflows/oracle-* @ministryofjustice/hmpps-dba @ministryofjustice/hosting-migrations
+.github/workflows/delius-* @ministryofjustice/unilink @ministryofjustice/hosting-migrations
+playbooks/** @ministryofjustice/hmpps-dba @ministryofjustice/hosting-migrations
+ansible/** @ministryofjustice/hmpps-dba @ministryofjustice/hosting-migrations

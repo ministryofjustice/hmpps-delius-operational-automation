@@ -261,6 +261,9 @@ dms_tables:
   - name: ENFORCEMENT
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
+  - name: EQUALITY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
   - name: EVENT
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
