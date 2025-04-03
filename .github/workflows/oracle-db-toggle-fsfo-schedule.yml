@@ -191,10 +191,18 @@ jobs:
 
       - name: Filter Toggle FSFO Schedule
         id: filter-toggle-fsfo-schedule
+        shell: bash
         run: |
-              SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Action"}]' $schedule_file | jq '{include: .}')
-              echo ${SCHEDULED_JSON} | sed 's/ //g'
-              echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
+             # Schedule an immediate run if using Workflow Dispatch, otherwise check if a run is scheduled.
+             if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+                 echo "[{\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"Action\": \"${{ inputs.FSFOMode }}\"}]" > $schedule_file
+                 cat $schedule_file
+                 SCHEDULED_JSON=$(jq '.' $schedule_file | jq '{include: .}')
+             else
+                 SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Action"}]' $schedule_file | jq '{include: .}')
+             fi
+             echo ${SCHEDULED_JSON} | sed 's/ //g'
+             echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   toggle-fsfo:
       needs: prepare-filtered-run-matrix
