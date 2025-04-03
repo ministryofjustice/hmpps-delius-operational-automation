@@ -114,8 +114,8 @@ jobs:
             Inputs=$Inputs"\"StatisticsIdentifier\": \"${{ github.event.inputs.StatisticsIdentifier }}\","
             Inputs=$Inputs"\"ImportSourceEnvironment\": \"${{ github.event.inputs.ImportSourceEnvironment }}\","
             Inputs=$Inputs"\"SourceCodeVersion\": \"${{ github.event.inputs.SourceCodeVersion }}\","
-            Inputs=$Inputs"\"SourceConfigVersion\": \"${{ github.event.inputs.SourceConfigVersion }\","
-            Inputs=$Inputs"\"VerboseOutput\": \"${{ github.event.inputs.VerboseOutput }\""
+            Inputs=$Inputs"\"SourceConfigVersion\": \"${{ github.event.inputs.SourceConfigVersion }}\","
+            Inputs=$Inputs"\"VerboseOutput\": \"${{ github.event.inputs.VerboseOutput }}\""
             Inputs=$Inputs"}"
           elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]
           then
