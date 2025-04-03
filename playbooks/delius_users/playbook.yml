@@ -108,6 +108,24 @@
     ansible_aws_ssm_timeout: 1800
     # Initial creation may take a long time due to many grants
 
+- name: Monitoring User privileges
+  shell:
+    cmd: |
+      . ~/.bash_profile
+      ORACLE_SID={{ database_primary_sid }}
+      ORAENV_ASK=NO
+      . oraenv > /dev/null
+      sqlplus -s / as sysdba << EOF
+        whenever sqlerror exit failure
+        set pages 100 head off lines 1000 feed off serveroutput on termout off
+        grant DELIUS_READ_ONLY_ROLE to DBSNMP;
+        exit
+      EOF
+  when: delius_users is defined and (action_type == "create" or action_type == "all")
+  changed_when: false
+  register: plsql
+  failed_when: plsql.rc != 0
+
 # ASH Reporting is Only Available with DIAGNOSTIC Pack
 - name: Set Up ASH Reporting Objects
   when: delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
