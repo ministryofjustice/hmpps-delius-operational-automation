@@ -16,7 +16,7 @@ SET PAGES 0
 
 SELECT
     CASE
-        WHEN to_char(sysdate, 'DAY') IN ( 'SATURDAY', 'SUNDAY' ) THEN
+        WHEN TRIM(TO_CHAR((sysdate+15), 'DAY')) IN ( 'SATURDAY', 'SUNDAY' ) THEN
             'NO'
         WHEN rd.standard_reference_list_id IS NOT NULL THEN
             'NO'
@@ -33,7 +33,7 @@ FROM
             LEFT JOIN delius_app_schema.r_standard_reference_list rsrl ON rrdm.reference_data_master_id = rsrl.reference_data_master_id
         WHERE
                 rrdm.code_set_name = 'NON WORKING DAYS'
-            AND rsrl.code_value = to_char(sysdate, 'DDMMYY')
+            AND rsrl.code_value = to_char((sysdate+15), 'DDMMYY')
         FETCH FIRST 1 ROWS ONLY
     )    rd;
 
