@@ -193,6 +193,7 @@ jobs:
         id: filter-toggle-fsfo-schedule
         run: |
               SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Action"}]' $schedule_file | jq '{include: .}')
+              echo ${SCHEDULED_JSON} | sed 's/ //g'
               echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   toggle-fsfo:
