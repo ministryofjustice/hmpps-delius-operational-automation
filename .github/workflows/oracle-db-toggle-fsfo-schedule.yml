@@ -161,12 +161,13 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           WORKING_DAY=$( $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
                -e delius_hosts=${{ steps.prepareinventorynames.outputs.delius_dbs_hosts }} | awk -F"Today Day Type:" '/Today Day Type/{print $2}' | sed 's/^ //' | tr -d '"' )
-          if [[ "${WORKING_DAY}" != "NO" && "${WORKING_DAY}" != "YES"]]; then
+          if [[ "${WORKING_DAY}" != "NO" && "${WORKING_DAY}" != "YES" ]]
+          then
              echo "Could not determine if today is a working day for the Probation Service."
              exit 1
           fi
           # Exclude Non-Working Days if this option is specified by removing this element from the schedule JSON file
-          if [[ "${WORKING_DAY}" == "NO" && "${{ matrix.SkipNonWorkingDays }}" == "true" ]];
+          if [[ "${WORKING_DAY}" == "NO" && "${{ matrix.SkipNonWorkingDays }}" == "true" ]]
           then
              jq 'map(select(not(.CronSchedule=="${{ matrix.CronSchedule }}" and .TargetEnvironment=="${{ matrix.TargetEnvironment }}" and .Action=="${{ matrix.Action }}" and .SkipNonWorkingDays="${{ matrix.SkipNonWorkingDays }}")))' $schedule_file > /tmp/schedule.json && mv /tmp/schedule.json $schedule_file 
           fi
