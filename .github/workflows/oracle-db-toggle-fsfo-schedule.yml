@@ -179,7 +179,7 @@ jobs:
              exit 1
           fi
           # Exclude Non-Working Days if this option is specified by removing this element from the schedule JSON file
-          # if [[ "${WORKING_DAY}" == "NO" && "${{ matrix.SkipNonWorkingDays }}" == "true" ]]
+          if [[ "${WORKING_DAY}" == "NO" && "${{ matrix.SkipNonWorkingDays }}" == "true" ]]
           then
              jq 'del(.[] | select(.CronSchedule=="${{ matrix.CronSchedule }}" and .TargetEnvironment=="${{ matrix.TargetEnvironment }}" and .Action=="${{ matrix.Action }}" and .SkipNonWorkingDays=="${{ matrix.SkipNonWorkingDays }}"))' oracle-db-toggle-fsfo-schedule.json > /tmp/schedule.json && mv /tmp/schedule.json oracle-db-toggle-fsfo-schedule.json
           fi
