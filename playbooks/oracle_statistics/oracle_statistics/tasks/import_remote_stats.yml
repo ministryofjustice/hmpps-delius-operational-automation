@@ -1,5 +1,4 @@
-
-  # Only check if Statistics have already been exported if a Statistics identifier has been specified
+# Only check if Statistics have already been exported if a Statistics identifier has been specified
 # - name: Check if Named Export {{ remote_statistics_identifier }} of Statistics Already Exists on Remote Bucket
 #   amazon.aws.s3_object:
 #     bucket: "{{ remote_environment_name }}-oracle-db-statistics-backup-data"

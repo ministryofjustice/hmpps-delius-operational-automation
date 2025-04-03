@@ -82,7 +82,6 @@
 - name: Export Backup Statistics to S3
   when: export_to_s3 | bool
   block:
-
     - name: Export Backup Statistics
       shell: |
         . ~/.bash_profile
@@ -159,7 +158,7 @@
       when:
         - repository_dispatch is defined
         - json_inputs is defined
-    
+
     - name: Single Varaible Containing Schemas And Table Names To Remove Transient Table Statistics Locks
       set_fact:
         database_locked_statistics: "-t {{ database_locked_statistics | default([]) | to_nice_json | b64encode }}"
