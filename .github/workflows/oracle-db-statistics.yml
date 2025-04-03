@@ -137,7 +137,7 @@ jobs:
           echo "TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')" >> $GITHUB_OUTPUT
           echo "ImportSourceEnvironment=$(echo $Inputs | jq -r '.ImportSourceEnvironment')" >> $GITHUB_OUTPUT
           echo "StatisticsIdentifier=$(echo $Inputs | jq -r '.StatisticsIdentifier')" >> $GITHUB_OUTPUT
-          echo "SourceCodeVersion="$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
+          echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "Verbose=$(echo $Inputs | jq -r '.Verbose')" >> $GITHUB_OUTPUT
 
