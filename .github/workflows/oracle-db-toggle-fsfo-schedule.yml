@@ -160,7 +160,7 @@ jobs:
           shopt -s nocasematch
           export ANSIBLE_CONFIG=$ansible_config
           WORKING_DAY=$( $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-               -e delius_hosts=${{ steps.prepareinventorynames.outputs.delius_hosts }} | awk -F"Today Day Type:" '/Today Day Type/{print $2}' | sed 's/^ //' | tr -d '"' )
+               -e delius_hosts=${{ steps.prepareinventorynames.outputs.delius_dbs_hosts }} | awk -F"Today Day Type:" '/Today Day Type/{print $2}' | sed 's/^ //' | tr -d '"' )
           if [[ "${WORKING_DAY}" != "NO" && "${WORKING_DAY}" != "YES"]]; then
              echo "Could not determine if today is a working day for the Probation Service."
              exit 1
