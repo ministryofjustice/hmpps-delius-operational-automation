@@ -169,7 +169,7 @@ jobs:
                 --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} \
                 --task "$TASK_ARN" \
                 --container ldap \
-                --command "bash -c 'for file in /etc/openldap/slapd.d/cn=config/cn=schema/*{delius,pwm}.ldif; do [ -f $file ] && mv $file /tmp/hmpps-ndelius-rbac/schemas/$(basename "$file")-$(date +%Y%m%d%H%M%S).bak; done' " \
+                --command "bash -c 'for file in /etc/openldap/slapd.d/cn=config/cn=schema/*{delius,pwm}.ldif; do [ -f \$file ] && mv \$file /tmp/hmpps-ndelius-rbac/schemas/\$(basename \"\$file\")-\$(date +%Y%m%d%H%M%S).bak; done'" \
                 --interactive
 
           - name: Add delius schema
