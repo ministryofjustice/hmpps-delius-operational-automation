@@ -151,7 +151,7 @@ jobs:
     environment: ${{ needs.build_target_names.outputs.TargetOemEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     env:
       command: ansible-playbook operations/ansible/site.yml -v -e force_role=oracle-oms-setup -e role=oracle-oms-setup --tags oracle_oem_patch_upgrade 
@@ -232,7 +232,7 @@ jobs:
     environment: ${{ needs.build_target_names.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     env:
       command: ansible-playbook operations/ansible/site.yml -e force_role=oracle-oem-agent-setup -e role=oracle-oem-agent-setup --tags agent_ru_upgrade,oem_agent_gold_image 
