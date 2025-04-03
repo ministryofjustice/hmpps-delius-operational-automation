@@ -108,8 +108,8 @@ jobs:
     strategy:
       max-parallel: 1
       fail-fast: false
-      matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}-preapproved
-    environment: ${{ matrix.TargetEnvironment }}
+      matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
+    environment: ${{ matrix.TargetEnvironment }}-preapproved
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     steps:
