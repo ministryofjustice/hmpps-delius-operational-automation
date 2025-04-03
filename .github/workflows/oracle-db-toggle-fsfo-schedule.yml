@@ -213,7 +213,7 @@ jobs:
              if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
                  echo "[{\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"Action\": \"${{ inputs.FSFOMode }}\"}]" > oracle-db-toggle-fsfo-schedule.json
                  cat oracle-db-toggle-fsfo-schedule.json
-                 SCHEDULED_JSON=$(jq '.' $schedule_file | jq '{include: .}')
+                 SCHEDULED_JSON=$(jq '.' oracle-db-toggle-fsfo-schedule.json | jq '{include: .}')
              else
                  SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Action"}]' oracle-db-toggle-fsfo-schedule.json | jq '{include: .}')
              fi
