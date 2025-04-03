@@ -160,7 +160,7 @@ jobs:
                 --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} \
                 --task "$TASK_ARN" \
                 --container ldap \
-                --command "bash -c 'git clone --branch ${{ github.event.inputs.rbac_tag }} --depth 1 https://github.com/ministryofjustice/hmpps-ndelius-rbac.git /tmp/hmpps-ndelius-rbac' " \
+                --command "bash -c '[ -d /tmp/hmpps-ndelius-rbac ] && rm -rf /tmp/hmpps-ndelius-rbac && git clone --branch ${{ github.event.inputs.rbac_tag }} --depth 1 https://github.com/ministryofjustice/hmpps-ndelius-rbac.git /tmp/hmpps-ndelius-rbac || git clone --branch ${{ github.event.inputs.rbac_tag }} --depth 1 https://github.com/ministryofjustice/hmpps-ndelius-rbac.git /tmp/hmpps-ndelius-rbac'" \
                 --interactive
 
           - name: Backup & remove existing schema files
