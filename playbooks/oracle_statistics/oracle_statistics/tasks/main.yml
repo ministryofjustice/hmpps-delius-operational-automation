@@ -3,7 +3,7 @@
   set_fact:
     statistics_backup_bucket: "{{ environment_name }}-oracle-db-statistics-backup-data"
 
-- name: Get Location of Statistics Dump File
+- name: Get Locatio n of Statistics Dump File
   script: get_dump_location.sh
   register: get_dump_location
 
@@ -16,7 +16,6 @@
   set_fact:
     target_schemas:
       - DELIUS_APP_SCHEMA
-      - DELIUS_AUDIT_SCHEMA
 
 - name: Generate Quoted List of Schemas
   set_fact:
@@ -33,7 +32,7 @@
 
 - name: Define Schemas for Statistics Gathering
   set_fact:
-    all_schemas: "{{ get_populated_schemas.stdout_lines }}"
+    all_schemas: "{{ get_populated_schemas.stdout_lines | reject('match', '^$') }}"
 
 - name: Set Global Statistics Preferences
   script: set_global_prefs.sh
@@ -83,6 +82,7 @@
 - name: Export Backup Statistics to S3
   when: export_to_s3 | bool
   block:
+
     - name: Export Backup Statistics
       shell: |
         . ~/.bash_profile
@@ -98,20 +98,12 @@
         mode: put
       loop: ["dmp", "log"]
 
-    - name: End Play If Exporting From Remote Environment
-      when: import_source_environment != 'None'
-      block:
-        - debug:
-            msg: "Exported Statistics From Remote Environment"
-
-        - meta: end_play
-
 - name: Import Statistics from Other Environment
   include_tasks: import_remote_stats.yml
   vars:
-    remote_statistics_identifier: "{{ statid }}"
-    remote_environment_name: "{{ (import_source_environment | lower).split('-')[-1] }}"
-  when: import_source_environment != 'None'
+    remote_environment_name: "{{ import_source_environment }}"
+    remote_statistics_identifier: "{{ statid | regex_replace('^(DELIUS_STATS)', import_source_environment | replace('-','_') | upper)) }}"
+  when: (import_source_environment != 'None') and (not export_to_s3 | bool)
 
 - name: Gather New Statistics
   when: gather_new_statistics | default(false) | bool
@@ -143,26 +135,21 @@
         loop_var: schema
       tags: statistics
 
-    - name: Create stats_scripts dir
+    - name: Create Statistics Directory
       file:
-        path: /home/oracle/admin/stats_scripts
+        path: /home/oracle/admin/statistics
         owner: oracle
         group: oinstall
         mode: 0755
         state: directory
 
-    - name: Install STAT script
+    - name: Install Statistics script
       copy:
-      src: stats.sh
-      dest: /home/oracle/admin/stats_scripts/stats.sh
-      owner: oracle
-      group: oinstall
-      mode: 0544
-
-    #   - name: Set SSM Parameter used for Runtime details when variable is not null
-    #     set_fact:
-    #     ssm_parameter_path: '-s "{{ ssm_parameter }}"'
-    #     when: (ssm_parameter is defined)
+        src: gather_statistics.sh
+        dest: /home/oracle/admin/statistics/gather_statistics.sh
+        owner: oracle
+        group: oinstall
+        mode: 0544
 
     # The quotes in the JSON inputs can get messed up by unwanted shell interpretation.
     # To avoid this we send the JSON as an encoded string to be decoded by the shell script.
@@ -172,25 +159,22 @@
       when:
         - repository_dispatch is defined
         - json_inputs is defined
-
-    - name: Create STATS Command
+    
+    - name: Single Varaible Containing Schemas And Table Names To Remove Transient Table Statistics Locks
       set_fact:
-        stats_command: "/home/oracle/admin/stats_scripts/stats.sh {{ schemas }} {{ parallelism}} {{{ repository_dispatch_flag|default() }} "
+        database_locked_statistics: "-t {{ database_locked_statistics | default([]) | to_nice_json | b64encode }}"
+      when: database_locked_statistics
 
-    - name: Show STATS Command
+    - name: Create Statistics Command
+      set_fact:
+        statistics_command: "/home/oracle/admin/statistics/gather_statistics.sh -s {{ all_schemas | join(',') }} -p {{ parallelism }} {{ repository_dispatch_flag | default() }} {{ database_locked_statistics | default() }}"
+
+    - name: Show Statistics Command
       debug:
-        msg: "About to run:  {{ stats_command }}"
+        msg: "About to run: {{ statistics_command }}"
 
-    - name: Running STATS script in Background
-      shell: "{{ stats_command }}"
+    - name: Running Statistics Script In Background
+      shell: "{{ statistics_command }}"
       async: "{{ allowable_duration|default(28800) }}"
       poll: 0
-      register: stats_cmd_output
-
-    - name: Remove Transient Table Statistics Locks
-      script: unlock_table_statistics.sh "{{ item.schema_name }}" "{{ item.table_names | map('dict2items') | list | flatten | map(attribute='key') | map('regex_replace','^(.*)$',"'\1'") | join(",") }}"
-      register: unlock_table_statistics
-      changed_when: not unlock_table_statistics.stdout is search('.*Unlocked 0 table statistics.*')
-      loop: "{{ database_locked_statistics | default([]) }}"
-      loop_control:
-        label: "{{ item.schema_name }}"
+      register: statistics_cmd_output
