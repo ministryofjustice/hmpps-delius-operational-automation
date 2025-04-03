@@ -211,7 +211,6 @@ jobs:
         run: |
              # Schedule an immediate run if using Workflow Dispatch, otherwise check if a run is scheduled.
              if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-                 echo "[{\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"Action\": \"${{ inputs.FSFOMode }}\"}]" > oracle-db-toggle-fsfo-schedule.json
                  cat oracle-db-toggle-fsfo-schedule.json
                  SCHEDULED_JSON=$(jq '.' oracle-db-toggle-fsfo-schedule.json | jq '{include: .}')
              else
