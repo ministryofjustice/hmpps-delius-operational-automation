@@ -171,6 +171,7 @@ jobs:
           then
              jq 'map(select(not(.CronSchedule=="${{ matrix.CronSchedule }}" and .TargetEnvironment=="${{ matrix.TargetEnvironment }}" and .Action=="${{ matrix.Action }}" and .SkipNonWorkingDays="${{ matrix.SkipNonWorkingDays }}")))' $schedule_file > /tmp/schedule.json && mv /tmp/schedule.json $schedule_file 
           fi
+          cat $schedule_file
 
   # We regenerate the filtered run matrix now where any entries for non-working days have been removed
   prepare-filtered-run-matrix:
