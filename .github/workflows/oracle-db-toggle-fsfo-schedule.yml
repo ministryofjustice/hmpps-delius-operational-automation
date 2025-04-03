@@ -190,7 +190,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: run_matrix_excluding_non_working
-          path: $schedule_file
+          path: operations/.github/workflows/oracle-db-toggle-fsfo-schedule.json
 
   # We regenerate the filtered run matrix now where any entries for non-working days have been removed
   prepare-filtered-run-matrix:
