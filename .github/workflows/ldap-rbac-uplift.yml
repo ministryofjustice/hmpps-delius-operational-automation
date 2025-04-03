@@ -178,7 +178,7 @@ jobs:
                 --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} \
                 --task "$TASK_ARN" \
                 --container ldap \
-                --command "bash -c 'ldapadd -Y EXTERNAL -H ldapi:/// -f /tmp/hmpps-ndelius-rbac/schemas/delius.ldif' " \
+                --command "bash -c 'ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/hmpps-ndelius-rbac/schemas/delius.ldif' " \
                 --interactive
 
           - name: Add pwm schema
@@ -187,5 +187,5 @@ jobs:
                 --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} \
                 --task "$TASK_ARN" \
                 --container ldap \
-                --command "bash -c 'ldapadd -Y EXTERNAL -H ldapi:/// -f /tmp/hmpps-ndelius-rbac/schemas/pwm.ldif' " \
+                --command "bash -c 'ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/hmpps-ndelius-rbac/schemas/pwm.ldif' " \
                 --interactive
