@@ -222,20 +222,21 @@ jobs:
       Verbose: ${{ needs.oracle-pre-delius-statistics.outputs.Verbose }}
       Inputs: ${{ needs.oracle-pre-delius-statistics.outputs.Inputs }}
       JobId: ${{ github.job }}
-      RemoteStatisticsIdentifier: ${{ steps.preparetargetname.outputs.RemoteStatisticsIdentifier }}
+      RemoteStatisticsIdentifier: ${{ steps.preparation.outputs.RemoteStatisticsIdentifier }}
     steps:
       - name: Prepare Remote Target Name And Remote Statistics Identifier
         id: preparation
         shell: bash
         run: |
           TargetHost="environment_name_$(echo ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_delius_primarydb" >> $GITHUB_OUTPUT
-          if [[ -z ${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier }} ]]
+          StatisticsIdentifier=${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier }}
+          if [[ -z $StatisticsIdentifier ]]
           then
             DATE=$(date +"%Y%m%dT%H%M%S")
             ENV=$(echo ${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier.ImportSourceEnvironment }} | awk -F- '{printf("%s_%s",$1,$NF)}')
             RemoteStatisticsIdentifier="${ENV^^}_${DATE}"
           else
-            RemoteStatisticsIdentifier="${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier }}"
+            RemoteStatisticsIdentifier="$StatisticsIdentifier"
           fi
           echo RemoteStatisticsIdentifier="${RemoteStatisticsIdentifier}" >> $GITHUB_OUTPUT
 
