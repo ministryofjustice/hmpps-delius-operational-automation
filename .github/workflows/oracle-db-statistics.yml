@@ -228,20 +228,18 @@ jobs:
         id: preparation
         shell: bash
         run: |
-          TargetHost="environment_name_$(echo ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_delius_primarydb" >> $GITHUB_OUTPUT
+          TargetHost=environment_name_$(echo ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_delius_primarydb
           StatisticsIdentifier=${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier }}
           if [[ -z $StatisticsIdentifier ]]
           then
             DATE=$(date +"%Y%m%dT%H%M%S")
-            ENV=$(echo ${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier.ImportSourceEnvironment }} | awk -F- '{printf("%s_%s",$1,$NF)}')
+            ENV=$(echo ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }} | awk -F- '{printf("%s_%s",$1,$NF)}')
             RemoteStatisticsIdentifier="${ENV^^}_${DATE}"
           else
             RemoteStatisticsIdentifier="$StatisticsIdentifier"
           fi
           echo RemoteStatisticsIdentifier="${RemoteStatisticsIdentifier}" >> $GITHUB_OUTPUT
-
-          echo $RemoteStatisticsIdentifier
-          echo $TargetHost
+          echo TargetHost="${TargetHost}" >> $GITHUB_OUTPUT
 
       - name: Checkout Ansible Playbooks and Roles From hmpps-delius-operation-automation
         uses: actions/checkout@v4
