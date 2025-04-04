@@ -43,10 +43,10 @@
     . ~/.bash_profile
     impdp \"/ as sysdba\" dumpfile={{ remote_statistics_identifier }}.dmp logfile={{ remote_statistics_identifier }}.import.log directory=DATA_PUMP_DIR tables=DELIUS_USER_SUPPORT.STATISTICS_BACKUP table_exists_action=APPEND
 
-- name: Import Schema Statistics from Backup Table into Data Dictionary using Statid {{ remote_statistics_identifier }}
-  script: import_schema_statistics.sh "{{ schema }}" "{{ remote_statistics_identifier }}"
-  register: import_schema_statistics
-  changed_when: import_schema_statistics.stdout is search('.*Imported.*')
-  loop: "{{ all_schemas | upper }}"
-  loop_control:
-    loop_var: schema
+# - name: Import Schema Statistics from Backup Table into Data Dictionary using Statid {{ remote_statistics_identifier }}
+#   script: import_schema_statistics.sh "{{ schema }}" "{{ remote_statistics_identifier }}"
+#   register: import_schema_statistics
+#   changed_when: import_schema_statistics.stdout is search('.*Imported.*')
+#   loop: "{{ all_schemas | upper }}"
+#   loop_control:
+#     loop_var: schema
