@@ -101,7 +101,7 @@
   include_tasks: import_remote_stats.yml
   vars:
     remote_environment_name: "{{ import_source_environment }}"
-    remote_statistics_identifier: "{{ statid | regex_replace('^(DELIUS_STATS)', import_source_environment | replace('-','_') | upper)) }}"
+    remote_statistics_identifier: "{{ statid | regex_replace('^(DELIUS_STATS)', import_source_environment | replace('-','_') | upper) }}"
   when: (import_source_environment != 'None') and (not export_to_s3 | bool)
 
 - name: Gather New Statistics
