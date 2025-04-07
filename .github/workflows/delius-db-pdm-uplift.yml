@@ -40,6 +40,10 @@ jobs:
   deployment:
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
+    timeout-minutes: 1440
+    continue-on-error: false
     steps:
       - name: Define Delius Targets
         id: definetargets
