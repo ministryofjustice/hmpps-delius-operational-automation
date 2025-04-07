@@ -1,7 +1,9 @@
 - name: Uplift Delius Database
   hosts: "{{ target_hosts }}"
+  gather_facts: false
   become: yes
   become_user: oracle
+  become_method: sudo
   tasks:
 #    - name: Disable Oracle OEM Alerts
 #      import_playbook: ../oem_blackout/playbook.yml
