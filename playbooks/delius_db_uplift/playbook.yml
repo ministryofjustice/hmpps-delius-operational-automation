@@ -27,7 +27,6 @@
 #        restore_point_name: "UPLIFT"
 
     - name: Uplift Oracle database
-      hosts: "{{ target_hosts }}"
       become: yes
       become_user: oracle
       tasks:
