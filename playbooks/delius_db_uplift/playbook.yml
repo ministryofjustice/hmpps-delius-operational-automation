@@ -50,16 +50,16 @@
       block:
         - name: Create workspace
           file:
-            path: /u01/software/scripts/uplift/{{ ndelius_version }}
+            path: /tmp/u01/software/scripts/uplift/{{ ndelius_version }}
             state: directory
 
         - name: Download install scripts
-          shell: 'aws s3 cp s3://{{ dependencies_bucket_name }}/dependencies/delius-core/NDelius-{{ ndelius_version }}/scripts/ /u01/software/scripts/uplift/{{ ndelius_version }}/ --recursive --only-show-errors'
+          shell: 'aws s3 cp s3://{{ dependencies_bucket_name }}/dependencies/delius-core/NDelius-{{ ndelius_version }}/scripts/ /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/ --recursive --only-show-errors'
           ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
 
         - name: Set scripts as executable
           file:
-            path: '/u01/software/scripts/uplift/{{ ndelius_version }}/install'
+            path: '/tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install'
             state: directory
             recurse: yes
             mode: u+x
@@ -76,7 +76,7 @@
 
         - name: Set passwords
           replace:
-            path: '/u01/software/scripts/uplift/{{ ndelius_version }}/install/install_operational_scripts.sh'
+            path: '/tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install/install_operational_scripts.sh'
             regexp: '{{ item.regexp }}'
             replace: '{{ item.replace }}'
           with_items:
@@ -88,13 +88,13 @@
         - name: Test run uplift
           shell: |
             . ~/.bash_profile
-            cd /u01/software/scripts/uplift/{{ ndelius_version }}/install
+            cd /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install
             echo Run uplift script
 
 #            - name: Start PDM uplift and install operational scripts
 #              shell: |
 #                . ~/.bash_profile
-#                cd /u01/software/scripts/uplift/{{ ndelius_version }}/install
+#                cd /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install
 #                ND_INSTALL_ROOT=$(pwd) ./install_operational_scripts.sh
 #              no_log: true
 #              async: '{{ 3 * 60 * 60 }}' # Timeout after 3 hours
