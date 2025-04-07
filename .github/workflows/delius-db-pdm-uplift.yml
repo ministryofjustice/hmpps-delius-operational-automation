@@ -103,3 +103,4 @@ jobs:
           $command -vvv -i $inventory -e target_hosts=${{ steps.definetargets.outputs.primary_db_host }} \
           -e ndelius_version=${{ github.event.inputs.Version }}
           -e environment=${{ github.event.inputs.TargetEnvironment }}
+          -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }}
