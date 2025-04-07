@@ -1,0 +1,88 @@
+name: "Delius DB: PDM Uplift"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-preprod"
+          - "delius-core-prod"
+      Version:
+        description: "NDelius version to uplift to"
+        required: true
+        type: string
+
+env:
+  ansible_config: operations/playbooks/ansible.cfg
+  command: ansible-playbook operations/playbooks/delius_db_uplift/playbook.yml
+  inventory: inventory/ansible
+
+jobs:
+  deployment:
+    environment: ${{ github.event.inputs.TargetEnvironment }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Define Delius Targets
+        id: definetargets
+        run: |
+          primary_db_host="environment_name_$(echo $TargetEnvironment | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
+          echo "primary_db_host=${primary_db_host}" >> $GITHUB_OUTPUT
+
+      - name: Checkout Ansible Playbooks and Roles From hmpps-delius-operation-automation
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/delius_db_uplift
+            playbooks/ansible.cfg
+          path: operations
+          ref: main
+          fetch-depth: 0
+
+      - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: main
+          fetch-depth: 0
+
+      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/roles/secretsmanager-passwords
+            ansible/roles/get-modernisation-platform-facts
+          path: roles
+          ref: main
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      - name: Start PDM Uplift
+        shell: bash
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          $command -i $inventory -e target_hosts=${{ steps.definetargets.outputs.delius_target }} \
+          -e ndelius_version=${{ github.event.inputs.Version }}
+          -e environment=${{ github.event.inputs.TargetEnvironment }}

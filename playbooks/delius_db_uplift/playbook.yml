@@ -1,0 +1,122 @@
+- name: Uplift Delius Database
+  hosts: "{{ target_hosts }}"
+
+  tasks:
+    - name: Disable Oracle OEM Alerts
+      import_playbook: ../oem_blackout/playbook.yml
+      vars:
+        target: "{{ target_hosts }}"
+        blackout: "UPLIFT"
+        object_type: all
+        action: start
+        duration: 03:00
+
+    - name: Block connections to primary database
+      import_playbook: ../block_sessions/playbook.yml
+      vars:
+        target_host: delius_primarydb
+        action: block
+
+    - name: Create restore point
+      import_playbook: ../oracle_restore_points/playbook.yml
+      when:
+        - create_restore_point | bool
+      vars:
+        target_dbs: "{{ target_hosts }}"
+        required_action: "Create Restore Point"
+        restore_point_name: "UPLIFT"
+
+    - name: Uplift Oracle database
+      hosts: "{{ target_hosts }}"
+      become: yes
+      become_user: oracle
+      tasks:
+        - name: Get database role
+          shell: |
+            . ~/.bash_profile
+            sqlplus -S / as sysdba <<EOF
+              select database_role from v\$database;
+            EOF
+          register: database_role
+
+        - name: Run tasks on the primary database
+          when: '"PRIMARY" in database_role.stdout'
+          block:
+            - name: Create workspace
+              file:
+                path: /u01/software/scripts/uplift/{{ ndelius_version }}
+                state: directory
+
+            - name: Download install scripts
+              shell: 'aws s3 cp s3://{{ dependencies_bucket.name }}/dependencies/delius-core/NDelius-{{ ndelius_version }}/scripts/ /u01/software/scripts/uplift/{{ ndelius_version }}/ --recursive --only-show-errors'
+              ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
+
+            - name: Set scripts as executable
+              file:
+                path: '/u01/software/scripts/uplift/{{ ndelius_version }}/install'
+                state: directory
+                recurse: yes
+                mode: u+x
+
+            - name: Get delius_app_schema password from secrets manager
+              shell: "aws secretsmanager get-secret-value --secret-id 'arn:aws:secretsmanager:eu-west-2:${{vars.AWS_ACCOUNT_ID}}:secret:delius-core-dev-oracle-db-application-passwords-4lsXnR' --query SecretString --output json | jq 'fromjson | .delius_app_schema'"
+              register: delius_app_schema_password
+              no_log: true
+
+            - name: Get sys password from secrets manager
+              shell: "aws secretsmanager get-secret-value --secret-id 'arn:aws:secretsmanager:eu-west-2:${{vars.AWS_ACCOUNT_ID}}:secret:delius-core-dev-oracle-db-dba-passwords-B2MlXl' --query SecretString --output json | jq 'fromjson | .sys'"
+              register: oradb_system_password
+              no_log: true
+
+            - name: Set passwords
+              replace:
+                path: '/u01/software/scripts/uplift/{{ ndelius_version }}/install/install_operational_scripts.sh'
+                regexp: '{{ item.regexp }}'
+                replace: '{{ item.replace }}'
+              with_items:
+                - { regexp: DBAPPPASS=.*, replace: 'DBAPPPASS="{{ delius_app_schema_password.stdout }}"' }
+                - { regexp: DBSYSPASS=.*, replace: 'DBSYSPASS="{{ oradb_system_password.stdout }}"' }
+              no_log: true
+              ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
+
+            - name: Start PDM uplift and install operational scripts
+              shell: |
+                . ~/.bash_profile
+                cd /u01/software/scripts/uplift/{{ ndelius_version }}/install
+                ND_INSTALL_ROOT=$(pwd) ./install_operational_scripts.sh
+              no_log: true
+              async: '{{ 3 * 60 * 60 }}' # Timeout after 3 hours
+              poll: 0                    # Run in background, to prevent the connection from timing out
+              register: pdm_uplift
+
+            - name: Wait for uplift to complete
+              async_status:
+                jid: '{{ pdm_uplift.ansible_job_id }}'
+              register: pdm_uplift_result
+              until: pdm_uplift_result is finished
+              delay: 30                                 # Check every 30 seconds
+              retries: '{{ (3 * 60 * 60 / 30) | int }}' # For up to 3 hours
+              ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
+
+            - name: Check status of uplift
+              assert:
+                that: pdm_uplift_result is successful or ( ignore_pdm_uplift_errors | default(false) )
+
+            - name: Update Read Only Role to Include Any New Objects from Uplift
+              script: update_read_only_role.sh
+              register: update_read_only_role
+              changed_when: update_read_only_role.stdout | int > 0
+
+    - name: Unblock connections to primary database
+      import_playbook: ../block_sessions/playbook.yml
+      vars:
+        target_host: delius_primarydb
+        action: unblock
+
+    - name: Re-enable Oracle OEM alerts
+      import_playbook: ../oem_blackout/playbook.yml
+      vars:
+        target: "{{ target_hosts }}"
+        object_type: all
+        action: stop
+        blackout: "UPLIFT"
