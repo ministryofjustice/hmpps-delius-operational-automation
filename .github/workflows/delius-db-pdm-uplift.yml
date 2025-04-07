@@ -17,6 +17,10 @@ on:
         description: "NDelius version to uplift to"
         required: true
         type: string
+      SourceCodeVersion:
+        description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
@@ -33,9 +37,6 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Define Delius Targets
         id: definetargets
         run: |
@@ -50,7 +51,7 @@ jobs:
             playbooks/delius_db_uplift
             playbooks/ansible.cfg
           path: operations
-          ref: main
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
 
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
@@ -62,7 +63,7 @@ jobs:
             ansible/hosts
             ansible/group_vars
           path: inventory
-          ref: main
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
 
       - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
@@ -74,7 +75,7 @@ jobs:
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-modernisation-platform-facts
           path: roles
-          ref: main
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
 
       - name: Configure AWS Credentials
