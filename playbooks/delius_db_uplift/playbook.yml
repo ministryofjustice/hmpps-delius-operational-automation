@@ -67,7 +67,7 @@
         - name: Get delius_app_schema password from secrets manager
           shell: "aws secretsmanager get-secret-value --secret-id 'arn:aws:secretsmanager:eu-west-2:${{vars.AWS_ACCOUNT_ID}}:secret:delius-core-dev-oracle-db-application-passwords-4lsXnR' --query SecretString --output json | jq 'fromjson | .delius_app_schema'"
           register: delius_app_schema_password
-          no_log: true
+#          no_log: true
 
         - name: Get sys password from secrets manager
           shell: "aws secretsmanager get-secret-value --secret-id 'arn:aws:secretsmanager:eu-west-2:${{vars.AWS_ACCOUNT_ID}}:secret:delius-core-dev-oracle-db-dba-passwords-B2MlXl' --query SecretString --output json | jq 'fromjson | .sys'"
