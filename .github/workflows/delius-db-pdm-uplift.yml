@@ -17,12 +17,16 @@ on:
         description: "NDelius version to uplift to"
         required: true
         type: string
-  push:
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/playbooks/delius_db_uplift/playbook.yml
   inventory: inventory/ansible
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write
 
 jobs:
   deployment:
