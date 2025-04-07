@@ -48,7 +48,7 @@ jobs:
       - name: Define Delius Targets
         id: definetargets
         run: |
-          primary_db_host="environment_name_$(echo $TargetEnvironment | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
+          primary_db_host="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
           echo "primary_db_host=${primary_db_host}" >> $GITHUB_OUTPUT
 
       - name: Checkout Ansible Playbooks and Roles From hmpps-delius-operation-automation
