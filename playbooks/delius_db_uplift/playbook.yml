@@ -33,6 +33,10 @@
 #      become: yes
 #      become_user: oracle
 #      tasks:
+    - name: (main) Get Dependencies Bucket
+      set_fact:
+        dependencies_bucket_name: "{{ dependencies_bucket.name }}"
+
     - name: Get database role
       shell: |
         . ~/.bash_profile
@@ -50,7 +54,7 @@
             state: directory
 
         - name: Download install scripts
-          shell: 'aws s3 cp s3://{{ dependencies_bucket.name }}/dependencies/delius-core/NDelius-{{ ndelius_version }}/scripts/ /u01/software/scripts/uplift/{{ ndelius_version }}/ --recursive --only-show-errors'
+          shell: 'aws s3 cp s3://{{ dependencies_bucket_name }}/dependencies/delius-core/NDelius-{{ ndelius_version }}/scripts/ /u01/software/scripts/uplift/{{ ndelius_version }}/ --recursive --only-show-errors'
           ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
 
         - name: Set scripts as executable
