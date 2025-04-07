@@ -1,7 +1,7 @@
 [
     {
         "TargetEnvironment":"delius-core-dev",
-        "CronSchedule":"45 16 * * 1-5",
+        "CronSchedule":"0,10,20,30,40,50 14,15 * * FRI",
         "Action": "disable",
         "SkipNonWorkingDays": true
     },
