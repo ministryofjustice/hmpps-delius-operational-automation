@@ -146,7 +146,7 @@ jobs:
   oracle-gather-delius-statistics:
     if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.GatherNewStatistics == 'yes' || github.event.inputs.ExportBackupStatisticsToS3 == 'yes') }}
     needs: [oracle-pre-delius-statistics]
-    environment: ${{ github.event.inputs.TargetEnvironment }}
+    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
@@ -204,8 +204,8 @@ jobs:
           ${{ github.event.inputs.VerboseOutput }}
 
   oracle-export-remote-delius-statistics:
-    if: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment != 'None' }}
-    needs: [oracle-pre-delius-statistics]
+    if: ${{ (needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment != 'None') && (needs.oracle-gather-delius-statistics.result == 'success' || needs.soracle-gather-delius-statistics.result == 'skipped') }}
+    needs: [oracle-pre-delius-statistics,oracle-gather-delius-statistics]
     environment: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
