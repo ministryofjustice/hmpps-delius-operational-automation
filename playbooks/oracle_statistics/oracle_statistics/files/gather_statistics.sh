@@ -78,7 +78,7 @@ GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
 # We set the Phase in the JSON payload corresponding to whether the stats has succeeded or failed.
 # This is informational only - it is GitHub event type (oracle-db-stats-success/failure) which 
 # determines what the workflow does next.
-if [[ "$EVENT_TYPE" == "oracle-db-stats-success" ]]; then
+if [[ "$EVENT_TYPE" == "oracle-db-statistics-success" ]]; then
     JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Statistics Succeeded"')
 else
     JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Statistics Failed"')
