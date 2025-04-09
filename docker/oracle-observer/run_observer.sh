@@ -29,7 +29,7 @@ do
    if [ "$STANDBYDB2_HOSTNAME" != "none" ]; then
       echo ${SQL_TEST} | sqlplus -S -L /@${DATABASE_NAME}S2 as sysdba
       TEST_STANDBYDB2=$?
-      [[ $TEST_STANDBYDB1 -eq 0 ]] && echo "2nd Standby is available" || echo "2nd Standby is unavailable"
+      [[ $TEST_STANDBYDB2 -eq 0 ]] && echo "2nd Standby is available" || echo "2nd Standby is unavailable"
    else
       TEST_STANDBYDB2=0
    fi
@@ -47,7 +47,13 @@ echo "Starting observer..."
 # We first stop any previous observers in the configuration which may have been left
 # inactive from a previous task run.
 # We start the observer in foreground mode; this keeps the docker container active
-dgmgrl /@${DATABASE_NAME} <<EOL
+#
+# Specify SYSDBA for the connection, otherwise the Observer will attempt to use the
+# SYSDG privilege by default before falling back to SYSDBA resulting in failed
+# connection attempts being logged in the audit trail, even though the connection is
+# successful.
+# 
+dgmgrl /@${DATABASE_NAME} as sysdba <<EOL
 stop observer all;
 start observer file is '${OBSERVER_DIR}/dg_broker.ora' logfile is '${OBSERVER_DIR}/dg_broker.log';
 EOL
