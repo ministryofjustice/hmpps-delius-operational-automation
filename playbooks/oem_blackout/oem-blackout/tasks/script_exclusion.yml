@@ -16,13 +16,15 @@
 - name: Temporarily Exclude Host from Monitoring
   when: action == 'start'
   block:
+
     - name: Define Timeout for Monitoring Exclusion Period
       set_fact:
         exclude_timeout: "{{ strftime('%Y-%m-%d-%H-%M-%S', (ansible_date_time.epoch | int) + duration) }}"
+      when: (duration is defined) and (duration|length > 0)
 
     - name: Define Exclude Comment For Host
       set_fact:
-        exclude_comment: "{{ 'Excluded from monitoring due to ' + ( blackout | default('UNNAMED_EXCLUSION')) + ' until ' + exclude_timeout }}"
+        exclude_comment: "{{ 'Excluded from monitoring due to ' + (blackout | default('UNNAMED_EXCLUSION')) }} {{ ' until ' + exclude_timeout if exclude_timeout is defined else '' }}"
 
     - name: Get Sysman Password
       include_tasks: get_facts.yml
