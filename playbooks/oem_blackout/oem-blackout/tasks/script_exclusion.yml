@@ -18,7 +18,7 @@
   block:
     - name: Define Timeout for Monitoring Exclusion Period
       set_fact:
-        exclude_timeout: "{{ '%Y-%m-%d-%H-%M-%S' | strftime( ( ansible_date_time.epoch | int ) + duration ) }}"
+        exclude_timeout: "{{ strftime('%Y-%m-%d-%H-%M-%S', (ansible_date_time.epoch | int) + duration) }}"
 
     - name: Define Exclude Comment For Host
       set_fact:
