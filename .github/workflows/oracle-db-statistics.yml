@@ -283,7 +283,7 @@ jobs:
           -e export_to_s3=yes ${{ needs.oracle-pre-delius-statistics.outputs.VerboseOutput }}
 
   oracle-import-delius-statistics:
-    if: ${{ always() && needs.oracle-export-remote-delius-statistics.outputs.ImportSourceEnvironment != 'None' }}
+    if: ${{ needs.oracle-export-remote-delius-statistics.result == 'success' && needs.oracle-export-remote-delius-statistics.outputs.ImportSourceEnvironment != 'None' }}
     needs: [oracle-export-remote-delius-statistics]
     environment: ${{ needs.oracle-export-remote-delius-statistics.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
