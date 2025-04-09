@@ -139,8 +139,6 @@ jobs:
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "Verbose=$(echo $Inputs | jq -r '.Verbose')" >> $GITHUB_OUTPUT
 
-          echo "TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')"
-          echo "ImportSourceEnvironment=$(echo $Inputs | jq -r '.ImportSourceEnvironment')"
           echo "Inputs="$(echo $Inputs | jq @json)
           Inputs=$(echo $Inputs | jq -r | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
@@ -206,9 +204,8 @@ jobs:
           ${{ github.event.inputs.VerboseOutput }}
 
   oracle-export-remote-delius-statistics:
-    if: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment != 'None' }}
-    #&& (needs.oracle-gather-delius-statistics.result == 'success' || needs.oracle-gather-delius-statistics.result == 'skipped') }}
-    needs: [oracle-pre-delius-statistics]
+    if: ${{ always() && needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment != 'None' && (needs.oracle-gather-delius-statistics.result == 'success' || needs.oracle-gather-delius-statistics.result == 'skipped') }}
+    needs: [oracle-pre-delius-statistics,oracle-gather-delius-statistics]
     environment: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
@@ -288,7 +285,7 @@ jobs:
   oracle-import-delius-statistics:
     if: ${{ needs.oracle-export-remote-delius-statistics.outputs.ImportSourceEnvironment != 'None' }}
     needs: [oracle-export-remote-delius-statistics]
-    environment: ${{ needs.oracle-export-remote-delius-statistics.outputs.TargetEnvironment }}
+    environment: ${{ needs.oracle-export-remote-delius-statistics.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
