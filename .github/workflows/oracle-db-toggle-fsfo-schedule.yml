@@ -1,13 +1,8 @@
 name: "Oracle: Schedule Toggle Fast Start Failover"
 on:
-  push:
-    branches:
-      - "DBA-849"
   schedule:
-    - cron: '0,10,20,30,40,50 11,15,16 * * MON-FRI'
-    - cron: '00 14 * * TUE'
-    - cron: '00 10 * * THU'
-    - cron: '00 14 * * THU'
+    - cron: '00 20 * * MON-FRI'
+    - cron: '00 07 * * MON-FRI'
   workflow_dispatch:
     inputs:
       TargetEnvironment:
