@@ -133,7 +133,7 @@ if [[ ! -z "$JSON_INPUTS" ]]; then
    # actions to start the stats job.   These are only used for actioning a repository
    # dispatch event to indicate the end of the stats job run.  They do NOT
    # override the command line options passed to the script.
-   JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode )
+   JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode | jq -r )
 fi
 
 # info "Gather statistics for schemas ${SCHEMAS}" 
