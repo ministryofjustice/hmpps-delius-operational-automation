@@ -1,7 +1,7 @@
 name: "Oracle: Schedule Toggle Fast Start Failover"
 on:
   schedule:
-    - cron: '00 20 * * MON-FRI'
+    - cron: '00 19 * * MON-FRI'
     - cron: '00 07 * * MON-FRI'
   workflow_dispatch:
     inputs:
