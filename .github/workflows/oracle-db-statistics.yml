@@ -140,6 +140,7 @@ jobs:
           echo "Verbose=$(echo $Inputs | jq -r '.Verbose')" >> $GITHUB_OUTPUT
 
           echo "TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')"
+          echo "ImportSourceEnvironment=$(echo $Inputs | jq -r '.ImportSourceEnvironment')"
           echo "Inputs="$(echo $Inputs | jq @json)
           Inputs=$(echo $Inputs | jq -r | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
