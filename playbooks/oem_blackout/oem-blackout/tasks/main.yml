@@ -66,7 +66,7 @@
 
   when:
     - agent_emctl.stat.exists
-    - when: has_diagnostic_pack
+    - has_diagnostic_pack
 
 - name: Disable OEM Script-Based Monitoring if no Diagnostic Pack
   include_tasks: script_exclusion.yml
