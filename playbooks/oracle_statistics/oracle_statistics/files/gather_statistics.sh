@@ -142,8 +142,6 @@ if [[ ! -z "$JSON_INPUTS" ]]; then
    # dispatch event to indicate the end of the stats job run.  They do NOT
    # override the command line options passed to the script.
    JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode )
-elif [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
-   error "JSON inputs must be supplied using the -j option if Repository Dispatch Events are requested."
 fi
 
 info "Gather statistics for schemas ${SCHEMAS}" 
