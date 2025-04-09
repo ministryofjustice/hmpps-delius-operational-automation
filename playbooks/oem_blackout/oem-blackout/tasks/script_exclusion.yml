@@ -20,8 +20,8 @@
     - name: Define Exclude Comment For Host
       set_fact:
         exclude_comment: >-
-          "{{ 'Excluded from monitoring due to ' + (blackout | default('Maintenance')) }}
-          {{ ' until ' + strftime('%Y-%m-%d-%H-%M-%S', (ansible_date_time.epoch | int) + (duration | int)) if (duration is defined and duration | int > 0) else '' }}"
+          {{ 'Excluded from monitoring due to ' + (blackout | default('Maintenance')) }}
+          {{ ' until ' + strftime('%Y-%m-%d-%H-%M-%S', (ansible_date_time.epoch | int) + (duration | int)) if (duration is defined and duration | int > 0) else '' }}
 
     - name: Get Sysman Password
       include_tasks: get_facts.yml
