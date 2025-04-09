@@ -144,57 +144,57 @@ if [[ ! -z "$JSON_INPUTS" ]]; then
    JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode )
 fi
 
-info "Gather statistics for schemas ${SCHEMAS}" 
-sqlplus -s "/ as sysdba" <<EOSQL
-whenever sqlerror exit 1
-set feedback off heading off verify off echo off
-BEGIN
-  DBMS_STATS.gather_schema_stats(
-      ownname => '${SCHEMAS}'
-      ,degree  => '${PARALLELISM}'
-      ,no_invalidate => FALSE
-  );
-END;
-/
-exit
-EOSQL
+# info "Gather statistics for schemas ${SCHEMAS}" 
+# sqlplus -s "/ as sysdba" <<EOSQL
+# whenever sqlerror exit 1
+# set feedback off heading off verify off echo off
+# BEGIN
+#   DBMS_STATS.gather_schema_stats(
+#       ownname => '${SCHEMAS}'
+#       ,degree  => '${PARALLELISM}'
+#       ,no_invalidate => FALSE
+#   );
+# END;
+# /
+# exit
+# EOSQL
 
-[[ $? -ne 0 ]] && error "In gathering statistics"
+# [[ $? -ne 0 ]] && error "In gathering statistics"
 
-info "Unlocking statistics"
+# info "Unlocking statistics"
 
-TABLE_INPUTS=$(echo $TABLE_INPUTS | base64 --decode )
-for TABLE_INPUT in $(echo $TABLE_INPUTS | jq -c '.[]')
-do
-  SCHEMA=$(echo $TABLE_INPUT | jq -r '.schema_name')
-  TABLE_LIST=$(echo $TABLE_INPUT | jq -c '.table_names[] | keys_unsorted | flatten[]' | sed "s/\"/'/g")
-  TABLE_LIST=$(echo $TABLE_LIST | sed 's/ /,/g')
-  info "Do not unlock ${TABLE_LIST}"
-  SQLRESULT=$(sqlplus -s / as sysdba<<EOSQL
-  connect / as sysdba
+# TABLE_INPUTS=$(echo $TABLE_INPUTS | base64 --decode )
+# for TABLE_INPUT in $(echo $TABLE_INPUTS | jq -c '.[]')
+# do
+#   SCHEMA=$(echo $TABLE_INPUT | jq -r '.schema_name')
+#   TABLE_LIST=$(echo $TABLE_INPUT | jq -c '.table_names[] | keys_unsorted | flatten[]' | sed "s/\"/'/g")
+#   TABLE_LIST=$(echo $TABLE_LIST | sed 's/ /,/g')
+#   info "Do not unlock ${TABLE_LIST}"
+#   SQLRESULT=$(sqlplus -s / as sysdba<<EOSQL
+#   connect / as sysdba
 
-  WHENEVER SQLERROR EXIT FAILURE
-  SET SERVEROUT ON
+#   WHENEVER SQLERROR EXIT FAILURE
+#   SET SERVEROUT ON
 
-  DECLARE
-    l_unlock_counter INTEGER := 0;
-  BEGIN
-  FOR t IN (SELECT table_name
-            FROM   dba_tab_statistics
-            WHERE  owner='${SCHEMA}'
-            AND    stattype_locked IS NOT NULL
-            AND    table_name NOT IN (${TABLE_LIST}))
-  LOOP
-      EXECUTE IMMEDIATE 'BEGIN DBMS_STATS.unlock_table_stats(''${SCHEMA}'','''||t.table_name||'''); END;';
-      l_unlock_counter := l_unlock_counter + 1;
-  END LOOP;
-  DBMS_OUTPUT.put_line('Unlocked '||l_unlock_counter||' table statistics.');
-  END;
-  /
-  EXIT
-EOSQL
-)
-done
+#   DECLARE
+#     l_unlock_counter INTEGER := 0;
+#   BEGIN
+#   FOR t IN (SELECT table_name
+#             FROM   dba_tab_statistics
+#             WHERE  owner='${SCHEMA}'
+#             AND    stattype_locked IS NOT NULL
+#             AND    table_name NOT IN (${TABLE_LIST}))
+#   LOOP
+#       EXECUTE IMMEDIATE 'BEGIN DBMS_STATS.unlock_table_stats(''${SCHEMA}'','''||t.table_name||'''); END;';
+#       l_unlock_counter := l_unlock_counter + 1;
+#   END LOOP;
+#   DBMS_OUTPUT.put_line('Unlocked '||l_unlock_counter||' table statistics.');
+#   END;
+#   /
+#   EXIT
+# EOSQL
+# )
+# done
 
 [[ $? -ne 0 ]] && error "Unlocking statistics"
 info "${SQLRESULT}"
