@@ -118,7 +118,86 @@
       sqlplus -s / as sysdba << EOF
         whenever sqlerror exit failure
         set pages 100 head off lines 1000 feed off serveroutput on termout off
+
+        define DMSROLE=DELIUS_AUDIT_DMS_RO_ROLE
+        declare
+          cursor c1 is
+            select owner,
+              (case
+                when iot_type ='IOT_OVERFLOW' 
+                then
+                  iot_name
+                else
+                  table_name 
+              end) nam
+            from dba_tables
+            where owner in ('DELIUS_AUDIT_DMS_POOL')
+            union all
+            select owner,
+                  view_name nam
+            from dba_views
+            where owner in ('DELIUS_AUDIT_DMS_POOL')
+            minus
+            select owner,table_name         -- Exclude existing privileges
+            from   dba_tab_privs
+            where  privilege = 'SELECT'
+            and    grantee   = '&&DMSROLE';
+
+          cursor c2 is
+            select owner,
+              object_name
+            from dba_objects
+            where owner in ('DELIUS_AUDIT_DMS_POOL')
+            and object_type in ('PACKAGE','PROCEDURE','FUNCTION')
+            minus
+            select owner,table_name         -- Exclude existing privileges
+            from   dba_tab_privs
+            where  privilege = 'DEBUG'
+            and    grantee   = '&&DMSROLE';
+
+          v_role      dba_roles.role%type:='&&DMSROLE';
+          l_command   VARCHAR2(4000);
+
+          cursor c3 is
+            select null
+            from dba_roles
+            where role = v_role;
+          
+          r3    c3%rowtype;
+
+        begin
+
+          open c3;
+          fetch c3 into r3;
+          if c3%notfound then
+            l_command := 'create role '||v_role;
+            DBMS_OUTPUT.put_line(l_command);
+            EXECUTE IMMEDIATE l_command;
+          end if;
+          close c3;
+
+          for r1 in c1
+          loop
+            l_command := 'grant select on '||r1.owner||'."'||r1.nam||'" to '||v_role;
+            DBMS_OUTPUT.put_line(l_command);
+            EXECUTE IMMEDIATE l_command;
+            DBMS_SESSION.sleep(0.5);  -- Avoid monopolising the library cache
+          end loop;
+
+          for r2 in c2
+          loop
+            l_command := 'grant debug on '||r2.owner||'.'||r2.object_name||' to '||v_role;
+            DBMS_OUTPUT.put_line(l_command);
+            EXECUTE IMMEDIATE l_command;
+            DBMS_SESSION.sleep(0.5);  -- Avoid monopolising the library cache
+          end loop;
+
+        end;
+        /
+
         grant DELIUS_READ_ONLY_ROLE to DBSNMP;
+        grant DELIUS_AUDIT_DMS_RO_ROLE to DBSNMP;
+
         exit
       EOF
   when: delius_users is defined and (action_type == "create" or action_type == "all")
