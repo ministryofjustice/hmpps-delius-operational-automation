@@ -16,7 +16,6 @@
 - name: Temporarily Exclude Host from Monitoring
   when: action == 'start'
   block:
-
     - name: Create blackout name fact if defined
       set_fact:
         blackout_name: "{{ blackout }}"
