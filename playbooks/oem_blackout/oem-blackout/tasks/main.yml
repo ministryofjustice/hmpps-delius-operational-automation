@@ -3,6 +3,12 @@
     path: "{{ emctl_agent }}"
   register: agent_emctl
 
+- name: Determine if Diagnostics Pack is enabled
+  set_fact:
+    has_diagnostic_pack: >-
+      {{ (database_parameters.control_management_pack_access is defined) and
+         (database_parameters.control_management_pack_access | default('') is search('.*DIAGNOSTIC.*')) }}
+
 - block:
     - name: Find out target name
       shell: |
@@ -60,4 +66,8 @@
 
   when:
     - agent_emctl.stat.exists
-    - database_parameters.control_management_pack_access | default('') is search('.*DIAGNOSTIC.*')
+    - has_diagnostic_pack
+
+- name: Disable OEM Script-Based Monitoring if no Diagnostic Pack
+  include_tasks: script_exclusion.yml
+  when: not has_diagnostic_pack
