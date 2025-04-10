@@ -75,14 +75,6 @@ function github_repository_dispatch()
 EVENT_TYPE=$1
 JSON_PAYLOAD=$2
 GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
-# We set the Phase in the JSON payload corresponding to whether the stats has succeeded or failed.
-# This is informational only - it is GitHub event type (oracle-db-stats-success/failure) which 
-# determines what the workflow does next.
-if [[ "$EVENT_TYPE" == "oracle-db-statistics-success" ]]; then
-    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Statistics Succeeded"')
-else
-    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Statistics Failed"')
-fi
 # GitHub Actions only allows us to have 10 elements in the payload so we remove those which are
 # not necessary.  In this case we remove TargetHost since that is only relevant to the original
 # stats; any retries will use RmanTarget instead.
@@ -141,62 +133,60 @@ if [[ ! -z "$JSON_INPUTS" ]]; then
    # actions to start the stats job.   These are only used for actioning a repository
    # dispatch event to indicate the end of the stats job run.  They do NOT
    # override the command line options passed to the script.
-   JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode )
-elif [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
-   error "JSON inputs must be supplied using the -j option if Repository Dispatch Events are requested."
+   JSON_INPUTS=$(echo $JSON_INPUTS | base64 --decode | jq -r )
 fi
 
-info "Gather statistics for schemas ${SCHEMAS}" 
-sqlplus -s "/ as sysdba" <<EOSQL
-whenever sqlerror exit 1
-set feedback off heading off verify off echo off
-BEGIN
-  DBMS_STATS.gather_schema_stats(
-      ownname => '${SCHEMAS}'
-      ,degree  => '${PARALLELISM}'
-      ,no_invalidate => FALSE
-  );
-END;
-/
-exit
-EOSQL
+# info "Gather statistics for schemas ${SCHEMAS}" 
+# sqlplus -s "/ as sysdba" <<EOSQL
+# whenever sqlerror exit 1
+# set feedback off heading off verify off echo off
+# BEGIN
+#   DBMS_STATS.gather_schema_stats(
+#       ownname => '${SCHEMAS}'
+#       ,degree  => '${PARALLELISM}'
+#       ,no_invalidate => FALSE
+#   );
+# END;
+# /
+# exit
+# EOSQL
 
-[[ $? -ne 0 ]] && error "In gathering statistics"
+# [[ $? -ne 0 ]] && error "In gathering statistics"
 
-info "Unlocking statistics"
+# info "Unlocking statistics"
 
-TABLE_INPUTS=$(echo $TABLE_INPUTS | base64 --decode )
-for TABLE_INPUT in $(echo $TABLE_INPUTS | jq -c '.[]')
-do
-  SCHEMA=$(echo $TABLE_INPUT | jq -r '.schema_name')
-  TABLE_LIST=$(echo $TABLE_INPUT | jq -c '.table_names[] | keys_unsorted | flatten[]' | sed "s/\"/'/g")
-  TABLE_LIST=$(echo $TABLE_LIST | sed 's/ /,/g')
-  info "Do not unlock ${TABLE_LIST}"
-  SQLRESULT=$(sqlplus -s / as sysdba<<EOSQL
-  connect / as sysdba
+# TABLE_INPUTS=$(echo $TABLE_INPUTS | base64 --decode )
+# for TABLE_INPUT in $(echo $TABLE_INPUTS | jq -c '.[]')
+# do
+#   SCHEMA=$(echo $TABLE_INPUT | jq -r '.schema_name')
+#   TABLE_LIST=$(echo $TABLE_INPUT | jq -c '.table_names[] | keys_unsorted | flatten[]' | sed "s/\"/'/g")
+#   TABLE_LIST=$(echo $TABLE_LIST | sed 's/ /,/g')
+#   info "Do not unlock ${TABLE_LIST}"
+#   SQLRESULT=$(sqlplus -s / as sysdba<<EOSQL
+#   connect / as sysdba
 
-  WHENEVER SQLERROR EXIT FAILURE
-  SET SERVEROUT ON
+#   WHENEVER SQLERROR EXIT FAILURE
+#   SET SERVEROUT ON
 
-  DECLARE
-    l_unlock_counter INTEGER := 0;
-  BEGIN
-  FOR t IN (SELECT table_name
-            FROM   dba_tab_statistics
-            WHERE  owner='${SCHEMA}'
-            AND    stattype_locked IS NOT NULL
-            AND    table_name NOT IN (${TABLE_LIST}))
-  LOOP
-      EXECUTE IMMEDIATE 'BEGIN DBMS_STATS.unlock_table_stats(''${SCHEMA}'','''||t.table_name||'''); END;';
-      l_unlock_counter := l_unlock_counter + 1;
-  END LOOP;
-  DBMS_OUTPUT.put_line('Unlocked '||l_unlock_counter||' table statistics.');
-  END;
-  /
-  EXIT
-EOSQL
-)
-done
+#   DECLARE
+#     l_unlock_counter INTEGER := 0;
+#   BEGIN
+#   FOR t IN (SELECT table_name
+#             FROM   dba_tab_statistics
+#             WHERE  owner='${SCHEMA}'
+#             AND    stattype_locked IS NOT NULL
+#             AND    table_name NOT IN (${TABLE_LIST}))
+#   LOOP
+#       EXECUTE IMMEDIATE 'BEGIN DBMS_STATS.unlock_table_stats(''${SCHEMA}'','''||t.table_name||'''); END;';
+#       l_unlock_counter := l_unlock_counter + 1;
+#   END LOOP;
+#   DBMS_OUTPUT.put_line('Unlocked '||l_unlock_counter||' table statistics.');
+#   END;
+#   /
+#   EXIT
+# EOSQL
+# )
+# done
 
 [[ $? -ne 0 ]] && error "Unlocking statistics"
 info "${SQLRESULT}"
