@@ -48,7 +48,7 @@
         exclude_comment: >-
           {{ 'Excluded from monitoring due to ' + blackout_name }}
           {%- if duration_seconds is defined and duration_seconds | int > 0 %}
-          {{ ' until ' + ((ansible_date_time.epoch | int) + (duration_seconds | int)) | to_datetime('%s') | strftime('%Y-%m-%d-%H-%M-%S') }}
+          {{ ' until ' + ((ansible_date_time.epoch | int) + (duration_seconds | int)) | int | date('Y-m-d-H-M-S') }}
           {%- endif %}
 
     - name: Get Sysman Password
