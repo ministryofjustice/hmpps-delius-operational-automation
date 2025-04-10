@@ -25,8 +25,8 @@
       set_fact:
         blackout_name: "Maintenance"
       when: ((blackout is defined) and (blackout|length == 0)) or (blackout is not defined)
-
-    - name: Convert duration to seconds if in [days] hh:mm format
+      
+    - name: Convert duration to seconds
       set_fact:
         duration_seconds: >-
           {% if duration is string and ':' in duration %}
@@ -43,12 +43,17 @@
             {{ duration | int }}
           {% endif %}
 
+    - name: Calculate end timestamp
+      set_fact:
+        end_timestamp: "{{ (ansible_date_time.epoch | int) + (duration_seconds | int) }}"
+      when: duration_seconds is defined and duration_seconds | int > 0
+
     - name: Define Exclude Comment For Host
       set_fact:
         exclude_comment: >-
           {{ 'Excluded from monitoring due to ' + blackout_name }}
           {%- if duration_seconds is defined and duration_seconds | int > 0 %}
-          {{ ' until ' + ((ansible_date_time.epoch | int) + (duration_seconds | int)) | int | date('Y-m-d-H-M-S') }}
+          {{ ' until ' + '%Y-%m-%d-%H-%M-%S' | strftime(end_timestamp) }}
           {%- endif %}
 
     - name: Get Sysman Password
