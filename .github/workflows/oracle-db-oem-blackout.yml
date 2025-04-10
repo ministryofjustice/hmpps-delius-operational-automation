@@ -58,7 +58,7 @@ on:
         type: string
         default: ""
       BlackoutDuration:
-        description: "Blackout duration [days] hh:mm [optional]"
+        description: "Blackout duration in '[days] hh:mm' format [optional]"
         type: string
         default: ""
       VerboseOutput:
