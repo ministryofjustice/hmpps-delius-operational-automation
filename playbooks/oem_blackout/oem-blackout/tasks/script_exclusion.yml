@@ -29,16 +29,16 @@
     - name: Convert duration to seconds if in [days] hh:mm format
       set_fact:
         duration_seconds: >-
-          {% if duration is string %}
+          {% if duration is string and ':' in duration %}
             {% set parts = duration.split(' ') %}
             {% if parts | length == 2 %}
               {% set days = parts[0] | int %}
-              {% set time = parts[1].split(':') %}
+              {% set time_parts = parts[1].split(':') %}
             {% else %}
               {% set days = 0 %}
-              {% set time = parts[0].split(':') %}
+              {% set time_parts = parts[0].split(':') %}
             {% endif %}
-            {{ (days * 86400) + ((time[0] | int) * 3600) + ((time[1] | int) * 60) }}
+            {{ (days * 86400) + (time_parts[0] | int * 3600) + (time_parts[1] | int * 60) }}
           {% else %}
             {{ duration | int }}
           {% endif %}
@@ -47,10 +47,9 @@
       set_fact:
         exclude_comment: >-
           {{ 'Excluded from monitoring due to ' + blackout_name }}
-          {{ ' until ' + ((ansible_date_time.epoch | int) + duration_seconds | int) 
-            | to_datetime('%s') 
-            | strftime('%Y-%m-%d-%H-%M-%S') 
-            if (duration_seconds is defined and duration_seconds | int > 0) else '' }}
+          {%- if duration_seconds is defined and duration_seconds | int > 0 %}
+          {{ ' until ' + ((ansible_date_time.epoch | int) + (duration_seconds | int)) | to_datetime('%s') | strftime('%Y-%m-%d-%H-%M-%S') }}
+          {%- endif %}
 
     - name: Get Sysman Password
       include_tasks: get_facts.yml
