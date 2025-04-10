@@ -13,10 +13,6 @@
   setup:
     filter: ansible_date_time
 
-- name: Debug ansible_date_time
-  debug:
-    var: ansible_date_time
-
 - name: Temporarily Exclude Host from Monitoring
   when: action == 'start'
   block:
@@ -54,8 +50,8 @@
           {{ ' until ' + ((ansible_date_time.epoch | int) + duration_seconds | int) 
             | to_datetime('%s') 
             | strftime('%Y-%m-%d-%H-%M-%S') 
-            if (duration_seconds is defined and duration_seconds > 0) else '' }}
-            
+            if (duration_seconds is defined and duration_seconds | int > 0) else '' }}
+
     - name: Get Sysman Password
       include_tasks: get_facts.yml
 
