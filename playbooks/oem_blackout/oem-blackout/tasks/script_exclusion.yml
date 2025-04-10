@@ -13,6 +13,10 @@
   setup:
     filter: ansible_date_time
 
+- name: Debug ansible_date_time
+  debug:
+    var: ansible_date_time
+
 - name: Temporarily Exclude Host from Monitoring
   when: action == 'start'
   block:
