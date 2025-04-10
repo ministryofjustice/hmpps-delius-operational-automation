@@ -25,7 +25,7 @@
       set_fact:
         blackout_name: "Maintenance"
       when: ((blackout is defined) and (blackout|length == 0)) or (blackout is not defined)
-      
+
     - name: Convert duration to seconds
       set_fact:
         duration_seconds: >-
