@@ -1,10 +1,8 @@
 name: "Oracle: Schedule Toggle Fast Start Failover"
 on:
   schedule:
-    - cron: '0,10,20,30,40,50 11,15,16 * * MON-FRI'
-    - cron: '00 14 * * TUE'
-    - cron: '00 10 * * THU'
-    - cron: '00 14 * * THU'
+    - cron: '00 19 * * MON-FRI'
+    - cron: '00 07 * * MON-FRI'
   workflow_dispatch:
     inputs:
       TargetEnvironment:
@@ -54,7 +52,7 @@ jobs:
           sparse-checkout: |
              .github/workflows/oracle-db-toggle-fsfo-schedule.json
           path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'DBA-849' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
 
       - name: Filter Toggle FSFO Schedule
@@ -223,7 +221,7 @@ jobs:
         matrix: ${{fromJson(needs.prepare-filtered-run-matrix.outputs.scheduled_matrix)}}
       name: Toggle FSFO
       uses:
-        ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo.yml@DBA-849
+        ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo.yml@main
       with:
         TargetEnvironment: ${{ matrix.TargetEnvironment }}
         FSFOMode: ${{ matrix.Action }}
