@@ -13,6 +13,10 @@
   setup:
     filter: ansible_date_time
 
+- name: Print the current time
+  debug:
+    msg: "Current time: {{ ansible_date_time.iso8601 }}, converted to epoch: {{ ansible_date_time.epoch }}, timezone offset: {{ ansible_date_time.tz_offset }}"
+
 - name: Convert UTC to Europe/London Timezone
   set_fact:
     local_time: "{{ ansible_date_time.epoch | int + (timezone_offset | int * 3600) }}"
