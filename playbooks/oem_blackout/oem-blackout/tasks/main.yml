@@ -70,4 +70,6 @@
 
 - name: Disable OEM Script-Based Monitoring if no Diagnostic Pack
   include_tasks: script_exclusion.yml
+  vars:
+    duration: "{{ duration | quote }}"
   when: not has_diagnostic_pack

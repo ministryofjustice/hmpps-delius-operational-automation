@@ -17,12 +17,6 @@
   debug:
     msg: "Current time: {{ ansible_date_time.iso8601 }}, converted to epoch: {{ ansible_date_time.epoch }}, timezone offset: {{ ansible_date_time.tz_offset }}"
 
-- name: Convert UTC to Europe/London Timezone
-  set_fact:
-    local_time: "{{ ansible_date_time.epoch | int + (timezone_offset | int * 3600) }}"
-  vars:
-    timezone_offset: "{{ (ansible_date_time.tz_offset | int) / 100 }}"
-
 - name: Temporarily Exclude Host from Monitoring
   when: action == 'start'
   block:
@@ -64,7 +58,7 @@
 
     - name: Calculate end timestamp
       set_fact:
-        end_timestamp: "{{ (local_time | int) + (duration_seconds | int) }}"
+        end_timestamp: "{{ (ansible_date_time.epoch | int) + (duration_seconds | int) }}"
       when: duration_seconds is defined and duration_seconds | int > 0
 
     - name: Show end timestamp
