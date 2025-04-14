@@ -158,5 +158,5 @@ jobs:
           -e object_type=${{ github.event.inputs.ObjectTypes }} \
           -e action=${{ github.event.inputs.Action }} \
           -e blackout="${{ github.event.inputs.BlackoutName }}" \
-          -e duration="${{ github.event.inputs.BlackoutDuration }}" ${{ github.event.inputs.Verbose }}
+          -e 'duration=${{ github.event.inputs.BlackoutDuration }}' ${{ github.event.inputs.Verbose }}
           
