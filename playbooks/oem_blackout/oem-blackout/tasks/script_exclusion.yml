@@ -43,20 +43,20 @@
 
     - name: Convert duration to seconds
       set_fact:
-      duration_seconds: >-
-        {% if duration is string and ':' in duration %}
-        {% set parts = duration.split(' ') %}
-        {% if parts | length == 2 %}
-          {% set days = parts[0] | int %}
-          {% set time_parts = parts[1].split(':') %}
-        {% else %}
-          {% set days = 0 %}
-          {% set time_parts = parts[0].split(':') %}
-        {% endif %}
-        {{ (days * 86400) + (time_parts[0] | int * 3600) + (time_parts[1] | int * 60) }}
-        {% else %}
-        {{ duration | int }}
-        {% endif %}
+        duration_seconds: >-
+          {% if duration is string and ':' in duration %}
+          {% set parts = duration.split(' ') %}
+          {% if parts | length == 2 %}
+            {% set days = parts[0] | int %}
+            {% set time_parts = parts[1].split(':') %}
+          {% else %}
+            {% set days = 0 %}
+            {% set time_parts = parts[0].split(':') %}
+          {% endif %}
+          {{ (days * 86400) + (time_parts[0] | int * 3600) + (time_parts[1] | int * 60) }}
+          {% else %}
+          {{ duration | int }}
+          {% endif %}
 
     - name: Calculate end timestamp
       set_fact:
