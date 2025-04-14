@@ -9,6 +9,13 @@
       {{ (database_parameters.control_management_pack_access is defined) and
          (database_parameters.control_management_pack_access | default('') is search('.*DIAGNOSTIC.*')) }}
 
+- name: Show duration
+  debug:
+    msg: "Duration value passed in: {{ duration }}"
+  when:
+    - duration is defined and duration | length > 0
+    - action == "start"
+
 - block:
     - name: Find out target name
       shell: |
@@ -29,6 +36,11 @@
     - name: Allow OEM Jobs to Run During Blackout if declared
       set_fact:
         allow_jobs_flag: "{{ '-allow_jobs' if ( allow_jobs | default(false) ) else '' }}"
+
+    - name: Set default value for duration if not defined
+      set_fact:
+        duration: "30 00:00"
+      when: duration is not defined or duration | length == 0
 
     - name: Create duration fact
       set_fact:
@@ -70,4 +82,6 @@
 
 - name: Disable OEM Script-Based Monitoring if no Diagnostic Pack
   include_tasks: script_exclusion.yml
+  vars:
+    duration: "{{ duration | quote }}"
   when: not has_diagnostic_pack
