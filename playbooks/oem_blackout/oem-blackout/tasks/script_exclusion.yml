@@ -13,6 +13,12 @@
   setup:
     filter: ansible_date_time
 
+- name: Convert UTC to Europe/London Timezone
+  set_fact:
+    local_time: "{{ ansible_date_time.epoch | int + (timezone_offset | int * 3600) }}"
+  vars:
+    timezone_offset: "{{ (ansible_date_time.tz_offset | int) / 100 }}"
+
 - name: Temporarily Exclude Host from Monitoring
   when: action == 'start'
   block:
@@ -26,26 +32,35 @@
         blackout_name: "Maintenance"
       when: ((blackout is defined) and (blackout|length == 0)) or (blackout is not defined)
 
+    - name: Set default value for duration if not defined
+      set_fact:
+        duration: "30 00:00"
+      when: duration is not defined or duration | length == 0
+
+    - name: Print the duration value passed in
+      debug:
+        msg: "Duration value passed in: {{ duration }}"
+
     - name: Convert duration to seconds
       set_fact:
-        duration_seconds: >-
-          {% if duration is string and ':' in duration %}
-            {% set parts = duration.split(' ') %}
-            {% if parts | length == 2 %}
-              {% set days = parts[0] | int %}
-              {% set time_parts = parts[1].split(':') %}
-            {% else %}
-              {% set days = 0 %}
-              {% set time_parts = parts[0].split(':') %}
-            {% endif %}
-            {{ (days * 86400) + (time_parts[0] | int * 3600) + (time_parts[1] | int * 60) }}
-          {% else %}
-            {{ duration | int }}
-          {% endif %}
+      duration_seconds: >-
+        {% if duration is string and ':' in duration %}
+        {% set parts = duration.split(' ') %}
+        {% if parts | length == 2 %}
+          {% set days = parts[0] | int %}
+          {% set time_parts = parts[1].split(':') %}
+        {% else %}
+          {% set days = 0 %}
+          {% set time_parts = parts[0].split(':') %}
+        {% endif %}
+        {{ (days * 86400) + (time_parts[0] | int * 3600) + (time_parts[1] | int * 60) }}
+        {% else %}
+        {{ duration | int }}
+        {% endif %}
 
     - name: Calculate end timestamp
       set_fact:
-        end_timestamp: "{{ (ansible_date_time.epoch | int) + (duration_seconds | int) }}"
+        end_timestamp: "{{ (local_time | int) + (duration_seconds | int) }}"
       when: duration_seconds is defined and duration_seconds | int > 0
 
     - name: Show end timestamp
