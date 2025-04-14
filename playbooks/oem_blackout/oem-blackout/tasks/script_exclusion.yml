@@ -48,6 +48,11 @@
         end_timestamp: "{{ (ansible_date_time.epoch | int) + (duration_seconds | int) }}"
       when: duration_seconds is defined and duration_seconds | int > 0
 
+    - name: Show end timestamp
+      debug:
+        msg: "End timestamp: {{ end_timestamp }}"
+      when: end_timestamp is defined and duration_seconds | int > 0
+
     - name: Define Exclude Comment For Host
       set_fact:
         exclude_comment: >-
@@ -59,17 +64,25 @@
     - name: Get Sysman Password
       include_tasks: get_facts.yml
 
-    - name: Update Host Comment Property With Excluded Host
+    - name: Emcli login
       shell: |
         . ~/.bash_profile
-        export PATH=$PATH:{{ emcli_java_location }}
         RM=$({{ emcli }} sync 2>&1)
         if [[ "$RM" == "Error: Session expired. Run emcli login to establish a session." ]];
         then
             {{ emcli }} login -username=sysman -password={{ oem_sysman_password }}
         fi
+      changed_when: false
+      register: emcli_login
+
+    - name: Update Host Comment Property With Excluded Host
+      shell: |
         {{ emcli }} set_target_property_value -property_records="{{ get_agent_host.stdout }}:host:Comment:{{ exclude_comment }}"
       register: updatecomment
+
+    - name: Show Host Comment Command
+      debug:
+        msg: "Host Comment Command: {{ updatecomment.stdout }}"
 
 # Some metrics should be explicitly re-evaluated as they are not gathered frequently and may be out of date when the exclusion is removed
 - name: Re-Evaluate Named Host Metrics
@@ -107,14 +120,22 @@
     - name: Get Sysman Password
       include_tasks: get_facts.yml
 
-    - name: Update Host Comment Property With Empty String
+    - name: Emcli login
       shell: |
         . ~/.bash_profile
-        export PATH=$PATH:{{ emcli_java_location }}
         RM=$({{ emcli }} sync 2>&1)
         if [[ "$RM" == "Error: Session expired. Run emcli login to establish a session." ]];
         then
             {{ emcli }} login -username=sysman -password={{ oem_sysman_password }}
         fi
+      changed_when: false
+      register: emcli_login
+
+    - name: Update Host Comment Property With Excluded Host
+      shell: |
         {{ emcli }} set_target_property_value -property_records="{{ get_agent_host.stdout }}:host:Comment:"
       register: updatecomment
+
+    - name: Show Host Comment Command
+      debug:
+        msg: "Host Comment Command: {{ updatecomment.stdout }}"
