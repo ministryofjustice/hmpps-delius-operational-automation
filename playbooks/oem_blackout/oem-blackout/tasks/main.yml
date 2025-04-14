@@ -12,7 +12,7 @@
 - name: Show duration
   debug:
     msg: "Duration value passed in: {{ duration }}"
-  when: 
+  when:
     - duration is defined and duration | length > 0
     - action == "start"
 
