@@ -1,7 +1,3 @@
-- name: Show parsed duration value
-  debug:
-    var: duration
-    
 - name: Check if Cloud Control Agent Installed
   stat:
     path: "{{ emctl_agent }}"
