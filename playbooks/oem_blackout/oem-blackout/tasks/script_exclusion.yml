@@ -9,17 +9,17 @@
   register: get_agent_host
   changed_when: false
 
-- name: Get the Time
-  setup:
-    filter: ansible_date_time
-
-- name: Print the current time
-  debug:
-    msg: "Current time: {{ ansible_date_time.iso8601 }}, converted to epoch: {{ ansible_date_time.epoch }}, timezone offset: {{ ansible_date_time.tz_offset }}"
-
 - name: Temporarily Exclude Host from Monitoring
   when: action == 'start'
   block:
+    - name: Get the Time
+      setup:
+        filter: ansible_date_time
+
+    - name: Print the current time
+      debug:
+        msg: "Current time: {{ ansible_date_time.iso8601 }}, converted to epoch: {{ ansible_date_time.epoch }}, timezone offset: {{ ansible_date_time.tz_offset }}"
+
     - name: Create blackout name fact if defined
       set_fact:
         blackout_name: "{{ blackout }}"
