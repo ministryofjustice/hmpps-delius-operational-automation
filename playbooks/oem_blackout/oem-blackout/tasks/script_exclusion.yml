@@ -67,6 +67,7 @@
     - name: Emcli login
       shell: |
         . ~/.bash_profile
+        export PATH=$PATH:{{ emcli_java_location }}
         RM=$({{ emcli }} sync 2>&1)
         if [[ "$RM" == "Error: Session expired. Run emcli login to establish a session." ]];
         then
@@ -77,6 +78,7 @@
 
     - name: Update Host Comment Property With Excluded Host
       shell: |
+        export PATH=$PATH:{{ emcli_java_location }}
         {{ emcli }} set_target_property_value -property_records="{{ get_agent_host.stdout }}:host:Comment:{{ exclude_comment }}"
       register: updatecomment
 
@@ -123,6 +125,7 @@
     - name: Emcli login
       shell: |
         . ~/.bash_profile
+        export PATH=$PATH:{{ emcli_java_location }}
         RM=$({{ emcli }} sync 2>&1)
         if [[ "$RM" == "Error: Session expired. Run emcli login to establish a session." ]];
         then
@@ -133,6 +136,7 @@
 
     - name: Update Host Comment Property With Excluded Host
       shell: |
+        export PATH=$PATH:{{ emcli_java_location }}
         {{ emcli }} set_target_property_value -property_records="{{ get_agent_host.stdout }}:host:Comment:"
       register: updatecomment
 
