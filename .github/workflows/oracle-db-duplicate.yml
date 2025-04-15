@@ -229,6 +229,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
+          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oem_blackout/roles
           $ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
           -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} 
 
@@ -549,6 +550,7 @@ jobs:
             playbooks/oracle_statspack
             playbooks/mis_database_links
             playbooks/delius_objects
+            playbooks/oem_blackout
             common/*
             playbooks/ansible.cfg
           path: operations
@@ -592,6 +594,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
+          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oem_blackout/roles
           $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
           -e duplicate_target=${{ env.DuplicateTarget }} -e source_legacy=${{ needs.oracle-rman-duplicate-check.outputs.SourceLegacy }}
 
