@@ -30,10 +30,16 @@
         blackout_name: "Maintenance"
       when: ((blackout is defined) and (blackout|length == 0)) or (blackout is not defined)
 
+    - name: Check if duration exists
+      set_fact:
+        _duration_exists: "{{ duration | default('') }}"
+      ignore_errors: true
+      register: duration_check
+
     - name: Set default value for duration if not defined
       set_fact:
         duration: "30 00:00"
-      when: duration is undefined or duration is none
+      when: duration_check is failed or duration_check.ansible_facts._duration_exists == ''
 
     - name: Print the duration value passed in
       debug:
