@@ -33,7 +33,7 @@
     - name: Set default value for duration if not defined
       set_fact:
         duration: "30 00:00"
-      when: (duration | default('') | string | length) == 0
+      when: (duration is not defined) or (duration | default('') | string | length == 0)
 
     - name: Print the duration value passed in
       debug:
