@@ -388,7 +388,7 @@ jobs:
         id: slack
         uses: slackapi/slack-github-action@v1.27.0
         with:
-            channel-id: "delius-aws-oracle-dev-alerts-test"
+            channel-id: "delius-aws-oracle-dev-alerts"
             payload: |
               { 
                 "icon_emoji":"large_purple_circle",
