@@ -499,7 +499,7 @@ jobs:
   remove-passwords:
     needs:
       - cleanup
-    uses: ./.github/workflows/ldap-remove-user-passwords.yml
+    uses: ./.github/workflows/ldap-remove-user-passwords.yaml
     with:
       environment: ${{ github.event.inputs.destination_env }}
     secrets: inherit
