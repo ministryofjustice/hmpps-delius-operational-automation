@@ -100,13 +100,13 @@ jobs:
       - name: Scale ECS Service to 0
         id: scale-ecs-service
         run: |
-          aws ecs update-service --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --service delius-core-${{ github.event.inputs.destination_env }}-openldap --desired-count 0
+          aws ecs update-service --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --service ${{ github.event.inputs.destination_env }}-ldap --desired-count 0
 
       - name: Confirm ECS Service is scaled to 0
         id: confirm-ecs-service-scaled
         run: |
           while true; do
-            DESIRED_COUNT=$(aws ecs describe-services --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --services delius-core-${{ github.event.inputs.destination_env }}-openldap --query 'services[0].desiredCount' --output text)
+            DESIRED_COUNT=$(aws ecs describe-services --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --service ${{ github.event.inputs.destination_env }}-ldap --query 'services[0].desiredCount' --output text)
             if [[ "${DESIRED_COUNT}" == "0" ]]; then
               echo "DESIRED_COUNT=${DESIRED_COUNT}" >> $GITHUB_OUTPUT
               break
