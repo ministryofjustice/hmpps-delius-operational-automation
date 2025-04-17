@@ -384,7 +384,7 @@ jobs:
 
       - name: Ensure service stability
         run: |
-          aws ecs wait services-stable --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --services delius-core-${{ github.event.inputs.destination_env }}-openldap
+          aws ecs wait services-stable --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --services ${{ github.event.inputs.destination_env }}-ldap
           echo "ECS Service stable"
           echo "Data refresh complete"
   cleanup:
