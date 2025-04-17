@@ -379,7 +379,7 @@ jobs:
       - name: Scale ECS Service back to 1
         id: scale-ecs-service
         run: |
-          aws ecs update-service --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --service delius-core-${{ github.event.inputs.destination_env }}-openldap --desired-count 1
+          aws ecs update-service --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --service ${{ github.event.inputs.destination_env }}-ldap --desired-count 1
           echo "ECS Service scaled back to 1"
 
       - name: Ensure service stability
