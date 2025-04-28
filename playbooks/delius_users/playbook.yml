@@ -288,7 +288,7 @@
 
           open c1;
           fetch c1 into r1;
-          if c1%notfound 
+          if c1%notfound
           then
             -- Ensure new users are created with random unknown password which must be reset to allow access
             -- Allow DBA Users to use the default temporary tablespace for the database.  Read-Only users should 
@@ -339,7 +339,7 @@
 
         audit create session by {{ item.key }};
       EOF
-  when: delius_users is defined and ( action_type=="create" or action_type == "all")
+  when: delius_users is defined and ( action_type=="create" or action_type == "all") and not item.value.drop_user | default(false)
   with_dict: "{{ delius_users }}"
   register: plsql
   changed_when: false
@@ -351,27 +351,29 @@
   loop: "{{ plsql.results }}"
   loop_control:
     label: "{{ item.item.key }}"
-  when: delius_users is defined and ( action_type=="create" or action_type == "all")
+  when: delius_users is defined and ( action_type=="create" or action_type == "all") and plsql.changed
 
 # Create a trigger to set the default schema as DELIUS_APP_SCHEMA for Read-Only users.
 - name: Logon Trigger Created for _RO Users
   script: create_ro_logon_trigger.sh
-  loop: "{{ ( delius_users | default({}) ).keys() }}"
+  with_dict: "{{ delius_users }}"
   environment:
-    RO_USER: "{{ item }}"
+    RO_USER: "{{ item.key }}"
   when:
-    - item | lower is search('.*_ro$')
+    - item.key | lower is search('.*_ro$')
     - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
+    - not item.value.drop_user | default(false)
 
 # Create a trigger to prevent Standby Database Only Read-Only Users logging into the Primary database.
 - name: Logon Trigger Created for _SRO Users
   script: create_sro_logon_trigger.sh
-  loop: "{{ ( delius_users | default({}) ).keys() }}"
+  with_dict: "{{ delius_users }}"
   environment:
-    STANDBY_RO_USER: "{{ item }}"
+    STANDBY_RO_USER: "{{ item.key }}"
   when:
-    - item | lower is search('.*_sro$')
+    - item.key | lower is search('.*_sro$')
     - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
+    - not item.value.drop_user | default(false)
 
 # Delius users below are only created requiring read write privileges on certain Delius tables.
 # These type of database users are scarce.
@@ -387,7 +389,7 @@
         src: "grant_{{ item.key }}_user.sql"
         dest: "/tmp"
       with_dict: "{{ delius_users }}"
-      when: (item.key[-3:]=="_rw")
+      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
 
     - name: Execute the grant sql files on the target
       shell:
@@ -399,12 +401,12 @@
             spool off
           EOF
       with_dict: "{{ delius_users }}"
-      when: (item.key[-3:]=="_rw")
+      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
 
     - name: Gather any errors of the execution by checking spool files
       shell: grep "^GRANT.*$" /tmp/grant_{{ item.key }}_user.lst | cat
       with_dict: "{{ delius_users }}"
-      when: (item.key[-3:]=="_rw")
+      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
       changed_when: false
       register: output
 
@@ -440,7 +442,7 @@
       EOF
       echo "Password restored for {{ item.key }}"
   with_dict: "{{ delius_users }}"
-  when: delius_users is defined and (action_type=="restore" or action_type == "all")
+  when: delius_users is defined and (action_type=="restore" or action_type == "all") and not item.value.drop_user | default(false)
   changed_when: false
   register: plsql
 
@@ -452,56 +454,114 @@
     label: "{{ item.item.key }}"
   when: delius_users is defined and (action_type=="restore" or action_type == "all")
 
-- name: Place read only users in variable if read only users defined
-  set_fact:
-    readonly_users: '{{ lookup(''dict'', delius_users) | json_query(''[*].key'') | join("'',''") | regex_replace(''^|$'',"''") | upper}}'
-  when: delius_users is defined and action_type=="store"
+- name: Store Database User Passwords
+  when: delius_users is defined and action_type == "store"
+  block:
 
-- name: Store database user passwords
+    - name: Create List Users
+      set_fact:
+        user_list: "{{ user_list | default([]) + [item.key | upper] }}"
+      with_dict: "{{ delius_users }}"
+      when: not item.value.drop_user | default(false)
+
+    - name: Place read only users in variable if read only users defined
+      set_fact:
+        readonly_users: '{{ user_list | join("'',''") | regex_replace(''^|$'',"''") }}'
+
+    - name: Store database user passwords
+      shell:
+        cmd: |
+          . ~/.bash_profile
+          DB_STATUS=$( srvctl status database -d ${ORACLE_SID} -verbose | awk '{print $NF}' )
+          DATETIME=$(date +"%Y%m%d%H%M%S")
+          [[ ! -d /home/oracle/admin/rman_scripts ]] && mkdir -p /home/oracle/admin/rman_scripts
+          if [ "${DB_STATUS}" == "Open." ]
+          then
+            sqlplus -s / as sysdba << EOF
+              whenever sqlerror exit failure
+              set pages 100 head off lines 200 feed off trimspool on newp none
+              -- Existing passwords may be in 11g format (prefix S:) or 12c format (prefix T:)
+              -- We only store the higher valued format for reapplying to a user
+              spool /home/oracle/admin/rman_scripts/.readonly_users.creds
+              SELECT
+                  lower(name)
+                  || ':'
+                  ||
+                  CASE
+                      WHEN REGEXP_LIKE ( spare4,
+                                        '^.*T:([A-F0-9]+);?.*$' ) THEN
+                              regexp_replace(spare4, '^.*(T:[A-F0-9]+);?.*$', '\1')
+                      ELSE
+                          regexp_replace(spare4, '^.*(S:[A-F0-9]+);?.*$', '\1')
+                  END
+                  || ';'||password
+              FROM
+                  sys.user$
+              WHERE name IN ({{ readonly_users }});
+              spool off
+          EOF
+          # Take a copy just in case duplicate process fails
+          cp -p /home/oracle/admin/rman_scripts/.readonly_users.creds /home/oracle/admin/rman_scripts/.readonly_users.creds.${DATETIME}
+          fi
+
+      changed_when: false
+      register: sql_result
+      failed_when: sql_result.rc != 0
+
+    - name: Storing following users
+      debug:
+        msg: "{{ item | regex_replace('^(.+):(.+):(.+)$','\\1') }}"
+      loop: "{{ sql_result.stdout_lines }}"
+      loop_control:
+        label: "Storing ..."
+
+- name: Drop User And Trigger If Required
   shell:
     cmd: |
       . ~/.bash_profile
-      DB_STATUS=$( srvctl status database -d ${ORACLE_SID} -verbose | awk '{print $NF}' )
-      DATETIME=$(date +"%Y%m%d%H%M%S")
-      [[ ! -d /home/oracle/admin/rman_scripts ]] && mkdir -p /home/oracle/admin/rman_scripts
-      if [ "${DB_STATUS}" == "Open." ]
-      then
-        sqlplus -s / as sysdba << EOF
-          whenever sqlerror exit failure
-          set pages 100 head off lines 200 feed off trimspool on newp none
-          -- Existing passwords may be in 11g format (prefix S:) or 12c format (prefix T:)
-          -- We only store the higher valued format for reapplying to a user
-          spool /home/oracle/admin/rman_scripts/.readonly_users.creds
-          SELECT
-              lower(name)
-              || ':'
-              ||
-              CASE
-                  WHEN REGEXP_LIKE ( spare4,
-                                    '^.*T:([A-F0-9]+);?.*$' ) THEN
-                          regexp_replace(spare4, '^.*(T:[A-F0-9]+);?.*$', '\1')
-                  ELSE
-                      regexp_replace(spare4, '^.*(S:[A-F0-9]+);?.*$', '\1')
-              END
-              || ';'||password
-          FROM
-              sys.user$
-          WHERE name IN ({{ readonly_users }});
-          spool off
+      sqlplus -s / as sysdba << EOF
+        whenever sqlerror exit failure
+        set pages 100 head off lines 200 feed off serveroutput on
+        declare
+
+          cursor c1 is
+            select *
+            from dba_users
+            where lower(username) = '{{ item.key }}';
+
+          r1 c1%rowtype;
+
+          cursor c2 is
+            select *
+            from dba_triggers
+            where owner = 'DELIUS_USER_SUPPORT'
+            and lower(trigger_name) = '{{ item.key }}';
+
+          r2 c2%rowtype;
+
+        begin
+
+          open c1;
+          fetch c1 into r1;
+          if c1%found
+          then
+            execute immediate 'drop user {{ item.key }}';
+          end if;
+          close c1;
+
+          open c2;
+          fetch c2 into r2;
+          if c2%found
+          then
+            execute immediate 'drop trigger delius_user_support.{{ item.key }}';
+          end if;
+          close c2;
+
+        end;
+        /
       EOF
-      # Take a copy just in case duplicate process fails
-      cp -p /home/oracle/admin/rman_scripts/.readonly_users.creds /home/oracle/admin/rman_scripts/.readonly_users.creds.${DATETIME}
-      fi
-
+  when: delius_users is defined and item.value.drop_user | default(false)
+  with_dict: "{{ delius_users }}"
+  register: drop_user_plsql
   changed_when: false
-  when: delius_users is defined and action_type=="store"
-  register: sql_result
-  failed_when: sql_result.rc != 0
-
-- name: Storing following users
-  debug:
-    msg: "{{ item | regex_replace('^(.+):(.+):(.+)$','\\1') }}"
-  loop: "{{ sql_result.stdout_lines }}"
-  loop_control:
-    label: "Storing ..."
-  when: delius_users is defined and action_type=="store"
+  failed_when: drop_user_plsql.rc != 0
