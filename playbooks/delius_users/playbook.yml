@@ -457,7 +457,6 @@
 - name: Store Database User Passwords
   when: delius_users is defined and action_type == "store"
   block:
-
     - name: Create List Users
       set_fact:
         user_list: "{{ user_list | default([]) + [item.key | upper] }}"
