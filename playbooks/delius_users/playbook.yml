@@ -544,7 +544,7 @@
           fetch c1 into r1;
           if c1%found
           then
-            execute immediate 'drop user {{ item.key }}';
+            execute immediate 'drop user {{ item.key }} cascade';
           end if;
           close c1;
 
