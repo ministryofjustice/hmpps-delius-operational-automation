@@ -26,6 +26,10 @@ on:
         description: AWS Backup ID of the source EFS backup. Leaving this blank will use the latest backup
         required: false
         type: string
+      test_users:
+        description: Test users to export and re-import so they are not overwritten by the refresh
+        required: false # but required in preprod
+        type: string
 
 jobs:
   pre-checks:
@@ -83,6 +87,61 @@ jobs:
           #          fi
           
           echo "Copying from ${source_env} to ${destination_env}"
+  test-user-export:
+    needs:
+      - pre-checks
+    runs-on: ubuntu-latest
+    environment: delius-core-${{ github.event.inputs.destination_env }}-preapproved
+    steps:
+      - name: Get list of test users
+        run: |
+          destination_env="${{ github.event.inputs.destination_env }}"
+          TEST_USERS="${{ github.event.inputs.test_users }}"
+
+          if [[ "${destination_env}" == "preprod" ]]; then
+            echo "Checking test users have been supplied..."
+            if [[ -z "${TEST_USERS}" ]]; then
+              # try get list of users from AWS secret
+              TEST_USERS=$( get aws secret value here)
+              if [[ error code ]]; then
+                echo "Test users list has not been supplied, cancelling run..." 
+                exit 1
+              elif [[ success code ]]; then
+                echo "Test users list supplied, number of users is: $(echo ${TEST_USERS} | sed '/^\s*$/d' | wc -l)"
+              fi
+            else
+              echo "Test users list supplied, number of users is: $(echo ${TEST_USERS} | sed '/^\s*$/d' | wc -l)"
+            fi
+          else
+            echo "Destination is not pre-prod, skipping..."
+          fi
+
+          echo "TEST_USERS=$TEST_USERS" >> $GITHUB_ENV 
+      - name: Export test users # check escaped characters here
+        run: |
+          destination_env="${{ github.event.inputs.destination_env }}"
+          cluster="delius-core-${destination_env}-cluster"
+          service="${destination_env}-ldap"
+
+          USERS_LIST=$(echo "${TEST_USERS}" | xargs)
+
+          aws ecs execute-command \
+            --cluster ${cluster}\
+            --task $(aws ecs list-tasks --cluster ${cluster} --service-name ${service} --query "taskArns[0]" --output text) \
+            --container ldap \
+            --command "bash -c '
+              users=(${USERS_LIST});
+              [ -f testusers.ldif ] && mv testusers.ldif testusers.ldif.bak;
+              for username in \"\${users[@]}\"; do
+                dn=cn=\$username,ou=Users,dc=moj,dc=com;
+                echo Getting user \$dn...;
+                ldapsearch -Y external -Q -H ldapi:// -LLL -b \"\$dn\" >> testusers.ldif;
+              done;
+              awk '\''!NF {delete seen; print; next} !seen[\$0]++'\'' testusers.ldif > testusers.no-duplicates.ldif
+              mv testusers.no-duplicates.ldif testusers.ldif
+            '" \
+          --interactive
+          
 
   destination-pre:
     needs:
@@ -503,3 +562,48 @@ jobs:
     with:
       environment: ${{ github.event.inputs.destination_env }}
     secrets: inherit
+  import-test-users: # check escaping here
+    needs: remove-passwords
+    steps:    
+      - name: Import test users
+        if: ${{ env.destination_env == 'preprod' }}
+        run: |
+          USERS_LIST=$(echo "${TEST_USERS}" | xargs)
+
+          aws ecs execute-command \
+            --cluster "${cluster}" \
+            --task $(aws ecs list-tasks --cluster "${cluster}" --service-name "${service}" --query "taskArns[0]" --output text) \
+            --container ldap \
+            --command "bash -c '
+              # Define the join_by function
+              join_by() {
+                local d=\"\${1-}\" f=\"\${2-}\"
+                if shift 2; then
+                  printf %s \"\$f\" \"\${@/#/\$d}\"
+                fi
+              }
+
+              # Extract users from ldif file
+              users=(\$(grep \"^dn: cn=[^,]*,ou=Users\" testusers.ldif | sed -E \"s/^dn: cn=([^,]*),.*/\1/\"))
+
+              # Delete users
+              for username in \${users[@]}; do
+                  dn=cn=\$username,ou=Users,dc=moj,dc=com
+                  echo Deleting user \$dn...
+                  ldapdelete -Y external -Q -H ldapi:// -r \"\$dn\"
+              done
+
+              # Add users back
+              echo Adding users...
+              ldapadd -Y external -Q -H ldapi:// -f testusers.ldif -c
+
+              # Remove email and password from other users
+              echo Removing email and password from all other users...
+              joined=\$(join_by ')(' \${users[@]})
+              exclude_test_user_filter='(!(|(cn=\"\${joined}\")))'
+              ldap_password=\$(aws ssm get-parameter --name '/delius-pre-prod/delius/apacheds/apacheds/ldap_admin_password' --with-decryption --query Parameter.Value --output text --region eu-west-2)
+              ldapsearch -D cn=root,dc=moj,dc=com -w \"\$ldap_password\" -b ou=Users,dc=moj,dc=com -s one -LLL \"\$exclude_test_user_filter\" dn \
+                | sed -E \"s/^(dn:.*)/\1\nchangetype: modify\ndelete: mail\n\n\1\nchangetype: modify\ndelete: userPassword/\" \
+                | ldapmodify -Y external -Q -H ldapi:// -c
+            '" \
+            --interactive
