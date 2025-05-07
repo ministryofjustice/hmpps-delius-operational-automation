@@ -85,7 +85,6 @@
 - name: Check Elsewhere for DBRU Version Number
   when: target_gi_version == '0.0.0'
   block:
-
     - name: Get Desired DBRU Version Number
       shell: grep -A1 "<title>" {{ oracle_patch_directory }}/{{ superset_patch_id | default(combo_patch_id + '/' + combo_gi_patch_id) }}/README.html | tail -1 | awk -F"Release Update " '{print $2}' | awk -F. '{printf("%d.%d.%d",$1,$2,$3)}'
       register: get_dbru_version
