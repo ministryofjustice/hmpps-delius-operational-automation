@@ -3,12 +3,6 @@
   include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
   tags: get_sysman_password
 
-- name: Copy EMCLI Login scripts
-  template:
-    src: "{{ playbook_dir }}/../../common/templates/emcli_login.sh.j2"
-    dest: "{{ stage }}/emcli_login.sh"
-    mode: "0700"
-
 - name: Delete Targets
   include_tasks: delete_agent_targets.yml
   vars:

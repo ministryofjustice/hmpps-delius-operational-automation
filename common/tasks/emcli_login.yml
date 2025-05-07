@@ -1,0 +1,34 @@
+- name: Set default for emcli if not defined
+  set_fact:
+    emcli: "/u01/app/oracle/product/emcli/emcli"
+  when: emcli is not defined or emcli | length == 0
+
+- name: Set default for oracle_home if not defined
+  set_fact:
+    oracle_home: "/u01/app/oracle/product/19c/db_1"
+  when: oracle_home is not defined or oracle_home | length == 0
+
+- name: Include get_facts to fetch oem_sysman_password if not already set
+  include_tasks: get_facts.yml
+  when: oem_sysman_password is not defined or oem_sysman_password | length == 0
+
+- name: Assert required password variable is defined and non-empty
+  assert:
+    that:
+      - oem_sysman_password is defined
+      - oem_sysman_password | length > 0
+    fail_msg: >
+      The variable oem_sysman_password must be defined and non-empty. Ensure it's passed in, or fetched by get_facts.yml.
+
+- name: Ensure EMCLI session is active
+  shell: |
+    . ~/.bash_profile
+    export JAVA_HOME=$ORACLE_HOME/jdk/jre
+    if ! {{ emcli }} sync > /dev/null 2>&1; then
+      echo "{{ oem_sysman_password }}" | {{ emcli }} login -username=sysman
+      {{ emcli }} sync
+      echo "Logged in."
+    fi
+  environment:
+    ORACLE_HOME: "{{ oracle_home }}"
+  no_log: true

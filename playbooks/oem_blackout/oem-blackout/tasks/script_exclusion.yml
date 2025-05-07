@@ -77,17 +77,8 @@
     - name: Get Sysman Password
       include_tasks: get_facts.yml
 
-    - name: Emcli login
-      shell: |
-        . ~/.bash_profile
-        export PATH=$PATH:{{ emcli_java_location }}
-        RM=$({{ emcli }} sync 2>&1)
-        if [[ "$RM" == "Error: Session expired. Run emcli login to establish a session." ]];
-        then
-            {{ emcli }} login -username=sysman -password={{ oem_sysman_password }}
-        fi
-      changed_when: false
-      register: emcli_login
+    - name: Ensure EMCLI session is ready
+      include_tasks: "{{ playbook_dir }}/../../common/tasks/emcli_login.yml"
 
     - name: Update Host Comment Property With Excluded Host
       shell: |
@@ -136,17 +127,8 @@
     - name: Get Sysman Password
       include_tasks: get_facts.yml
 
-    - name: Emcli login
-      shell: |
-        . ~/.bash_profile
-        export PATH=$PATH:{{ emcli_java_location }}
-        RM=$({{ emcli }} sync 2>&1)
-        if [[ "$RM" == "Error: Session expired. Run emcli login to establish a session." ]];
-        then
-            {{ emcli }} login -username=sysman -password={{ oem_sysman_password }}
-        fi
-      changed_when: false
-      register: emcli_login
+    - name: Ensure EMCLI session is ready
+      include_tasks: "{{ playbook_dir }}/../../common/tasks/emcli_login.yml"
 
     - name: Update Host Comment Property With Excluded Host
       shell: |
