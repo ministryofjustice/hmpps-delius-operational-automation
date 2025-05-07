@@ -1,6 +1,7 @@
 ---
 - name: Get SYSMAN Password
   include_tasks: "{{ playbook_dir }}/../../common/tasks/get_facts.yml"
+  tags: get_sysman_password
 
 - name: Copy EMCLI Login scripts
   template:

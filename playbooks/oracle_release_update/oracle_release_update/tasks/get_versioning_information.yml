@@ -79,6 +79,21 @@
   set_fact:
     target_gi_version: "{{ get_dbru_version.stdout }}"
 
+# The format of the README.html for GI for 19.27 has changed and the version number now appears below
+# the title.  It is unclear if this is a typo or a formatting update, so if we do not find the version
+# within the title, check directly beneath it.
+- name: Check Elsewhere for DBRU Version Number
+  when: target_gi_version == '0.0.0'
+  block:
+    - name: Get Desired DBRU Version Number
+      shell: grep -A1 "<title>" {{ oracle_patch_directory }}/{{ superset_patch_id | default(combo_patch_id + '/' + combo_gi_patch_id) }}/README.html | tail -1 | awk -F"Release Update " '{print $2}' | awk -F. '{printf("%d.%d.%d",$1,$2,$3)}'
+      register: get_dbru_version
+      changed_when: false
+
+    - name: Get Target Grid Infrastructure Version
+      set_fact:
+        target_gi_version: "{{ get_dbru_version.stdout }}"
+
 - fail:
     msg: "Could Not Determine Target Grid Infrastructure Version"
   when: not target_gi_version is search('[\\d\\.]+')
@@ -138,7 +153,7 @@
     - apply_mode == 'switch-clone'
 
 - name: Get Minimum OPatch Version Number
-  shell: grep "You must use the OPatch utility version" {{ oracle_patch_directory }}/{{ superset_patch_id | default(combo_patch_id + '/' + combo_gi_patch_id) }}/README.html | grep -o -E '[0-9]+' | paste -sd . --
+  shell: grep "You must use the OPatch utility version" {{ oracle_patch_directory }}/{{ superset_patch_id | default(combo_patch_id + '/' + combo_gi_patch_id) }}/README.html | grep -oP '(?<=version )\d+(\.\d+)+' | head -1
   register: get_opatch_version
   changed_when: false
 
