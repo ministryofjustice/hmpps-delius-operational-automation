@@ -145,10 +145,8 @@ jobs:
           USERS_LIST=$(echo "${TEST_USERS}" | xargs)
 
           aws ecs execute-command \
-            --cluster ${cluster}\
-            --task $(aws ecs list-tasks --cluster ${cluster} --service-name ${service} --query "taskArns[0]" --output text) \
+            --cluster "${cluster}" \
+            --task $(aws ecs list-tasks --cluster "${cluster}" --service-name "${service}" --query "taskArns[0]" --output text) \
             --container ldap \
-            --command "bash -c '
-              echo "remote command worked" >/tmp/ldap_remote_command
-            '" \
-          --interactive
+            --command "bash -c 'echo \"remote command worked\" > /tmp/ldap_remote_command'" \
+            --interactive
