@@ -142,11 +142,32 @@ jobs:
           cluster="delius-core-${destination_env}-cluster"
           service="${destination_env}-ldap"
 
-          USERS_LIST=$(echo "${TEST_USERS}" | xargs)
 
           aws ecs execute-command \
             --cluster "${cluster}" \
             --task $(aws ecs list-tasks --cluster "${cluster}" --service-name "${service}" --query "taskArns[0]" --output text) \
             --container ldap \
-            --command "bash -c 'echo \"remote command worked\" > /tmp/ldap_remote_command'" \
+            --command "bash -c '
+              TEST_USERS=\"$(printf '%q' "$TEST_USERS")\"
+
+              echo "TEST_USERS is $TEST_USERS" >> /tmp/remote_command
+
+              user_array=()
+              while IFS= read -r line; do
+                user_array+=(\"\$line\")
+              done <<< \"\$TEST_USERS\"
+
+              echo "user_array is ${user_array[@]}" >> /tmp/remote_command
+
+              #[ -f testusers.ldif ] && mv testusers.ldif testusers.ldif.bak
+
+              #for username in \"\${user_array[@]}\"; do
+              #  dn=cn=\$username,ou=Users,dc=moj,dc=com
+              #  echo Getting user \$dn...
+              #  ldapsearch -Y external -Q -H ldapi:// -LLL -b \"\$dn\" >> testusers.ldif
+              #done
+
+              #awk '\''!NF {delete seen; print; next} !seen[\$0]++'\'' testusers.ldif > testusers.no-duplicates.ldif
+              #mv testusers.no-duplicates.ldif testusers.ldif
+            '" \
             --interactive
