@@ -111,6 +111,7 @@ jobs:
 
       - name: Prepare Inventory Names
         id: prepareinventorynames
+        shell: bash
         run: |
           hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}"
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
