@@ -415,14 +415,9 @@
     - (apply_mode == 'apply-ojvm-standby') or (apply_mode == 'switch-clone' and database_role != 'primary') or (apply_mode == 'prepare-clone' and database_role == 'primary' and ansible_facts.memory_mb.real.total <= 8192)
     - fsfo_mode | default('disabled') in ['enabled','observe','observer']
   block:
-    - debug:
-        var: high_availability_count
-
-    - debug:
-        var: application
-
-    - debug:
-        var:  high_availability_count[application]
+    - name: Get High Availability Count for this Application
+      set_fact:
+          high_availability_count_for_app: "{{ high_availability_count[application] | int }}"
 
     # Re-Enable FSFO from Associated Primary
     # (Only run from First Standby for each Database Type to avoid competing startups)
@@ -434,9 +429,9 @@
         delegation_host: "{{ hostvars[primary_host]['inventory_hostname'] }}"
         primary_hostname: "{{ hostvars[primary_host]['inventory_hostname'] }}"
         fsfo_mode: "{{ hostvars[primary_host]['fsfo_mode'] | default('disabled') }}"
-        high_availability_count: "{{ high_availability_count[application] }}"
+        high_availability_count: "{{ high_availability_count_for_app }}"
       when:
-        - ( high_availability_count[application] | trim ) != '0'
+        - high_availability_count_for_app > 0
         - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
         - group_names | select('match','.*_standbydb1') | length > 0
 
