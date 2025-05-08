@@ -417,7 +417,7 @@
   block:
     - name: Get High Availability Count for this Application
       set_fact:
-          high_availability_count_for_app: "{{ high_availability_count[application] | int }}"
+        high_availability_count_for_app: "{{ high_availability_count[application] | int }}"
 
     # Re-Enable FSFO from Associated Primary
     # (Only run from First Standby for each Database Type to avoid competing startups)
