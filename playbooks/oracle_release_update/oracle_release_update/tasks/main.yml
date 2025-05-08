@@ -418,6 +418,12 @@
     - debug:
         var: high_availability_count
 
+    - debug:
+        var: application
+
+    - debug:
+        var:  high_availability_count[application]
+
     # Re-Enable FSFO from Associated Primary
     # (Only run from First Standby for each Database Type to avoid competing startups)
     - name: Re-enable FSFO
