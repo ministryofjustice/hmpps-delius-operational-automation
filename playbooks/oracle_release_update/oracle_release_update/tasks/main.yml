@@ -440,14 +440,14 @@
 
     - name: Re-Enable FSFO from Associated Primary
       include_role:
-          name: hmpps-delius-oracledb-ha
+        name: hmpps-delius-oracledb-ha
       vars:
         force_restore: true
         password_rotation: false
         method: "fsfo setup"
         primary: "{{ primary_host }}"
         standby_number: 0
-      delegate_to: "{{ primary_host }}"    
+      delegate_to: "{{ primary_host }}"
       when:
         - high_availability_count_for_app | int > 0
         - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
