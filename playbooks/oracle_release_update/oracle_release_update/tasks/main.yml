@@ -445,7 +445,7 @@
           - network
 
     - debug:
-         var: ostvars[primary_host]['inventory_hostname']
+        var: ostvars[primary_host]['inventory_hostname']
 
     - name: Re-Enable FSFO from Associated Primary
       include_role:
