@@ -58,6 +58,7 @@ on:
           - "default"
           - "36522439:p36522439_190000_Linux-x86-64.zip:(19.24)"
           - "36866740:p36866740_190000_Linux-x86-64.zip:(19.25)"
+          - "37591516:p37591516_190000_Linux-x86-64.zip:(19.27)"
       AWSSnapshot:
         description: "Number of Days to Keep AWS Snapshot of Primary Database Host"
         required: true
@@ -73,9 +74,11 @@ on:
         required: false
         type: choice
         options:
+           - ""
            - "-vv"
            - "-vvv"
            - "-vvvv"
+        default: ""
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -110,9 +113,11 @@ jobs:
 
       - name: Prepare Inventory Names
         id: prepareinventorynames
+        shell: bash
         run: |
           hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}"
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
+          echo "application=$(echo ${{ github.event.inputs.TargetHost }} | sed 's/_.*//')" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -148,6 +153,7 @@ jobs:
                            playbooks/oracle_release_update
                            playbooks/delius_oem_metrics_setup
                            playbooks/oracle_interim_patch
+                           playbooks/oracle_ha
                            common/*
                            ansible.cfg
           path: operations
@@ -179,6 +185,8 @@ jobs:
           ln -svf $PWD/operations/playbooks/oracle_interim_patch/oracle_interim_patch $PWD/roles/ansible/roles/oracle_interim_patch
           # Link the OEM Metrics Setup Play to allow it to be used as a role
           ln -svf $PWD/operations/playbooks/delius_oem_metrics_setup/delius_oem_metrics_setup $PWD/roles/ansible/roles/delius_oem_metrics_setup
+          # Link the HA Build Play to allow it be used as a role
+          ln -svf $PWD/operations/playbooks/oracle_ha/build-ha $PWD/operations/playbooks/oracle_release_update/hmpps-delius-oracledb-ha
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
           -e apply_mode=${{ github.event.inputs.ApplyMode }} \
@@ -186,4 +194,6 @@ jobs:
           -e combo_patch_info='${{ github.event.inputs.ComboPatch }}' \
           -e "keep_aws_snapshot='${{github.event.inputs.AWSSnapShot }}'" \
           -e gi_ru_patch_info='' \
-          -e ojvm_ru_patch_info=''
+          -e ojvm_ru_patch_info='' \
+          -e application=${{ steps.prepareinventorynames.outputs.application }} \
+          ${{ github.event.inputs.VerboseOutput }}
