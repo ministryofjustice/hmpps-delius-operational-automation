@@ -184,7 +184,7 @@ jobs:
           # Link the OEM Metrics Setup Play to allow it to be used as a role
           ln -svf $PWD/operations/playbooks/delius_oem_metrics_setup/delius_oem_metrics_setup $PWD/roles/ansible/roles/delius_oem_metrics_setup
           # Link the HA Build Play to allow it be used as a role
-          ln -svf $PWD/operations/playbooks/oracle_ha/build_ha $PWD/operations/playbooks/oracle_release_update/roles/hmpps-delius-oracledb-ha
+          ln -svf $PWD/operations/playbooks/oracle_ha/build_ha $PWD/operations/playbooks/oracle_release_update/hmpps-delius-oracledb-ha
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
           -e apply_mode=${{ github.event.inputs.ApplyMode }} \
