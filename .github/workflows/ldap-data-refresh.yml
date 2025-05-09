@@ -153,7 +153,7 @@ jobs:
               user_array=()
               while IFS= read -r line; do
                 user_array+=(\"\$line\")
-              done <<< \"\$TEST_USERS\"
+              done <<< $TEST_USERS
 
               echo \"user_array is: \${user_array[@]}\" >> /tmp/remote_command
 
