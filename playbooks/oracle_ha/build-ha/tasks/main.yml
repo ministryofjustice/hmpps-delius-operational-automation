@@ -38,7 +38,7 @@
     var: primary_host_tns
 
 - debug:
-     var: groups
+    var: groups
 
 - debug:
     var: standby1
