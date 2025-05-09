@@ -440,7 +440,7 @@
 
     - name: Re-Enable FSFO from Associated Primary
       include_role:
-          name: hmpps-delius-oracledb-ha
+        name: hmpps-delius-oracledb-ha
       vars:
         force_restore: true
         password_rotation: false
