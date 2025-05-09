@@ -444,6 +444,9 @@
         gather_subset:
           - network
 
+    - debug:
+         var: ostvars[primary_host]['inventory_hostname']
+
     - name: Re-Enable FSFO from Associated Primary
       include_role:
         name: hmpps-delius-oracledb-ha
