@@ -176,6 +176,7 @@ jobs:
       # individual patches can be potentially useful.)
       - name: Run Release Update Playbook
         run: |
+          echo "PWD is ${PWD}"
           export ANSIBLE_CONFIG=$ansible_config
           # Link the checked out configuration roles to somewhere Ansible will be able to find them
           ln -svf $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_release_update/roles
