@@ -126,10 +126,11 @@ jobs:
                 echo "Test users list has not been supplied, cancelling run..." 
                 exit 1
               else
-                echo "Test users list supplied, number of users is: $(echo ${TEST_USERS} | sed '/^\s*$/d' | wc -l)"
+                user_count=$(wc -w <<< "${TEST_USERS}")
+                echo "Test users list supplied, number of users is: $(wc -w <<< $TEST_USERS)"
               fi
             else
-              echo "Test users list supplied, number of users is: $(echo ${TEST_USERS} | sed '/^\s*$/d' | wc -l)"
+              echo "Test users list supplied, number of users is: $(wc -w <<< $TEST_USERS)"
             fi
           else
             echo "Destination is not pre-prod, skipping..."
@@ -147,7 +148,7 @@ jobs:
             --task $(aws ecs list-tasks --cluster "${cluster}" --service-name "${service}" --query "taskArns[0]" --output text) \
             --container ldap \
             --command "bash -c '
-              echo \"TEST_USERS: \$TEST_USERS\" >> /tmp/remote_command
+              echo \"TEST_USERS: $TEST_USERS \" >> /tmp/remote_command
 
               user_array=()
               while IFS= read -r line; do
