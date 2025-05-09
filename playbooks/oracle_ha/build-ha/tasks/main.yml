@@ -28,6 +28,12 @@
     password_rotation: true
   when: method is defined and method == "password rotation"
 
+- debug:
+    var: primary_host
+
+- debug:
+    var: fqdn
+
 - name: (main/set-primary-config) Handle FQDN For Primary and Standby Host 1 TNS Purposes
   set_fact:
     primary_host_tns: "{{ hostvars[primary_host]['ansible_facts']['fqdn'] }}"
