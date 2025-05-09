@@ -136,34 +136,31 @@ jobs:
           fi
 
           echo "TEST_USERS=$TEST_USERS" >> $GITHUB_ENV 
-      - name: Export test users # check escaped characters here
+      - name: Export test users
         run: |
           destination_env="${{ github.event.inputs.destination_env }}"
           cluster="delius-core-${destination_env}-cluster"
           service="${destination_env}-ldap"
-
 
           aws ecs execute-command \
             --cluster "${cluster}" \
             --task $(aws ecs list-tasks --cluster "${cluster}" --service-name "${service}" --query "taskArns[0]" --output text) \
             --container ldap \
             --command "bash -c '
-              TEST_USERS=\"$(printf '%q' "$TEST_USERS")\"
-
-              echo "TEST_USERS is $TEST_USERS" >> /tmp/remote_command
+              echo \"TEST_USERS: \$TEST_USERS\" >> /tmp/remote_command
 
               user_array=()
               while IFS= read -r line; do
                 user_array+=(\"\$line\")
               done <<< \"\$TEST_USERS\"
 
-              echo "user_array is ${user_array[@]}" >> /tmp/remote_command
+              echo \"user_array is: \${user_array[@]}\" >> /tmp/remote_command
 
               #[ -f testusers.ldif ] && mv testusers.ldif testusers.ldif.bak
 
               #for username in \"\${user_array[@]}\"; do
-              #  dn=cn=\$username,ou=Users,dc=moj,dc=com
-              #  echo Getting user \$dn...
+              #  dn=\"cn=\$username,ou=Users,dc=moj,dc=com\"
+              #  echo \"Getting user \$dn...\"
               #  ldapsearch -Y external -Q -H ldapi:// -LLL -b \"\$dn\" >> testusers.ldif
               #done
 
