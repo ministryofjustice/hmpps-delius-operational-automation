@@ -148,12 +148,11 @@ jobs:
             --task $(aws ecs list-tasks --cluster "${cluster}" --service-name "${service}" --query "taskArns[0]" --output text) \
             --container ldap \
             --command "bash -c '
+
+              TEST_USERS=$TEST_USERS
               echo \"TEST_USERS: $TEST_USERS \" >> /tmp/remote_command
 
-              user_array=()
-              while IFS= read -r line; do
-                user_array+=(\"\$line\")
-              done <<< $TEST_USERS
+              read -r user_array <<< \$TEST_USERS
 
               echo \"user_array is: \${user_array[@]}\" >> /tmp/remote_command
 
