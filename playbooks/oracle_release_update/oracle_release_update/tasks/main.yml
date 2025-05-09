@@ -415,7 +415,6 @@
     - (apply_mode == 'apply-ojvm-standby') or (apply_mode == 'switch-clone' and database_role != 'primary') or (apply_mode == 'prepare-clone' and database_role == 'primary' and ansible_facts.memory_mb.real.total <= 8192)
     - fsfo_mode | default('disabled') in ['enabled','observe','observer']
   block:
-
     # We cannot coerce the high availability count to be an int veraiable as
     # Jinja templating {{ }} will always return a string regardless of the int filter.
     # Therefore we can only do type conversion in subsequent when: conditions.
