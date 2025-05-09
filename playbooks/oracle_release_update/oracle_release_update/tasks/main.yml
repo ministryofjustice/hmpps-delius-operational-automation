@@ -415,11 +415,13 @@
     - (apply_mode == 'apply-ojvm-standby') or (apply_mode == 'switch-clone' and database_role != 'primary') or (apply_mode == 'prepare-clone' and database_role == 'primary' and ansible_facts.memory_mb.real.total <= 8192)
     - fsfo_mode | default('disabled') in ['enabled','observe','observer']
   block:
+
+    # We cannot coerce the high availability count to be an int veraiable as
+    # Jinja templating {{ }} will always return a string regardless of the int filter.
+    # Therefore we can only do type conversion in subsequent when: conditions.
     - name: Get High Availability Count for this Application
       set_fact:
-        high_availability_count_for_app: "{{ high_availability_count[application] | int }}"
-
-    - debug: msg="{{ high_availability_count_for_app | type_debug }}"
+        high_availability_count_for_app: "{{ high_availability_count[application] }}"
 
     # Re-Enable FSFO from Associated Primary
     # (Only run from First Standby for each Database Type to avoid competing startups)
@@ -433,7 +435,7 @@
         fsfo_mode: "{{ hostvars[primary_host]['fsfo_mode'] | default('disabled') }}"
         high_availability_count: "{{ high_availability_count_for_app }}"
       when:
-        - high_availability_count_for_app > 0
+        - high_availability_count_for_app | int > 0
         - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
         - group_names | select('match','.*_standbydb1') | length > 0
 
