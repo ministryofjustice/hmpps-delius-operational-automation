@@ -423,6 +423,15 @@
       set_fact:
         high_availability_count_for_app: "{{ high_availability_count[application] }}"
 
+    - debug:
+        var: high_availability_count_for_app
+
+    - debug:
+        var: hostvars[primary_host]['fsfo_mode']
+
+    - debug:
+        var: group_names
+
     # Re-Enable FSFO from Associated Primary
     # (Only run from First Standby for each Database Type to avoid competing startups)
     - name: Re-enable FSFO
