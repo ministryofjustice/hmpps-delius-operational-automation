@@ -438,7 +438,6 @@
     #     - high_availability_count_for_app | int > 0
     #     - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
 
-
     # FQDN required for Build HA role
     - name: Gather only fqdn
       ansible.builtin.setup:
