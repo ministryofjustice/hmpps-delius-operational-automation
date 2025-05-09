@@ -428,9 +428,6 @@
     - debug:
         var: hostvars[primary_host]['fsfo_mode']
 
-    - debug:
-        var: group_names
-
     # Re-Enable FSFO from Associated Primary
     # (Only run from First Standby for each Database Type to avoid competing startups)
     - name: Re-enable FSFO
@@ -445,7 +442,6 @@
       when:
         - high_availability_count_for_app | int > 0
         - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
-        - group_names | select('match','.*_standbydb1') | length > 0
 
 # Oracle should remove OOP Session Files at the end of the patching but sometimes it does not clean up
 # after itself properly.   If we have got this far without failing then the session files may be removed.
