@@ -74,9 +74,11 @@ on:
         required: false
         type: choice
         options:
+           - ""
            - "-vv"
            - "-vvv"
            - "-vvvv"
+        default: ""
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -193,4 +195,5 @@ jobs:
           -e "keep_aws_snapshot='${{github.event.inputs.AWSSnapShot }}'" \
           -e gi_ru_patch_info='' \
           -e ojvm_ru_patch_info='' \
-          -e application=${{ steps.prepareinventorynames.outputs.application }}
+          -e application=${{ steps.prepareinventorynames.outputs.application }} \
+          ${{ github.event.inputs.VerboseOutput }}
