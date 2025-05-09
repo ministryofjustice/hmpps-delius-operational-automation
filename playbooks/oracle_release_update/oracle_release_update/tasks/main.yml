@@ -444,9 +444,6 @@
         gather_subset:
           - network
 
-    - debug:
-         var: hostvars[primary_host]['inventory_hostname']
-
     - name: Re-Enable FSFO from Associated Primary
       include_role:
         name: hmpps-delius-oracledb-ha
@@ -454,7 +451,7 @@
         force_restore: true
         password_rotation: false
         method: "fsfo setup"
-        primary: "{{ hostvars[primary_host]['inventory_hostname'] }}"
+        primary: "{{ primary_host_group }}"
         standby_number: 0
       when:
         - high_availability_count_for_app | int > 0
