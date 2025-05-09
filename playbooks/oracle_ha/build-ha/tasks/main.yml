@@ -8,7 +8,7 @@
     password_rotation: false
 
 - debug:
-     var: primary
+    var: primary
 
 - name: (main/set-primary-config) Set Variables To Be Used For Standby Configuration
   set_fact:
