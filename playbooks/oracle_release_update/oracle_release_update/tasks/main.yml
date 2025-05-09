@@ -422,22 +422,6 @@
       set_fact:
         high_availability_count_for_app: "{{ high_availability_count[application] }}"
 
-    # Re-Enable FSFO from Associated Primary
-    # (Only run from First Standby for each Database Type to avoid competing startups)
-    # - name: Re-enable FSFO
-    #   include_role:
-    #     name: hmpps-delius-oracledb-ha
-    #     tasks_from: enable-fsfo.yml
-    #   vars:
-    #     delegation_host: "{{ hostvars[primary_host]['inventory_hostname'] }}"
-    #     primary_hostname: "{{ hostvars[primary_host]['inventory_hostname'] }}"
-    #     fsfo_mode: "{{ hostvars[primary_host]['fsfo_mode'] | default('disabled') }}"
-    #     high_availability_count: "{{ high_availability_count_for_app }}"
-    #     database_type: "{{ application }}"
-    #   when:
-    #     - high_availability_count_for_app | int > 0
-    #     - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
-
     # FQDN required for Build HA role
     - name: Gather only fqdn
       ansible.builtin.setup:
