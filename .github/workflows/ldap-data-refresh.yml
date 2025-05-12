@@ -148,7 +148,7 @@ jobs:
             --task $(aws ecs list-tasks --cluster "${cluster}" --service-name "${service}" --query "taskArns[0]" --output text) \
             --container ldap \
             --command "bash -c '
-
+              set +H
               declare -a user_array=(${TEST_USERS})
 
               echo \"user_array is: \${user_array[@]}\" >> /tmp/remote_command
@@ -161,7 +161,7 @@ jobs:
                 ldapsearch -Y external -Q -H ldapi:// -LLL -b \"\$dn\" >> testusers.ldif
               done
 
-              awk \"!NF {delete seen;print;next}; !seen[$0]++\" testusers.ldif > testusers.no-duplicates.ldif
+              awk \'!NF {delete seen;print;next}; !seen[$0]++\' testusers.ldif > testusers.no-duplicates.ldif
               #mv testusers.no-duplicates.ldif testusers.ldif
             '" \
             --interactive
