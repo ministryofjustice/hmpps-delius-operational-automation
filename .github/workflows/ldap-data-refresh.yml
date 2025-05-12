@@ -152,7 +152,7 @@ jobs:
               TEST_USERS=$TEST_USERS
               echo \"TEST_USERS: $TEST_USERS \" >> /tmp/remote_command
 
-              read -r user_array <<< \$TEST_USERS
+              read -r user_array <<< "\${TEST_USERS}"
 
               echo \"user_array is: \${user_array[@]}\" >> /tmp/remote_command
 
