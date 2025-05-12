@@ -149,10 +149,9 @@ jobs:
             --container ldap \
             --command "bash -c '
 
-              TEST_USERS=$TEST_USERS
-              echo \"TEST_USERS: $TEST_USERS \" >> /tmp/remote_command
+              declare -a user_array=(${TEST_USERS})
+              echo \"Test users array: $user_array \" >> /tmp/remote_command
 
-              read -r user_array <<< "\${TEST_USERS}"
 
               echo \"user_array is: \${user_array[@]}\" >> /tmp/remote_command
 
