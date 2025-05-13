@@ -115,7 +115,10 @@ jobs:
         id: prepareinventorynames
         shell: bash
         run: |
-          hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}"
+          # We can include more than 1 host in the list of hosts, so ensure each one in the comma-separated list
+          # gets prefixed with the entire environment name
+          host_prefix="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_"
+          hosts=$(echo ${{ github.event.inputs.TargetHost }} | awk -v p="$host_prefix" 'BEGIN{FS=OFS=","};{for(i=1;i<=NF;i++)$i=p $i};1')
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
           echo "application=$(echo ${{ github.event.inputs.TargetHost }} | sed 's/_.*//')" >> $GITHUB_OUTPUT
 
