@@ -148,20 +148,7 @@ jobs:
             --task $(aws ecs list-tasks --cluster "${cluster}" --service-name "${service}" --query "taskArns[0]" --output text) \
             --container ldap \
             --command "bash -c '
-              set +H
-              declare -a user_array=(${TEST_USERS})
-
-              echo \"user_array is: \${user_array[@]}\" >> /tmp/remote_command
-
-              [ -f testusers.ldif ] && mv testusers.ldif testusers.ldif.bak
-
-              for username in \"\${user_array[@]}\"; do
-                dn=\"cn=\$username,ou=Users,dc=moj,dc=com\"
-                echo \"Getting user \$dn...\"
-                ldapsearch -Y external -Q -H ldapi:// -LLL -b \"\$dn\" >> testusers.ldif
-              done
-
-              awk \'!NF {delete seen;print;next}; !seen[$0]++\' testusers.ldif > testusers.no-duplicates.ldif
-              #mv testusers.no-duplicates.ldif testusers.ldif
+              aws ssm get-parameter --name "/delius-core-dev/ldap_data_refresh_export_script" --query "Parameter.Value" --output text > export_test_users.sh
+              chmod +x export_test_users.sh
             '" \
             --interactive
