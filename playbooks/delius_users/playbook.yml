@@ -11,7 +11,6 @@
 #        not just the read-only ones.
 #
 
-
 #
 #  The Read Only user has access to the select from all tables in several schemas.
 #  The exact list of schemas depends on whether this is a Delius or MIS database.
