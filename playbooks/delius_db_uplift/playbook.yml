@@ -85,39 +85,33 @@
           no_log: true
           ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
 
-        # - name: Test run uplift
-        #   shell: |
-        #     . ~/.bash_profile
-        #     cd /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install
-        #     echo Run uplift script
+        - name: Start PDM uplift and install operational scripts
+          shell: |
+            . ~/.bash_profile
+            cd /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install
+            ND_INSTALL_ROOT=$(pwd) ./install_operational_scripts.sh
+          no_log: true
+          async: '{{ 3 * 60 * 60 }}' # Timeout after 3 hours
+          poll: 0                    # Run in background, to prevent the connection from timing out
+          register: pdm_uplift
 
-         - name: Start PDM uplift and install operational scripts
-           shell: |
-             . ~/.bash_profile
-             cd /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install
-             ND_INSTALL_ROOT=$(pwd) ./install_operational_scripts.sh
-           no_log: true
-           async: '{{ 3 * 60 * 60 }}' # Timeout after 3 hours
-           poll: 0                    # Run in background, to prevent the connection from timing out
-           register: pdm_uplift
+        - name: Wait for uplift to complete
+          async_status:
+            jid: '{{ pdm_uplift.ansible_job_id }}'
+          register: pdm_uplift_result
+          until: pdm_uplift_result is finished
+          delay: 30                                 # Check every 30 seconds
+          retries: '{{ (3 * 60 * 60 / 30) | int }}' # For up to 3 hours
+          ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
 
-         - name: Wait for uplift to complete
-           async_status:
-             jid: '{{ pdm_uplift.ansible_job_id }}'
-           register: pdm_uplift_result
-           until: pdm_uplift_result is finished
-           delay: 30                                 # Check every 30 seconds
-           retries: '{{ (3 * 60 * 60 / 30) | int }}' # For up to 3 hours
-           ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
+        - name: Check status of uplift
+          assert:
+            that: pdm_uplift_result is successful or ( ignore_pdm_uplift_errors | default(false) )
 
-         - name: Check status of uplift
-           assert:
-             that: pdm_uplift_result is successful or ( ignore_pdm_uplift_errors | default(false) )
-
-         - name: Update Read Only Role to Include Any New Objects from Uplift
-           script: update_read_only_role.sh
-           register: update_read_only_role
-           changed_when: update_read_only_role.stdout | int > 0
+        - name: Update Read Only Role to Include Any New Objects from Uplift
+          script: update_read_only_role.sh
+          register: update_read_only_role
+          changed_when: update_read_only_role.stdout | int > 0
 
     - name: Unblock connections to primary database
       import_playbook: ../block_sessions/playbook.yml
