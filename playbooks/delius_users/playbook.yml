@@ -49,7 +49,7 @@
           minus
           select owner,table_name         -- Exclude existing privileges
           from   dba_tab_privs
-          where  privilege = 'SELECT'
+          where  privilege = 'READ'
           and    grantee   = '&&ROROLE';
 
         cursor c2 is
