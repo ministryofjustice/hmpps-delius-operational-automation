@@ -23,6 +23,7 @@
       include_tasks: delius_users/playbook.yml
       vars:
         action_type: "{{ act | default('create') }}"
+        application_type: "{{ application | default('delius') }}"
       when: deploy_users | default('no') == "yes"
 
     # - name: Deploy Alfresco Wallet

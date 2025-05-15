@@ -160,4 +160,5 @@ jobs:
           -e deploy_audit_stub_users=${{ github.event.inputs.DeployAuditStubUsers }} \
           -e deploy_plan_management=${{ github.event.inputs.DeployPlanManagement }} \
           -e deploy_mv_refresh_purge_child=${{ github.event.inputs.DeployMVRefreshPurgeChildCursors }} \
-          -e deploy_audit_compression_job=${{ github.event.inputs.DeployAuditCompressionJob }}
+          -e deploy_audit_compression_job=${{ github.event.inputs.DeployAuditCompressionJob }} \
+          -e application=delius
