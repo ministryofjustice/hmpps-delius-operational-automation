@@ -66,7 +66,7 @@
           no_log: true
 
         - name: Get sys password from secrets manager
-          shell: "aws secretsmanager get-secret-value --secret-id 'delius-core-dev-oracle-db-dba-passwords' --query SecretString --output json | jq 'fromjson | .sys'"
+          shell: "aws secretsmanager get-secret-value --secret-id 'delius-core-dev-oracle-db-dba-passwords' --query SecretString --output json | jq 'fromjson | .system'"
           register: oradb_system_password
           no_log: true
 
