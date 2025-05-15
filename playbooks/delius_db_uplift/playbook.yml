@@ -5,29 +5,29 @@
   become_user: oracle
   become_method: sudo
   tasks:
-#    - name: Disable Oracle OEM Alerts
-#      import_playbook: ../oem_blackout/playbook.yml
-#      vars:
-#        target: "{{ target_hosts }}"
-#        blackout: "UPLIFT"
-#        object_type: all
-#        action: start
-#        duration: 03:00
-#
-#    - name: Block connections to primary database
-#      import_playbook: ../block_sessions/playbook.yml
-#      vars:
-#        target_host: delius_primarydb
-#        action: block
-#
-#    - name: Create restore point
-#      import_playbook: ../oracle_restore_points/playbook.yml
-#      when:
-#        - create_restore_point | bool
-#      vars:
-#        target_dbs: "{{ target_hosts }}"
-#        required_action: "Create Restore Point"
-#        restore_point_name: "UPLIFT"
+    - name: Disable Oracle OEM Alerts
+      import_playbook: ../oem_blackout/playbook.yml
+      vars:
+        target: "{{ target_hosts }}"
+        blackout: "UPLIFT"
+        object_type: all
+        action: start
+        duration: 03:00
+
+    - name: Block connections to primary database
+      import_playbook: ../block_sessions/playbook.yml
+      vars:
+        target_host: delius_primarydb
+        action: block
+
+    - name: Create restore point
+      import_playbook: ../oracle_restore_points/playbook.yml
+      when:
+        - create_restore_point | bool
+      vars:
+        target_dbs: "{{ target_hosts }}"
+        required_action: "Create Restore Point"
+        restore_point_name: "UPLIFT"
 
 #    - name: Uplift Oracle database
 #      become: yes
@@ -85,50 +85,50 @@
           no_log: true
           ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
 
-        - name: Test run uplift
-          shell: |
-            . ~/.bash_profile
-            cd /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install
-            echo Run uplift script
+        # - name: Test run uplift
+        #   shell: |
+        #     . ~/.bash_profile
+        #     cd /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install
+        #     echo Run uplift script
 
-#            - name: Start PDM uplift and install operational scripts
-#              shell: |
-#                . ~/.bash_profile
-#                cd /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install
-#                ND_INSTALL_ROOT=$(pwd) ./install_operational_scripts.sh
-#              no_log: true
-#              async: '{{ 3 * 60 * 60 }}' # Timeout after 3 hours
-#              poll: 0                    # Run in background, to prevent the connection from timing out
-#              register: pdm_uplift
-#
-#            - name: Wait for uplift to complete
-#              async_status:
-#                jid: '{{ pdm_uplift.ansible_job_id }}'
-#              register: pdm_uplift_result
-#              until: pdm_uplift_result is finished
-#              delay: 30                                 # Check every 30 seconds
-#              retries: '{{ (3 * 60 * 60 / 30) | int }}' # For up to 3 hours
-#              ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
-#
-#            - name: Check status of uplift
-#              assert:
-#                that: pdm_uplift_result is successful or ( ignore_pdm_uplift_errors | default(false) )
-#
-#            - name: Update Read Only Role to Include Any New Objects from Uplift
-#              script: update_read_only_role.sh
-#              register: update_read_only_role
-#              changed_when: update_read_only_role.stdout | int > 0
-#
-#    - name: Unblock connections to primary database
-#      import_playbook: ../block_sessions/playbook.yml
-#      vars:
-#        target_host: delius_primarydb
-#        action: unblock
-#
-#    - name: Re-enable Oracle OEM alerts
-#      import_playbook: ../oem_blackout/playbook.yml
-#      vars:
-#        target: "{{ target_hosts }}"
-#        object_type: all
-#        action: stop
-#        blackout: "UPLIFT"
+         - name: Start PDM uplift and install operational scripts
+           shell: |
+             . ~/.bash_profile
+             cd /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install
+             ND_INSTALL_ROOT=$(pwd) ./install_operational_scripts.sh
+           no_log: true
+           async: '{{ 3 * 60 * 60 }}' # Timeout after 3 hours
+           poll: 0                    # Run in background, to prevent the connection from timing out
+           register: pdm_uplift
+
+         - name: Wait for uplift to complete
+           async_status:
+             jid: '{{ pdm_uplift.ansible_job_id }}'
+           register: pdm_uplift_result
+           until: pdm_uplift_result is finished
+           delay: 30                                 # Check every 30 seconds
+           retries: '{{ (3 * 60 * 60 / 30) | int }}' # For up to 3 hours
+           ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
+
+         - name: Check status of uplift
+           assert:
+             that: pdm_uplift_result is successful or ( ignore_pdm_uplift_errors | default(false) )
+
+         - name: Update Read Only Role to Include Any New Objects from Uplift
+           script: update_read_only_role.sh
+           register: update_read_only_role
+           changed_when: update_read_only_role.stdout | int > 0
+
+    - name: Unblock connections to primary database
+      import_playbook: ../block_sessions/playbook.yml
+      vars:
+        target_host: delius_primarydb
+        action: unblock
+
+    - name: Re-enable Oracle OEM alerts
+      import_playbook: ../oem_blackout/playbook.yml
+      vars:
+        target: "{{ target_hosts }}"
+        object_type: all
+        action: stop
+        blackout: "UPLIFT"
