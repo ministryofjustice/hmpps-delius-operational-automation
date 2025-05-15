@@ -135,4 +135,5 @@ jobs:
           -e deploy_gdpr=${{ github.event.inputs.DeployGdpr }} \
           -e deploy_mms=${{ github.event.inputs.DeployMMSApi }} \
           -e deploy_davfs=${{ github.event.inputs.DeployDavfs }} \
-          -e deploy_cfo=${{ github.event.inputs.DeployCfo }}
+          -e deploy_cfo=${{ github.event.inputs.DeployCfo }} \
+          -e application=delius
