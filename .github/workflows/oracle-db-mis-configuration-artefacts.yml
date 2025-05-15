@@ -53,7 +53,7 @@ on:
           - "yes"
           - "no"
       DeployUsers:
-        description: "Create MIS database users? (DBA)"
+        description: "Create MIS database users? (DBA or RO only)"
         type: choice
         default: "no"
         options: 
