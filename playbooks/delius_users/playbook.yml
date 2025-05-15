@@ -95,7 +95,7 @@
 
         for r1 in c1
         loop
-          l_command := 'grant select on '||r1.owner||'.'||r1.nam||' to '||v_role;
+          l_command := 'grant read on '||r1.owner||'."'||r1.nam||'" to '||v_role;
           DBMS_OUTPUT.put_line(l_command);
           begin
               EXECUTE IMMEDIATE l_command;
