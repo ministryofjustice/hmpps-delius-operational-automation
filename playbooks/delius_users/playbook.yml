@@ -49,7 +49,7 @@
           minus
           select owner,table_name         -- Exclude existing privileges
           from   dba_tab_privs
-          where  privilege = 'SELECT'
+          where  privilege = 'READ'
           and    grantee   = '&&ROROLE';
 
         cursor c2 is
@@ -75,6 +75,11 @@
         
         r3    c3%rowtype;
 
+        -- In MIS some views may be invalid as they refer to tables over database
+        -- links which do not exist.  Handle this case of exceptions by ignoring them.
+        table_does_not_exist exception;
+        pragma               exception_init(table_does_not_exist,-942);
+
       begin
 
         open c3;
@@ -90,9 +95,15 @@
 
         for r1 in c1
         loop
-          l_command := 'grant select on '||r1.owner||'.'||r1.nam||' to '||v_role;
+          l_command := 'grant read on '||r1.owner||'."'||r1.nam||'" to '||v_role;
           DBMS_OUTPUT.put_line(l_command);
-          EXECUTE IMMEDIATE l_command;
+          begin
+              EXECUTE IMMEDIATE l_command;
+          exception
+              when table_does_not_exist
+              then 
+                null; -- Ignore missing remote tables using database links
+          end;
           DBMS_SESSION.sleep(0.5);  -- Avoid monopolising the library cache
         end loop;
 
