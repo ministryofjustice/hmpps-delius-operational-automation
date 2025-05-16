@@ -147,8 +147,5 @@ jobs:
             --cluster "${cluster}" \
             --task $(aws ecs list-tasks --cluster "${cluster}" --service-name "${service}" --query "taskArns[0]" --output text) \
             --container ldap \
-            --command "bash -c '
-              aws ssm get-parameter --name "/delius-core-dev/ldap_data_refresh_export_script" --query "Parameter.Value" --output text > export_test_users.sh
-              chmod +x export_test_users.sh
-            '" \
+            --command "/bin/bash /scripts/get-test-users.sh ${TEST_USERS}" \
             --interactive
