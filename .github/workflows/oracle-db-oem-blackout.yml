@@ -111,8 +111,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
               playbooks/oem_blackout
-              common/tasks/emcli_login.yml
-              common/tasks/get_facts.yml
+              common/tasks
               playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
