@@ -27,7 +27,7 @@
 # IMPORTANT NOTE:
 # Do not include "service-role" in the ARN otherwise you get a non-specific "IAM Role does not have sufficient permissions to execute the backup" message
 # This is because in Mod Platform, AWSBackupDefaultServiceRole is just a normal IAM role (not a service role) which has been created with the same privileges as
-# the AWS-supplied service role of the same name.   
+# the AWS-supplied service role of the same name.
 - name: Run Backup Job
   shell: |
     set -o pipefail
