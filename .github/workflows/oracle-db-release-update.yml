@@ -148,7 +148,7 @@ jobs:
                            playbooks/oracle_release_update
                            playbooks/delius_oem_metrics_setup
                            playbooks/oracle_interim_patch
-                           common/*
+                           common
                            ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
