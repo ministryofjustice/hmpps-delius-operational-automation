@@ -29,10 +29,10 @@
   block:
     - name: Modify Target
       shell: |
-         PROPERTIES="OracleHome:{{ target_gi_home }}"
-         [[ "{{ target_type }}" == "oracle_listener" ]] && PROPERTIES="${PROPERTIES};ListenerOraDir:{{ target_gi_home }}/network/admin/"
-         [[ "{{ target_type }}" == "osm_instance" ]] && PROPERTIES="${PROPERTIES}"
-         {{ emcli }} modify_target -name="{{ existing_target_name.stdout }}" -type="{{ target_type }}" -properties="${PROPERTIES}" -on_agent
+        PROPERTIES="OracleHome:{{ target_gi_home }}"
+        [[ "{{ target_type }}" == "oracle_listener" ]] && PROPERTIES="${PROPERTIES};ListenerOraDir:{{ target_gi_home }}/network/admin/"
+        [[ "{{ target_type }}" == "osm_instance" ]] && PROPERTIES="${PROPERTIES}"
+        {{ emcli }} modify_target -name="{{ existing_target_name.stdout }}" -type="{{ target_type }}" -properties="${PROPERTIES}" -on_agent
       register: modify_target
 
     - name: Check Target Modification Worked

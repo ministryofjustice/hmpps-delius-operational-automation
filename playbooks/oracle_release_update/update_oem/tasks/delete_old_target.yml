@@ -16,7 +16,7 @@
 
 - name: Get the Target Home
   shell: |
-     {{ get_target_home_cmd }}
+    {{ get_target_home_cmd }}
   register: get_target_home_match
   changed_when: false
   when: existing_target_name.stdout != ''

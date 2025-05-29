@@ -238,4 +238,3 @@
       shell: |
         {{ emcli }} modify_target -name="{{ database_target_name.stdout }}" -type="oracle_database" -properties="OracleHome:{{ target_db_home }}" -on_agent
       when: not ((db_home_in_cloud.stdout_lines | join(' ')) is search(target_db_home))
-
