@@ -11,6 +11,10 @@
 #        not just the read-only ones.
 #
 
+#
+#  The Read Only user has access to the select from all tables in several schemas.
+#  The exact list of schemas depends on whether this is a Delius or MIS database.
+#
 - name: Create delius read only role
   shell: |
     . ~/.bash_profile
@@ -34,23 +38,26 @@
                 table_name 
             end) nam
           from dba_tables
-          where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO')
+          where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO') -- Delius
+             or owner in ('NDMIS_WORKING','NDMIS_CDC_SUBSCRIBER','MIS_LANDING','NDMIS_DATA','NDMIS_ABC','DFIMIS_DATA','DFIMIS_SUBSCRIBER','DFIMIS_ABC') -- MIS
           union all
           select owner,
                 view_name nam
           from dba_views
-          where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO')
+          where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO') -- Delius
+             or owner in ('NDMIS_WORKING','NDMIS_CDC_SUBSCRIBER','MIS_LANDING','NDMIS_DATA','NDMIS_ABC','DFIMIS_DATA','DFIMIS_SUBSCRIBER','DFIMIS_ABC') -- MIS
           minus
           select owner,table_name         -- Exclude existing privileges
           from   dba_tab_privs
-          where  privilege = 'SELECT'
+          where  privilege = 'READ'
           and    grantee   = '&&ROROLE';
 
         cursor c2 is
           select owner,
             object_name
           from dba_objects
-          where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO')
+          where (owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO')
+             or owner in ('NDMIS_WORKING','NDMIS_CDC_SUBSCRIBER','MIS_LANDING','NDMIS_DATA','NDMIS_ABC','DFIMIS_DATA','DFIMIS_SUBSCRIBER','DFIMIS_ABC'))
           and object_type in ('PACKAGE','PROCEDURE','FUNCTION')
           minus
           select owner,table_name         -- Exclude existing privileges
@@ -68,6 +75,11 @@
         
         r3    c3%rowtype;
 
+        -- In MIS some views may be invalid as they refer to tables over database
+        -- links which do not exist.  Handle this case of exceptions by ignoring them.
+        table_does_not_exist exception;
+        pragma               exception_init(table_does_not_exist,-942);
+
       begin
 
         open c3;
@@ -83,9 +95,15 @@
 
         for r1 in c1
         loop
-          l_command := 'grant select on '||r1.owner||'.'||r1.nam||' to '||v_role;
+          l_command := 'grant read on '||r1.owner||'."'||r1.nam||'" to '||v_role;
           DBMS_OUTPUT.put_line(l_command);
-          EXECUTE IMMEDIATE l_command;
+          begin
+              EXECUTE IMMEDIATE l_command;
+          exception
+              when table_does_not_exist
+              then 
+                null; -- Ignore missing remote tables using database links
+          end;
           DBMS_SESSION.sleep(0.5);  -- Avoid monopolising the library cache
         end loop;
 
@@ -353,7 +371,8 @@
     label: "{{ item.item.key }}"
   when: delius_users is defined and ( action_type=="create" or action_type == "all") and plsql.changed
 
-# Create a trigger to set the default schema as DELIUS_APP_SCHEMA for Read-Only users.
+# Create a trigger to set the default schema as DELIUS_APP_SCHEMA for Read-Only users in Delius.
+# We do not do this for MIS as there is no single primary application schema.
 - name: Logon Trigger Created for _RO Users
   script: create_ro_logon_trigger.sh
   with_dict: "{{ delius_users }}"
@@ -363,6 +382,7 @@
     - item.key | lower is search('.*_ro$')
     - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
     - not item.value.drop_user | default(false)
+    - application_type == 'delius'
 
 # Create a trigger to prevent Standby Database Only Read-Only Users logging into the Primary database.
 - name: Logon Trigger Created for _SRO Users

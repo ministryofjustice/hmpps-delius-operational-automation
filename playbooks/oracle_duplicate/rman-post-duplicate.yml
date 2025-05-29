@@ -99,6 +99,7 @@
           include_tasks: ../delius_users/playbook.yml
           vars:
             action_type: "all"
+            application_type: "delius"
 
         - name: Create Delius gdpr_pool database user
           include_tasks: ../delius_gdpr/playbook.yml
@@ -193,6 +194,12 @@
   when:
     - duplicate_target | regex_search('.*_mis_primarydb')
     - database_primary_sid | regex_search('STGMIS.*$')
+
+- name: Create and restore MIS users
+  include_tasks: ../delius_users/playbook.yml
+  vars:
+    action_type: "all"
+    application_type: "mis"
 
 - name: Copy delius datasets required
   import_playbook: delius-datasets.yml
