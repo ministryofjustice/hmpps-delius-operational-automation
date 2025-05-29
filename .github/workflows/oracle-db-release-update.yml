@@ -148,6 +148,7 @@ jobs:
                            playbooks/oracle_release_update
                            playbooks/delius_oem_metrics_setup
                            playbooks/oracle_interim_patch
+                           playbooks/oracle_ha
                            common
                            ansible.cfg
           path: operations
