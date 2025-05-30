@@ -20,7 +20,7 @@
   vars:
     target_dbs: "{{ target_hosts }}"
     required_action: "Create Restore Point"
-    restore_point_name: "UPLIFT-testing"
+    restore_point_name: "UPLIFT"
 
 - name: Uplift Delius Database
   hosts: "{{ target_hosts }}"
