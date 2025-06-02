@@ -112,6 +112,7 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_restore_points/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_password_rotation/roles
+          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oem_blackout/roles
           $command -i $inventory -e target_hosts=${{ steps.definetargets.outputs.primary_db_host }} \
           -e ndelius_version=${{ github.event.inputs.Version }} \
           -e create_restore_point=${{ github.event.inputs.CreateRestorePoint }} \
