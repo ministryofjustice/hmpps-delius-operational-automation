@@ -169,7 +169,7 @@ jobs:
                            playbooks/delius_oem_metrics_setup
                            playbooks/oracle_interim_patch
                            playbooks/oracle_ha
-                           common/*
+                           common
                            ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}

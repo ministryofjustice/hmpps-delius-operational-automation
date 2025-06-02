@@ -73,17 +73,13 @@
 - name: Get SYSMAN Password
   include_tasks: "../../common/tasks/get_facts.yml"
 
-- name: Copy EMCLI Login script
-  template:
-    src: "../../common/templates/emcli_login.sh.j2"
-    dest: "/tmp/emcli_login.sh"
-    mode: "0700"
+- name: Ensure EMCLI session is ready
+  include_tasks: "{{ playbook_dir }}/../../common/tasks/emcli_login.yml"
 
 - name: Create database links
   shell:
     cmd: |
       . ~/.bash_profile
-      . /tmp/emcli_login.sh
       DELIUS_AWS_ACCOUNT_ID=$({{ emcli }} execute_sql -sql="{{ sql_cmd }}" -targets="EMREP:oracle_database" | grep -v "*" | tail -3 | head -1)
       DELIUS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id "arn:aws:secretsmanager:eu-west-2:${DELIUS_AWS_ACCOUNT_ID}:secret:{{ delius_environment_name }}-oracle-db-application-passwords" --query SecretString --output text| jq -r .delius_app_schema)
       USER_PASSWORD=$(aws secretsmanager get-secret-value --secret-id {{ environment_name }}-oracle-mis-db-application-passwords --query SecretString --output text| jq -r .{{ item.user }})

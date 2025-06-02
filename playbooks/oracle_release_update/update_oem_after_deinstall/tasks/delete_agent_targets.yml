@@ -3,9 +3,11 @@
   set_fact:
     agent_host: "{{ target_host + '.' + dns_zone_internal }}"
 
+- name: Ensure EMCLI session is ready
+  include_tasks: "{{ playbook_dir }}/../../common/tasks/emcli_login.yml"
+
 - name: Find Out if Deinstalled Home Exists as a Target
   shell: |
-    . {{ stage }}/emcli_login.sh
     ALL_HOME_TARGETS=$({{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader)
     for TARGET in ${ALL_HOME_TARGETS}; do {{ emcli }} list -resource="TargetProperties" -search="TARGET_NAME='$TARGET'" -search="PROPERTY_NAME='INSTALL_LOCATION'" -column="PROPERTY_VALUE" -script | grep -q "{{ oracle_home }}" && echo $TARGET && break; done
   register: existing_oracle_home
@@ -21,7 +23,6 @@
 # This block will run if the Deinstalled Oracle Home Target still exists
 - name: Delete Target from Repository
   shell: |
-    . {{ stage }}/emcli_login.sh
     {{ emcli }} delete_target -name="{{ oracle_home_name }}" -type="oracle_home"
   when: existing_oracle_home.rc == 0 and oracle_home_name is defined
 
@@ -29,7 +30,6 @@
 # (Otherwise it will fail when we try to add the new target)
 - name: Get Target From Repository
   shell: |
-    . {{ stage }}/emcli_login.sh
     {{ emcli }} get_targets -targets="{{ oracle_home_name }}:oracle_home" -script -noheader | awk '{print $NF}'
   register: delete_target_monitor
   until: delete_target_monitor.stdout_lines is not search(oracle_home_name)
