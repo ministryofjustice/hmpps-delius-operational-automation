@@ -160,6 +160,11 @@ jobs:
           role-duration-seconds: 21600
           aws-region: "eu-west-2"
 
+      - name: Update DynamoDB
+        shell: bash
+        run: |
+             aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{"date": {"S":"20251225"}, "description": {"S": "Christmas Day"}}'
+
       - name: Run Check Working Day Playbook
         shell: bash
         run: |
