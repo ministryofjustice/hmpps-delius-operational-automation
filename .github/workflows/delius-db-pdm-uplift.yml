@@ -79,7 +79,7 @@ jobs:
             playbooks/oracle_restore_points
             playbooks/oracle_password_rotation
             playbooks/ansible.cfg
-            common/*
+            common
           path: operations
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
