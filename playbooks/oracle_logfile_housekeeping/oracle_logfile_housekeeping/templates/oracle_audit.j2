@@ -1,9 +1,0 @@
-#!/bin/sh
-
-renice +19 -p $$ >/dev/null 2>&1
-ionice -c3 -p $$ >/dev/null 2>&1
-
-# Use find to get the file list to avoid overloading the number of arguments which tar can accept
-find {{ audit_directory }} -type f -print | tar -cvzf {{ audit_archive_directory }}/audit_$(date +%Y%m%d%H%M).tgz --remove-files -T -
-
-exit 0

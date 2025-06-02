@@ -58,7 +58,7 @@ on:
         type: string
         default: ""
       BlackoutDuration:
-        description: "Blackout duration [days] hh:mm [optional]"
+        description: "Blackout duration in '[days] hh:mm' format [optional]"
         type: string
         default: ""
       VerboseOutput:
@@ -92,7 +92,7 @@ permissions:
 jobs:
   deployment:
     name: oracle-db-oem-blackout
-    environment: ${{ github.event.inputs.TargetEnvironment }}
+    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
@@ -111,6 +111,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
               playbooks/oem_blackout
+              common
               playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
@@ -128,6 +129,18 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
+      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/roles/secretsmanager-passwords
+            ansible/roles/get-modernisation-platform-facts
+          path: roles
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0  
+
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
@@ -140,10 +153,11 @@ jobs:
       - name: Start OEM Blackout
         run: |
           export ANSIBLE_CONFIG=$ansible_config
+          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oem_blackout/roles
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e target=${{ steps.preparetargetname.outputs.TargetHost }} \
           -e object_type=${{ github.event.inputs.ObjectTypes }} \
           -e action=${{ github.event.inputs.Action }} \
           -e blackout="${{ github.event.inputs.BlackoutName }}" \
-          -e duration="${{ github.event.inputs.BlackoutDuration }}" ${{ github.event.inputs.Verbose }}
+          -e 'duration="${{ github.event.inputs.BlackoutDuration }}"' ${{ github.event.inputs.Verbose }}
           

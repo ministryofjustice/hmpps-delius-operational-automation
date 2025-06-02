@@ -87,6 +87,7 @@
     - name: Get OEM Account Id
       set_fact:
         account_ids: "{{ lookup('aws_ssm', 'account_ids', region='eu-west-2') }}"
+      tags: get_oem_account_id
 
     - name: (main/restore-primary-to-standby) Run rman restore bash script
       shell: ". ~/.bash_profile; /tmp/rman_duplicate_to_standby.sh {{ use_backup_flag | default('') }} {{ no_sbt_flag | default('') }} {{ force_restore_flag | default('') }} {{ copy_redo_since_resetlogs_flag | default('') }} -t {{ database_primary_unique_name }} -s {{ database_standby_unique_name }} -i {{ oracle_database_oracle_home }}/dbs/init{{ database_standby_sid}}.ora_predg {{ ssm_parameter_option|default() }}"

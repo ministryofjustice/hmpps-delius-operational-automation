@@ -131,5 +131,6 @@ jobs:
             # not be undefined, so we set it arbitrarily to 0
              $enable_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
              -e primary=${{ steps.preparetargetname.outputs.TargetHost }} \
-             -e standby_number=0
+             -e standby_number=0 \
+             ${{ github.event.inputs.VerboseOutput }}
           fi

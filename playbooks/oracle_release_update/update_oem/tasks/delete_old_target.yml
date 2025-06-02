@@ -1,9 +1,11 @@
 ---
+- name: Ensure EMCLI session is ready
+  include_tasks: "{{ playbook_dir }}/../../common/tasks/emcli_login.yml"
+
 # Get name of the existing target for the specified target type
 # We only expect to see 1 HAS target, 1 ASM target and 1 Listener target on a given host (and all shouold be running from the Grid Infrastructure Home)
 - name: Generate Command to Get Existing Target Name
   shell: |
-    . {{ stage }}/emcli_login.sh >/dev/null
     {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='{{ target_type }}'" -column="TARGET_NAME" -script -noheader
   register: existing_target_name
   changed_when: false
@@ -14,8 +16,7 @@
 
 - name: Get the Target Home
   shell: |
-    . {{ stage }}/emcli_login.sh >/dev/null
-     {{ get_target_home_cmd }}
+    {{ get_target_home_cmd }}
   register: get_target_home_match
   changed_when: false
   when: existing_target_name.stdout != ''
@@ -28,12 +29,10 @@
   block:
     - name: Delete Target from Repository
       shell: |
-        . {{ stage }}/emcli_login.sh >/dev/null
         {{ emcli }} delete_target -name="{{ existing_target_name.stdout }}" -type="{{ target_type }}"
 
     - name: Wait for Existing Target Deletion
       shell: |
-        . {{ stage }}/emcli_login.sh >/dev/null
         {{ emcli }} get_targets -targets="{{ existing_target_name.stdout }}:{{ target_type }}" -noheader -script | wc -l
       register: target_deleted
       until: target_deleted.stdout | int == 0
