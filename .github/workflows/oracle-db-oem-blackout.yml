@@ -58,7 +58,7 @@ on:
         type: string
         default: ""
       BlackoutDuration:
-        description: "Blackout duration [days] hh:mm [optional]"
+        description: "Blackout duration in '[days] hh:mm' format [optional]"
         type: string
         default: ""
       VerboseOutput:
@@ -92,7 +92,7 @@ permissions:
 jobs:
   deployment:
     name: oracle-db-oem-blackout
-    environment: ${{ github.event.inputs.TargetEnvironment }}
+    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
@@ -111,6 +111,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
               playbooks/oem_blackout
+              common
               playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
@@ -158,5 +159,5 @@ jobs:
           -e object_type=${{ github.event.inputs.ObjectTypes }} \
           -e action=${{ github.event.inputs.Action }} \
           -e blackout="${{ github.event.inputs.BlackoutName }}" \
-          -e duration="${{ github.event.inputs.BlackoutDuration }}" ${{ github.event.inputs.Verbose }}
+          -e 'duration="${{ github.event.inputs.BlackoutDuration }}"' ${{ github.event.inputs.Verbose }}
           

@@ -89,7 +89,7 @@ jobs:
           sparse-checkout: |
             playbooks/ansible.cfg
             playbooks/delius_oem_metrics_setup
-            common/*
+            common
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0

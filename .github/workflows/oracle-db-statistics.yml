@@ -204,7 +204,7 @@ jobs:
           ${{ github.event.inputs.VerboseOutput }}
 
   oracle-export-remote-delius-statistics:
-    if: ${{ (needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment != 'None') && (needs.oracle-gather-delius-statistics.result == 'success' || needs.soracle-gather-delius-statistics.result == 'skipped') }}
+    if: ${{ always() && needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment != 'None' && needs.oracle-gather-delius-statistics.result == 'skipped' }}
     needs: [oracle-pre-delius-statistics,oracle-gather-delius-statistics]
     environment: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -283,9 +283,8 @@ jobs:
           -e export_to_s3=yes ${{ needs.oracle-pre-delius-statistics.outputs.VerboseOutput }}
 
   oracle-import-delius-statistics:
-    if: ${{ needs.oracle-export-remote-delius-statistics.outputs.ImportSourceEnvironment != 'None' }}
     needs: [oracle-export-remote-delius-statistics]
-    environment: ${{ needs.oracle-export-remote-delius-statistics.outputs.TargetEnvironment }}
+    environment: ${{ needs.oracle-export-remote-delius-statistics.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
@@ -388,7 +387,7 @@ jobs:
         id: slack
         uses: slackapi/slack-github-action@v1.27.0
         with:
-            channel-id: "delius-aws-oracle-dev-alerts-test"
+            channel-id: "delius-aws-oracle-dev-alerts"
             payload: |
               { 
                 "icon_emoji":"large_purple_circle",
