@@ -119,6 +119,6 @@
   import_playbook: ../oem_blackout/playbook.yml
   vars:
     target: "{{ target_hosts }}"
-   object_type: all
-   action: stop
-   blackout: "UPLIFT"
+    object_type: all
+    action: stop
+    blackout: "UPLIFT"
