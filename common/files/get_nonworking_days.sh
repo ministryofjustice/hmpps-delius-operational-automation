@@ -27,6 +27,6 @@ SELECT JSON_MERGEPATCH(
             LEFT JOIN delius_app_schema.r_standard_reference_list rsrl ON rrdm.reference_data_master_id = rsrl.reference_data_master_id
         WHERE
                 rrdm.code_set_name = 'NON WORKING DAYS'
-        AND     rsrl.last_updated_datetime > TO_DATE('${PREVIOUS_MOST_RECENT_DATA}','YYYYMMDD')
-
+        AND     rsrl.last_updated_datetime > TO_DATE('${PREVIOUS_MOST_RECENT_DATA}','YYYYMMDD');
+EXIT
 EOF
