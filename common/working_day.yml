@@ -10,7 +10,7 @@
 
       - name: Check if Today is the Weekend
         set_fact:
-          weekend: "{{ true if (ansible_date_time.weekday_name in ['Saturday','Sunday']) else false }}"
+          weekend: "{{ true if (ansible_date_time.weekday in ['Saturday','Sunday']) else false }}"
 
       - name: For Weekdays Use Non Working Days Table to Find Out if Today is Non Working Day
         when: not weekend
