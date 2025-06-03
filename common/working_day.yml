@@ -33,10 +33,11 @@
         set_fact:
            non_working_day: "{{ true if (weekend or check_non_working_day.stdout == 'YES') else false }}"
 
+      # Default to 1st January 1900 if the DynamoDB Table is empty on first run (and no non-working days can be found)
       - name: Get Most Recent Data in the Non Working Days Table
         shell: |
                aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days | \
-                    jq -r '[ .Items[].last_updated_datetime.S ] | sort | max'
+                    jq -r '[ .Items[].last_updated_datetime.S ] | sort | max' | grep . || echo "01011900"
         changed_when: false 
         register: get_most_recent_non_working_day_data
             
