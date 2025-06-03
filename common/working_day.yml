@@ -60,6 +60,9 @@
       when: not hostvars['localhost']['non_working_day']
       block:
 
+        - debug:
+             var: hostvars['localhost']['get_most_recent_non_working_day_data']
+
         - name: Query Delius Reference Data for Non Working Days for Probation
           script: get_nonworking_days.sh
           register: get_nonworking_days
