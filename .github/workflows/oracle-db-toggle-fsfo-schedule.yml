@@ -172,12 +172,12 @@ jobs:
              aws dynamodb --region eu-west-2 get-item \
                                                         --table-name dev-non-working-days \
                                                         --key "{\"code_value\":{\"S\":\"20251225\"}}" \
-                                                        --projection-expression "code_value" --output json
+                                                        --projection-expression "code_value" --output json | jq -r '[ inputs ] | if length > 0 then 1 else 0 end'
              echo $?
              aws dynamodb --region eu-west-2 get-item \
                                                         --table-name dev-non-working-days \
                                                         --key "{\"code_value\":{\"S\":\"20250603\"}}" \
-                                                        --projection-expression "code_value" --output json
+                                                        --projection-expression "code_value" --output json | jq -r '[ inputs ] | if length > 0 then 1 else 0 end'
              echo $?
 
       - name: Run Check Working Day Playbook
