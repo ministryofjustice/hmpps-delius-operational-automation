@@ -62,7 +62,7 @@
           register: get_nonworking_days
           changed_when: false
           environment:
-             PREVIOUS_MOST_RECENT_DATA: "{{ get_most_recent_non_working_day_data.stdout }}"
+             PREVIOUS_MOST_RECENT_DATA: "{{ hostvars['localhost']['get_most_recent_non_working_day_data'].stdout }}"
 
         - name: Add New Non-Working Days to DynamoDB
           shell: |
