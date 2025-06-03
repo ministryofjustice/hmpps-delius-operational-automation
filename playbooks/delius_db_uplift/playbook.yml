@@ -1,17 +1,17 @@
-- name: Disable Oracle OEM Alerts
-  import_playbook: ../oem_blackout/playbook.yml
-  vars:
-    target: "{{ target_hosts }}"
-    blackout: "UPLIFT"
-    object_type: all
-    action: start
-    duration: 03:00
-
-# - name: Block connections to primary database
-#   import_playbook: ../block_sessions/playbook.yml
+# - name: Disable Oracle OEM Alerts
+#   import_playbook: ../oem_blackout/playbook.yml
 #   vars:
-#     target_host: delius_primarydb
-#     action: block
+#     target: "{{ target_hosts }}"
+#     blackout: "UPLIFT"
+#     object_type: all
+#     action: start
+#     duration: 03:00
+
+- name: Block connections to primary database
+  import_playbook: ../block_sessions/playbook.yml
+  vars:
+    target_host: delius_primarydb
+    action: block
 
 # - name: Create restore point
 #   import_playbook: ../oracle_restore_points/playbook.yml
@@ -109,16 +109,16 @@
 #           register: update_read_only_role
 #           changed_when: update_read_only_role.stdout | int > 0
 
-# - name: Unblock connections to primary database
-#   import_playbook: ../block_sessions/playbook.yml
-#   vars:
-#     target_host: delius_primarydb
-#     action: unblock
-
-- name: Re-enable Oracle OEM alerts
-  import_playbook: ../oem_blackout/playbook.yml
+- name: Unblock connections to primary database
+  import_playbook: ../block_sessions/playbook.yml
   vars:
-    target: "{{ target_hosts }}"
-    object_type: all
-    action: stop
-    blackout: "UPLIFT"
+    target_host: delius_primarydb
+    action: unblock
+
+# - name: Re-enable Oracle OEM alerts
+#   import_playbook: ../oem_blackout/playbook.yml
+#   vars:
+#     target: "{{ target_hosts }}"
+#     object_type: all
+#     action: stop
+#     blackout: "UPLIFT"
