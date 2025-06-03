@@ -167,6 +167,17 @@ jobs:
              aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{"date": {"S":"20251226"}, "code_description": {"S": "Boxing Day 2025"}, "last_updated_datetime": {"S": "20220101"}}'
              aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{"date": {"S":"20221226"}, "code_description": {"S": "Boxing Day 2022"}, "last_updated_datetime": {"S": "20210607"}}'
              aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days
+             # Get latest data in the DynamoDB table
+             aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days | jq -r '[ .Items[].last_updated_datetime.S ] | sort | max'
+             aws dynamodb --region eu-west-2 get-item \
+                                                        --table-name dev-non-working-days \
+                                                        --key "{\"date\":{\"S\":\"20251225\"}}" \
+                                                        --projection-expression "date" --output json
+             aws dynamodb --region eu-west-2 get-item \
+                                                        --table-name dev-non-working-days \
+                                                        --key "{\"date\":{\"S\":\"20250603\"}}" \
+                                                        --projection-expression "date" --output json
+
       - name: Run Check Working Day Playbook
         shell: bash
         run: |
