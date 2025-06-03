@@ -10,7 +10,7 @@
 - name: Block connections to primary database
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: delius_primarydb
+    target_host: "{{ target_hosts }}"
     action: block
 
 # - name: Create restore point
@@ -112,7 +112,7 @@
 - name: Unblock connections to primary database
   import_playbook: ../block_sessions/playbook.yml
   vars:
-    target_host: delius_primarydb
+    target_host: "{{ target_hosts }}"
     action: unblock
 
 # - name: Re-enable Oracle OEM alerts
