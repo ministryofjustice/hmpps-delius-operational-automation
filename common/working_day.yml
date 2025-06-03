@@ -20,7 +20,7 @@
           shell: |
                  aws dynamodb --region eu-west-2 get-item \
                    --table-name dev-non-working-days \
-                   --key "{\"code_value\":{\"S\":\"{{ ansible_date_time.date | replace('-','') }}\"}}" \
+                   --key "{\"code_value\":{\"S\":\"{{ ansible_date_time.date | to_datetime('%Y-%m-%d') | strftime('%d%m%y') }}\"}}" \
                    --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then "YES" else "NO" end'
           changed_when: false
           register: check_non_working_day
@@ -76,6 +76,8 @@
         - name: Add New Non-Working Days to DynamoDB
           shell: |
               aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{{ non_working_day_json }}'
-          loop: "{{ get_nonworking_days.stdout_lines }}"
+          loop: "{{ get_nonworking_days.stdout_lines | select('match', '^.+$') | list }}"
           loop_control:
             loop_var: non_working_day_json
+          delegate_to: localhost
+          become: no
