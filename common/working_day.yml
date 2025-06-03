@@ -16,11 +16,15 @@
         when: not weekend
         block:
 
+        - name: Get Todays Date in Required DDMMYY Format to Match Date key
+          set_fact:
+             todays_date: "{{ ansible_date_time.date | to_datetime('%Y-%m-%d') | strftime('%d%m%y') }}"
+
         - name: Lookup Todays Date in the Non Working Days Table
           shell: |
                  aws dynamodb --region eu-west-2 get-item \
                    --table-name dev-non-working-days \
-                   --key "{\"code_value\":{\"S\":\"{{ ansible_date_time.date | to_datetime(\'%Y-%m-%d\') | strftime(\'%d%m%y\') }}\"}}" \
+                   --key "{\"code_value\":{\"S\":\"{{ todays_date }}\"}}" \
                    --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then "YES" else "NO" end'
           changed_when: false
           register: check_non_working_day
