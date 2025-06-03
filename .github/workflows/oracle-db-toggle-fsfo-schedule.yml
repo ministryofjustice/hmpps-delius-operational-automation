@@ -163,8 +163,8 @@ jobs:
       - name: Update DynamoDB
         shell: bash
         run: |
-             aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{"date": {"S":"20251225"}, "description": {"S": "Christmas Day"}}'
-
+             aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{"date": {"S":"20251225"}, "code_description": {"S": "Christmas Day 2025"}, "last_updated_datetime": {"S": "20140520"}}'
+             aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{"date": {"S":"20251226"}, "code_description": {"S": "Boxing Day 2025"}, "last_updated_datetime": {"S": "20220101"}}'
       - name: Run Check Working Day Playbook
         shell: bash
         run: |
