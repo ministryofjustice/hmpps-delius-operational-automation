@@ -65,7 +65,7 @@
              PREVIOUS_MOST_RECENT_DATA: "{{ hostvars['localhost']['get_most_recent_non_working_day_data'].stdout }}"
 
         - debug:
-             vars: get_nonworking_days.stdout_lines
+             var: get_nonworking_days.stdout_lines
 
         - name: Add New Non-Working Days to DynamoDB
           shell: |
