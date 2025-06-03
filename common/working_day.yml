@@ -36,6 +36,9 @@
         changed_when: false 
         register: get_most_recent_non_working_day_data
             
+      - debug:
+           var: get_most_recent_non_working_day_data
+
       - name: Output Day type
         debug:
            msg: "{{ 'Working Day: ' + ('NO' if non_working_day else 'YES') }}"
