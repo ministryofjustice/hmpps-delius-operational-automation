@@ -165,7 +165,7 @@ jobs:
         run: |
              aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{"code_value": {"S":"20251225"}, "code_description": {"S": "Christmas Day 2025"}, "last_updated_datetime": {"S": "20140520"}}'
              aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{"code_value": {"S":"20251226"}, "code_description": {"S": "Boxing Day 2025"}, "last_updated_datetime": {"S": "20220101"}}'
-             aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{"dacode_valuete": {"S":"20221226"}, "code_description": {"S": "Boxing Day 2022"}, "last_updated_datetime": {"S": "20210607"}}'
+             aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{"code_value": {"S":"20221226"}, "code_description": {"S": "Boxing Day 2022"}, "last_updated_datetime": {"S": "20210607"}}'
              aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days
              # Get latest data in the DynamoDB table
              aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days | jq -r '[ .Items[].last_updated_datetime.S ] | sort | max'
