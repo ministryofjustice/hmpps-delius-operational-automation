@@ -146,7 +146,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             common/working_day.yml
-            common/files/working_day.sh
+            common/files/get_nonworking_days.sh
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
