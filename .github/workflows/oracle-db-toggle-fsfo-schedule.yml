@@ -182,6 +182,7 @@ jobs:
       - name: Run Check Working Day Playbook
         shell: bash
         run: |
+          set -x
           shopt -s nocasematch
           export ANSIBLE_CONFIG=$ansible_config
           WORKING_DAY=$( $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
