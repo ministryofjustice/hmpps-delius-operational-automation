@@ -128,7 +128,7 @@
       include_tasks: get_facts.yml
 
     - name: Ensure EMCLI session is ready
-      include_tasks: "operations/common/tasks/emcli_login.yml"
+      include_tasks: "{{ playbook_dir }}/../../common/tasks/emcli_login.yml"
 
     - name: Update Host Comment Property With Excluded Host
       shell: |
