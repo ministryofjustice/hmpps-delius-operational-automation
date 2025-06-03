@@ -8,11 +8,6 @@
 
 . ~/.bash_profile
 
-# Pass in the previous most recent non-working day data in YYYYMMDD format
-PREVIOUS_MOST_RECENT_DATA=$1
-
-echo "Passed in: ${PREVIOUS_MOST_RECENT_DATA}."
-
 sqlplus -s /  as sysdba <<EOF
 WHENEVER SQLERROR EXIT FAILURE;
 SET FEEDBACK OFF
