@@ -21,7 +21,7 @@
                  aws dynamodb --region eu-west-2 get-item \
                    --table-name dev-non-working-days \
                    --key "{\"code_value\":{\"S\":\"{{ ansible_date_time.date | replace('-','') }}\"}}" \
-                   --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then "YES" else "NO" end')
+                   --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then "YES" else "NO" end'
           changed_when: false
           register: check_non_working_day
 
