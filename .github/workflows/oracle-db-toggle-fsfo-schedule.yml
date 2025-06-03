@@ -118,9 +118,9 @@ jobs:
       - name: Prepare Inventory Name
         id: prepareinventorynames
         run: |
-          # Prepare to run on all Delius Database Hosts in this environment
-          delius_dbs_hosts="environment_name_$(echo ${{ matrix.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_*"
-          echo "delius_dbs_hosts=${delius_dbs_hosts}" >> $GITHUB_OUTPUT
+          # Prepare to run on primary Delius Database Host in this environment
+          target_host="environment_name_$(echo ${{ matrix.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
+          echo "target_host=${target_host}" >> $GITHUB_OUTPUT
 
       - name: Download Run Schedule Including Current Runs Only
         uses: actions/download-artifact@v4
@@ -173,12 +173,11 @@ jobs:
                                                         --table-name dev-non-working-days \
                                                         --key "{\"code_value\":{\"S\":\"20251225\"}}" \
                                                         --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then 1 else 0 end'
-             echo $?
+
              aws dynamodb --region eu-west-2 get-item \
                                                         --table-name dev-non-working-days \
                                                         --key "{\"code_value\":{\"S\":\"20250603\"}}" \
                                                         --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then 1 else 0 end'
-             echo $?
 
       - name: Run Check Working Day Playbook
         shell: bash
@@ -186,7 +185,7 @@ jobs:
           shopt -s nocasematch
           export ANSIBLE_CONFIG=$ansible_config
           WORKING_DAY=$( $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-               -e delius_hosts=${{ steps.prepareinventorynames.outputs.delius_dbs_hosts }} | awk -F"Today Day Type:" '/Today Day Type/{print $2}' | sed 's/^ //' | tr -d '"' )
+               -e target_host=${{ steps.prepareinventorynames.outputs.target_host }} | awk -F"Today Day Type:" '/Today Day Type/{print $2}' | sed 's/^ //' | tr -d '"' )
           echo "WORKING DAY $WORKING_DAY"  
           if [[ "${WORKING_DAY}" != "NO" && "${WORKING_DAY}" != "YES" ]]
           then
