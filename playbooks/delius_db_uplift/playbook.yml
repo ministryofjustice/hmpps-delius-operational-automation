@@ -31,7 +31,7 @@
   tasks:
     - name: Get Dependencies Bucket
       set_fact:
-        dependencies_bucket_name: "{{ environment }}-db-uplift"
+        dependencies_bucket_name: "{{ target_environment }}-db-uplift"
 
     - name: Get database role
       shell: |
@@ -61,12 +61,12 @@
             mode: u+x
 
         - name: Get delius_app_schema password from secrets manager
-          shell: "aws secretsmanager get-secret-value --secret-id '{{ environment }}-oracle-db-application-passwords' --query SecretString --output json | jq 'fromjson | .delius_app_schema'"
+          shell: "aws secretsmanager get-secret-value --secret-id '{{ target_environment }}-oracle-db-application-passwords' --query SecretString --output json | jq 'fromjson | .delius_app_schema'"
           register: delius_app_schema_password
           no_log: true
 
         - name: Get sys password from secrets manager
-          shell: "aws secretsmanager get-secret-value --secret-id '{{ environment }}-oracle-db-dba-passwords' --query SecretString --output json | jq 'fromjson | .system'"
+          shell: "aws secretsmanager get-secret-value --secret-id '{{ target_environment }}-oracle-db-dba-passwords' --query SecretString --output json | jq 'fromjson | .system'"
           register: oradb_system_password
           no_log: true
 
