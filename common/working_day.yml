@@ -54,14 +54,13 @@
     # that new reference data for Non-Working Days is normally added months or
     # years in advance so there is no urgency for this block to be executed).
     - name: Update DynamoDB With Any New Non Working Days Added to Reference Data
-      when: not non_working_day
+      when: not hostvars['localhost']['non_working_day']
       block:
 
         - name: Query Delius Reference Data for Non Working Days for Probation
           script: get_nonworking_days.sh
           register: get_nonworking_days
           changed_when: false
-          when: not non_working_day
           environment:
              PREVIOUS_MOST_RECENT_DATA: "{{ get_most_recent_non_working_day_data.stdout }}"
 
