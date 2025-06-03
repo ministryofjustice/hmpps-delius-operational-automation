@@ -18,7 +18,7 @@
 
         - name: Get Todays Date in Required DDMMYY Format to Match Date key
           set_fact:
-             todays_date: "{{ ansible_date_time.date | to_datetime('%Y-%m-%d') | strftime('%d%m%y') }}"
+             todays_date: "{{ '%02d%02d%02d' | format(ansible_date_time.day | int, ansible_date_time.month | int, ansible_date_time.year | int % 100) }}"
 
         - name: Lookup Todays Date in the Non Working Days Table
           shell: |
