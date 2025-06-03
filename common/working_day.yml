@@ -18,10 +18,10 @@
 
         - name: Lookup Todays Date in the Non Working Days Table
           shell: |
-                 NON_WORKING_DAY_EXISTS=$(aws dynamodb --region eu-west-2 get-item \
-                                            --table-name dev-non-working-days \
-                                            --key "{\"code_value\":{\"S\":\"{{ ansible_date_time.date | replace('-','') }}\"}}" \
-                                            --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then "YES" else "NO" end')
+                 aws dynamodb --region eu-west-2 get-item \
+                   --table-name dev-non-working-days \
+                   --key "{\"code_value\":{\"S\":\"{{ ansible_date_time.date | replace('-','') }}\"}}" \
+                   --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then "YES" else "NO" end')
           changed_when: false
           register: check_non_working_day
 
@@ -31,8 +31,8 @@
 
       - name: Get Most Recent Data in the Non Working Days Table
         shell: |
-                LAST_UDPATED_DATETIME=$(aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days | \
-                                          jq -r '[ .Items[].last_updated_datetime.S ] | sort | max')
+               aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days | \
+                    jq -r '[ .Items[].last_updated_datetime.S ] | sort | max'
         changed_when: false 
         register: get_most_recent_non_working_day_data
             
