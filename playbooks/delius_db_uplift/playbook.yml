@@ -50,12 +50,12 @@
             state: directory
 
         - name: Download install scripts
-          shell: 'aws s3 cp s3://{{ dependencies_bucket_name }}/{{ ndelius_version }}/ /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/ --recursive --only-show-errors'
+          shell: "aws s3 cp s3://{{ dependencies_bucket_name }}/{{ ndelius_version }}/ /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/ --recursive --only-show-errors"
           ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
 
         - name: Set scripts as executable
           file:
-            path: '/tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install'
+            path: "/tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install"
             state: directory
             recurse: yes
             mode: u+x
@@ -72,9 +72,9 @@
 
         - name: Set passwords
           replace:
-            path: '/tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install/install_operational_scripts.sh'
-            regexp: '{{ item.regexp }}'
-            replace: '{{ item.replace }}'
+            path: "/tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install/install_operational_scripts.sh"
+            regexp: "{{ item.regexp }}"
+            replace: "{{ item.replace }}"
           with_items:
             - { regexp: DBAPPPASS=.*, replace: 'DBAPPPASS="{{ delius_app_schema_password.stdout }}"' }
             - { regexp: DBSYSPASS=.*, replace: 'DBSYSPASS="{{ oradb_system_password.stdout }}"' }
@@ -87,17 +87,17 @@
             cd /tmp/u01/software/scripts/uplift/{{ ndelius_version }}/install
             ND_INSTALL_ROOT=$(pwd) ./install_operational_scripts.sh
           no_log: true
-          async: '{{ 3 * 60 * 60 }}' # Timeout after 3 hours
-          poll: 0                    # Run in background, to prevent the connection from timing out
+          async: "{{ 3 * 60 * 60 }}" # Timeout after 3 hours
+          poll: 0 # Run in background, to prevent the connection from timing out
           register: pdm_uplift
 
         - name: Wait for uplift to complete
           async_status:
-            jid: '{{ pdm_uplift.ansible_job_id }}'
+            jid: "{{ pdm_uplift.ansible_job_id }}"
           register: pdm_uplift_result
           until: pdm_uplift_result is finished
-          delay: 30                                 # Check every 30 seconds
-          retries: '{{ (3 * 60 * 60 / 30) | int }}' # For up to 3 hours
+          delay: 30 # Check every 30 seconds
+          retries: "{{ (3 * 60 * 60 / 30) | int }}" # For up to 3 hours
           ignore_errors: "{{ ignore_pdm_uplift_errors | default(false) }}"
 
         - name: Check status of uplift
