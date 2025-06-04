@@ -39,7 +39,7 @@
       - name: Get Most Recent Data in the Non Working Days Table
         shell: |
                aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days | \
-                    jq -r '[ .Items[].last_updated_datetime.S ] | sort | max' | sed 's/^null$/19000101'
+                    jq -r '[ .Items[].last_updated_datetime.S ] | sort | max' | sed 's/^null$/19000101/'
         changed_when: false 
         register: get_most_recent_non_working_day_data
             
