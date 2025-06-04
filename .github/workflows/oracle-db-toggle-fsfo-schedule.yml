@@ -162,6 +162,8 @@ jobs:
 
       - name: Run Check Working Day Playbook
         shell: bash
+        env:
+            TARGET_ENVIRONMENT: "${{ matrix.TargetEnvironment }}"
         run: |
           shopt -s nocasematch
           export ANSIBLE_CONFIG=$ansible_config
@@ -170,14 +172,15 @@ jobs:
           # (2) The first run updates the DynamoDB table with the custom list of non-working days, so
           #     if a new date(s) has been added, it will be picked up and used by the second run to
           #     actually determine if this is a non-working day.
+          SIMPLE_ENVIRONMENT_NAME="${TARGET_ENVIRONMENT##*-}"
           $command -vv -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
               -e target_host=${{ steps.prepareinventorynames.outputs.target_host }} \
               -e region=eu-west-2 \
-              -e simple_environment_name=${{ replace(matrix.TargetEnvironment, '^.*-', '') }}
+              -e simple_environment_name=${SIMPLE_ENVIRONMENT_NAME} }}
           WORKING_DAY=$( $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
                -e target_host=${{ steps.prepareinventorynames.outputs.target_host }} \
                -e region=eu-west-2 \
-               -e simple_environment_name=${{ replace(matrix.TargetEnvironment, '^.*-', '') }} | grep WORKING_DAY= )
+               -e simple_environment_name=${SIMPLE_ENVIRONMENT_NAME} | grep WORKING_DAY= )
           WORKING_DAY=$( echo ${WORKING_DAY} | grep -oE "WORKING_DAY=(YES|NO)" | awk -F= '{print $2}' )
           echo "WORKING DAY $WORKING_DAY"  
           if [[ "${WORKING_DAY}" != "NO" && "${WORKING_DAY}" != "YES" ]]
