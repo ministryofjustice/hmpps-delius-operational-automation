@@ -20,8 +20,8 @@
 
         - name: Lookup Todays Date in the Non Working Days Table
           shell: |
-            aws dynamodb --region eu-west-2 get-item \
-              --table-name dev-non-working-days \
+            aws dynamodb --region {{ region }} get-item \
+              --table-name {{ simple_environment_name }} -non-working-days \
               --key "{\"code_value\":{\"S\":\"{{ todays_date }}\"}}" \
               --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then "YES" else "NO" end'
           changed_when: false
@@ -40,7 +40,7 @@
     # it to be sorted chronologically.
     - name: Get Most Recent Data in the Non Working Days Table
       shell: |
-        aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days | \
+        aws dynamodb --region {{ region }} scan --table-name {{ simple_environment_name }}-non-working-days | \
              jq -r '[ .Items[].last_updated_datetime.S ] | sort | max' | sed 's/^null$/19000101000000/'
       changed_when: false
       register: get_most_recent_non_working_day_data
@@ -75,7 +75,7 @@
 
         - name: Add New Non-Working Days to DynamoDB
           shell: |
-            aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{{ non_working_day_json }}'
+            aws dynamodb --region {{ region }} put-item --table-name {{ simple_environment_name }}-non-working-days --item '{{ non_working_day_json }}'
           loop: "{{ get_nonworking_days.stdout_lines | reject('match','^BECOME-SUCCESS-.*$') | select('match', '^.+$') | list }}"
           loop_control:
             loop_var: non_working_day_json
