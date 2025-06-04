@@ -176,7 +176,7 @@ jobs:
           $command -vv -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
               -e target_host=${{ steps.prepareinventorynames.outputs.target_host }} \
               -e region=eu-west-2 \
-              -e simple_environment_name=${SIMPLE_ENVIRONMENT_NAME} }}
+              -e simple_environment_name=${SIMPLE_ENVIRONMENT_NAME}
           WORKING_DAY=$( $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
                -e target_host=${{ steps.prepareinventorynames.outputs.target_host }} \
                -e region=eu-west-2 \
