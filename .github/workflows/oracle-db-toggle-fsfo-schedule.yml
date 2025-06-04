@@ -165,6 +165,11 @@ jobs:
         run: |
           shopt -s nocasematch
           export ANSIBLE_CONFIG=$ansible_config
+          # We run the Ansible to determine if this is a non-working day twice for 2 reasons:
+          # (1) The first run spools to output which makes it easier to debug if there is a problem.
+          # (2) The first run updates the DynamoDB table with the custom list of non-working days, so
+          #     if a new date(s) has been added, it will be picked up and used by the second run to
+          #     actually determine if this is a non-working day.
           $command -vv -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
               -e target_host=${{ steps.prepareinventorynames.outputs.target_host }}
           WORKING_DAY=$( $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
