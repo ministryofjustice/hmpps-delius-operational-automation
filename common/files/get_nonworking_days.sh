@@ -18,13 +18,13 @@ SET LINES 256
 SELECT JSON_MERGEPATCH(
            JSON_MERGEPATCH(
             JSON_OBJECT('code_value' VALUE JSON_OBJECT('S' VALUE rsrl.code_value)), JSON_OBJECT('code_description' VALUE JSON_OBJECT('S' VALUE rsrl.code_description))
-           ), JSON_OBJECT('last_updated_datetime' VALUE JSON_OBJECT('S' VALUE TO_CHAR(rsrl.last_updated_datetime,'YYYYMMDD')))
+           ), JSON_OBJECT('last_updated_datetime' VALUE JSON_OBJECT('S' VALUE TO_CHAR(rsrl.last_updated_datetime,'YYYYMMDDHH24MISS')))
         ) non_working_days
         FROM
             delius_app_schema.r_reference_data_master   rrdm
             LEFT JOIN delius_app_schema.r_standard_reference_list rsrl ON rrdm.reference_data_master_id = rsrl.reference_data_master_id
         WHERE
                 rrdm.code_set_name = 'NON WORKING DAYS'
-        AND     rsrl.last_updated_datetime > TO_DATE('${PREVIOUS_MOST_RECENT_DATA}','YYYYMMDD');
+        AND     rsrl.last_updated_datetime > TO_DATE('${PREVIOUS_MOST_RECENT_DATA}','YYYYMMDDHH24MISS');
 EXIT
 EOF

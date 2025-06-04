@@ -38,12 +38,12 @@
            msg: "{{ 'WORKING_DAY=' + ('NO' if non_working_day else 'YES') }}"
 
       # Default to 1st January 1900 if the DynamoDB Table is empty on first run (and no non-working days can be found)
-      # NOTE:  The LAST_UPDATED_DATETIME uses the date format YYYYMMDD (cf DDMYY for the CODE_VALUE). This is to allow
+      # NOTE:  The LAST_UPDATED_DATETIME uses the date format YYYYMMDDHH24MISS (cf DDMYY for the CODE_VALUE). This is to allow
       # it to be sorted chronologically.
       - name: Get Most Recent Data in the Non Working Days Table
         shell: |
                aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days | \
-                    jq -r '[ .Items[].last_updated_datetime.S ] | sort | max' | sed 's/^null$/19000101/'
+                    jq -r '[ .Items[].last_updated_datetime.S ] | sort | max' | sed 's/^null$/19000101000000/'
         changed_when: false 
         register: get_most_recent_non_working_day_data
             
