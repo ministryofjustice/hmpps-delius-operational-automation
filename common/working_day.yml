@@ -3,53 +3,50 @@
   become: no
 
   tasks:
+    - name: Check the Calendar
+      setup:
+        filter: ansible_date_time
 
-      - name: Check the Calendar
-        setup:
-          filter: ansible_date_time
+    - name: Check if Today is the Weekend
+      set_fact:
+        weekend: "{{ true if (ansible_date_time.weekday in ['Saturday','Sunday']) else false }}"
 
-      - name: Check if Today is the Weekend
-        set_fact:
-          weekend: "{{ true if (ansible_date_time.weekday in ['Saturday','Sunday']) else false }}"
-
-      - name: For Weekdays Use Non Working Days Table to Find Out if Today is Non Working Day
-        when: not weekend
-        block:
-
+    - name: For Weekdays Use Non Working Days Table to Find Out if Today is Non Working Day
+      when: not weekend
+      block:
         - name: Get Todays Date in Required DDMMYY Format to Match Date key
           set_fact:
-             todays_date: "{{ '%02d%02d%02d' | format(ansible_date_time.day | int, ansible_date_time.month | int, ansible_date_time.year | int % 100) }}"
+            todays_date: "{{ '%02d%02d%02d' | format(ansible_date_time.day | int, ansible_date_time.month | int, ansible_date_time.year | int % 100) }}"
 
         - name: Lookup Todays Date in the Non Working Days Table
           shell: |
-                 aws dynamodb --region eu-west-2 get-item \
-                   --table-name dev-non-working-days \
-                   --key "{\"code_value\":{\"S\":\"{{ todays_date }}\"}}" \
-                   --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then "YES" else "NO" end'
+            aws dynamodb --region eu-west-2 get-item \
+              --table-name dev-non-working-days \
+              --key "{\"code_value\":{\"S\":\"{{ todays_date }}\"}}" \
+              --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then "YES" else "NO" end'
           changed_when: false
           register: check_non_working_day
 
-      - name: Is Non Working Day
-        set_fact:
-           non_working_day: "{{ true if (weekend or check_non_working_day.stdout == 'YES') else false }}"
+    - name: Is Non Working Day
+      set_fact:
+        non_working_day: "{{ true if (weekend or check_non_working_day.stdout == 'YES') else false }}"
 
-      - name: Output Day type
-        debug:
-           msg: "{{ 'WORKING_DAY=' + ('NO' if non_working_day else 'YES') }}"
+    - name: Output Day type
+      debug:
+        msg: "{{ 'WORKING_DAY=' + ('NO' if non_working_day else 'YES') }}"
 
-      # Default to 1st January 1900 if the DynamoDB Table is empty on first run (and no non-working days can be found)
-      # NOTE:  The LAST_UPDATED_DATETIME uses the date format YYYYMMDDHH24MISS (cf DDMYY for the CODE_VALUE). This is to allow
-      # it to be sorted chronologically.
-      - name: Get Most Recent Data in the Non Working Days Table
-        shell: |
-               aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days | \
-                    jq -r '[ .Items[].last_updated_datetime.S ] | sort | max' | sed 's/^null$/19000101000000/'
-        changed_when: false 
-        register: get_most_recent_non_working_day_data
-            
-      - debug:
-           var: get_most_recent_non_working_day_data
+    # Default to 1st January 1900 if the DynamoDB Table is empty on first run (and no non-working days can be found)
+    # NOTE:  The LAST_UPDATED_DATETIME uses the date format YYYYMMDDHH24MISS (cf DDMYY for the CODE_VALUE). This is to allow
+    # it to be sorted chronologically.
+    - name: Get Most Recent Data in the Non Working Days Table
+      shell: |
+        aws dynamodb --region eu-west-2 scan --table-name dev-non-working-days | \
+             jq -r '[ .Items[].last_updated_datetime.S ] | sort | max' | sed 's/^null$/19000101000000/'
+      changed_when: false
+      register: get_most_recent_non_working_day_data
 
+    - debug:
+        var: get_most_recent_non_working_day_data
 
 - hosts: "{{ target_host }}"
   gather_facts: no
@@ -57,7 +54,6 @@
   become_user: oracle
 
   tasks:
-
     # If this is Not a Non-Working Day then we check if there is any new
     # Non-Working Day reference to be added.   (We don't try this if it is
     # a Non-Working Day as the source database may be down in lower environments -
@@ -67,20 +63,19 @@
     - name: Update DynamoDB With Any New Non Working Days Added to Reference Data
       when: not hostvars['localhost']['non_working_day']
       block:
-
         - debug:
-             var: hostvars['localhost']['get_most_recent_non_working_day_data']
+            var: hostvars['localhost']['get_most_recent_non_working_day_data']
 
         - name: Query Delius Reference Data for Non Working Days for Probation
           script: get_nonworking_days.sh
           register: get_nonworking_days
           changed_when: false
           environment:
-             PREVIOUS_MOST_RECENT_DATA: "{{ hostvars['localhost']['get_most_recent_non_working_day_data'].stdout }}"
+            PREVIOUS_MOST_RECENT_DATA: "{{ hostvars['localhost']['get_most_recent_non_working_day_data'].stdout }}"
 
         - name: Add New Non-Working Days to DynamoDB
           shell: |
-              aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{{ non_working_day_json }}'
+            aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{{ non_working_day_json }}'
           loop: "{{ get_nonworking_days.stdout_lines | reject('match','^BECOME-SUCCESS-.*$') | select('match', '^.+$') | list }}"
           loop_control:
             loop_var: non_working_day_json
