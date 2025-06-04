@@ -84,7 +84,7 @@
         - name: Add New Non-Working Days to DynamoDB
           shell: |
               aws dynamodb --region eu-west-2 put-item --table-name dev-non-working-days --item '{{ non_working_day_json }}'
-          loop: "{{ get_nonworking_days.stdout_lines | select('match', '^.+$') | list }}"
+          loop: "{{ get_nonworking_days.stdout_lines | select('match','^BECOME-SUCCESS') | select('match', '^.+$') | list }}"
           loop_control:
             loop_var: non_working_day_json
           delegate_to: localhost
