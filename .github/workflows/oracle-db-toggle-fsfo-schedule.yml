@@ -61,8 +61,7 @@ jobs:
         run: |
              # Schedule an immediate run if using Workflow Dispatch, otherwise check if a run is scheduled.
              if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-                # **** CHANGE SKIP NON-WORKING DAYS BACK TO FALSE -- THIS IS FOR DEBUG ONLY!!!
-                 echo "[{\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"CronSchedule\": \"IMMEDIATE\",\"Action\": \"${{ inputs.FSFOMode }}\",\"SkipNonWorkingDays\": \"true\"}]" > $schedule_file
+                 echo "[{\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"CronSchedule\": \"IMMEDIATE\",\"Action\": \"${{ inputs.FSFOMode }}\",\"SkipNonWorkingDays\": \"false\"}]" > $schedule_file
                  cat $schedule_file
                  SCHEDULED_JSON=$(jq '.' $schedule_file | jq '{include: .}')
              else
@@ -192,7 +191,7 @@ jobs:
           # Exclude Non-Working Days if this option is specified by removing this element from the schedule JSON file
           if [[ "${WORKING_DAY}" == "NO" && "${{ matrix.SkipNonWorkingDays }}" == "true" ]]
           then
-             echo "We Are Here!"
+             echo "Removing ${{ matrix.TargetEnvironment }} ${{ matrix.CronSchedule }} from FSFO Schedule as it is a non-working day."
              jq 'del(.[] | select(.CronSchedule=="${{ matrix.CronSchedule }}" and .TargetEnvironment=="${{ matrix.TargetEnvironment }}" and .Action=="${{ matrix.Action }}" and .SkipNonWorkingDays=="${{ matrix.SkipNonWorkingDays }}"))' oracle-db-toggle-fsfo-schedule.json > /tmp/schedule.json && mv /tmp/schedule.json oracle-db-toggle-fsfo-schedule.json
           fi
           cat oracle-db-toggle-fsfo-schedule.json
