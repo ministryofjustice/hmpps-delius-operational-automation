@@ -21,7 +21,7 @@
         - name: Lookup Todays Date in the Non Working Days Table
           shell: |
             aws dynamodb --region {{ region }} get-item \
-              --table-name {{ simple_environment_name }} -non-working-days \
+              --table-name {{ simple_environment_name }}-non-working-days \
               --key "{\"code_value\":{\"S\":\"{{ todays_date }}\"}}" \
               --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then "YES" else "NO" end'
           changed_when: false
