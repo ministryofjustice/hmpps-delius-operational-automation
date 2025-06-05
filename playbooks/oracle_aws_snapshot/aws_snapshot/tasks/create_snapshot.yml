@@ -28,10 +28,11 @@
 # Do not include "service-role" in the ARN otherwise you get a non-specific "IAM Role does not have sufficient permissions to execute the backup" message
 # This is because in Mod Platform, AWSBackupDefaultServiceRole is just a normal IAM role (not a service role) which has been created with the same privileges as
 # the AWS-supplied service role of the same name.
+# To prevent conflicting roles between environments sharing an account, AWSBackupDefaultServiceRole was renamed to {environment}-AWSBackupDefaultServiceRole
 - name: Run Backup Job
   shell: |
     set -o pipefail
-    aws backup start-backup-job --backup-vault-name {{ get_backup_vault.stdout }} --resource-arn arn:aws:ec2:{{ region }}:{{ caller_info.account }}:instance/{{ backup_hostname }} --iam-role-arn arn:aws:iam::{{ caller_info.account }}:role/AWSBackupDefaultServiceRole --lifecycle DeleteAfterDays={{ delete_after_days | default(7) }} --region {{ region }} | jq -r '.BackupJobId'
+    aws backup start-backup-job --backup-vault-name {{ get_backup_vault.stdout }} --resource-arn arn:aws:ec2:{{ region }}:{{ caller_info.account }}:instance/{{ backup_hostname }} --iam-role-arn arn:aws:iam::{{ caller_info.account }}:role/{{ simple_environment_name }}-AWSBackupDefaultServiceRole --lifecycle DeleteAfterDays={{ delete_after_days | default(7) }} --region {{ region }} | jq -r '.BackupJobId'
   register: start_backup_job
   args:
     executable: /bin/bash
