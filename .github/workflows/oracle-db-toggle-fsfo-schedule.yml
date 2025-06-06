@@ -65,7 +65,7 @@ jobs:
                  cat $schedule_file
                  SCHEDULED_JSON=$(jq '.' $schedule_file | jq '{include: .}')
              else
-                 SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Schedule","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
+                 SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","CronSchedule","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
              fi
              echo ${SCHEDULED_JSON} | sed 's/ //g'
              echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
@@ -196,7 +196,7 @@ jobs:
           # Exclude Non-Working Days if this option is specified by removing this element from the schedule JSON file
           if [[ "${WORKING_DAY}" == "NO" && "${{ matrix.SkipNonWorkingDays }}" == "true" ]]
           then
-             echo "Removing ${{ matrix.TargetEnvironment }} ${{ matrix.CronSchedule }} from FSFO Schedule as it is a non-working day."
+             echo "Removing ${{ matrix.TargetEnvironment }} - ${{ matrix.CronSchedule }} - (${{ github.event.schedule }}) from FSFO Schedule as it is a non-working day."
              jq 'del(.[] | select(.CronSchedule=="${{ matrix.CronSchedule }}" and .TargetEnvironment=="${{ matrix.TargetEnvironment }}" and .Action=="${{ matrix.Action }}" and .SkipNonWorkingDays=="${{ matrix.SkipNonWorkingDays }}"))' oracle-db-toggle-fsfo-schedule.json > /tmp/schedule.json && mv /tmp/schedule.json oracle-db-toggle-fsfo-schedule.json
           fi
           cat oracle-db-toggle-fsfo-schedule.json
