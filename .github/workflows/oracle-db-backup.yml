@@ -189,7 +189,6 @@ jobs:
                  Action='${{ github.event.action }}'
                  echo "Action: ${Action}"
                  echo "Event Type: ${{ github.event.event_type }}"
-                 echo "JSON: ${{ toJson(github.event) }}"
               else
                  echo "Overriding command line with supplied JSON inputs"
                  Inputs='${{ github.event.inputs.ParametersJSON }}'
