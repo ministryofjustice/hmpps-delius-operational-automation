@@ -59,6 +59,10 @@ env:
   disable_command: ansible-playbook operations/playbooks/oracle_ha/disable-fsfo.yml
   enable_command: ansible-playbook operations/playbooks/oracle_ha/enable-fsfo.yml
   inventory: inventory/ansible
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+
 
 permissions:
   contents: read
@@ -103,11 +107,17 @@ jobs:
           ref: ${{ inputs.SourceConfigVersion }}
           fetch-depth: 0
 
+      - name: Inject static AWS creds (for act)
+        run: |
+             echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"  >> "$GITHUB_ENV"
+             echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"  >> "$GITHUB_ENV"
+             echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"  >> "$GITHUB_ENV"
+
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          # role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           role-duration-seconds: 21600
           aws-region: "eu-west-2"
