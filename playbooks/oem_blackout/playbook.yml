@@ -3,7 +3,6 @@
   gather_facts: no
   roles:
     - oracle-oem-blackout
-
 # This playbook used to manage OEM blackouts originally had the tasks defined within it. The tasks have now been moved
 # to the role oracle-oem-blackout in the modernisation-platform-configuration-management repository.
 # Instead of calling this playbook directly, it is recommended to call the role directly in your playbooks or workflows.
