@@ -277,7 +277,7 @@ jobs:
             playbooks/oracle_restore_points
             playbooks/block_sessions
             playbooks/oracle_password_rotation
-            playbooks/oem_blackout
+#            playbooks/oem_blackout
             playbooks/ansible.cfg
             common/*
           path: operations
@@ -312,7 +312,7 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_restore_points/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_password_rotation/roles
-          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oem_blackout/roles
+#          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oem_blackout/roles
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e target_dbs=${{ needs.validate-parameters.outputs.MisTargets  }} \
           -e "required_action='${{ github.event.inputs.RequiredAction }}'" \

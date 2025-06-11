@@ -69,7 +69,9 @@
 
 # Allow OEM jobs to run during the flashback so we can pick up Audited Interaction Data for archival if required
 - name: Start Blackout for Flashback
-  import_playbook: ../oem_blackout/playbook.yml
+#  import_playbook: ../oem_blackout/playbook.yml
+  import_role:
+    name: oracle-oem-blackout
   when: required_action == "Flashback to Restore Point"
   vars:
     target: "{{ target_dbs }}"
@@ -481,7 +483,9 @@
     - database_primary_sid | regex_search('STGMIS')
 
 - name: Stop Blackout for Flashback
-  import_playbook: ../oem_blackout/playbook.yml
+#  import_playbook: ../oem_blackout/playbook.yml
+  import_role:
+    name: oracle-oem-blackout
   when: required_action == "Flashback to Restore Point"
   vars:
     target: "{{ target_dbs }}"
