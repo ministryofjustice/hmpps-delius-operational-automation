@@ -1,0 +1,21 @@
+name: "Debug: Schedule"
+on:
+  schedule:
+    - cron: '10,20,30,40,50 * * * MON-FRI'
+    - cron: '5,15,25,35,45,55 * * * MON-FRI'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:
+   debug-schedule:
+      runs-on: ubuntu-latest
+      steps:
+          - name: Report Schedule
+            id: report-schedule
+            run: |
+                echo "No schedule is ${{ github.event.schedule }}."
+ 
