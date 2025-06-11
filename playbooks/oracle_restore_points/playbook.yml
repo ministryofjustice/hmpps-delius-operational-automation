@@ -69,7 +69,7 @@
 
         # Allow OEM jobs to run during the flashback so we can pick up Audited Interaction Data for archival if required
         - name: Start Blackout for Flashback
-          include_role:  # ← use include_role for runtime `when` condition
+          include_role: # ← use include_role for runtime `when` condition
             name: oracle-oem-blackout
           vars:
             target: "{{ target_dbs }}"
