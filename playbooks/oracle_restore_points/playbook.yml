@@ -485,7 +485,7 @@
   gather_facts: no
   tasks:
     - name: Stop Blackout for Flashback
-      import_role:
+      include_role:
         name: oracle-oem-blackout
       when: required_action == "Flashback to Restore Point"
       vars:
