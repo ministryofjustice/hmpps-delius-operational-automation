@@ -185,6 +185,7 @@ jobs:
             playbooks/oracle_restore_points
             playbooks/block_sessions
             playbooks/oracle_password_rotation
+            playbooks/oem_blackout
             playbooks/oracle_audit_replication_management
             playbooks/ansible.cfg
             common/*
@@ -276,6 +277,7 @@ jobs:
             playbooks/oracle_restore_points
             playbooks/block_sessions
             playbooks/oracle_password_rotation
+            playbooks/oem_blackout
             playbooks/ansible.cfg
             common/*
           path: operations
