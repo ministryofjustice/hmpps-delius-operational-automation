@@ -481,18 +481,15 @@
     - database_primary_sid | regex_search('STGMIS')
 
 - name: Stop Blackout for Flashback
-  hosts: "{{ target_dbs }}"
-  gather_facts: no
-  tasks:
-    - name: Stop Blackout for Flashback
-      import_role:
-        name: oracle-oem-blackout
-      vars:
-        target: "{{ target_dbs }}"
-        blackout: "Flashback_to_{{ restore_point_name }}"
-        object_type: all
-        action: stop
-      when: required_action == "Flashback to Restore Point"
+#  import_playbook: ../oem_blackout/playbook.yml
+  import_role:
+    name: oracle-oem-blackout
+  when: required_action == "Flashback to Restore Point"
+  vars:
+    target: "{{ target_dbs }}"
+    blackout: "Flashback_to_{{ restore_point_name }}"
+    object_type: all
+    action: stop
 
 # Always Run the Restore Point Report at the End
 - name: Report restore points
