@@ -21,69 +21,21 @@
 
 . ~/.bash_profile
 
-# No action required if database is running
-DATABASE_RUNNING=$(srvctl status database -d ${ORACLE_SID})
-[[ "${DATABASE_RUNNING}" == "Database is running." ]] && echo ${DATABASE_RUNNING} && exit 0
-
 # No action required if this is not an ADG database
 START_OPTIONS=$(srvctl config database -d ${ORACLE_SID} | grep "Start options:")
 [[ "${START_OPTIONS}" != "Start options: read only" ]] && echo ${START_OPTIONS} && exit 0
 
-# Now we run through the alert log to find out if the database did not open due to an archivelog fetch failure
-# Not every line of the alert log contains a timestamp, so we filter out those that match ISO 8601 timestamp format
-TIMESTAMP_REGEX='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}\+[0-9]{2}:[0-9]{2}$'
+# No action required if database is in Read Only (or Read Only with Apply) mode
+OPEN_MODE=$(echo -ne "SET HEAD OFF;\nSET PAGES 0;\n SELECT open_mode FROM v\$database;" | sqlplus -S / as sysdba | head -1)
+[[ "${OPEN_MODE}" =~ "READ ONLY" ]] && echo ${OPEN_MODE} && exit 0
 
-# Get Location of Alert Log
-ALERT_DIRECTORY=$(echo "show homes; exit" | adrci | grep -Ei "/$ORACLE_SID/$ORACLE_SID" | head -1)
-ALERT_LOG_FILE="${ORACLE_BASE}/${ALERT_DIRECTORY}/trace/alert_${ORACLE_SID}.log"
-
-# Get Alert Log Entries Since Latest Server Start
-EPOCH_STARTUP_TIME=$(date -d "$(uptime --since)" +%s)
-ISO_8601_STARTUP_TIME=$(date -d "$(uptime --since)" --iso-8601)
-
-LOG_AFTER_STARTUP=false
-# Check for an ORA-16016 in the portion of the alert log after the most recent server start
-# ORA-16016 indicates that an archive log is unavailable on the standby
-ORA_16016_FOUND=false
-ORA_16016_FOUND_REGEX='^ORA-16016: archived log for .* unavailable$'
-
-# Check for a completed ALTER DATABASE READ ONLY after any ORA-16016
-OPEN_READ_ONLY_FOUND=false
-OPEN_READ_ONLY_FOUND_REGEX='Completed: ALTER DATABASE READ ONLY'
-
-# We scan through the alert log to find any ORA-16016 error messages which have occurred since
-# the host start up time.   These indicate that it is was not possible to obtain a required
-# redo log from the primary database which may be because it had not been started by the time
-# that the redo was required.
-#
-# If the alert log is large it may take a long time to reach the portion containing entries
-# since the host startup checking the timestamps line-by-line.   Therefore we shortcut this
-# process by grepping for the date of the startup in the logfile and tailing only the lines
-# from after this point to process.
-NUMBER_OF_ALERT_LOG_LINES=$(wc -l ${ALERT_LOG_FILE} | cut -d' ' -f1)
-FIRST_LINE_WITH_STARTUP_DATE=$(grep -n ${ISO_8601_STARTUP_TIME} ${ALERT_LOG_FILE} | head -1 | cut -d: -f1)
-START_READING_FROM_LINE=$((NUMBER_OF_ALERT_LOG_LINES-FIRST_LINE_WITH_STARTUP_DATE))
-
-while IFS= read -r line; do
-   if [[ "${LOG_AFTER_STARTUP}" == "false" ]]; then
-      TIMESTAMP=$(echo "$line" | awk '{print $1}')
-      if [[ ${TIMESTAMP} =~ ${TIMESTAMP_REGEX} ]]; then
-         LINE_EPOCH=$(date -d "${TIMESTAMP}" +%s)
-         [[ ${LINE_EPOCH} -gt ${EPOCH_STARTUP_TIME} ]] && echo "Found alert log start for most recent boot." && LOG_AFTER_STARTUP=true
-      fi
-   else
-      [[ $line =~ ${ORA_16016_FOUND_REGEX} ]] && ORA_16016_FOUND=true
-      if [[ $line =~ ${OPEN_READ_ONLY_FOUND_REGEX} ]] && [[ "${ORA_16016_FOUND}" == "true" ]]; then
-         OPEN_READ_ONLY_FOUND=true
-         # Reset the ORA-16016 found flag since the database has been opened Read Only since then
-         ORA_16016_FOUND=false
-         # However, we continue looping in case any further ORA-16016s are found
-     fi
-   fi
-done < <(tail --lines ${START_READING_FROM_LINE} ${ALERT_LOG_FILE})
-
-# If an ORA-16016 was found without a subsequent OPEN READ ONLY then make attempt to start this database
-if [[ "${ORA_16016_FOUND}" == "true" ]]; then
+# If the database is already in MOUNT state then it just needs to be opened
+if [[ "${OPEN_MODE}" == "MOUNTED" ]];
+then
+   echo "Opening database read only."
+   echo "ALTER DATABASE OPEN;" | sqlplus -S / as sysdba
+else
+   # Otherwise we need to start it up
    echo "Attempting database start."
    srvctl start database -d ${ORACLE_SID}
 fi
