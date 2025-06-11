@@ -20,5 +20,5 @@ jobs:
           - name: Report Schedule
             id: report-schedule
             run: |
-                echo "No schedule is ${{ github.event.schedule }}."
+                echo "The schedule is ${{ github.event.schedule }}."
  
