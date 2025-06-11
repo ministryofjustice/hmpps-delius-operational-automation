@@ -16,9 +16,9 @@
 #          sparse-checkout: |
 #            ansible/roles/oracle-oem-blackout
 #
-# Example usage in a playbook:
+# Example usage in a task file:
 #    - name: Start OEM Blackout
-#      import_role:
+#      include_role:
 #        name: oracle-oem-blackout
 #      vars:
 #        blackout: "oms_ru_patching"
