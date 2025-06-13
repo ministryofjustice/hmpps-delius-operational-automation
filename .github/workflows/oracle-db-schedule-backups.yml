@@ -4,6 +4,7 @@ on:
     - cron: '0 7 * * 1,2,4,5'
     - cron: '0 7 * * 3'
     - cron: '30 6 * * 3'
+  workflow_dispatch:
 
 # Near the top, beside the "permissions" section and before the jobs
 env:
@@ -23,9 +24,19 @@ jobs:
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
-             .github/workflows/oracle-db-backups-schedule.json@DBA-908
+             .github/workflows/oracle-db-backups-schedule.json
           path: operations
-          ref: main
+          ref: DBA-908
+          fetch-depth: 0
+
+      - name: Checkout London Timezone Script
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+             common/files/get_London_timezone.py
+          path: operations
+          ref: DBA-908
           fetch-depth: 0
 
       - name: Filter Backups Schedule
@@ -33,6 +44,11 @@ jobs:
         run: |
           SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost","Period"}]' operations/.github/workflows/oracle-db-backups-schedule.json | jq '{include: .}')
           echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
+
+      - name: Get Timezone Currently in Effect in London
+        id: get-London-timezone
+        run: |
+             python3 operations/get_London_timezone.py
 
   report-schedule-backup:
     needs: prepare-run-matrix
