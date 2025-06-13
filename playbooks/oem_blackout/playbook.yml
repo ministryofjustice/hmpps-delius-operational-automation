@@ -1,7 +1,28 @@
 ---
 - hosts: "{{ target }}"
   gather_facts: no
-  become: yes
-  become_user: oracle
   roles:
-    - oem-blackout
+    - oracle-oem-blackout
+# This playbook used to manage OEM blackouts originally had the tasks defined within it. The tasks have now been moved
+# to the role oracle-oem-blackout in the modernisation-platform-configuration-management repository.
+# Instead of calling this playbook directly, it is recommended to call the role directly in your playbooks or workflows.
+#
+# Example inclusion of the role in a workflow:
+#      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
+#        uses: actions/checkout@v4
+#        with:
+#          repository: ministryofjustice/modernisation-platform-configuration-management
+#          sparse-checkout-cone-mode: false
+#          sparse-checkout: |
+#            ansible/roles/oracle-oem-blackout
+#
+# Example usage in a task file:
+#    - name: Start OEM Blackout
+#      include_role:
+#        name: oracle-oem-blackout
+#      vars:
+#        blackout: "oms_ru_patching"
+#        object_type: all
+#        action: start
+#      tags: blackout
+
