@@ -2,6 +2,12 @@
     {
         "TargetEnvironment":"delius-core-dev",
         "TargetHost":"delius_primarydb",
+        "CronSchedule":"0 17 * * FRI",
+        "Period": "daily"
+    },
+    {
+        "TargetEnvironment":"delius-core-dev",
+        "TargetHost":"delius_primarydb",
         "CronSchedule":"0 7 * * 1,2,4,5",
         "Period": "daily"
     },

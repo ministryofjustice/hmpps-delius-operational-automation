@@ -5,6 +5,12 @@ on:
     - cron: '0 7 * * 3'
     - cron: '30 6 * * 3'
 
+# Near the top, beside the "permissions" section and before the jobs
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+
 jobs:
 
   prepare-run-matrix:
@@ -17,7 +23,7 @@ jobs:
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
-             .github/workflows/oracle-db-backups-schedule.json
+             .github/workflows/oracle-db-backups-schedule.json@DBA-908
           path: operations
           ref: main
           fetch-depth: 0
@@ -56,7 +62,7 @@ jobs:
       matrix: ${{fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix)}}
     name: "run-${{ format('{0}-{1}-{2}', matrix.TargetEnvironment, matrix.Period, matrix.TargetHost) }}-backup"
     uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-backup.yml@main
+      ./.github/workflows/oracle-db-backup.yml
     with:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       TargetHost: ${{ matrix.TargetHost }}
