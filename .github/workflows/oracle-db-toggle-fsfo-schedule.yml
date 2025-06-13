@@ -62,12 +62,17 @@ jobs:
         id: filter-toggle-fsfo-schedule
         shell: bash
         run: |
+             echo "CAT $schedule_file"
+             cat $schedule_file
+             echo "END OF CAT"
              # Schedule an immediate run if using Workflow Dispatch, otherwise check if a run is scheduled.
              if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
                  echo "[{\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"CronSchedule\": \"IMMEDIATE\",\"Action\": \"${{ inputs.FSFOMode }}\",\"SkipNonWorkingDays\": \"false\"}]" > $schedule_file
                  cat $schedule_file
                  SCHEDULED_JSON=$(jq '.' $schedule_file | jq '{include: .}')
              else
+                 echo "I am here"
+                 echo "CronSchedule is ${{ github.event.schedule }}"
                  SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Schedule","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
              fi
              echo ${SCHEDULED_JSON} | sed 's/ //g'
@@ -200,8 +205,12 @@ jobs:
           # Exclude Non-Working Days if this option is specified by removing this element from the schedule JSON file
           if [[ "${WORKING_DAY}" == "NO" && "${{ matrix.SkipNonWorkingDays }}" == "true" ]]
           then
-             echo "Removing ${{ matrix.TargetEnvironment }} ${{ matrix.CronSchedule }} from FSFO Schedule as it is a non-working day."
-             jq 'del(.[] | select(.CronSchedule=="${{ matrix.CronSchedule }}" and .TargetEnvironment=="${{ matrix.TargetEnvironment }}" and .Action=="${{ matrix.Action }}" and .SkipNonWorkingDays=="${{ matrix.SkipNonWorkingDays }}"))' oracle-db-toggle-fsfo-schedule.json > /tmp/schedule.json && mv /tmp/schedule.json oracle-db-toggle-fsfo-schedule.json
+             echo "Removing ${{ matrix.TargetEnvironment }} ${{ matrix.CronSchedule }} (${{ github.event.schedule }}) from FSFO Schedule as it is a non-working day."
+             echo "CronSchedule:${{ github.event.schedule }}"
+             echo "TargetEnvironment:${{ matrix.TargetEnvironment }}"
+             echo "Action:${{ matrix.Action }}"
+             echo "SkipNonWorkingDays:${{ matrix.SkipNonWorkingDays }}"
+             jq 'del(.[] | select(.CronSchedule=="${{ github.event.schedule }}" and .TargetEnvironment=="${{ matrix.TargetEnvironment }}" and .Action=="${{ matrix.Action }}" and .SkipNonWorkingDays==${{ matrix.SkipNonWorkingDays }}))' oracle-db-toggle-fsfo-schedule.json > /tmp/schedule.json && mv /tmp/schedule.json oracle-db-toggle-fsfo-schedule.json
           fi
           cat oracle-db-toggle-fsfo-schedule.json
 
@@ -246,7 +255,11 @@ jobs:
         matrix: ${{fromJson(needs.prepare-filtered-run-matrix.outputs.scheduled_matrix)}}
       name: Toggle FSFO
       uses:
-        ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo.yml@IGNORE-LDAP
+        ./.github/workflows/oracle-db-toggle-fsfo.yml
       with:
         TargetEnvironment: ${{ matrix.TargetEnvironment }}
         FSFOMode: ${{ matrix.Action }}
+      secrets:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
