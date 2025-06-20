@@ -62,7 +62,7 @@ jobs:
         run: |
              # Schedule an immediate run if using Workflow Dispatch, otherwise check if a run is scheduled.
              if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-                 SCHEDULED_JSON=$(echo "[{\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"Action\": \"${{ inputs.FSFOMode }}\",\"SkipNonWorkingDays\": \"false\"}]" | jq '{include: .}')
+                 SCHEDULED_JSON=$(echo "[{\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"Action\": \"${{ inputs.FSFOMode }}\",\"SkipNonWorkingDays\": false}]" | jq '{include: .}')
              else
                  SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
              fi
@@ -103,3 +103,4 @@ jobs:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       FSFOMode: ${{ matrix.Action }}
       SkipNonWorkingDays: ${{ matrix.SkipNonWorkingDays }}
+      
