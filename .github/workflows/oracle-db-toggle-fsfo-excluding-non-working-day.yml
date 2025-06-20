@@ -1,5 +1,8 @@
 name: "Oracle: Toggle Fast Start Failover Excluding Non-Working Day"
 on:
+  push:
+    branches:
+      - "DBA-849"
   workflow_dispatch:
     inputs:
       TargetEnvironment:
