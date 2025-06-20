@@ -29,6 +29,20 @@ on:
         type: boolean
         default: false
 
+  workflow_call:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: string
+      FSFOMode:
+        description: "FSFO mode required."
+        required: true
+        type: string
+      SkipNonWorkingDays:
+        description: "Skip non-working days?"
+        type: boolean
+
 env:
   ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/common/working_day.yml
