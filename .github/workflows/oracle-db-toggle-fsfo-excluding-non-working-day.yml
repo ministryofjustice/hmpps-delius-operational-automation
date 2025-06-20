@@ -24,6 +24,13 @@ on:
         options:
           - "disable"
           - "enable"
+      SkipNonWorkingDay:
+        description: "Skip non-working day?"
+        type: choice
+        default: "yes"
+        options:
+          - "yes"
+          - "no"
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
@@ -129,7 +136,7 @@ jobs:
 
   skip-toggle-fsfo:
       needs: check-if-working-day
-      if: ${{ needs.check-if-working-day.outputs.working_day != 'YES' }}
+      if: ${{ needs.check-if-working-day.outputs.working_day != 'YES' && github.event.inputs.SkipNonWorkinDay == 'yes' }}
       runs-on: ubuntu-latest
       name: Do Not Toggle FSFO
       steps:
