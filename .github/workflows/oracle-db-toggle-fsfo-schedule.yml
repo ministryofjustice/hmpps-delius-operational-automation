@@ -102,4 +102,4 @@ jobs:
     with:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       FSFOMode: ${{ matrix.Action }}
-      SkipNonWorkingDay: ${{ matrix.SkipNonWorkingDay }}
+      SkipNonWorkingDays: ${{ matrix.SkipNonWorkingDays }}
