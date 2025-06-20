@@ -25,7 +25,7 @@ on:
           - "disable"
           - "enable"
       SkipNonWorkingDays:
-        description: "Skip non-working day?"
+        description: "Skip non-working days?"
         type: choice
         default: "no"
         options:
