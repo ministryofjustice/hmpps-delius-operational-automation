@@ -71,9 +71,13 @@ jobs:
                  cat $schedule_file
                  SCHEDULED_JSON=$(jq '.' $schedule_file | jq '{include: .}')
              else
+<<<<<<< HEAD
                  echo "I am here"
                  echo "CronSchedule is ${{ github.event.schedule }}"
                  SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Schedule","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
+=======
+                 SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","CronSchedule","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
+>>>>>>> main
              fi
              echo ${SCHEDULED_JSON} | sed 's/ //g'
              echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
@@ -134,6 +138,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: run_matrix_current
+          path: .
+
+      - name: Confirm Filtered Run Matrix
+        run: |
+             cat oracle-db-toggle-fsfo-schedule.json
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -205,11 +214,15 @@ jobs:
           # Exclude Non-Working Days if this option is specified by removing this element from the schedule JSON file
           if [[ "${WORKING_DAY}" == "NO" && "${{ matrix.SkipNonWorkingDays }}" == "true" ]]
           then
+<<<<<<< HEAD
              echo "Removing ${{ matrix.TargetEnvironment }} ${{ matrix.CronSchedule }} (${{ github.event.schedule }}) from FSFO Schedule as it is a non-working day."
              echo "CronSchedule:${{ github.event.schedule }}"
              echo "TargetEnvironment:${{ matrix.TargetEnvironment }}"
              echo "Action:${{ matrix.Action }}"
              echo "SkipNonWorkingDays:${{ matrix.SkipNonWorkingDays }}"
+=======
+             echo "Removing ${{ matrix.TargetEnvironment }} (${{ github.event.schedule }}) from FSFO Schedule as it is a non-working day."
+>>>>>>> main
              jq 'del(.[] | select(.CronSchedule=="${{ github.event.schedule }}" and .TargetEnvironment=="${{ matrix.TargetEnvironment }}" and .Action=="${{ matrix.Action }}" and .SkipNonWorkingDays==${{ matrix.SkipNonWorkingDays }}))' oracle-db-toggle-fsfo-schedule.json > /tmp/schedule.json && mv /tmp/schedule.json oracle-db-toggle-fsfo-schedule.json
           fi
           cat oracle-db-toggle-fsfo-schedule.json
@@ -228,10 +241,15 @@ jobs:
       scheduled_matrix: ${{ steps.filter-toggle-fsfo-schedule.outputs.scheduled_matrix }}
     steps:
 
-      - name: Download Run Schedule Excluding Non Working Days
+      - name: Download Run Schedule Excluding Non Working Days (Overwrite existing file)
         uses: actions/download-artifact@v4
         with:
           name: run_matrix_excluding_non_working
+          path: .
+
+      - name: Confirm Filtered Run Matrix
+        run: |
+             cat oracle-db-toggle-fsfo-schedule.json
 
       - name: Filter Toggle FSFO Schedule
         id: filter-toggle-fsfo-schedule
