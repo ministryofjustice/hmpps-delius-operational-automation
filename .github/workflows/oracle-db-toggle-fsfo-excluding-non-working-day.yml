@@ -1,8 +1,5 @@
-name: "Oracle: Schedule Toggle Fast Start Failover"
+name: "Oracle: Toggle Fast Start Failover Excluding Non-Working Day"
 on:
-  schedule:
-    - cron: '00 19 * * MON-FRI'
-    - cron: '00 07 * * MON-FRI'
   workflow_dispatch:
     inputs:
       TargetEnvironment:
@@ -32,11 +29,6 @@ env:
   ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/common/working_day.yml
   inventory: inventory/ansible
-  # USE LOCAL VERSION OF FILE FOR DEVELOPMENT
-  schedule_file: operations/.github/workflows/oracle-db-toggle-fsfo-schedule.json
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
 
 permissions:
   contents: read
@@ -44,103 +36,22 @@ permissions:
   id-token: write
 
 jobs:
-  prepare-run-matrix:
+  # Check if today is a working day and if so call the Toggle FSFO GHA workflow
+  check-if-working-day:
     runs-on: ubuntu-latest
-    outputs:
-      scheduled_matrix: ${{ steps.filter-toggle-fsfo-schedule.outputs.scheduled_matrix }}
-    steps:
-
-      - name: Checkout Toggle FSFO Schedule
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-             .github/workflows/oracle-db-toggle-fsfo-schedule.json
-          path: operations
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'FSFO-test' }}
-          fetch-depth: 0
-
-      - name: Filter Toggle FSFO Schedule
-        id: filter-toggle-fsfo-schedule
-        shell: bash
-        run: |
-             echo "CAT $schedule_file"
-             cat $schedule_file
-             echo "END OF CAT"
-             # Schedule an immediate run if using Workflow Dispatch, otherwise check if a run is scheduled.
-             if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-                 echo "[{\"TargetEnvironment\": \"${{ inputs.TargetEnvironment }}\",\"CronSchedule\": \"IMMEDIATE\",\"Action\": \"${{ inputs.FSFOMode }}\",\"SkipNonWorkingDays\": \"false\"}]" > $schedule_file
-                 cat $schedule_file
-                 SCHEDULED_JSON=$(jq '.' $schedule_file | jq '{include: .}')
-             else
-                 echo "I am here"
-                 echo "CronSchedule is ${{ github.event.schedule }}"
-                 echo "Schedule file is: $schedule_file"
-                 echo "Contents:"
-                 cat $schedule_file
-                 echo "---------------------"
-                 SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","CronSchedule","Action","SkipNonWorkingDays"}]' $schedule_file | jq '{include: .}')
-             fi
-             echo ${SCHEDULED_JSON}
-             echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
-
-      - name: Upload Run Schedule Filtering In The Current Schedule Only
-        uses: actions/upload-artifact@v4
-        with:
-          name: run_matrix_current
-          path: operations/.github/workflows/oracle-db-toggle-fsfo-schedule.json
-
-  report-schedule-toggle-fsfo:
-    needs: prepare-run-matrix
-    runs-on: ubuntu-latest
-    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
-    steps:
-      - name: Report Toggle FSFO Scheduled to Run
-        id: report-run
-        run: |
-              echo "Running toggle FSFO for these targets: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }}"
- 
-  report-no-scheduled-toggle-fsfo:
-    needs: prepare-run-matrix
-    runs-on: ubuntu-latest
-    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix == '{"include":[]}' }}
-    steps:
-        - name: Report Nothing to Do
-          id: report-no-run
-          run: |
-              echo "No target environments scheduled for toggling FSFO."
-              echo "SM: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix }}"
- 
-  # Check if today is not a working day and if so potentially remove any scheduled
-  # toggling of the FSFO from the strategy matrix.  We set max-parallel to 1 for
-  # this job as it updates the Schedule JSON file and we do not want concurrent
-  # updates to be happening.
-  # (If using workflow dispatch we don't check the non-working days since we
-  #  have manually forced that option)
-  check-if-non-working-day:
-    needs: prepare-run-matrix
-    runs-on: ubuntu-latest
-    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
-    strategy:
-      max-parallel: 1
-      fail-fast: false
-      matrix: ${{ fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix || '{}') }}
-    environment: ${{ matrix.TargetEnvironment }}-preapproved
+    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
+    outputs:
+      working_day: ${{ steps.checkworkingday.outputs.working_day }}
     steps:
 
       - name: Prepare Inventory Name
         id: prepareinventorynames
         run: |
           # Prepare to run on primary Delius Database Host in this environment
-          target_host="environment_name_$(echo ${{ matrix.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
+          target_host="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
           echo "target_host=${target_host}" >> $GITHUB_OUTPUT
-
-      - name: Download Run Schedule Including Current Runs Only
-        uses: actions/download-artifact@v4
-        with:
-          name: run_matrix_current
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -166,25 +77,20 @@ jobs:
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
-      - name: Inject static AWS creds (for act)
-        run: |
-             echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"  >> "$GITHUB_ENV"
-             echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"  >> "$GITHUB_ENV"
-             echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"  >> "$GITHUB_ENV"
-
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           role-duration-seconds: 21600
           aws-region: "eu-west-2"
 
       - name: Run Check Working Day Playbook
         shell: bash
+        id: checkworkingday
         env:
-            TARGET_ENVIRONMENT: "${{ matrix.TargetEnvironment }}"
+            TARGET_ENVIRONMENT: "${{ github.event.inputs.TargetEnvironment }}"
         run: |
           shopt -s nocasematch
           export ANSIBLE_CONFIG=$ansible_config
@@ -209,71 +115,24 @@ jobs:
              echo "Could not determine if today is a working day for the Probation Service."
              exit 1
           fi
-          # Exclude Non-Working Days if this option is specified by removing this element from the schedule JSON file
-          if [[ "${WORKING_DAY}" == "NO" && "${{ matrix.SkipNonWorkingDays }}" == "true" ]]
-          then
-             echo "Removing ${{ matrix.TargetEnvironment }} (${{ github.event.schedule }}) from FSFO Schedule as it is a non-working day."
-             echo "CronSchedule:${{ github.event.schedule }}"
-             echo "TargetEnvironment:${{ matrix.TargetEnvironment }}"
-             echo "Action:${{ matrix.Action }}"
-             echo "SkipNonWorkingDays:${{ matrix.SkipNonWorkingDays }}"
-             echo "Filtered Run Matrix:${{ fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix) }}"
-             jq 'del(.[] | select(.CronSchedule=="${{ github.event.schedule }}" and .TargetEnvironment=="${{ matrix.TargetEnvironment }}" and .Action=="${{ matrix.Action }}" and .SkipNonWorkingDays==${{ matrix.SkipNonWorkingDays }}))' oracle-db-toggle-fsfo-schedule.json > /tmp/schedule.json && mv /tmp/schedule.json oracle-db-toggle-fsfo-schedule.json
-          fi
-          cat oracle-db-toggle-fsfo-schedule.json
-
-      - name: Upload Run Schedule Excluding Non Working Days
-        uses: actions/upload-artifact@v4
-        with:
-          name: run_matrix_excluding_non_working
-          path: oracle-db-toggle-fsfo-schedule.json
-
-  # We regenerate the filtered run matrix now where any entries for non-working days have been removed
-  prepare-filtered-run-matrix:
-    needs: check-if-non-working-day
-    runs-on: ubuntu-latest
-    outputs:
-      scheduled_matrix: ${{ steps.filter-toggle-fsfo-schedule.outputs.scheduled_matrix }}
-    steps:
-
-      - name: Download Run Schedule Excluding Non Working Days
-        uses: actions/download-artifact@v4
-        with:
-          name: run_matrix_excluding_non_working
-
-      - name: Filter Toggle FSFO Schedule
-        id: filter-toggle-fsfo-schedule
-        shell: bash
-        run: |
-             # Schedule an immediate run if using Workflow Dispatch, otherwise check if a run is scheduled.
-             if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-                 cat oracle-db-toggle-fsfo-schedule.json
-                 SCHEDULED_JSON=$(jq '.' oracle-db-toggle-fsfo-schedule.json | jq '{include: .}')
-             else
-                 SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","Action"}]' oracle-db-toggle-fsfo-schedule.json | jq '{include: .}')
-             fi
-             echo ${SCHEDULED_JSON} | sed 's/ //g'
-             echo "scheduled_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
-
+          echo "working_day=${WORKING_DAY}" >> $GITHUB_OUTPUT
 
   toggle-fsfo:
-      needs: prepare-filtered-run-matrix
-      strategy:
-        fail-fast: false
-        matrix: >-
-            ${{ 
-              needs.prepare-filtered-run-matrix.result == 'success' &&
-              needs.prepare-filtered-run-matrix.outputs.scheduled_matrix != '' &&
-              fromJson(needs.prepare-filtered-run-matrix.outputs.scheduled_matrix) ||
-              '{"include":[]}'
-             }}
+      needs: check-if-working-day
+      if: ${{ needs.check-if-working-day.outputs.working_day == 'YES' }}
       name: Toggle FSFO
       uses:
-        ./.github/workflows/oracle-db-toggle-fsfo.yml
+        ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo.yml@main
       with:
-        TargetEnvironment: ${{ matrix.TargetEnvironment }}
-        FSFOMode: ${{ matrix.Action }}
-      secrets:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+        TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
+        FSFOMode: ${{ github.event.inputs.FSFOMode }}
+
+  skip-toggle-fsfo:
+      needs: check-if-working-day
+      if: ${{ needs.check-if-working-day.outputs.working_day != 'YES' }}
+      runs-on: ubuntu-latest
+      name: Do Not Toggle FSFO
+      steps:
+        - name: Echo No-Op Message
+          run: |
+              echo "Today is not a working day for probation in the ${{ github.event.inputs.TargetEnvironment }} environment."
