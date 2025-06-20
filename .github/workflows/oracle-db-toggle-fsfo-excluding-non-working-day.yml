@@ -126,7 +126,7 @@ jobs:
 
   toggle-fsfo:
       needs: check-if-working-day
-      if: ${{ needs.check-if-working-day.outputs.working_day == 'YES' }}
+      if: ${{ needs.check-if-working-day.outputs.working_day == 'YES' || github.event.inputs.SkipNonWorkinDay == 'no' }}
       name: Toggle FSFO
       uses:
         ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo.yml@main
