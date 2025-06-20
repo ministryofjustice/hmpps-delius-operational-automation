@@ -10,5 +10,11 @@
         "CronSchedule":"00 07 * * MON-FRI",
         "Action": "enable",
         "SkipNonWorkingDays": true
+    },
+    {
+        "TargetEnvironment":"delius-core-test",
+        "CronSchedule":"00 19 * * MON-FRI",
+        "Action": "disable",
+        "SkipNonWorkingDays": true
     }
 ]
