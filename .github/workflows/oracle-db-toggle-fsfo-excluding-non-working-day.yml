@@ -26,11 +26,8 @@ on:
           - "enable"
       SkipNonWorkingDays:
         description: "Skip non-working days?"
-        type: choice
-        default: "no"
-        options:
-          - "yes"
-          - "no"
+        type: boolean
+        default: false
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
