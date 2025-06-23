@@ -82,7 +82,7 @@ jobs:
                   command_args+=("--${{ github.event.inputs.action }}")
                 fi
 
-                if [ "${{ github.event.inputs.update_notes }}" -eq "true"]; then
+                if [[ "${{ github.event.inputs.update_notes }}" == "true"]]; then
                   command_args+=("--update-notes")
                 fi
 
