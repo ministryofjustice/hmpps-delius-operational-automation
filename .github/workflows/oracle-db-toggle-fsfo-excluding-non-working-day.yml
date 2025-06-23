@@ -24,13 +24,24 @@ on:
         options:
           - "disable"
           - "enable"
-      SkipNonWorkingDay:
-        description: "Skip non-working day?"
-        type: choice
-        default: "yes"
-        options:
-          - "yes"
-          - "no"
+      SkipNonWorkingDays:
+        description: "Skip non-working days?"
+        type: boolean
+        default: false
+
+  workflow_call:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: string
+      FSFOMode:
+        description: "FSFO mode required."
+        required: true
+        type: string
+      SkipNonWorkingDays:
+        description: "Skip non-working days?"
+        type: boolean
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
@@ -126,7 +137,7 @@ jobs:
 
   toggle-fsfo:
       needs: check-if-working-day
-      if: ${{ needs.check-if-working-day.outputs.working_day == 'YES' || github.event.inputs.SkipNonWorkingDay == 'no' }}
+      if: ${{ needs.check-if-working-day.outputs.working_day == 'YES' || ! github.event.inputs.SkipNonWorkingDays }}
       name: Toggle FSFO
       uses:
         ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo.yml@main
@@ -136,7 +147,7 @@ jobs:
 
   skip-toggle-fsfo:
       needs: check-if-working-day
-      if: ${{ needs.check-if-working-day.outputs.working_day != 'YES' && github.event.inputs.SkipNonWorkingDay == 'yes' }}
+      if: ${{ needs.check-if-working-day.outputs.working_day != 'YES' && github.event.inputs.SkipNonWorkingDays }}
       runs-on: ubuntu-latest
       name: Do Not Toggle FSFO
       steps:
