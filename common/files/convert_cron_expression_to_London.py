@@ -40,7 +40,7 @@ from datetime import datetime, timedelta
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
-    from backports.zoneinfo import ZoneInfo 
+    from backports.zoneinfo import ZoneInfo
 
 """
 Reference names for day-of-week mapping (Title case)
@@ -53,6 +53,8 @@ DOW_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 This function detects the format of the original day names
 in the Cron expression so that this can eb preserved.
 """
+
+
 def match_case(original: str, new: str) -> str:
     """Return new formatted to match the case pattern of original."""
     if original.islower():
@@ -62,6 +64,7 @@ def match_case(original: str, new: str) -> str:
     if original.istitle():
         return new.title()
     return new
+
 
 """
    Shift the hour field forward by 1 hour.  Note that we need to handle
@@ -82,6 +85,8 @@ def match_case(original: str, new: str) -> str:
    No change is needed for a wildcard (*)
 
 """
+
+
 def shift_hour_field(hour_field: str) -> (str, bool):
     tokens = hour_field.split(',')
     new_tokens = []
@@ -109,6 +114,7 @@ def shift_hour_field(hour_field: str) -> (str, bool):
                 new_tokens.append(tok)
     return ','.join(new_tokens), rolled
 
+
 """
    Shift the Day-of-Month (dom) field forward by 1 day.
    This function is called if the "rolled" flag is set above.
@@ -130,6 +136,8 @@ def shift_hour_field(hour_field: str) -> (str, bool):
    doms higher than the 28th of any month.
 
 """
+
+
 def shift_dom_field(dom_field: str) -> str:
     tokens = dom_field.split(',')
     new = []
@@ -152,6 +160,7 @@ def shift_dom_field(dom_field: str) -> str:
                 new.append(tok)
     return ','.join(new)
 
+
 """
    Shift the Day-of-Week (dow) field forward by 1 day.
    This function is called if the "rolled" flag is set above.
@@ -172,6 +181,8 @@ def shift_dom_field(dom_field: str) -> str:
    If we reach the end of the week, we swap back to the start.
 
 """
+
+
 def shift_dow_field(dow_field: str) -> str:
     tokens = dow_field.split(',')
     new = []
@@ -194,7 +205,8 @@ def shift_dow_field(dow_field: str) -> str:
             parts = tok.split('-')
             shifted_parts = []
             for part in parts:
-                idx = next((i for i, name in enumerate(DOW_NAMES) if name.lower() == part.lower()), None)
+                idx = next((i for i, name in enumerate(DOW_NAMES)
+                           if name.lower() == part.lower()), None)
                 if idx is not None:
                     new_name = DOW_NAMES[(idx + 1) % 7]
                     shifted_parts.append(match_case(part, new_name))
@@ -214,10 +226,13 @@ def shift_dow_field(dow_field: str) -> str:
   5. The Day-of-Week (dow) field is advanced by 1 only the Hour field "rolled" over (was > 23h).
 
 """
+
+
 def process_schedule(schedule: str) -> str:
     parts = schedule.strip().split()
     if len(parts) != 5:
-        sys.exit("Error: schedule must have exactly 5 fields (minute hour dom month dow)")
+        sys.exit(
+            "Error: schedule must have exactly 5 fields (minute hour dom month dow)")
     minute, hour, dom, month, dow = parts
     new_hour, rolled = shift_hour_field(hour)
     new_dom = shift_dom_field(dom) if rolled else dom
@@ -231,6 +246,8 @@ def process_schedule(schedule: str) -> str:
   if it is currently BST in London.  Otherwise return the schedule unchanged.
 
 """
+
+
 def main():
     if len(sys.argv) != 2:
         print(f"Usage: {sys.argv[0]} \"<cron schedule>\"", file=sys.stderr)
@@ -249,6 +266,7 @@ def main():
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
