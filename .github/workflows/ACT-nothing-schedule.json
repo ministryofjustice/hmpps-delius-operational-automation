@@ -1,0 +1,12 @@
+[
+    {
+        "CronSchedule":"0 17 * * MON-FRI",
+        "Message": "AAA",
+        "Comment": "Schedule should use Europe/London timezone.  Do not use UTC."
+    },
+    {
+        "CronSchedule":"0 14 * * MON-FRI",
+        "Message": "BBB",
+        "Comment": "Schedule should use Europe/London timezone.  Do not use UTC."
+    }
+]
