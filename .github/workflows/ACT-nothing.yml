@@ -38,7 +38,9 @@ jobs:
         run: |
              CRONSCHEDULE=$(python3 operations/common/files/convert_cron_expression_to_London.py "${{ github.event.schedule }}")
              echo "Matching ${CRONSCHEDULE}"
-             SCHEDULED_JSON=$(jq --arg CRONSCHEDULE "$CRONSCHEDULE" '[.[] | select (.CronSchedule=="$CRONSCHEDULE") | {"Message"}]' operations/.github/workflows/ACT-nothing-schedule.json | jq -nc '{include: .}')
+             echo "Inside "
+             cat operations/.github/workflows/ACT-nothing-schedule.json
+             SCHEDULED_JSON=$(jq --arg CRONSCHEDULE "$CRONSCHEDULE" '[.[] | select (.CronSchedule==$CRONSCHEDULE) | {"Message"}]' operations/.github/workflows/ACT-nothing-schedule.json | jq -c '{include: .}')
              echo "${SCHEDULED_JSON}"
              echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
