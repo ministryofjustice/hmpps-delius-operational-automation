@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       scheduled_matrix: ${{ steps.filter-backups-schedule.outputs.scheduling_matrix }}
+      type: object
     steps:
 
       - name: Checkout Backups Schedule
@@ -33,16 +34,35 @@ jobs:
           fetch-depth: 0
 
       - name: Get Timezone Currently in Effect in London
-        id: get-London-timezone
+        id: filter-backups-schedule
         run: |
              CRONSCHEDULE=$(python3 operations/common/files/convert_cron_expression_to_London.py "${{ github.event.schedule }}")
-             SCHEDULED_JSON=$(jq --arg CRONSCHEDULE "$CRONSCHEDULE" '[.[] | select (.CronSchedule=="$CRONSCHEDULE") | {"Message"}]' operations/.github/workflows/ACT-nothing-schedule.json | jq '{include: .}')
+             echo "Matching ${CRONSCHEDULE}"
+             SCHEDULED_JSON=$(jq --arg CRONSCHEDULE "$CRONSCHEDULE" '[.[] | select (.CronSchedule=="$CRONSCHEDULE") | {"Message"}]' operations/.github/workflows/ACT-nothing-schedule.json | jq -nc '{include: .}')
+             echo "${SCHEDULED_JSON}"
              echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
+
+  report-json:
+    needs: prepare-run-matrix
+    runs-on: ubuntu-latest
+    steps:
+      # - name: Show JSON
+      #   run: |
+      #     echo "${{ needs.prepare-run-matrix.outputs.scheduled_matrix }}"
+          
+      # - name: Validate JSON
+      #   run: |
+      #     echo "${{ needs.prepare-run-matrix.outputs.scheduled_matrix }}" \
+      #       | jq . >/dev/null && echo "JSON is valid" || echo "JSON is invalid" 
+
+      - name: Validate Include
+        run: |
+          echo "${{ fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix).include[0] }}" 
 
   report-schedule-backup:
     needs: prepare-run-matrix
     runs-on: ubuntu-latest
-    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
+    if: ${{ fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix).include[0]  }}
     steps:
       - name: Report Backups Scheduled to Run
         id: report-run
@@ -52,7 +72,7 @@ jobs:
   report-no-scheduled-backup:
     needs: prepare-run-matrix
     runs-on: ubuntu-latest
-    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix == '{"include":[]}' }}
+    if: ${{ ! fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix).include[0]  }}
     steps:
         - name: Report Nothing to Do
           id: report-no-run
@@ -62,7 +82,7 @@ jobs:
   run-backup:
     needs: prepare-run-matrix
     runs-on: ubuntu-latest
-    if: ${{ needs.prepare-run-matrix.outputs.scheduled_matrix != '{"include":[]}' }}
+    if: ${{ fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix).include[0]  }}
     steps:
         - name: Report Nothing to Do
           id: report-no-run
