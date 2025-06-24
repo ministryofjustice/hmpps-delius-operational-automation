@@ -98,7 +98,7 @@ jobs:
       matrix: ${{ fromJson(needs.prepare-run-matrix.outputs.scheduled_matrix) }}
     name: Toggle FSFO
     uses:
-      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo-excluding-non-working-day.yml@DBA-849
+      ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo-excluding-non-working-day.yml@main
     with:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       FSFOMode: ${{ matrix.Action }}
