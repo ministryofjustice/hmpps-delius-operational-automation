@@ -187,6 +187,10 @@ jobs:
                  Inputs='${{ toJson(github.event.client_payload) }}'
                  Inputs=$(echo $Inputs | jq -r)
                  Action='${{ github.event.action }}'
+                 echo "Action: ${Action}"
+                 echo "Event Type: ${{ github.event.event_type }}"
+                 echo -n "JSON: "
+                 echo '${{ toJson(github.event) }}'
               else
                  echo "Overriding command line with supplied JSON inputs"
                  Inputs='${{ github.event.inputs.ParametersJSON }}'

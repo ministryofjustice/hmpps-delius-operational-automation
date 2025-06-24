@@ -1,33 +1,83 @@
-- hosts: "{{ delius_hosts }}"
+- hosts: localhost
+  gather_facts: no
+  become: no
+
+  tasks:
+    - name: Check the Calendar
+      setup:
+        filter: ansible_date_time
+
+    - name: Check if Today is the Weekend
+      set_fact:
+        weekend: "{{ true if (ansible_date_time.weekday in ['Saturday','Sunday']) else false }}"
+
+    - name: For Weekdays Use Non Working Days Table to Find Out if Today is Non Working Day
+      when: not weekend
+      block:
+        - name: Get Todays Date in Required DDMMYY Format to Match Date key
+          set_fact:
+            todays_date: "{{ '%02d%02d%02d' | format(ansible_date_time.day | int, ansible_date_time.month | int, ansible_date_time.year | int % 100) }}"
+
+        - name: Lookup Todays Date in the Non Working Days Table
+          shell: |
+            aws dynamodb --region {{ region }} get-item \
+              --table-name {{ simple_environment_name }}-non-working-days \
+              --key "{\"code_value\":{\"S\":\"{{ todays_date }}\"}}" \
+              --projection-expression "code_value" --output json | jq -nr '[ inputs ] | if length > 0 then "YES" else "NO" end'
+          changed_when: false
+          register: check_non_working_day
+
+    - name: Is Non Working Day
+      set_fact:
+        non_working_day: "{{ true if (weekend or check_non_working_day.stdout == 'YES') else false }}"
+
+    - name: Output Day type
+      debug:
+        msg: "{{ 'WORKING_DAY=' + ('NO' if non_working_day else 'YES') }}"
+
+    # Default to 1st January 1900 if the DynamoDB Table is empty on first run (and no non-working days can be found)
+    # NOTE:  The LAST_UPDATED_DATETIME uses the date format YYYYMMDDHH24MISS (cf DDMYY for the CODE_VALUE). This is to allow
+    # it to be sorted chronologically.
+    - name: Get Most Recent Data in the Non Working Days Table
+      shell: |
+        aws dynamodb --region {{ region }} scan --table-name {{ simple_environment_name }}-non-working-days | \
+             jq -r '[ .Items[].last_updated_datetime.S ] | sort | max' | sed 's/^null$/19000101000000/'
+      changed_when: false
+      register: get_most_recent_non_working_day_data
+
+    - debug:
+        var: get_most_recent_non_working_day_data
+
+- hosts: "{{ target_host }}"
   gather_facts: no
   become: true
   become_user: oracle
 
   tasks:
-    # We need to query the Delius database to determine if this
-    # is a working day for probation.   However we do not know
-    # in advance which host will respond, so we run the query
-    # against all the Delius DB hosts and select the first one
-    # which does not return an error (this will normally
-    # be the primary database host, but may be ADG).
-    - name: Check if this is a Working Day for Probation
-      script: working_day.sh
-      register: get_working_day
-      ignore_errors: true
-      changed_when: false
+    # If this is Not a Non-Working Day then we check if there is any new
+    # Non-Working Day reference to be added.   (We don't try this if it is
+    # a Non-Working Day as the source database may be down in lower environments -
+    # we will catch up with any new reference data on the subsequent run.  Note
+    # that new reference data for Non-Working Days is normally added months or
+    # years in advance so there is no urgency for this block to be executed).
+    - name: Update DynamoDB With Any New Non Working Days Added to Reference Data
+      when: not hostvars['localhost']['non_working_day']
+      block:
+        - debug:
+            var: hostvars['localhost']['get_most_recent_non_working_day_data']
 
-- name: Find and output the first database host with a successful script run
-  hosts: localhost
-  gather_facts: no
+        - name: Query Delius Reference Data for Non Working Days for Probation
+          script: get_nonworking_days.sh
+          register: get_nonworking_days
+          changed_when: false
+          environment:
+            PREVIOUS_MOST_RECENT_DATA: "{{ hostvars['localhost']['get_most_recent_non_working_day_data'].stdout }}"
 
-  tasks:
-    - name: Determine first host that did not return an error
-      debug:
-        msg: >-
-          {%- set success_hosts = [] -%}
-          {%- for host in groups['all'] -%}
-            {%- if hostvars[host].get_working_day is defined and hostvars[host].get_working_day.rc == 0 -%}
-              {%- set _ = success_hosts.append(host) -%}
-            {%- endif -%}
-          {%- endfor -%}
-          Today Day Type: {{ hostvars[success_hosts[0]].get_working_day.stdout_lines[0] if success_hosts|length > 0 else 'UNKNOWN' }}
+        - name: Add New Non-Working Days to DynamoDB
+          shell: |
+            aws dynamodb --region {{ region }} put-item --table-name {{ simple_environment_name }}-non-working-days --item '{{ non_working_day_json }}'
+          loop: "{{ get_nonworking_days.stdout_lines | reject('match','^BECOME-SUCCESS-.*$') | select('match', '^.+$') | list }}"
+          loop_control:
+            loop_var: non_working_day_json
+          delegate_to: localhost
+          become: no
