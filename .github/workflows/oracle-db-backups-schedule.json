@@ -3,108 +3,126 @@
         "TargetEnvironment":"delius-core-dev",
         "TargetHost":"delius_primarydb",
         "CronSchedule":"0 7 * * 1,2,4,5",
-        "Period": "daily"
+        "Period": "daily",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-core-dev",
         "TargetHost":"delius_primarydb",
         "CronSchedule":"0 7 * * 3",
-        "Period": "weekly"
+        "Period": "weekly",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"mis_primarydb",
         "CronSchedule":"0 7 * * 1,2,4,5",
-        "Period": "daily"
+        "Period": "daily",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"mis_primarydb",
         "CronSchedule":"0 7 * * 3",
-        "Period": "weekly"
+        "Period": "weekly",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"boe_primarydb",
         "CronSchedule":"0 7 * * 1,2,4,5",
-        "Period": "daily"
+        "Period": "daily",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"boe_primarydb",
         "CronSchedule":"0 7 * * 3",
-        "Period": "weekly"
+        "Period": "weekly",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"dsd_primarydb",
         "CronSchedule":"0 7 * * 1,2,4,5",
-        "Period": "daily"
+        "Period": "daily",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"dsd_primarydb",
         "CronSchedule":"0 7 * * 3",
-        "Period": "weekly"
+        "Period": "weekly",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-core-test",
         "TargetHost":"delius_primarydb",
         "CronSchedule":"0 7 * * 1,2,4,5",
-        "Period": "daily"
+        "Period": "daily",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-core-test",
         "TargetHost":"delius_primarydb",
         "CronSchedule":"30 6 * * 3",
-        "Period": "weekly"
+        "Period": "weekly",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-core-stage",
         "TargetHost":"delius_primarydb",
         "CronSchedule":"0 7 * * 1,2,4,5",
-        "Period": "daily"
+        "Period": "daily",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-core-stage",
         "TargetHost":"delius_primarydb",
         "CronSchedule":"30 6 * * 3",
-        "Period": "weekly"
+        "Period": "weekly",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-stage",
         "TargetHost":"mis_primarydb",
         "CronSchedule":"0 7 * * 1,2,4,5",
-        "Period": "daily"
+        "Period": "daily",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-stage",
         "TargetHost":"mis_primarydb",
         "CronSchedule":"30 6 * * 3",
-        "Period": "weekly"
+        "Period": "weekly",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-stage",
         "TargetHost":"boe_primarydb",
         "CronSchedule":"0 7 * * 1,2,4,5",
-        "Period": "daily"
+        "Period": "daily",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-stage",
         "TargetHost":"boe_primarydb",
         "CronSchedule":"0 7 * * 3",
-        "Period": "weekly"
+        "Period": "weekly",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-stage",
         "TargetHost":"dsd_primarydb",
         "CronSchedule":"0 7 * * 1,2,4,5",
-        "Period": "daily"
+        "Period": "daily",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-stage",
         "TargetHost":"dsd_primarydb",
         "CronSchedule":"0 7 * * 3",
-        "Period": "weekly"
+        "Period": "weekly",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     }
 ]
