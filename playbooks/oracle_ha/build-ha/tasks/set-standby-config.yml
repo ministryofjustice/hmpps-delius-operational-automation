@@ -104,7 +104,7 @@
 
 - name: What is this 
   shell: |
-         cd {{ playbook_dir }}/../..
+         cd {{ playbook_dir }}/..
          find . -ls
   register: find_it
   run_once: true
@@ -120,7 +120,7 @@
 - name: (main/set-standby-config) Link to Oracle Parameters Role
   file:
     dest: ~/.ansible/roles/oracle_parameters
-    src: "{{ playbook_dir }}/../../operations/oracle_parameters/set_oracle_parameters"
+    src: "{{ playbook_dir }}/../operations/oracle_parameters/set_oracle_parameters"
     state: link
   run_once: true
   delegate_to: localhost
