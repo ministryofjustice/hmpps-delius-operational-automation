@@ -107,9 +107,9 @@
     state: directory
   delegate_to: localhost
   become: no
-  
+
 # We use the oracle_parameters playbook as a role to allow us to run
-# the sqlnet.ora network configuration setup.  
+# the sqlnet.ora network configuration setup.
 - name: (main/set-standby-config) Link to Oracle Parameters Role
   file:
     dest: ~/.ansible/roles/oracle_parameters
