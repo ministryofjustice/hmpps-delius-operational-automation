@@ -120,7 +120,7 @@
 - name: (main/set-standby-config) Link to Oracle Parameters Role
   file:
     dest: ~/.ansible/roles/oracle_parameters
-    src: "{{ playbook_dir }}/../operations/oracle_parameters/set_oracle_parameters"
+    src: "{{ playbook_dir }}/../oracle_parameters/set_oracle_parameters"
     state: link
   run_once: true
   delegate_to: localhost
