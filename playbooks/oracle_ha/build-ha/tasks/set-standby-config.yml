@@ -124,7 +124,6 @@
   become: true
   become_user: "{{ rdbms_service_user.name }}"
   block:
-
     - name: (main/set-standby-config) Configure sqlnet.ora file
       include_role:
         name: oracle_parameters
@@ -156,4 +155,3 @@
       compatible='{{ get_primary_compatible.stdout_lines[0] }}'
     owner: "{{ rdbms_service_user.name }}"
     group: "{{ rdbms_service_user.group }}"
-
