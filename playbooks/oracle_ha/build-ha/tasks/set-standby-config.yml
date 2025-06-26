@@ -108,6 +108,8 @@
   delegate_to: localhost
   become: no
   
+# We use the oracle_paraeters playbook as a role to allow us to run
+# the sqlnet.ora network configuration setup.  
 - name: (main/set-standby-config) Link to Oracle Parameters Role
   file:
     dest: ~/.ansible/roles/oracle_parameters
@@ -117,6 +119,7 @@
   delegate_to: localhost
   become: no
 
+# We cannot call include_role directly with "become" - as a workaround call it in a block
 - name: (main/set-standby-config) Configure sqlnet.ora file
   become: true
   become_user: "{{ rdbms_service_user.name }}"
