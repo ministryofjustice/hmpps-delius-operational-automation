@@ -104,7 +104,7 @@
 
 - name: What is this 
   shell: |
-         cd {{ playbook dir}}/../..
+         cd {{ playbook_dir }}/../..
          find . -ls
   register: find_it
   run_once: true
