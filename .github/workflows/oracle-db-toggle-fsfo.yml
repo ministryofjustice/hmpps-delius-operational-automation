@@ -43,6 +43,17 @@ on:
         type: string
         default: "main"
 
+  workflow_call:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: string
+      FSFOMode:
+        description: "FSFO mode required."
+        required: true
+        type: string
+
 env:
   ansible_config: operations/playbooks/ansible.cfg
   disable_command: ansible-playbook operations/playbooks/oracle_ha/disable-fsfo.yml
