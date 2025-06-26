@@ -101,6 +101,22 @@
     owner: "{{ rdbms_service_user.name }}"
   register: standby_listener
 
+
+- name: What is this 
+  shell: |
+         cd {{ playbook dir}}/../..
+         find . -ls
+  register: find_it
+  run_once: true
+  delegate_to: localhost
+  become: no
+
+- debug:
+    var: find_it
+  run_once: true
+  delegate_to: localhost
+  become: no
+
 - name: (main/set-standby-config) Link to Oracle Parameters Role
   file:
     dest: ~/.ansible/roles/oracle_parameters
