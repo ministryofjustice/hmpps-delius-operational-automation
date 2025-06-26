@@ -101,6 +101,20 @@
     owner: "{{ rdbms_service_user.name }}"
   register: standby_listener
 
+- name: (main/set-standby-config) Link to Oracle Parameters Role
+  file:
+    dest: ~/.ansible/roles/oracle_parameters
+    src: "{{ playbook_dir }}/../../operations/oracle_parameters/oracle_parameters"
+    state: link
+  run_once: true
+  delegate_to: localhost
+  become: no
+
+- name: (main/set-standby-config) Configure sqlnet.ora file
+  include_role:
+     name: oracle_parameters
+     tasks_from: sqlnet_parameters
+
 - name: (main/set-standby-config) Stop/Start standby listener
   shell: "export PATH=/usr/sbin:/usr/local/bin:$PATH; export ORAENV_ASK=NO; export ORACLE_SID=+ASM; . oraenv; srvctl stop listener -l LISTENER; srvctl start listener -l LISTENER"
   become: true
@@ -127,3 +141,4 @@
       compatible='{{ get_primary_compatible.stdout_lines[0] }}'
     owner: "{{ rdbms_service_user.name }}"
     group: "{{ rdbms_service_user.group }}"
+
