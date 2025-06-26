@@ -101,49 +101,13 @@
     owner: "{{ rdbms_service_user.name }}"
   register: standby_listener
 
-
-- name: What is this 
-  shell: |
-         cd {{ playbook_dir }}/..
-         find . -ls
-  register: find_it
-  run_once: true
+- name: (main/set-standby-config) Create Local Roles Directory
+  file:
+    path: ~/.ansible/roles
+    state: directory
   delegate_to: localhost
   become: no
-
-- debug:
-    var: find_it
-  run_once: true
-  delegate_to: localhost
-  become: no
-
-- name: WHERE IS IT?????
-  shell: |
-         echo "HA"
-         ls -l /__w/hmpps-delius-operational-automation/hmpps-delius-operational-automation/operations/playbooks/oracle_ha
-         echo "HAUP"
-         ls -l /__w/hmpps-delius-operational-automation/hmpps-delius-operational-automation/operations/playbooks/oracle_ha/..
-         echo "PAR"
-         ls -l /__w/hmpps-delius-operational-automation/hmpps-delius-operational-automation/operations/playbooks/oracle_ha/../oracle_parameters
-         echo "SET"
-         ls -l /__w/hmpps-delius-operational-automation/hmpps-delius-operational-automation/operations/playbooks/oracle_ha/../oracle_parameters/set_oracle_parameters
-         echo "TARGET"
-         ls -l /github/home/.ansible
-         echo "ROLE"
-         ls -l /github/home/.ansible/roles
-  register: where_is_it
-  run_once: true
-  delegate_to: localhost
-  become: no
-
-- debug:
-    var: where_is_it
-  run_once: true
-  delegate_to: localhost
-  become: no
-
   
-
 - name: (main/set-standby-config) Link to Oracle Parameters Role
   file:
     dest: ~/.ansible/roles/oracle_parameters
