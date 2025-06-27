@@ -54,22 +54,10 @@ permissions:
   id-token: write
 
 jobs:
-  get_target_environment:
-    runs-on: ubuntu-latest
-    outputs:
-      TargetEnvironment: ${{ inputs.TargetEnvironment }}-preapproved
-    steps:
-      - name: Get Target Environment
-        id: gettargetenvironment
-        run: |
-            RmanTarget="environment_name_$(echo $1 | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_$2"
-            echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
-
   # Check if today is a working day and if so call the Toggle FSFO GHA workflow
   check-if-working-day:
     runs-on: ubuntu-latest
-    needs: get_target_environment
-    environment: ${{needs.get_target_environment.outputs.TargetEnvironment}}
+    environment: ${{ inputs.TargetEnvironment }}
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     outputs:
