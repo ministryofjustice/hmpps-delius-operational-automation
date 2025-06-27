@@ -2,26 +2,31 @@
     {
         "TargetEnvironment":"delius-core-dev",
         "TargetHost":"delius_standbydb1",
-        "CronSchedule":"20 15 * * THU"
+        "CronSchedule":"20 15 * * THU",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-core-test",
         "TargetHost":"delius_primarydb",
-        "CronSchedule":"00 18 * * TUE"
+        "CronSchedule":"00 18 * * TUE",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"mis_primarydb",
-        "CronSchedule":"20 15 * * THU"
+        "CronSchedule":"20 15 * * THU",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"boe_primarydb",
-        "CronSchedule":"20 15 * * THU"
+        "CronSchedule":"20 15 * * THU",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"dsd_primarydb",
-        "CronSchedule":"20 15 * * THU"
+        "CronSchedule":"20 15 * * THU",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
     }
 ]
