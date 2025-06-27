@@ -55,7 +55,7 @@ permissions:
 
 jobs:
   deployment:
-    environment: ${{ github.event.inputs.TargetEnvironment }}
+    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
