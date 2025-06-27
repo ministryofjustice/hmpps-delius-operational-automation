@@ -57,7 +57,7 @@ jobs:
   # Check if today is a working day and if so call the Toggle FSFO GHA workflow
   check-if-working-day:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.TargetEnvironment }}
+    environment: ${{ inputs.TargetEnvironment }}-preapproved
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     outputs:
