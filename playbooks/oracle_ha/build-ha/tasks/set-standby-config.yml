@@ -101,6 +101,34 @@
     owner: "{{ rdbms_service_user.name }}"
   register: standby_listener
 
+- name: (main/set-standby-config) Create Local Roles Directory
+  file:
+    path: ~/.ansible/roles
+    state: directory
+  delegate_to: localhost
+  become: no
+
+# We use the oracle_parameters playbook as a role to allow us to run
+# the sqlnet.ora network configuration setup.
+- name: (main/set-standby-config) Link to Oracle Parameters Role
+  file:
+    dest: ~/.ansible/roles/oracle_parameters
+    src: "{{ playbook_dir }}/../oracle_parameters/set_oracle_parameters"
+    state: link
+  run_once: true
+  delegate_to: localhost
+  become: no
+
+# We cannot call include_role directly with "become" - as a workaround call it in a block
+- name: (main/set-standby-config) Configure sqlnet.ora file
+  become: true
+  become_user: "{{ rdbms_service_user.name }}"
+  block:
+    - name: (main/set-standby-config) Configure sqlnet.ora file
+      include_role:
+        name: oracle_parameters
+        tasks_from: sqlnet_parameters
+
 - name: (main/set-standby-config) Stop/Start standby listener
   shell: "export PATH=/usr/sbin:/usr/local/bin:$PATH; export ORAENV_ASK=NO; export ORACLE_SID=+ASM; . oraenv; srvctl stop listener -l LISTENER; srvctl start listener -l LISTENER"
   become: true
