@@ -1,9 +1,15 @@
 name: "Oracle: Schedule Validate Backups"
 on:
+  # Schedules are defined in UTC.  Therefore for each Schedule expression we
+  # need to provide a GMT and BST variant (GMT=UTC, BST=1 hour ahead of UTC)
+  # Both schedules will be triggered but only one will be acted on depending
+  # on whether it is currently GMT or BST.
   schedule:
-    - cron: '20 14 * * THU'
-    - cron: '20 15 * * THU'
-    - cron: '00 18 * * TUE'
+    - cron: '20 14 * * THU'     # 2pm GMT Runs (Thu) + 3pm BST Runs (Thu)
+    - cron: '20 13 * * THU'     # 2pm BST Runs (Thu)
+    - cron: '20 15 * * THU'     # 3pm GMT Runs (Thu)
+    - cron: '00 18 * * TUE'     # 6pm GMT Runs (Tue)
+    - cron: '00 17 * * TUE'     # 6pm BST Runs (Tue)
 jobs:
   prepare-run-matrix:
     runs-on: ubuntu-latest
@@ -16,6 +22,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
              .github/workflows/oracle-db-validate-backups-schedule.json
+             common/files/convert_cron_expression_to_London.py
           path: operations
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
@@ -23,7 +30,9 @@ jobs:
       - name: Filter Validate Schedule
         id: filter-validate-schedule
         run: |
-             SCHEDULED_JSON=$(jq '[.[] | select (.CronSchedule=="${{ github.event.schedule }}") | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-validate-backups-schedule.json | jq '{include: .}')
+             # Convert Cron Expression for the Schedule to Europe/London timezone
+             CRONSCHEDULE=$(python3 operations/common/files/convert_cron_expression_to_London.py "${{ github.event.schedule }}")
+             SCHEDULED_JSON=$(jq --arg CRONSCHEDULE "$CRONSCHEDULE" '[.[] | select (.CronSchedule==$CRONSCHEDULE) | {"TargetEnvironment","TargetHost"}]' operations/.github/workflows/oracle-db-validate-backups-schedule.json | jq '{include: .}')
              echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   report-schedule-validate-backup:
