@@ -68,7 +68,7 @@ jobs:
         id: prepareinventorynames
         run: |
           # Prepare to run on primary Delius Database Host in this environment
-          target_host="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
+          target_host="environment_name_$(echo ${{ inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_delius_primarydb"
           echo "target_host=${target_host}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
@@ -108,7 +108,7 @@ jobs:
         shell: bash
         id: checkworkingday
         env:
-            TARGET_ENVIRONMENT: "${{ github.event.inputs.TargetEnvironment }}"
+            TARGET_ENVIRONMENT: "${{ inputs.TargetEnvironment }}"
         run: |
           shopt -s nocasematch
           export ANSIBLE_CONFIG=$ansible_config
@@ -137,20 +137,20 @@ jobs:
 
   toggle-fsfo:
       needs: check-if-working-day
-      if: ${{ needs.check-if-working-day.outputs.working_day == 'YES' || ! github.event.inputs.SkipNonWorkingDays }}
+      if: ${{ needs.check-if-working-day.outputs.working_day == 'YES' || ! inputs.SkipNonWorkingDays }}
       name: Toggle FSFO
       uses:
         ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-toggle-fsfo.yml@main
       with:
-        TargetEnvironment: ${{ github.event.inputs.TargetEnvironment }}
-        FSFOMode: ${{ github.event.inputs.FSFOMode }}
+        TargetEnvironment: ${{ inputs.TargetEnvironment }}
+        FSFOMode: ${{ inputs.FSFOMode }}
 
   skip-toggle-fsfo:
       needs: check-if-working-day
-      if: ${{ needs.check-if-working-day.outputs.working_day != 'YES' && github.event.inputs.SkipNonWorkingDays }}
+      if: ${{ needs.check-if-working-day.outputs.working_day != 'YES' && inputs.SkipNonWorkingDays }}
       runs-on: ubuntu-latest
       name: Do Not Toggle FSFO
       steps:
         - name: Echo No-Op Message
           run: |
-              echo "Today is not a working day for probation in the ${{ github.event.inputs.TargetEnvironment }} environment."
+              echo "Today is not a working day for probation in the ${{ inputs.TargetEnvironment }} environment."
