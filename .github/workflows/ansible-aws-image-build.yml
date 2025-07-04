@@ -83,7 +83,7 @@ jobs:
           docker load --input /tmp/ansible-aws-image.tar
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4
         with:
           format: 'sarif'
           severity: 'CRITICAL,HIGH'
