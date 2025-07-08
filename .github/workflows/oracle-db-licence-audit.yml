@@ -14,7 +14,7 @@ on:
 
 env:
   ansible_config: ansible/playbooks/ansible.cfg
-  command: ansible-playbook operations/ansible/site.yml -e force_role=oracle-db-licence-audit
+  command: ansible-playbook operations/ansible/site.yml -e force_role=oracle-licence-audit
   inventory: inventory/ansible
 
 # Allow permissions on repository and docker image and OIDC token
