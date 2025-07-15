@@ -34,9 +34,15 @@
       vars:
         ansible_aws_ssm_timeout: 3600
 
+    - name: Check if Data Patch is Installed
+      script: get_datapatch_applied.sh
+      changed_when: false
+      register: get_datapatch_applied
+      tags: datapatch
 
     - name: Run Datapatch
       tags: datapatch
+      when: get_datapatch_applied.stdout is search('.*Datapatch is not installed.*')
       block:
 
         # In case we have duplicated from a lower RU database, run datapatch to update
@@ -84,6 +90,7 @@
         name: "{{ playbook_dir }}/../oracle_autotasks/configure_oracle_autotasks"
       vars:
         target_host: "{{ duplicate_target }}"
+      tags: auto_tasks
 
     # Although the new database would be registered automatically during the next backup, we do the registration
     # now in advance as this allows us to backup any archive logs which may be required to support a restore point
@@ -106,6 +113,7 @@
           include_tasks: ../delius_users/playbook.yml
           vars:
             action_type: "all"
+          tags: delius_users
 
         - name: Create Delius gdpr_pool database user
           include_tasks: ../delius_gdpr/playbook.yml
