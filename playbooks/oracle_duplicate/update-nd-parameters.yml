@@ -6,7 +6,6 @@
   become_user: oracle
 
   tasks:
-
     # If we are duplicating into the Stage or Pre-Prod environments we should update the
     # ND Parameters to set URLs appropriate to Pre-Prod (Stage uses the same URLs as Pre-Prod).
     # This is only required in these environments as they will be typically cloning from
@@ -16,7 +15,6 @@
     - name: Convert Delius ND Parameters
       when: environment_name in ['delius-core-stage','delius-core-preprod']
       block:
-
         - name: Set ND Parameters
           script: update_nd_parameters.sh
           register: update_nd_parameters

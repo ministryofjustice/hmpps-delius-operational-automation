@@ -381,7 +381,7 @@
     RO_USER: "{{ item.key }}"
   when:
     - item.key | lower is search('.*_ro$')
-    - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")    
+    - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
     - not item.value.drop_user | default(false)
     - application_type == 'delius'
   register: ro_logon_trigger
@@ -412,12 +412,12 @@
 - name: Grant privileges to Delius read write users
   script: grant_rw_privileges.sh
   environment:
-     GRANTS: "{{ lookup('file', 'grant_{{ item }}_user.sql',errors='ignore') | default('', true) }}"
+    GRANTS: "{{ lookup('file', 'grant_{{ item }}_user.sql',errors='ignore') | default('', true) }}"
   loop: "{{ delius_users.keys() }}"
   when:
-     - item[-3:]=="_rw"
-     - delius_users is defined
-     - action_type=="create" or action_type == "all"
+    - item[-3:]=="_rw"
+    - delius_users is defined
+    - action_type=="create" or action_type == "all"
   register: grant_rw_privileges
   changed_when: grant_rw_privileges.stdout is search('.*ADDING:.*')
 

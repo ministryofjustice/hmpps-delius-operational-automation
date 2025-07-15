@@ -44,7 +44,6 @@
       tags: datapatch
       when: get_datapatch_applied.stdout is search('.*Datapatch is not installed.*')
       block:
-
         # In case we have duplicated from a lower RU database, run datapatch to update
         # (Will take no action if no release update patches required)
         # Occassionally we might encounter ORA-54 if run with database open, so use upgrade mode
@@ -225,7 +224,6 @@
   when:
     - duplicate_target | regex_search('.*_delius_primarydb')
 
-
 - name: Create and Restore MIS Users
   hosts: "{{ duplicate_target }}"
   gather_facts: no
@@ -233,13 +231,11 @@
   become_user: oracle
 
   tasks:
-
     - name: Create and restore MIS users
       include_tasks: ../delius_users/playbook.yml
       vars:
         action_type: "all"
         application_type: "mis"
-
 
 - name: Update ND Parameter values
   import_playbook: update-nd-parameters.yml
