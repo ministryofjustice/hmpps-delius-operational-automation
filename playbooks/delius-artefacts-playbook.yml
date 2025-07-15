@@ -7,10 +7,6 @@
   gather_facts: false
 
   tasks:
-    - name: Deploy Audit Management
-      include_tasks: audit_management/playbook.yml
-      when: deploy_audit | default('no') == "yes"
-
     - block:
         - name: Deploy Davfs
           include_tasks: configure_davfs2/playbook.yml
@@ -27,6 +23,7 @@
       include_tasks: delius_users/playbook.yml
       vars:
         action_type: "{{ act | default('create') }}"
+        application_type: "{{ application | default('delius') }}"
       when: deploy_users | default('no') == "yes"
 
     # - name: Deploy Alfresco Wallet
@@ -82,13 +79,19 @@
       when: deploy_mv_refresh_purge_child | default('no') == "yes"
 
 # Unlike the preceding artefacts, we want the Alfesco wallet to be installed on all Delius
-# hosts (primary and standby), so we create a new group which contains them
+# hosts (primary and standby), so we create a new group which contains them.
 - hosts: "{{ hosts | replace('primarydb','dbs') }}"
   gather_facts: no
   become: yes
   become_user: oracle
+  become_method: sudo
   tasks:
     - name: Deploy Alfresco Wallet
       include_role:
         name: "{{ playbook_dir }}/alfresco_wallet/alfresco_wallet"
       when: deploy_alfresco_wallet | default('no') == "yes"
+
+    # Unified audit includes relinking the Oracle binary which has to be done on all hosts.
+    - name: Deploy Audit Management
+      include_tasks: audit_management/playbook.yml
+      when: deploy_audit | default('no') == "yes"

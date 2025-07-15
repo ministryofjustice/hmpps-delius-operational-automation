@@ -20,9 +20,16 @@ set pages 0
 set lines 30
 set echo on
 whenever sqlerror exit failure
+
+ALTER USER ${DB_USERNAME} IDENTIFIED BY ${DB_PASSWORD} ACCOUNT UNLOCK;
+
 -- Oracle will only accept 2 passwords during Gradual Database Password Rollover Period
 -- The original password and the new password; if you change the password again then
--- intervening passwords will not be accepted. 
-ALTER USER ${DB_USERNAME} IDENTIFIED BY ${DB_PASSWORD} ACCOUNT UNLOCK;
+-- intervening passwords will not be accepted. Therefore we force expire the Rollover
+-- Period to allow the Password Rotation to be run again in quick succession (e.g.
+-- if required for a job failure).
+
+ALTER USER ${DB_USERNAME} EXPIRE PASSWORD ROLLOVER PERIOD;
+
 exit;
 EOSQL

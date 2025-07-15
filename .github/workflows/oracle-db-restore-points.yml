@@ -172,7 +172,7 @@ jobs:
     environment: delius-core-${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
     steps:
@@ -185,7 +185,6 @@ jobs:
             playbooks/oracle_restore_points
             playbooks/block_sessions
             playbooks/oracle_password_rotation
-            playbooks/oem_blackout
             playbooks/oracle_audit_replication_management
             playbooks/ansible.cfg
             common/*
@@ -211,6 +210,7 @@ jobs:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            ansible/roles/oracle-oem-blackout
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-modernisation-platform-facts
           path: roles
@@ -251,7 +251,7 @@ jobs:
     environment: delius-mis-${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
     steps:
@@ -276,7 +276,6 @@ jobs:
             playbooks/oracle_restore_points
             playbooks/block_sessions
             playbooks/oracle_password_rotation
-            playbooks/oem_blackout
             playbooks/ansible.cfg
             common/*
           path: operations
@@ -289,6 +288,7 @@ jobs:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            ansible/roles/oracle-oem-blackout
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-modernisation-platform-facts
           path: roles

@@ -415,26 +415,31 @@
     - (apply_mode == 'apply-ojvm-standby') or (apply_mode == 'switch-clone' and database_role != 'primary') or (apply_mode == 'prepare-clone' and database_role == 'primary' and ansible_facts.memory_mb.real.total <= 8192)
     - fsfo_mode | default('disabled') in ['enabled','observe','observer']
   block:
-    - name: Get Standby Role
-      script: get_standby_role.sh
-      register: get_standby_role
-      when: standby_db_configured
+    # We cannot coerce the high availability count to be an int veraiable as
+    # Jinja templating {{ }} will always return a string regardless of the int filter.
+    # Therefore we can only do type conversion in subsequent when: conditions.
+    - name: Get High Availability Count for this Application
+      set_fact:
+        high_availability_count_for_app: "{{ high_availability_count[application] }}"
 
-    # Re-Enable FSFO from Associated Primary
-    # (Only run from First Standby for each Database Type to avoid competing startups)
-    - name: Re-enable FSFO
+    # FQDN required for Build HA role
+    - name: Gather only fqdn
+      ansible.builtin.setup:
+        gather_subset:
+          - network
+
+    - name: Re-Enable FSFO from Associated Primary
       include_role:
         name: hmpps-delius-oracledb-ha
-        tasks_from: enable-fsfo.yml
       vars:
-        delegation_host: "{{ hostvars[primary_host]['inventory_hostname'] }}"
-        primary_hostname: "{{ hostvars[primary_host]['inventory_hostname'] }}"
-        fsfo_mode: "{{ hostvars[primary_host]['fsfo_mode'] | default('disabled') }}"
-        high_availability_count: "{{ high_availability_count[application]] }}"
+        force_restore: true
+        password_rotation: false
+        method: "fsfo setup"
+        primary: "{{ primary_host_group }}"
+        standby_number: 0
       when:
-        - high_availability_count[application] | int > 0
+        - high_availability_count_for_app | int > 0
         - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
-        - group_names | select('match','.*_standbydb1') | length > 0
 
 # Oracle should remove OOP Session Files at the end of the patching but sometimes it does not clean up
 # after itself properly.   If we have got this far without failing then the session files may be removed.

@@ -1,0 +1,11 @@
+- name: Enable FSFO
+  hosts: "{{ primary }}"
+  become: true
+  become_user: oracle
+  become_method: sudo
+  roles:
+    - role: build-ha
+      vars:
+        force_restore: true
+        password_rotation: false
+        method: "fsfo setup"

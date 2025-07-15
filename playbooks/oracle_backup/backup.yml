@@ -15,10 +15,21 @@
 
     - name: RMAN script
       block:
+        # Under normal circumstances, the primary host will be up and running so we can get the database_global_database name from the inventory
+        # (Exclude the case where it is not in hostvars groups dictionary)
         - name: Set database_global_database
           set_fact:
             database_global_database: "{{ hostvars[groups[ ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb'][0]]['database_global_database'] }}"
-          when: ((database_global_database is defined) and (database_global_database|length == 0)) or (database_global_database is not defined)
+          when:
+            - ((database_global_database is defined) and (database_global_database|length == 0)) or (database_global_database is not defined)
+            - ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb' in groups
+
+        # If the primary host is not running, database_global_database will not appear in the Ansible variables.
+        # Under this circumstance derive it using naming conventions by stripping S1 or S2 off the standby SID
+        - name: Set database_global_database
+          set_fact:
+            database_global_database: "{{ database_standby_sid | regex_replace('(S1|S2)$','') }}"
+          when: not ( rman_target | regex_replace('(^.*)_.*$','\\1') ) + '_primarydb' in groups
 
         - name: Check variables are defined
           fail:
@@ -55,6 +66,17 @@
           set_fact:
             rman_options: "-t HOT -i 0 -b Y"
           when: daily_weekly == 'weekly'
+
+        - fail:
+            msg: "The range of sequence numbers to be backed up must be specified in archivelog mode"
+          when:
+            - daily_weekly == 'archivelog'
+            - min_seq is not defined
+
+        - name: Set rman_options when "archivelog"
+          set_fact:
+            rman_options: "-t HOT -i 0 -b Y -A {{ min_seq }},{{ max_seq | default(min_seq) }}"
+          when: daily_weekly == 'archivelog'
 
         - fail:
             msg: "The range of sequence numbers to be backed up must be specified in archivelog mode"
@@ -168,6 +190,22 @@
           debug:
             msg: "About to run:  {{ rman_command }}"
 
+        # We will either run in blocking mode (in the foreground) or
+        # asynchronously in the background depending on the value of run_in_foreground
+        # (Foreground backups are capped at 1 hour maximum)
+        - name: Running RMAN script in Foreground
+          shell: "{{ rman_command }}"
+          async: 3600
+          poll: 60
+          register: backup_cmd_output
+          environment:
+            ASSUME_ROLE_NAME: "{{ assume_role_name | default() }}"
+            SECRET_ACCOUNT_ID: "{{ account_ids[account_name] | default() }}"
+            SECRET: "{{ secretsmanager_passwords['catalog'].secret | default() }}"
+          when: run_in_foreground | default(false)
+          vars:
+            - ansible_aws_ssm_timeout: 3600
+
         - name: Running RMAN script in Background
           shell: "{{ rman_command }}"
           async: "{{ allowable_duration|default(28800) }}"
@@ -177,6 +215,7 @@
             SECRET_ACCOUNT_ID: "{{ account_ids[account_name] | default() }}"
             SECRET: "{{ secretsmanager_passwords['catalog'].secret | default() }}"
           register: backup_cmd_output
+          when: not (run_in_foreground | default(false))
 
       rescue:
         - name: Block Failure

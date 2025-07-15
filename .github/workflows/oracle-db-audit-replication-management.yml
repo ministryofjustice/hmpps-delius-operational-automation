@@ -66,7 +66,7 @@ jobs:
     environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['TargetEnvironment'] || inputs['TargetEnvironment'] }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
     steps:
@@ -98,6 +98,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
                playbooks/oracle_audit_replication_management
+               playbooks/oracle_backup
                playbooks/ansible.cfg
                common/*
           path: operations

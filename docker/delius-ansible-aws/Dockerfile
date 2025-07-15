@@ -1,5 +1,8 @@
 FROM python:3-slim
 
+ENV TZ=Europe/London
+RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime && echo ${TZ} > /etc/timezone
+
 LABEL org.opencontainers.image.authors="HMPPS Probation Webops Team (probation-webops@digital.justice.gov.uk)" \
   org.opencontainers.image.vendor="Ministry of Justice" \
   org.opencontainers.image.title="delius-ansible-aws" \

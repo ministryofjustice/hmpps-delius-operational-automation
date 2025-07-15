@@ -1,7 +1,9 @@
 ---
+- name: Ensure EMCLI session is ready
+  include_tasks: "{{ playbook_dir }}/../../common/tasks/emcli_login.yml"
+
 - name: Check if Given Target Exists
   shell: |
-    . {{ stage }}/emcli_login.sh >/dev/null
     {{ emcli }} get_targets -targets="{{ target_name }}:{{ target_type }}" -script -noheader | wc -l
   register: get_target_exists
   changed_when: false

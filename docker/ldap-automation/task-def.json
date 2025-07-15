@@ -28,7 +28,7 @@
     }
   ],
   "cpu": "256",
-  "memory": "512",
+  "memory": "1024",
   "executionRoleArn": "arn:aws:iam::012345678910:role/ecsTaskExecutionRole",
   "taskRoleArn": "arn:aws:iam::012345678910:role/ecsTaskExecutionRole",
   "family": "ldap-automation",

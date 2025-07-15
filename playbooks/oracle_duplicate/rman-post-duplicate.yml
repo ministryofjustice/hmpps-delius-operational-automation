@@ -106,13 +106,14 @@
           register: bump_sequences
           changed_when: bump_sequences.stdout is search ('.*Bumped.*')
 
-        # - name: Update objects
-        #   include_tasks: ../delius_objects/playbook.yml
+        - name: Update objects
+          include_tasks: ../delius_objects/playbook.yml
 
         - name: Create and restore delius users
           include_tasks: ../delius_users/playbook.yml
           vars:
             action_type: "all"
+            application_type: "delius"
           tags: delius_users
 
         - name: Create Delius gdpr_pool database user
@@ -211,6 +212,12 @@
     - duplicate_target | regex_search('.*_mis_primarydb')
     - database_primary_sid | regex_search('STGMIS.*$')
 
+- name: Create and restore MIS users
+  include_tasks: ../delius_users/playbook.yml
+  vars:
+    action_type: "all"
+    application_type: "mis"
+
 - name: Copy delius datasets required
   import_playbook: delius-datasets.yml
   vars:
@@ -237,20 +244,20 @@
 - name: Update ND Parameter values
   import_playbook: update-nd-parameters.yml
   when: duplicate_target | regex_search('.*_delius_primarydb')
-# - name: Re-enable probation integration updates
-#   hosts: '{{ duplicate_target }}'
-#   gather_facts: no
-#   become: yes
-#   become_user: oracle
 
-#   tasks:
-#     - name: Trigger GitHub Actions workflow to switch probation integration services back to read-write mode
-#       shell: |
-#         environment_name=$(. ~/.bash_profile && . /etc/environment && echo $HMPPS_ENVIRONMENT)
-#         if [ "$environment_name" == 'delius-pre-prod' ]; then
-#           token=$(aws ssm get-parameter --name '/delius-pre-prod/delius/probation-integration/github/token' --region {{ region }} --output text --with-decryption --query Parameter.Value)
-#           curl -fsSL -X POST -H 'Accept: application/vnd.github+json' -H "Authorization: token $token" \
-#             --data '{"ref": "main", "inputs": {"action": "disable", "environment": "preprod"}}' \
-#             https://api.github.com/repos/ministryofjustice/hmpps-probation-integration-services/actions/workflows/readonly.yml/dispatches
-#         fi
-#       when: duplicate_target | regex_replace('(^.*)_.*$','\\1') == 'delius'
+- name: Re-enable probation integration updates
+  hosts: "{{ duplicate_target }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+    - name: Trigger GitHub Actions workflow to switch probation integration services back to read-write mode
+      shell: |
+        token=$(aws secretsmanager get-secret-value --secret-id {{ environment_name }}-probation-integration --region {{ region }} --query SecretString --output text| jq -r .github_token)
+        curl -fsSL -X POST -H 'Accept: application/vnd.github+json' -H "Authorization: token $token" \
+          --data '{"ref": "main", "inputs": {"action": "disable", "environment": "preprod"}}' \
+          https://api.github.com/repos/ministryofjustice/hmpps-probation-integration-services/actions/workflows/readonly.yml/dispatches
+      when:
+        - duplicate_target | regex_replace('^.*_(.*)_(.*)_primarydb$','\\1_\\2') == 'preprod_delius'
+        - source_legacy | default() == 'no'

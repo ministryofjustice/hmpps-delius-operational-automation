@@ -85,7 +85,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -218,6 +218,7 @@ jobs:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            ansible/roles/oracle-oem-blackout
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-modernisation-platform-facts
           path: roles
@@ -229,6 +230,7 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
+          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oem_blackout/roles
           $ansible_playbook_directory/rman-pre-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
           -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} 
 
@@ -249,7 +251,7 @@ jobs:
     environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -339,7 +341,7 @@ jobs:
     environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     continue-on-error: false
     outputs:
@@ -394,7 +396,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     needs: [oracle-rman-import-schema,oracle-rman-pre-duplicate,stop-audit-replication]
     timeout-minutes: 1440
     continue-on-error: false
@@ -469,7 +471,7 @@ jobs:
     environment: ${{ github.event.client_payload.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     continue-on-error: false
     outputs:
       TargetEnvironment: ${{ steps.response.outputs.TargetEnvironment }}
@@ -522,7 +524,7 @@ jobs:
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     needs: [oracle-rman-duplicate-check]
     timeout-minutes: 1440
     continue-on-error: false
@@ -548,6 +550,8 @@ jobs:
             playbooks/alfresco_wallet
             playbooks/oracle_statspack
             playbooks/mis_database_links
+            playbooks/delius_objects
+            playbooks/oem_blackout
             common/*
             playbooks/ansible.cfg
           path: operations
@@ -572,6 +576,7 @@ jobs:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            ansible/roles/oracle-oem-blackout
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-modernisation-platform-facts
           path: roles
@@ -591,8 +596,9 @@ jobs:
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
+          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oem_blackout/roles
           $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ env.DuplicateTarget }}
+          -e duplicate_target=${{ env.DuplicateTarget }} -e source_legacy=${{ needs.oracle-rman-duplicate-check.outputs.SourceLegacy }}
 
   oracle-build-ha:
     if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0' || needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == null) && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && (needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'duplicate' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'open') }}
@@ -600,7 +606,7 @@ jobs:
     environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     needs: [oracle-rman-duplicate-check,oracle-rman-post-duplicate]
     timeout-minutes: 1440
     continue-on-error: false
@@ -732,7 +738,7 @@ jobs:
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     needs: [oracle-rman-pre-duplicate,oracle-rman-export-schema,oracle-rman-import-schema,oracle-rman-duplicate,oracle-rman-duplicate-check,oracle-rman-post-duplicate,oracle-build-ha]
     environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     env:

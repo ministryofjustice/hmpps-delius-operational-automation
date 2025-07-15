@@ -187,6 +187,10 @@ jobs:
                  Inputs='${{ toJson(github.event.client_payload) }}'
                  Inputs=$(echo $Inputs | jq -r)
                  Action='${{ github.event.action }}'
+                 echo "Action: ${Action}"
+                 echo "Event Type: ${{ github.event.event_type }}"
+                 echo -n "JSON: "
+                 echo '${{ toJson(github.event) }}'
               else
                  echo "Overriding command line with supplied JSON inputs"
                  Inputs='${{ github.event.inputs.ParametersJSON }}'
@@ -269,7 +273,7 @@ jobs:
     environment: ${{needs.build_rman_target_name.outputs.TargetEnvironment}}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     env:
       backup_command: ansible-playbook operations/playbooks/oracle_backup/backup.yml
@@ -418,14 +422,30 @@ jobs:
           echo "Period: "$(echo "$Inputs" | jq -r | jq -r '.Period' )
           # The following section determines what happens if the previous attempt to run the backup has
           # failed:
-          # If BackupStandbyOnPrimaryFailue is set to "yes" and a Standby database exists, then the
+          # If BackupStandbyOnPrimaryFailure is set to "yes" and a Standby database exists, then the
           # backup may be retried on the Standby.  Otherwise the job aborts with a failure since there
           # is notwhere else where the backup may be attempted.
           echo "BackupStatus: $BackupStatus"
-          echo "BackupStandbyOnPrimaryFailure: $BackupStandbyOnPrimaryFailure"
+          echo "BackupStandbyOnPrimaryFailure: ${BackupStandbyOnPrimaryFailure:-yes}"
           echo "RmanTarget: $RmanTarget"
           if [[ "$BackupStatus" == "failed" ]]; then
              echo "The Backup Failed"
+          fi
+          # If the target host does not exist in the Ansible inventory then treat that as a failure -
+          # the inventory is dynamic, so if the host is down then it will not appear in the inventory.
+          # This allows the primary job to run on the standby if needed (so this is a different type
+          # of failure to running it on the primary and getting an RMAN error, i.e. it doesn't run at all,
+          # but we just want to do the same thing, which is to re-try on standby).
+          if [[ $(ansible-inventory -i $inventory --list | grep -c $RmanTarget) -eq 0 ]]; then
+             echo "Target does not appear in the inventory"
+             BackupStatus="failed"
+             if [[ "${BackupStandbyOnPrimaryFailure:-yes}" == "yes" ]]; then
+                        # Determine what standby to use - subsequent steps will confirm its existence
+                        Inputs=$(echo "$Inputs" | jq -r | jq '.RmanTarget |= gsub("standbydb1"; "standbydb2")' | jq @json)
+                        Inputs=$(echo "$Inputs" | jq -r | jq '.RmanTarget |= gsub("primarydb"; "standbydb1")' | jq @json)
+                        RmanTarget=$(echo "$Inputs" | jq -r | jq -r '.RmanTarget')
+                        SSMParameter="/oracle-backups/$RmanTarget"
+             fi
           fi
           if [[ "$RmanTarget" =~ "standbydb1" ]]; then
              echo "Target is 1st Standby"
@@ -465,6 +485,7 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           # A symlink is used to access the Backup Role as if it were a standalone Ansible Role
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
+          echo "$backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=\$(echo \"$Inputs\" | jq -r | jq -r '.Period' ) -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter -e repository_dispatch=\"${{ github.repository }}\" -e json_inputs=\"$Inputs\" \$(echo \"$Inputs\" | jq -r | jq -r '.VerboseOutput // \"\"') "
           $backup_command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget -e daily_weekly=$(echo "$Inputs" | jq -r | jq -r '.Period' ) -e enable_trace=$EnableTrace -e ssm_parameter=$SSMParameter -e repository_dispatch="${{ github.repository }}" -e json_inputs="$Inputs" $(echo "$Inputs" | jq -r | jq -r '.VerboseOutput // ""') 
 
       - name: Report Backup Retry Attempt

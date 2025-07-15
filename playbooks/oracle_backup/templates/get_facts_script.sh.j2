@@ -24,4 +24,7 @@ then
   whenever sqlerror exit failure
   connect rcvcatowner/${RCVCATOWNER_PASSWORD}@{{ catalog }}
 EOF
+elif [[ "${STEP}" == "GET_SLACK_TOKEN" ]]
+then
+  echo $(aws secretsmanager get-secret-value --secret-id "${OEM_SECRET_ARN}" --query SecretString --output text | jq -r .slack_token)
 fi

@@ -40,7 +40,7 @@ usage () {
   echo ""
   echo "  $THISSCRIPT -d <target db sid> -t <backup type> [ -b <bucket> ] [ -f <backup dir> ] [ -i <incremental level> ] [ -m <minimize load>] [ -u <uncompressed> ] "
   echo "                                              [ -n <catalog> ] [ -c <catalog db> ] [ -e <enable trace> ] "
-  echo "                                              [ -a min archivelog sequence,max archivelog sequence ] "
+  echo "                                              [ (-a|-A) min archivelog sequence,max archivelog sequence ] "
   echo "                                              [ -l <comma separated list of datafiles to backup> ] "
   echo "                                              [ -g <target db global name> ]"
   echo "                                              [ -s <SSM Parameter Path where Runtime details are written>]"
@@ -63,9 +63,11 @@ usage () {
   echo "  catalog db  = database where the rman repository resides"
   echo "  trace       = Y/N flag indicating whether to enable RMAN trace.  Default is N."
   echo "  archivelogs = range of archivelogs to backup in format of minimum sequence,maximum sequence (e.g. 100,110 ).  Do not put spaces around the comma."
+  echo "                Using -a indicates that the specified range should be backed up regardless of any previous backups."
+  echo "                Using -A indicates that only archivelogs not already backed up in the specified range should be included."
   echo "  "
-  echo "  If -a or -l is NOT specified then a full backup of the database and all archivelogs not already backed up is performed."
-  echo "     -a and -l are mutually exclusive.  If you wish to backup a range of archivelogs and some datafiles then call the script twice "
+  echo "  If (-a|-A) or -l is NOT specified then a full backup of the database and all archivelogs not already backed up is performed."
+  echo "     (-a|-A) and -l are mutually exclusive.  If you wish to backup a range of archivelogs and some datafiles then call the script twice "
   echo "     with the respective parameters."
   echo "  "
   echo "  If -r is specified then a repository must be specified for sending GitHub actions repository dispatch events."
@@ -626,9 +628,14 @@ EOF
     fi
     if [[ "$ARCHIVELOGS" != "UNSPECIFIED" ]]
     then
-        # We do not want Backup Optimization to prevent us backing up the archivelogs again if we specifically want
-        # to do that, so we add "not backed up 1000 times" to allow us to override skipping of backed up archivelogs
-        echo " archivelog sequence between $MIN_ARCHIVELOG and $MAX_ARCHIVELOG not backed up 1000 times   $AL_TAG_FORMAT;"            >>$RMANCMDFILE
+       if [[ "${IGNORE_EXISTING_ARCHIVELOG_BACKUPS}" == "TRUE" ]]
+       then
+           # We do not want Backup Optimization to prevent us backing up the archivelogs again if we specifically want
+           # to do that, so we add "not backed up 1000 times" to allow us to override skipping of backed up archivelogs
+           echo " archivelog sequence between $MIN_ARCHIVELOG and $MAX_ARCHIVELOG not backed up 1000 times   $AL_TAG_FORMAT;"            >>$RMANCMDFILE
+       else
+           echo " archivelog sequence between $MIN_ARCHIVELOG and $MAX_ARCHIVELOG   $AL_TAG_FORMAT;"            >>$RMANCMDFILE
+       fi
     fi
     if [[ "$DATAFILES" != "UNSPECIFIED" ]]
     then 
@@ -719,7 +726,7 @@ MINIMIZE_LOAD=UNSPECIFIED
 TRACE_FILE=N
 ARCHIVELOGS=UNSPECIFIED
 DATAFILES=UNSPECIFIED
-while getopts "d:t:b:f:i:n:m:u:c:e:a:l:g:p:s:r:j:" opt
+while getopts "d:t:b:f:i:n:m:u:c:e:a:A:l:g:p:s:r:j:" opt
 do
   case $opt in
     d) TARGET_DB_SID=$OPTARG ;;
@@ -732,7 +739,12 @@ do
     u) UNCOMPRESSED=$OPTARG ;;
     c) CATALOG_DB=$OPTARG ;;
     e) TRACE_FILE=$OPTARG ;;
-    a) ARCHIVELOGS=$OPTARG ;;
+    a) ARCHIVELOGS=$OPTARG
+       IGNORE_EXISTING_ARCHIVELOG_BACKUPS=TRUE
+       ;;
+    A) ARCHIVELOGS=$OPTARG
+       IGNORE_EXISTING_ARCHIVELOG_BACKUPS=FALSE
+       ;;
     l) DATAFILES=$OPTARG ;;
     g) TARGET_DB_NAME=$OPTARG ;;
     s) SSM_PARAMETER=$OPTARG ;;
@@ -751,7 +763,12 @@ info "Backup dir          = $BACKUPDIR/$TARGET_DB_NAME"
 info "Uncompressed        = $UNCOMPRESSED"
 info "Load Duration       = $MINIMIZE_LOAD"
 info "Trace File          = $TRACE_FILE"
-info "Archivelog Range    = $ARCHIVELOGS"
+if [[ "$ARCHIVELOGS" != "UNSPECIFIED" ]] && [[ "$IGNORE_EXISTING_ARCHIVELOG_BACKUPS" == "TRUE" ]];
+then
+   info "Archivelog Range    = $ARCHIVELOGS (ignoring existing backups)"
+else
+   info "Archivelog Range    = $ARCHIVELOGS"
+fi
 info "Specific Datafiles  = $DATAFILES"
 
 if [[ ! -z "$REPOSITORY_DISPATCH" ]]; then

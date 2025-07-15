@@ -19,7 +19,7 @@ set pages 0
 set lines 30
 set feedback off
 BEGIN
-    EXECUTE IMMEDIATE 'ALTER PROFILE dbsnmp_monitoring_profile LIMIT password_rollover_time 0.05';
+    EXECUTE IMMEDIATE 'ALTER PROFILE dbsnmp_monitoring_profile LIMIT password_rollover_time 0.05 idle_time 30';
 END;
 /
 exit;

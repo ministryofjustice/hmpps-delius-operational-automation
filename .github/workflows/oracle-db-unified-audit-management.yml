@@ -1,0 +1,245 @@
+name: "Oracle: Unified Audit Management"
+run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-unified-audit-management"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "dev"
+          - "test"
+          - "traing"
+          - "stage"
+          - "preprod"
+          - "prod"
+      IncludeDelius:
+        description: "Include Delius databases?"
+        type: choice
+        default: "yes"
+        options:
+          - "yes"
+          - "no"
+      IncludeMIS:
+        description: "Include MIS (Management Information & Statistics) databases?"
+        type: choice
+        default: "yes"
+        options:
+          - "yes"
+          - "no"
+      IncludeBOE:
+        description: "Include BOE (Business Objects Enterprise) databases?"
+        type: choice
+        default: "yes"
+        options:
+          - "yes"
+          - "no"
+      IncludeDSD:
+        description: "Include DSD databases?"
+        type: choice
+        default: "yes"
+        options:
+          - "yes"
+          - "no"
+      SourceCodeVersion:
+        description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+env:
+  ansible_config: operations/playbooks/ansible.cfg
+  command: ansible-playbook operations/playbooks/audit_management/playbook.yml
+  inventory: inventory/ansible
+
+# Allow permissions on repository and docker image and OIDC token
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:          
+  validate-parameters:
+    environment: delius-core-dev-preapproved # Choose any environment as its only used for validating parameters
+    runs-on: ubuntu-latest
+    outputs:
+      MisTargets: ${{ steps.mis_exists.outputs.mis_targets }}
+    continue-on-error: false
+    steps:
+
+      - name: Output Input Parameters
+        shell: bash
+        run: |
+          echo -e "IncludeDelius: ${{ github.event.inputs.IncludeDelius }}\n\
+          IncludeMIS: ${{ github.event.inputs.IncludeMIS }}\n\
+          IncludeBOE: ${{ github.event.inputs.IncludeBOE }}\n\
+          IncludeDSD: ${{ github.event.inputs.IncludeDSD }}\n\
+          SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
+          SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
+
+      - name: Checkout modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Check MIS Exists In Environment
+        id: mis_exists
+        working-directory: ${{ env.inventory }}
+        run: |
+          environment_name=environment_name_delius_mis_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/')
+          # Only required to check if mis_primarydb.yml Ansible inventory group vars file exists
+          # to check MIS is in this environment
+          if [[ -e group_vars/${environment_name}_mis_primarydb.yml ]]
+          then
+            [ "${{ github.event.inputs.IncludeMIS }}" == "yes" ] && mis_targets=${environment_name}_mis_dbs,
+            [ "${{ github.event.inputs.IncludeBOE }}" == "yes" ] && mis_targets=${mis_targets}${environment_name}_boe_dbs,
+            [ "${{ github.event.inputs.IncludeDSD }}" == "yes" ] && mis_targets=${mis_targets}${environment_name}_dsd_dbs
+          fi
+          echo "mis_targets=${mis_targets}" >> $GITHUB_OUTPUT
+
+  oracle-unified-audit-management-delius:
+    needs: validate-parameters
+    if: ${{ github.event.inputs.IncludeDelius == 'yes' }}
+    environment: delius-core-${{ github.event.inputs.TargetEnvironment }}-preapproved
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
+    timeout-minutes: 1440
+    continue-on-error: false
+    steps:
+
+      - name: Checkout hmpps-delius-operation-automation
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/audit_management
+            playbooks/block_sessions
+            playbooks/ansible.cfg
+            common/*
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/roles/oracle-oem-blackout
+            ansible/roles/secretsmanager-passwords
+            ansible/roles/get-modernisation-platform-facts
+          path: roles
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Define Delius Targets
+        id: definetargets
+        run: |
+          delius_target=environment_name_delius_core_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/')_delius_dbs
+          echo "delius_target=${delius_target}" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+          role-duration-seconds: 21600
+
+      - name: Start Unified Audit Management
+        shell: bash
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/audit_management/roles
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+          -e hosts=${{ steps.definetargets.outputs.delius_target }}
+          
+  oracle-unified-audit-management-mis:
+    needs: validate-parameters
+    if: ${{ needs.validate-parameters.outputs.MisTargets != '' }}
+    environment: delius-mis-${{ github.event.inputs.TargetEnvironment }}-preapproved
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
+    timeout-minutes: 1440
+    continue-on-error: false
+    steps:
+
+      - name: Checkout modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+  
+      - name: Checkout hmpps-delius-operation-automation
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/audit_management
+            playbooks/ansible.cfg
+            common/*
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/roles/oracle-oem-blackout
+            ansible/roles/secretsmanager-passwords
+            ansible/roles/get-modernisation-platform-facts
+          path: roles
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          role-duration-seconds: 21600
+          aws-region: "eu-west-2"
+
+      - name: Start Unified Audit Management
+        shell: bash
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/audit_management/roles
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+          -e hosts=${{ needs.validate-parameters.outputs.MisTargets  }} 

@@ -73,7 +73,7 @@ jobs:
     environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.78.0
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     env:
       command: ansible-playbook operations/playbooks/delius_oem_metrics_setup/playbook.yml
@@ -89,7 +89,7 @@ jobs:
           sparse-checkout: |
             playbooks/ansible.cfg
             playbooks/delius_oem_metrics_setup
-            common/*
+            common
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0

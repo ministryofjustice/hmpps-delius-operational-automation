@@ -19,26 +19,33 @@
 
 # There is currently no DMS Functionality in the Amazon.Aws Collection
 # so we will use the AWSCLI instead
-
 - name: Loop through all possible database sources looking for the one the DMS endpoint is connected to
   shell: |
     aws dms describe-endpoints \
-    --filters Name=endpoint-type,Values=source Name=endpoint-id,Values={{ simple_environment_name }}-audit-data-from-{{ item | lower }} \
+    --filters Name=endpoint-type,Values=source Name=endpoint-id,Values={{ simple_environment_name }}-audit-data-from-{{ item.source_db | lower }} \
     --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
   register: get_source_endpoint
   changed_when: false
   loop:
-    - "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
-    - "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
-    - "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
+    - source_host: "{{ database_environment + '_primarydb' }}"
+      source_db: "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
+    - source_host: "{{ database_environment + '_standbydb1' if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
+      source_db: "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
+    - source_host: "{{ database_environment + '_standbydb2' if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
+      source_db: "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
 
 - name: Show Endpoints
   debug:
     var: get_source_endpoint
 
-- name: Get Source Endpoint Associated with the Client Environment
+- name: Get Source Endpoint and Host Associated with the Client Environment
   set_fact:
-    source_endpoint: "{{ get_source_endpoint.results | json_query('[].stdout_lines') | flatten | first | default('') }}"
+    source_endpoint: "{{ item.stdout }}"
+    source_endpoint_host: "{{ item.item.source_host }}"
+  loop: "{{ get_source_endpoint.results }}"
+  when: item.stdout != ""
+  register: first_non_empty_result
+  until: first_non_empty_result is succeeded
 
 # If we do not find a Source DMS Endpoint for the supplied *client* environment then
 # we skip all tasks associated with Audited Interaction preservation tasks as it
@@ -46,10 +53,10 @@
 - name: Skip Message
   debug:
     msg: "This environment is not configured as an Audited Interaction data client.  No action taken."
-  when: source_endpoint == ''
+  when: source_endpoint | default() == ''
 
 - name: Perform Requested Actions on Replication Tasks
-  when: source_endpoint != ''
+  when: source_endpoint | default() != ''
   block:
     - debug:
         msg: "Source Endpoint ARN: {{ source_endpoint }}"

@@ -38,8 +38,9 @@
           include_tasks: "{{ playbook_dir }}/../delius_users/playbook.yml"
           vars:
             action_type: "store"
+            application_type: "{{ duplicate_target | regex_replace('_.*_(delius|mis)_primarydb','\\1') }}"
           when:
-            - duplicate_target | regex_search('.*_delius_primarydb')
+            - duplicate_target | regex_search('.*_(delius|mis)_primarydb')
 
         - name: Export Automatic Workload Repository (AWR)
           include_tasks: ../awr_export/playbook.yml
@@ -52,6 +53,7 @@
   when:
     - duplicate_target | regex_search('.*_mis_primarydb$')
     - database_primary_sid | regex_search('STGMIS.*$')
+    - hostvars.localhost.database_open
 
 - name: Keep delius datasets required
   import_playbook: delius-datasets.yml
@@ -62,14 +64,19 @@
 
 # Allow jobs during the blackout so the Audited Interaction archival job may run
 - name: Start database monitoring blackout
-  import_playbook: ../oem_blackout/playbook.yml
-  vars:
-    target: "{{ duplicate_target.split('_primarydb')[0] + '_dbs' }}"
-    action: "start"
-    object_type: "all"
-    blackout: "DUPLICATE_{{ environment_name }}"
-    duration: ""
-    allow_jobs: true
+  hosts: "{{ duplicate_target }}"
+  gather_facts: no
+  tasks:
+    - name: Start database monitoring blackout
+      include_role:
+        name: oracle-oem-blackout
+      vars:
+        target: "{{ duplicate_target.split('_primarydb')[0] + '_dbs' }}"
+        action: "start"
+        object_type: "all"
+        blackout: "DUPLICATE_{{ environment_name }}"
+        duration: ""
+        allow_jobs: true
 
 # If FSFO is enabled then disable it for the refresh, to avoid any attempt to failover when the old primary
 # database is removed.   This will be automatically reinstated when the HA Build step runs later.

@@ -11,6 +11,10 @@
 #        not just the read-only ones.
 #
 
+#
+#  The Read Only user has access to the select from all tables in several schemas.
+#  The exact list of schemas depends on whether this is a Delius or MIS database.
+#
 - name: Create delius read only role
   shell: |
     . ~/.bash_profile
@@ -34,23 +38,26 @@
                 table_name 
             end) nam
           from dba_tables
-          where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO')
+          where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO') -- Delius
+             or owner in ('NDMIS_WORKING','NDMIS_CDC_SUBSCRIBER','MIS_LANDING','NDMIS_DATA','NDMIS_ABC','DFIMIS_DATA','DFIMIS_SUBSCRIBER','DFIMIS_ABC') -- MIS
           union all
           select owner,
                 view_name nam
           from dba_views
-          where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO')
+          where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO') -- Delius
+             or owner in ('NDMIS_WORKING','NDMIS_CDC_SUBSCRIBER','MIS_LANDING','NDMIS_DATA','NDMIS_ABC','DFIMIS_DATA','DFIMIS_SUBSCRIBER','DFIMIS_ABC') -- MIS
           minus
           select owner,table_name         -- Exclude existing privileges
           from   dba_tab_privs
-          where  privilege = 'SELECT'
+          where  privilege = 'READ'
           and    grantee   = '&&ROROLE';
 
         cursor c2 is
           select owner,
             object_name
           from dba_objects
-          where owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO')
+          where (owner in ('DELIUS_APP_SCHEMA','DELIUS_CFO')
+             or owner in ('NDMIS_WORKING','NDMIS_CDC_SUBSCRIBER','MIS_LANDING','NDMIS_DATA','NDMIS_ABC','DFIMIS_DATA','DFIMIS_SUBSCRIBER','DFIMIS_ABC'))
           and object_type in ('PACKAGE','PROCEDURE','FUNCTION')
           minus
           select owner,table_name         -- Exclude existing privileges
@@ -68,6 +75,11 @@
         
         r3    c3%rowtype;
 
+        -- In MIS some views may be invalid as they refer to tables over database
+        -- links which do not exist.  Handle this case of exceptions by ignoring them.
+        table_does_not_exist exception;
+        pragma               exception_init(table_does_not_exist,-942);
+
       begin
 
         open c3;
@@ -84,9 +96,15 @@
 
         for r1 in c1
         loop
-          l_command := 'grant select on '||r1.owner||'.'||r1.nam||' to '||v_role;
+          l_command := 'grant read on '||r1.owner||'."'||r1.nam||'" to '||v_role;
           DBMS_OUTPUT.put_line(l_command);
-          EXECUTE IMMEDIATE l_command;
+          begin
+              EXECUTE IMMEDIATE l_command;
+          exception
+              when table_does_not_exist
+              then 
+                null; -- Ignore missing remote tables using database links
+          end;
           DBMS_SESSION.sleep(0.5);  -- Avoid monopolising the library cache
         end loop;
 
@@ -108,6 +126,103 @@
   vars:
     ansible_aws_ssm_timeout: 1800
     # Initial creation may take a long time due to many grants
+
+- name: Monitoring User privileges
+  shell:
+    cmd: |
+      . ~/.bash_profile
+      ORACLE_SID={{ database_primary_sid }}
+      ORAENV_ASK=NO
+      . oraenv > /dev/null
+      sqlplus -s / as sysdba << EOF
+        whenever sqlerror exit failure
+        set pages 100 head off lines 1000 feed off serveroutput on termout off
+
+        define DMSROLE=DELIUS_AUDIT_DMS_RO_ROLE
+        declare
+          cursor c1 is
+            select owner,
+              (case
+                when iot_type ='IOT_OVERFLOW' 
+                then
+                  iot_name
+                else
+                  table_name 
+              end) nam
+            from dba_tables
+            where owner in ('DELIUS_AUDIT_DMS_POOL')
+            union all
+            select owner,
+                  view_name nam
+            from dba_views
+            where owner in ('DELIUS_AUDIT_DMS_POOL')
+            minus
+            select owner,table_name         -- Exclude existing privileges
+            from   dba_tab_privs
+            where  privilege = 'SELECT'
+            and    grantee   = '&&DMSROLE';
+
+          cursor c2 is
+            select owner,
+              object_name
+            from dba_objects
+            where owner in ('DELIUS_AUDIT_DMS_POOL')
+            and object_type in ('PACKAGE','PROCEDURE','FUNCTION')
+            minus
+            select owner,table_name         -- Exclude existing privileges
+            from   dba_tab_privs
+            where  privilege = 'DEBUG'
+            and    grantee   = '&&DMSROLE';
+
+          v_role      dba_roles.role%type:='&&DMSROLE';
+          l_command   VARCHAR2(4000);
+
+          cursor c3 is
+            select null
+            from dba_roles
+            where role = v_role;
+          
+          r3    c3%rowtype;
+
+        begin
+
+          open c3;
+          fetch c3 into r3;
+          if c3%notfound then
+            l_command := 'create role '||v_role;
+            DBMS_OUTPUT.put_line(l_command);
+            EXECUTE IMMEDIATE l_command;
+          end if;
+          close c3;
+
+          for r1 in c1
+          loop
+            l_command := 'grant select on '||r1.owner||'."'||r1.nam||'" to '||v_role;
+            DBMS_OUTPUT.put_line(l_command);
+            EXECUTE IMMEDIATE l_command;
+            DBMS_SESSION.sleep(0.5);  -- Avoid monopolising the library cache
+          end loop;
+
+          for r2 in c2
+          loop
+            l_command := 'grant debug on '||r2.owner||'.'||r2.object_name||' to '||v_role;
+            DBMS_OUTPUT.put_line(l_command);
+            EXECUTE IMMEDIATE l_command;
+            DBMS_SESSION.sleep(0.5);  -- Avoid monopolising the library cache
+          end loop;
+
+        end;
+        /
+
+        grant DELIUS_READ_ONLY_ROLE to DBSNMP;
+        grant DELIUS_AUDIT_DMS_RO_ROLE to DBSNMP;
+
+        exit
+      EOF
+  when: delius_users is defined and (action_type == "create" or action_type == "all")
+  changed_when: false
+  register: plsql
+  failed_when: plsql.rc != 0
 
 # ASH Reporting is Only Available with DIAGNOSTIC Pack
 - name: Set Up ASH Reporting Objects
@@ -192,7 +307,7 @@
 
           open c1;
           fetch c1 into r1;
-          if c1%notfound 
+          if c1%notfound
           then
             -- Ensure new users are created with random unknown password which must be reset to allow access
             -- Allow DBA Users to use the default temporary tablespace for the database.  Read-Only users should 
@@ -243,7 +358,7 @@
 
         audit create session by {{ item.key }};
       EOF
-  when: delius_users is defined and ( action_type=="create" or action_type == "all")
+  when: delius_users is defined and ( action_type=="create" or action_type == "all") and not item.value.drop_user | default(false)
   with_dict: "{{ delius_users }}"
   register: plsql
   changed_when: false
@@ -255,29 +370,33 @@
   loop: "{{ plsql.results }}"
   loop_control:
     label: "{{ item.item.key }}"
-  when: delius_users is defined and ( action_type=="create" or action_type == "all")
+  when: delius_users is defined and ( action_type=="create" or action_type == "all") and plsql.changed
 
-# Create a trigger to set the default schema as DELIUS_APP_SCHEMA for Read-Only users.
+# Create a trigger to set the default schema as DELIUS_APP_SCHEMA for Read-Only users in Delius.
+# We do not do this for MIS as there is no single primary application schema.
 - name: Logon Trigger Created for _RO Users
   script: create_ro_logon_trigger.sh
-  loop: "{{ ( delius_users | default({}) ).keys() }}"
+  with_dict: "{{ delius_users }}"
   environment:
-    RO_USER: "{{ item }}"
+    RO_USER: "{{ item.key }}"
   when:
-    - item | lower is search('.*_ro$')
-    - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
+    - item.key | lower is search('.*_ro$')
+    - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")    
+    - not item.value.drop_user | default(false)
+    - application_type == 'delius'
   register: ro_logon_trigger
   changed_when: ro_logon_trigger.stdout is search('.*Trigger was created.*')
 
 # Create a trigger to prevent Standby Database Only Read-Only Users logging into the Primary database.
 - name: Logon Trigger Created for _SRO Users
   script: create_sro_logon_trigger.sh
-  loop: "{{ ( delius_users | default({}) ).keys() }}"
+  with_dict: "{{ delius_users }}"
   environment:
-    STANDBY_RO_USER: "{{ item }}"
+    STANDBY_RO_USER: "{{ item.key }}"
   when:
-    - item | lower is search('.*_sro$')
+    - item.key | lower is search('.*_sro$')
     - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
+    - not item.value.drop_user | default(false)
   register: sro_logon_trigger
   changed_when: sro_logon_trigger.stdout is search('.*Trigger was created.*')
 
@@ -324,7 +443,7 @@
       EOF
       echo "Password restored for {{ item.key }}"
   with_dict: "{{ delius_users }}"
-  when: delius_users is defined and (action_type=="restore" or action_type == "all")
+  when: delius_users is defined and (action_type=="restore" or action_type == "all") and not item.value.drop_user | default(false)
   changed_when: false
   register: plsql
 
@@ -336,56 +455,113 @@
     label: "{{ item.item.key }}"
   when: delius_users is defined and (action_type=="restore" or action_type == "all")
 
-- name: Place read only users in variable if read only users defined
-  set_fact:
-    readonly_users: '{{ lookup(''dict'', delius_users) | json_query(''[*].key'') | join("'',''") | regex_replace(''^|$'',"''") | upper}}'
-  when: delius_users is defined and action_type=="store"
+- name: Store Database User Passwords
+  when: delius_users is defined and action_type == "store"
+  block:
+    - name: Create List Users
+      set_fact:
+        user_list: "{{ user_list | default([]) + [item.key | upper] }}"
+      with_dict: "{{ delius_users }}"
+      when: not item.value.drop_user | default(false)
 
-- name: Store database user passwords
+    - name: Place read only users in variable if read only users defined
+      set_fact:
+        readonly_users: '{{ user_list | join("'',''") | regex_replace(''^|$'',"''") }}'
+
+    - name: Store database user passwords
+      shell:
+        cmd: |
+          . ~/.bash_profile
+          DB_STATUS=$( srvctl status database -d ${ORACLE_SID} -verbose | awk '{print $NF}' )
+          DATETIME=$(date +"%Y%m%d%H%M%S")
+          [[ ! -d /home/oracle/admin/rman_scripts ]] && mkdir -p /home/oracle/admin/rman_scripts
+          if [ "${DB_STATUS}" == "Open." ]
+          then
+            sqlplus -s / as sysdba << EOF
+              whenever sqlerror exit failure
+              set pages 100 head off lines 200 feed off trimspool on newp none
+              -- Existing passwords may be in 11g format (prefix S:) or 12c format (prefix T:)
+              -- We only store the higher valued format for reapplying to a user
+              spool /home/oracle/admin/rman_scripts/.readonly_users.creds
+              SELECT
+                  lower(name)
+                  || ':'
+                  ||
+                  CASE
+                      WHEN REGEXP_LIKE ( spare4,
+                                        '^.*T:([A-F0-9]+);?.*$' ) THEN
+                              regexp_replace(spare4, '^.*(T:[A-F0-9]+);?.*$', '\1')
+                      ELSE
+                          regexp_replace(spare4, '^.*(S:[A-F0-9]+);?.*$', '\1')
+                  END
+                  || ';'||password
+              FROM
+                  sys.user$
+              WHERE name IN ({{ readonly_users }});
+              spool off
+          EOF
+          # Take a copy just in case duplicate process fails
+          cp -p /home/oracle/admin/rman_scripts/.readonly_users.creds /home/oracle/admin/rman_scripts/.readonly_users.creds.${DATETIME}
+          fi
+
+      changed_when: false
+      register: sql_result
+      failed_when: sql_result.rc != 0
+
+    - name: Storing following users
+      debug:
+        msg: "{{ item | regex_replace('^(.+):(.+):(.+)$','\\1') }}"
+      loop: "{{ sql_result.stdout_lines }}"
+      loop_control:
+        label: "Storing ..."
+
+- name: Drop User And Trigger If Required
   shell:
     cmd: |
       . ~/.bash_profile
-      DB_STATUS=$( srvctl status database -d ${ORACLE_SID} -verbose | awk '{print $NF}' )
-      DATETIME=$(date +"%Y%m%d%H%M%S")
-      [[ ! -d /home/oracle/admin/rman_scripts ]] && mkdir -p /home/oracle/admin/rman_scripts
-      if [ "${DB_STATUS}" == "Open." ]
-      then
-        sqlplus -s / as sysdba << EOF
-          whenever sqlerror exit failure
-          set pages 100 head off lines 200 feed off trimspool on newp none
-          -- Existing passwords may be in 11g format (prefix S:) or 12c format (prefix T:)
-          -- We only store the higher valued format for reapplying to a user
-          spool /home/oracle/admin/rman_scripts/.readonly_users.creds
-          SELECT
-              lower(name)
-              || ':'
-              ||
-              CASE
-                  WHEN REGEXP_LIKE ( spare4,
-                                    '^.*T:([A-F0-9]+);?.*$' ) THEN
-                          regexp_replace(spare4, '^.*(T:[A-F0-9]+);?.*$', '\1')
-                  ELSE
-                      regexp_replace(spare4, '^.*(S:[A-F0-9]+);?.*$', '\1')
-              END
-              || ';'||password
-          FROM
-              sys.user$
-          WHERE name IN ({{ readonly_users }});
-          spool off
+      sqlplus -s / as sysdba << EOF
+        whenever sqlerror exit failure
+        set pages 100 head off lines 200 feed off serveroutput on
+        declare
+
+          cursor c1 is
+            select *
+            from dba_users
+            where lower(username) = '{{ item.key }}';
+
+          r1 c1%rowtype;
+
+          cursor c2 is
+            select *
+            from dba_triggers
+            where owner = 'DELIUS_USER_SUPPORT'
+            and lower(trigger_name) = '{{ item.key }}';
+
+          r2 c2%rowtype;
+
+        begin
+
+          open c1;
+          fetch c1 into r1;
+          if c1%found
+          then
+            execute immediate 'drop user {{ item.key }} cascade';
+          end if;
+          close c1;
+
+          open c2;
+          fetch c2 into r2;
+          if c2%found
+          then
+            execute immediate 'drop trigger delius_user_support.{{ item.key }}';
+          end if;
+          close c2;
+
+        end;
+        /
       EOF
-      # Take a copy just in case duplicate process fails
-      cp -p /home/oracle/admin/rman_scripts/.readonly_users.creds /home/oracle/admin/rman_scripts/.readonly_users.creds.${DATETIME}
-      fi
-
+  when: delius_users is defined and item.value.drop_user | default(false)
+  with_dict: "{{ delius_users }}"
+  register: drop_user_plsql
   changed_when: false
-  when: delius_users is defined and action_type=="store"
-  register: sql_result
-  failed_when: sql_result.rc != 0
-
-- name: Storing following users
-  debug:
-    msg: "{{ item | regex_replace('^(.+):(.+):(.+)$','\\1') }}"
-  loop: "{{ sql_result.stdout_lines }}"
-  loop_control:
-    label: "Storing ..."
-  when: delius_users is defined and action_type=="store"
+  failed_when: drop_user_plsql.rc != 0
