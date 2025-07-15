@@ -74,6 +74,7 @@
         fetch c3 into r3;
         if c3%notfound then
           execute immediate 'create role '||v_role;
+          DBMS_OUTPUT.put_line('Created read only role.');
         end if;
         close c3;
 
@@ -265,6 +266,8 @@
   when:
     - item | lower is search('.*_ro$')
     - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
+  register: ro_logon_trigger
+  changed_when: ro_logon_trigger.stdout is search('.*Trigger was created.*')
 
 # Create a trigger to prevent Standby Database Only Read-Only Users logging into the Primary database.
 - name: Logon Trigger Created for _SRO Users
@@ -275,6 +278,8 @@
   when:
     - item | lower is search('.*_sro$')
     - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
+  register: sro_logon_trigger
+  changed_when: sro_logon_trigger.stdout is search('.*Trigger was created.*')
 
 # Delius users below are only created requiring read write privileges on certain Delius tables.
 # These type of database users are scarce.
@@ -316,7 +321,7 @@
         msg: "{{ item.stdout_lines }}"
       with_items: "{{ output.results }}"
       loop_control:
-        label: "Failed grants for {{ item.item.key }}..."
+        label: "Reporting any failed grants for {{ item.item.key }}..."
       when: (item.item.key[-3:]=="_rw") and (item.stdout_lines | length > 0)
 
   when: (delius_users is defined) and ( action_type=="create" or action_type == "all")
@@ -349,7 +354,7 @@
 
 - name: User passwords output
   debug:
-    msg: "{{ item.stdout }}"
+    msg: "{{ item.stdout | default('Skipped') }}"
   loop: "{{ plsql.results }}"
   loop_control:
     label: "{{ item.item.key }}"

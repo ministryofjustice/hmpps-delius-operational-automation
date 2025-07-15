@@ -1,4 +1,5 @@
-memory_parameter_names: ["sga_target", "sga_max_size", "pga_aggregate_target", "pga_aggregate_limit"]
+# (db_recovery_file_dest_size isn't strictly a "memory" parameter but we treat it the same by expanding out the K/M/G suffix if needed for integer comparison)
+memory_parameter_names: ["sga_target", "sga_max_size", "pga_aggregate_target", "pga_aggregate_limit","db_recovery_file_dest_size"]
 # We only change SGA sizes if the size change is more than 1 granule.
 # For SGAs above 1Gb this granule size will be 16Mb
 granule_size: 16777216
