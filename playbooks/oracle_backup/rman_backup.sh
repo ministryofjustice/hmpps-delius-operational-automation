@@ -312,10 +312,10 @@ validate () {
                  then   
                     info "Load duration ok at $HOURS hours and $MINS minutes"
                  else
-                    error "Incorrect number of hours in load duration"
+                    error "Incorrect number of hours ($HOURS) in load duration"
                  fi
               else
-                 error "Incorrect number of minutes in load duration"
+                 error "Incorrect number of minutes ($MINS) in load duration"
               fi
               ;;
     archivelogs) info "Validating the archivelog range specified"
