@@ -124,7 +124,7 @@
     # Ensure the properties of the HAS target are up to date
     - name: Modify HAS Target
       shell: |
-        {{ emcli }} modify_target -name="has_{{ agent_host }}" -type="has" -host="{{ agent_host }}" -properties="OracleHome:{{ target_gi_home }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }};orcl_gtp_line_of_bus:{{ application }}"
+        {{ emcli }} modify_target -name="has_{{ agent_host }}" -type="has" -host="{{ agent_host }}" -properties="isSiha:YES;OracleHome:{{ target_gi_home }};orcl_gtp_lifecycle_status:{{ lifecycle_status }};orcl_gtp_contact:{{ slack_channel_contact }};orcl_gtp_line_of_bus:{{ application }}"
 
     #########################################
     #
