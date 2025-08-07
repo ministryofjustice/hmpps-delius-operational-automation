@@ -18,15 +18,42 @@
 
 # Re-Enable FSFO from Associated Primary
 # (Only run from Primary for each Database Type to avoid competing startups)
-- name: Re-enable FSFO
+# - name: Re-enable FSFO
+#   include_role:
+#     name: build-ha
+#     tasks_from: enable-fsfo.yml
+#   vars:
+#     delegation_host: "{{ primary_host }}"
+#     primary_hostname: "{{ primary_host }}"
+#     fsfo_mode: "{{ hostvars[primary_host]['fsfo_mode'] | default('disabled') }}"
+#   when:
+#     - high_availability_count[application] | int > 0
+#     - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
+#     - group_names | select('match','.*_primarydb') | length > 0
+
+
+- name: Re-enable FSFO from Primary
   include_role:
     name: build-ha
-    tasks_from: enable-fsfo.yml
   vars:
-    delegation_host: "{{ primary_host }}"
-    primary_hostname: "{{ primary_host }}"
-    fsfo_mode: "{{ hostvars[primary_host]['fsfo_mode'] | default('disabled') }}"
+    force_restore: true
+    password_rotation: false
+    method: "fsfo setup"
   when:
     - high_availability_count[application] | int > 0
     - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
     - group_names | select('match','.*_primarydb') | length > 0
+
+
+
+# - name: Enable FSFO
+#   hosts: "{{ primary }}"
+#   become: true
+#   become_user: oracle
+#   become_method: sudo
+#   roles:
+#     - role: build-ha
+#       vars:
+#         force_restore: true
+#         password_rotation: false
+#         method: "fsfo setup"
