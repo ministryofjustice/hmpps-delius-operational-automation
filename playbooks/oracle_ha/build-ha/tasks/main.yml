@@ -28,20 +28,6 @@
     password_rotation: true
   when: method is defined and method == "password rotation"
 
-- name: Gather facts with filter to get domain
-  setup:
-    filter: ansible_dns
-  when: ansible_facts.domain is not defined
-
-- debug:
-     var: primary_host
-
-- debug:
-     var: hostvars[primary_host]['ansible_facts']
-
-- debug:
-     var: hostvars[primary_host]['ansible_facts']['fqdn']
-
 - name: (main/set-primary-config) Handle FQDN For Primary and Standby Host 1 TNS Purposes
   set_fact:
     primary_host_tns: "{{ hostvars[primary_host]['ansible_facts']['fqdn'] | default(primary_host + '.' + ansible_facts.domain) }}"

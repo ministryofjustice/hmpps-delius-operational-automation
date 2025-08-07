@@ -31,6 +31,11 @@
 #     - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
 #     - group_names | select('match','.*_primarydb') | length > 0
 
+# FQDN required for Build HA role
+- name: Gather only fqdn
+  ansible.builtin.setup:
+    gather_subset:
+      - network
 
 - name: Re-enable FSFO from Primary
   include_role:
