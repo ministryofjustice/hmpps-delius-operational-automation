@@ -58,6 +58,10 @@ on:
           - "-vv"
           - "-vvv"
           - "-vvvv"
+      SourceCodeVersion:
+        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
       SourceConfigVersion:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
