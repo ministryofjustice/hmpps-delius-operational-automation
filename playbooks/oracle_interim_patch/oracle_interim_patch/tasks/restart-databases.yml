@@ -37,6 +37,16 @@
     gather_subset:
       - network
 
+- debug:
+    var: inventory_hostname
+
+- debug:
+     var: primary_host
+
+
+- debug:
+      var: hostvars[primary_host]
+
 - name: Re-enable FSFO from Primary
   include_role:
     name: build-ha
