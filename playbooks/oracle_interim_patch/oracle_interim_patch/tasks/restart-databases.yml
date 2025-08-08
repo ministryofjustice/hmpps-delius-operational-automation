@@ -61,6 +61,7 @@
     password_rotation: false
     method: "fsfo setup"
     primary: "{{ primary_host_group }}"
+    standby_number: 0
   when:
     - high_availability_count[application] | int > 0
     - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
