@@ -55,6 +55,10 @@
     msg: "This environment is not configured as an Audited Interaction data client.  No action taken."
   when: source_endpoint | default() == ''
 
+- name: Show Actions
+  debug:
+     msg: "Performing {{ replication_action }}"
+
 - name: Perform Requested Actions on Replication Tasks
   when: source_endpoint | default() != ''
   block:
