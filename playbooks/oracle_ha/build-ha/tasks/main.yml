@@ -7,6 +7,9 @@
     fsfo_setup: false
     password_rotation: false
 
+- debug:
+    var: primary
+
 - name: (main/set-primary-config) Set Variables To Be Used For Standby Configuration
   set_fact:
     standby1: "{{ primary  | regex_replace('(.*)_primarydb$','\\1_standbydb1') }}"

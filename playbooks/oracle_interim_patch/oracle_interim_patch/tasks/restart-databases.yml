@@ -60,7 +60,7 @@
     force_restore: true
     password_rotation: false
     method: "fsfo setup"
-    primary: "{{ primary_host }}"
+    primary: "{{ primary_host_group }}"
   when:
     - high_availability_count[application] | int > 0
     - hostvars[primary_host]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
