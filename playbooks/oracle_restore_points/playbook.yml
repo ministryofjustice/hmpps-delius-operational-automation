@@ -387,8 +387,9 @@
 
 - name: Restart Audit Replication
   import_playbook: ../oracle_audit_replication_management/playbook.yml
-  target_hosts:  "{{ target_dbs | replace('dbs','primarydb') }}"
-  replication_action: restart
+  vars:
+      target_hosts:  "{{ target_dbs | replace('dbs','primarydb') }}"
+      replication_action: restart
 
 # If this an AWS Environment then we will run password rotation - check if this is the case
 - name: Set Inside AWS for Password Rotation
