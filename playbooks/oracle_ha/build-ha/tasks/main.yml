@@ -7,9 +7,6 @@
     fsfo_setup: false
     password_rotation: false
 
-- debug:
-    var: primary
-
 - name: (main/set-primary-config) Set Variables To Be Used For Standby Configuration
   set_fact:
     standby1: "{{ primary  | regex_replace('(.*)_primarydb$','\\1_standbydb1') }}"
@@ -30,33 +27,6 @@
   set_fact:
     password_rotation: true
   when: method is defined and method == "password rotation"
-
-- debug:
-      var: primary_host
-
-- debug:
-      var: hostvars[primary_host]
-
-- debug:
-      var: hostvars[primary_host]['ansible_facts']
-
-- debug:
-      var: hostvars[primary_host]['ansible_facts']['fqdn']
-
-- debug:
-      msg: "{{ primary_host + '.' + ansible_facts.domain }}"
-
-- debug:
-      var: standby1
-
-- debug:
-     var: hostvars[groups[ standby1 ][0]]
-
-- debug:
-       var:  hostvars[groups[ standby1 ][0]]['inventory_hostname']
-
-- debug:
-       msg:  "{{ hostvars[groups[ standby1 ][0]]['inventory_hostname'] }}.{{ dns_zone_internal }}"
 
 - name: (main/set-primary-config) Handle FQDN For Primary and Standby Host 1 TNS Purposes
   set_fact:
