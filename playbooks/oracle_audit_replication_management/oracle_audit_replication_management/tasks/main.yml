@@ -71,6 +71,9 @@
     - name: Get Details of Replication Tasks from Repository to Client
       include_tasks: get_inbound_task_details.yml
 
+    - debug:
+        var: replication_action
+
     - name: Wait for Audit Replication to Finish
       include_tasks: wait_for_zero_throughput.yml
       when: replication_action == 'stop'
@@ -79,9 +82,15 @@
       include_tasks: stop_tasks.yml
       when: (replication_action == 'restart') or (replication_action == 'stop') or (replication_action == 'resume')
 
+    - debug:
+        var: replication_action
+
     - name: Resume Replication Tasks
       include_tasks: resume_tasks.yml
       when: replication_action == 'resume'
+
+    - debug:
+        var: replication_action
 
     - name: Restart Replication Tasks
       include_tasks: restart_tasks.yml
