@@ -446,17 +446,15 @@
           debug:
             msg: "database_type: {{ database_type }}    database: {{ database }}      fsfo_mode: {{ hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') }}       group_names: {{ group_names }}"
 
-        # Re-Enable FSFO from Associated Primary
-        # (Only run from First Standby for each Database Type to avoid competing startups)
-        - name: Re-enable FSFO
+        - name: Re-enable FSFO from Primary
           include_role:
-            name: hmpps-delius-oracledb-ha
-            tasks_from: enable-fsfo.yml
+            name: build-ha
           vars:
-            delegation_host: "{{ hostvars[groups[database_type + '_primarydb'][0]]['inventory_hostname'] }}"
-            primary_hostname: "{{ hostvars[groups[database_type + '_primarydb'][0]]['inventory_hostname'] }}"
-            fsfo_mode: "{{ hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') }}"
-            high_availability_count: "{{ database[database_type]['high_availability_count'] }}"
+            force_restore: true
+            password_rotation: false
+            method: "fsfo setup"
+            primary: "{{ ( (group_names | select('match','.*_standbydb\\d+')) if (database_standby_sid is defined) else (group_names | select('match','.*_primarydb')) ) | list | first | regex_replace('^(.*)_standbydb\\d+', '\\1_primarydb') }}"
+            standby_number: 0
           when:
             - database[database_type]['high_availability_count'] | int > 0
             - hostvars[groups[database_type + '_primarydb'][0]]['fsfo_mode'] | default('disabled') | lower in ['enabled','observe','observer']
