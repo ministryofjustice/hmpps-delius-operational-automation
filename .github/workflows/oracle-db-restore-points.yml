@@ -282,6 +282,7 @@ jobs:
             playbooks/block_sessions
             playbooks/oracle_password_rotation
             playbooks/oracle_audit_replication_management
+            playbooks/oracle_backup
             playbooks/ansible.cfg
             common/*
           path: operations
