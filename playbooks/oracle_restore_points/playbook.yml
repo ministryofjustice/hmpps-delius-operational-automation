@@ -390,7 +390,7 @@
   vars:
       target_hosts:  "{{ target_dbs | replace('dbs','primarydb') }}"
       replication_action: restart
-  when: arget_dbs | regex_search('delius_dbs')
+  when: target_dbs | regex_search('delius_dbs')
 
 # If this an AWS Environment then we will run password rotation - check if this is the case
 - name: Set Inside AWS for Password Rotation
