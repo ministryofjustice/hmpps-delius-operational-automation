@@ -15,6 +15,15 @@
 
     - name: RMAN script
       block:
+
+        - name: RMAN Target
+          debug:
+            var: rman_target
+
+        - name: groups
+          debug:
+             var: groups
+
         # Under normal circumstances, the primary host will be up and running so we can get the database_global_database name from the inventory
         # (Exclude the case where it is not in hostvars groups dictionary)
         - name: Set database_global_database
