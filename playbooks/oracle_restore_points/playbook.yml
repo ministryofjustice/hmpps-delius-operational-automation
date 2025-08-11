@@ -414,13 +414,13 @@
         is_aws_environment: "{{ aws_uri_check.status == 200 }}"
       run_once: true
 
-- name: Is Inside 
-  debug:
-     var: is_aws_environment
+    - name: Is Inside 
+      debug:
+        var: is_aws_environment
 
-- name: action
-  debug:
-     var: required_action
+    - name: action
+      debug:
+        var: required_action
 
 # If we have run a flashback then it is possible that password changes have been reverted and will be
 # out of Sync with those in Secrets Manager and OEM.  Rotate the passwords again to sync everything up.
