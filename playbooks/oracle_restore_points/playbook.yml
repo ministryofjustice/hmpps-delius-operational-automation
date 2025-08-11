@@ -385,12 +385,14 @@
               debug:
                 msg: "Restarting Audit Replication from SCN {{ get_db_startup_scn.stdout | trim }}"
 
-- name: Restart Audit Replication in Delius
+- name: Restart Audit Replication in Delius After Flashback
   import_playbook: ../oracle_audit_replication_management/playbook.yml
   vars:
       target_hosts:  "{{ target_dbs | replace('dbs','primarydb') }}"
       replication_action: restart
-  when: target_dbs | regex_search('delius_dbs')
+  when: 
+     - required_action == "Flashback to Restore Point"
+     - target_dbs | regex_search('delius_dbs')
 
 # If this an AWS Environment then we will run password rotation - check if this is the case
 - name: Set Inside AWS for Password Rotation
