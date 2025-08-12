@@ -12,7 +12,7 @@
     - name: Check if inside AWS (fast fail).
       uri:
         url: http://169.254.169.254/latest/meta-data
-        timeout: 2
+        timeout: 4
         method: GET
         return_content: no
       register: aws_uri_check
