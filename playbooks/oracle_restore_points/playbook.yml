@@ -423,11 +423,11 @@
         var: required_action
 
     - name: environment_name
-        debug:
+      debug:
           var: required_action
 
     - name: database_type
-        debug:
+      debug:
           var: database_type
 
 # If we have run a flashback then it is possible that password changes have been reverted and will be
