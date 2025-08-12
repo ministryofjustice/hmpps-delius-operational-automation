@@ -9,12 +9,17 @@
     localhost_ip: 127.0.0.1
 
   tasks:
-    - name: Check if inside AWS.
+    - name: Check if inside AWS (fast fail).
       uri:
         url: http://169.254.169.254/latest/meta-data
-        timeout: 20
+        timeout: 2
+        method: GET
+        return_content: no
       register: aws_uri_check
       failed_when: false
+      retries: 2
+      delay: 1
+      until: aws_uri_check.status is defined
 
     - set_fact:
         is_aws_environment: "{{ aws_uri_check.status == 200 }}"
