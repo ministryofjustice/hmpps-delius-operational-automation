@@ -20,6 +20,8 @@
       retries: 2
       delay: 1
       until: aws_uri_check.status is defined
+      vars:
+        ansible_aws_ssm_timeout: 20
 
     - set_fact:
         is_aws_environment: "{{ aws_uri_check.status == 200 }}"
