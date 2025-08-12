@@ -424,7 +424,7 @@
 
     - name: environment_name
       debug:
-          var: required_action
+          var: environment_name
 
     - name: database_type
       debug:
