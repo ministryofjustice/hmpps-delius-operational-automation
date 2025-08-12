@@ -439,6 +439,7 @@
     rotate_groups: "{{ target_dbs }}"
     rotate_passwords_not_from_oem: true
     oem_blackout_required: false
+    target_environment_name: "{{ environment_name }}"
   when:
     - required_action == "Flashback to Restore Point"
     - is_aws_environment | default(false)
