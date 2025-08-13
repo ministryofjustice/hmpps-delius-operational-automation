@@ -68,6 +68,16 @@ on:
         description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
         default: "main"
+      VerboseOutput:
+        description: "Verbose Output level"
+        type: choice
+        default: ""
+        options:
+          - ""
+          - "-vv"
+          - "-vvv"
+          - "-vvvv"
+
 env:
   ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/playbooks/oracle_restore_points/playbook.yml
@@ -248,7 +258,8 @@ jobs:
           -e target_dbs=${{ steps.definetargets.outputs.delius_target }} \
           -e "required_action='${{ github.event.inputs.RequiredAction }}'" \
           -e restore_point_name=${{ github.event.inputs.RestorePointName }} \
-          -e restore_date_time=${{ github.event.inputs.RestoreDateTime }}
+          -e restore_date_time=${{ github.event.inputs.RestoreDateTime }} \
+          ${{ github.event.inputs.VerboseOutput }}
           
   oracle-restore-points-mis:
     needs: validate-parameters
@@ -323,4 +334,5 @@ jobs:
           -e target_dbs=${{ needs.validate-parameters.outputs.MisTargets  }} \
           -e "required_action='${{ github.event.inputs.RequiredAction }}'" \
           -e restore_point_name=${{ github.event.inputs.RestorePointName }} \
-          -e restore_date_time=${{ github.event.inputs.RestoreDateTime }}
+          -e restore_date_time=${{ github.event.inputs.RestoreDateTime }} \
+          ${{ github.event.inputs.VerboseOutput }}
