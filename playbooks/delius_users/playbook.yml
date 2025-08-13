@@ -88,6 +88,7 @@
         fetch c3 into r3;
         if c3%notfound then
           execute immediate 'create role '||v_role;
+          DBMS_OUTPUT.put_line('Created read only role.');
         end if;
         close c3;
 
@@ -385,6 +386,8 @@
     - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
     - not item.value.drop_user | default(false)
     - application_type == 'delius'
+  register: ro_logon_trigger
+  changed_when: ro_logon_trigger.stdout is search('.*Trigger was created.*')
 
 # Create a trigger to prevent Standby Database Only Read-Only Users logging into the Primary database.
 - name: Logon Trigger Created for _SRO Users
@@ -396,6 +399,8 @@
     - item.key | lower is search('.*_sro$')
     - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
     - not item.value.drop_user | default(false)
+  register: sro_logon_trigger
+  changed_when: sro_logon_trigger.stdout is search('.*Trigger was created.*')
 
 # Delius users below are only created requiring read write privileges on certain Delius tables.
 # These type of database users are scarce.
@@ -404,43 +409,19 @@
 # The custom sql files MUST reside in the files directory with file format of grant_<database user name>_user.sql
 # where the <database user name> is the key defined in the delius_users dictionary
 
+# Note that Ansible does the file lookup before it evaluates the when condition, so default non-existent files to be empty,
+# otherwise it will complain that the file does not exist.
 - name: Grant privileges to Delius read write users
-  block:
-    - name: Copy required sql files for grant privileges for Delius read write users
-      copy:
-        src: "grant_{{ item.key }}_user.sql"
-        dest: "/tmp"
-      with_dict: "{{ delius_users }}"
-      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
-
-    - name: Execute the grant sql files on the target
-      shell:
-        cmd: |
-          . ~/.bash_profile;
-            sqlplus -s / as sysdba << EOF
-            spool /tmp/grant_{{ item.key }}_user.lst
-            @/tmp/grant_{{ item.key }}_user.sql
-            spool off
-          EOF
-      with_dict: "{{ delius_users }}"
-      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
-
-    - name: Gather any errors of the execution by checking spool files
-      shell: grep "^GRANT.*$" /tmp/grant_{{ item.key }}_user.lst | cat
-      with_dict: "{{ delius_users }}"
-      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
-      changed_when: false
-      register: output
-
-    - name: Output any errors during granting privileges
-      debug:
-        msg: "{{ item.stdout_lines }}"
-      with_items: "{{ output.results }}"
-      loop_control:
-        label: "Failed grants for {{ item.item.key }}..."
-      when: (item.item.key[-3:]=="_rw") and (item.stdout_lines | length > 0)
-
-  when: (delius_users is defined) and ( action_type=="create" or action_type == "all")
+  script: grant_rw_privileges.sh
+  environment:
+    GRANTS: "{{ lookup('file', 'grant_{{ item }}_user.sql',errors='ignore') | default('', true) }}"
+  loop: "{{ delius_users.keys() }}"
+  when:
+    - item[-3:]=="_rw"
+    - delius_users is defined
+    - action_type=="create" or action_type == "all"
+  register: grant_rw_privileges
+  changed_when: grant_rw_privileges.stdout is search('.*ADDING:.*')
 
 - name: Restore delius user passwords
   shell:
@@ -470,7 +451,7 @@
 
 - name: User passwords output
   debug:
-    msg: "{{ item.stdout }}"
+    msg: "{{ item.stdout | default('Skipped') }}"
   loop: "{{ plsql.results }}"
   loop_control:
     label: "{{ item.item.key }}"
