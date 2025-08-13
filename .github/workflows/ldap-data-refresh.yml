@@ -133,7 +133,7 @@ jobs:
         if: ${{ github.event.inputs.source_recovery_point_id == '' }}
         run: |
             echo "No RECOVERY_POINT_ARN ID provided, using latest backup"
-            echo RECOVERY_POINT_ARN=$(aws backup list-recovery-points-by-backup-vault --backup-vault-name ${{ github.event.inputs.source_env }}-ldap-efs-backup-vault --query 'reverse(sort_by(RecoveryPoints[?ResourceType==`EFS`], &CreationDate))[0].RecoveryPointArn' --output text | head -n 1) >> $GITHUB_ENV
+            echo RECOVERY_POINT_ARN=$(aws backup list-recovery-points-by-backup-vault --backup-vault-name ${{ github.event.inputs.source_env }}-ldap-efs-vault --query 'reverse(sort_by(RecoveryPoints[?ResourceType==`EFS`], &CreationDate))[0].RecoveryPointArn' --output text | head -n 1) >> $GITHUB_ENV
 
       - name: Use provided recovery point arn
         if: ${{ github.event.inputs.source_recovery_point_id != '' }}
