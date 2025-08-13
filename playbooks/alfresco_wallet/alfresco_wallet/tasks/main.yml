@@ -256,6 +256,7 @@
         orapki wallet add -wallet {{ wallet_build_dir }} -trusted_cert -cert {{ item.value.filename }} -pwd {{ system_pwd }}
       with_dict: "{{ certificate_dict }}"
       when: item.value.md5sum not in installed_certificate_cksum
+      no_log: true
 
     - name: Swap in Newly Built Wallet if Existing Wallet Password was Incorrect
       copy:

@@ -9,11 +9,12 @@
         src: set_alert_log_filter_expression.sql.j2
         dest: "{{ stage }}/set_alert_log_filter_expression.sql"
 
+    - name: Ensure EMCLI session is ready
+      include_tasks: "{{ playbook_dir }}/../../common/tasks/emcli_login.yml"
+
     - name: Run SQL to Update Alert Log Filter Expression
       become_user: oracle
       ansible.builtin.shell: |
-        echo "running emcli_login.sh"
-        . {{ stage }}/emcli_login.sh
         {{ emcli }} execute_sql -sql="FILE" -input_file="FILE:{{ stage }}/set_alert_log_filter_expression.sql" -targets="EMREP:oracle_database" -credential_set_name="DBCredsNormal"
       register: update_alert_log_filter_expression
 

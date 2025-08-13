@@ -67,16 +67,16 @@
           when:
             - ( get_fast_start_failover.stdout | trim ) not in ['','Disabled']
 
-# Allow OEM jobs to run during the flashback so we can pick up Audited Interaction Data for archival if required
-- name: Start Blackout for Flashback
-  import_playbook: ../oem_blackout/playbook.yml
-  when: required_action == "Flashback to Restore Point"
-  vars:
-    target: "{{ target_dbs }}"
-    blackout: "Flashback_to_{{ restore_point_name }}"
-    object_type: all
-    action: start
-    allow_jobs: true
+        # Allow OEM jobs to run during the flashback so we can pick up Audited Interaction Data for archival if required
+        - name: Start Blackout for Flashback
+          include_role:
+            name: oracle-oem-blackout
+          vars:
+            target: "{{ target_dbs }}"
+            blackout: "Flashback_to_{{ restore_point_name }}"
+            object_type: all
+            action: start
+            allow_jobs: true
 
 # Ensure all connections to Delius Primary are blocked and removed
 # prior to a Flashback. The target_dbs will only be one for Delius.
@@ -481,13 +481,18 @@
     - database_primary_sid | regex_search('STGMIS')
 
 - name: Stop Blackout for Flashback
-  import_playbook: ../oem_blackout/playbook.yml
-  when: required_action == "Flashback to Restore Point"
-  vars:
-    target: "{{ target_dbs }}"
-    blackout: "Flashback_to_{{ restore_point_name }}"
-    object_type: all
-    action: stop
+  hosts: "{{ target_dbs }}"
+  gather_facts: no
+  tasks:
+    - name: Stop Blackout for Flashback
+      include_role:
+        name: oracle-oem-blackout
+      when: required_action == "Flashback to Restore Point"
+      vars:
+        target: "{{ target_dbs }}"
+        blackout: "Flashback_to_{{ restore_point_name }}"
+        object_type: all
+        action: stop
 
 # Always Run the Restore Point Report at the End
 - name: Report restore points

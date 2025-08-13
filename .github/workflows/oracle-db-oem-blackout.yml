@@ -111,6 +111,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
               playbooks/oem_blackout
+              common
               playbooks/ansible.cfg
           path: operations
           ref: ${{ github.event.inputs.SourceCodeVersion }}
@@ -134,6 +135,7 @@ jobs:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            ansible/roles/oracle-oem-blackout
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-modernisation-platform-facts
           path: roles

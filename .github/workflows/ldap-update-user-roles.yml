@@ -82,7 +82,7 @@ jobs:
                   command_args+=("--${{ github.event.inputs.action }}")
                 fi
 
-                if [ "${{ github.event.inputs.update_notes }}" -eq "true"]; then
+                if [[ "${{ github.event.inputs.update_notes }}" == "true" ]]; then
                   command_args+=("--update-notes")
                 fi
 
@@ -118,7 +118,8 @@ jobs:
 
                     $.containerDefinitions[0].containerName: "ldap-automation-task-${{ github.run_id }}"
 
-                    $.containerDefinitions[0].secrets: [{"name": "VAR_LDAP_HOST", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_HOST"}, {"name": "VAR_LDAP_USER", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_PRINCIPAL"}, {"name": "SECRET_LDAP_BIND_PASSWORD", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_BIND_PASSWORD"}]
+                    $.containerDefinitions[0].secrets: [{"name": "VAR_LDAP_HOST", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_HOST"}, {"name": "VAR_LDAP_USER", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_PRINCIPAL"}, {"name": "SECRET_LDAP_BIND_PASSWORD", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/LDAP_BIND_PASSWORD"}, {"name": "SECRET_DB_CONNECTION_STRING", "valueFrom": "arn:aws:ssm:${{secrets.AWS_REGION}}:${{vars.AWS_ACCOUNT_ID}}:parameter/delius-core-${{ github.event.inputs.environment }}/DB_CONNECTION_STRING"}]
+
                     $.containerDefinitions[0].environment: [{"name":"VAR_LOG_LEVEL", "value": "DEBUG"}]
                     $.containerDefinitions[0].logConfiguration.options."awslogs-group": "/ecs/ldap-automation-${{ github.event.inputs.environment }}"
                     $.containerDefinitions[0].logConfiguration.options."awslogs-region": "${{secrets.AWS_REGION}}"

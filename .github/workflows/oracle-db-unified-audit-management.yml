@@ -125,7 +125,6 @@ jobs:
           sparse-checkout: |
             playbooks/audit_management
             playbooks/block_sessions
-            playbooks/oem_blackout
             playbooks/ansible.cfg
             common/*
           path: operations
@@ -150,6 +149,7 @@ jobs:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            ansible/roles/oracle-oem-blackout
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-modernisation-platform-facts
           path: roles
@@ -220,6 +220,7 @@ jobs:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            ansible/roles/oracle-oem-blackout
             ansible/roles/secretsmanager-passwords
             ansible/roles/get-modernisation-platform-facts
           path: roles
