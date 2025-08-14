@@ -62,9 +62,6 @@
         - (item.0.target_name == item.1.target_name) or (item.1.target_name == 'all')
       register: set_metric_thresholds
 
-    - debug:
-        var: set_metric_thresholds
-
     - name: Enable and Disable Collections
       shell: |
         echo "Setting scheduler state for {{ item.1.target_type }} {{ item.0.target_name }} {{ item.1.collection_name }}"
