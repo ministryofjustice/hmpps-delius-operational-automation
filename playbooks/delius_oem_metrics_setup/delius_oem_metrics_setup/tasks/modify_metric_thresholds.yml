@@ -32,7 +32,9 @@
 
     - name: Set the Metric Thresholds
       shell: |
-        cat <<-EOINPUT > {{ stage }}/oem_threshold.txt
+        # Quoting the heredoc delimiter is required to avoid expansion of $ symbol
+        # used in Metric Extension names ME$METRIC_EXTENSION
+        cat <<-'EOINPUT' > {{ stage }}/oem_threshold.txt
         {{ item.1.input_file }}
         EOINPUT
         echo "Setting thresholds for {{ item.1.target_type }} {{ item.0.target_name }}"
