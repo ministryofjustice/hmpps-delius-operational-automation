@@ -388,11 +388,11 @@
 - name: Restart Audit Replication in Delius After Flashback
   import_playbook: ../oracle_audit_replication_management/playbook.yml
   vars:
-      target_hosts:  "{{ target_dbs | replace('dbs','primarydb') }}"
-      replication_action: restart
-  when: 
-     - required_action == "Flashback to Restore Point"
-     - target_dbs | regex_search('delius_dbs')
+    target_hosts: "{{ target_dbs | replace('dbs','primarydb') }}"
+    replication_action: restart
+  when:
+    - required_action == "Flashback to Restore Point"
+    - target_dbs | regex_search('delius_dbs')
 
 # If this an AWS Environment then we will run password rotation - check if this is the case
 - name: Set Inside AWS for Password Rotation
