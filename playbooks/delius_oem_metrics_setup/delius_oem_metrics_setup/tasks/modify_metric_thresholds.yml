@@ -32,10 +32,14 @@
 
     - name: Set the Metric Thresholds
       shell: |
-        cat <<-EOINPUT > {{ stage }}/oem_threshold.txt
+        # Quoting the heredoc delimiter is required to avoid expansion of $ symbol
+        # used in Metric Extension names ME$METRIC_EXTENSION
+        cat <<-'EOINPUT' > {{ stage }}/oem_threshold.txt
         {{ item.1.input_file }}
         EOINPUT
         echo "Setting thresholds for {{ item.1.target_type }} {{ item.0.target_name }}"
+        . ~/.bash_profile
+        export JAVA_HOME=$ORACLE_HOME/jdk/jre
         {{ emcli }} modify_threshold -target_name={{ item.0.target_name }} -target_type={{ item.1.target_type }} \
               -input_file="FILE:{{ stage }}/oem_threshold.txt"
         # There appears to be an undocumented bug unsetting thresholds using EMCLI input files.
@@ -61,6 +65,8 @@
     - name: Enable and Disable Collections
       shell: |
         echo "Setting scheduler state for {{ item.1.target_type }} {{ item.0.target_name }} {{ item.1.collection_name }}"
+        . ~/.bash_profile
+        export JAVA_HOME=$ORACLE_HOME/jdk/jre
         {{ emcli }} modify_collection_schedule -targetNames={{ item.0.target_name }} -targetType={{ item.1.target_type }} \
               -collectionName={{ item.1.collection_name }} \
               -collectionStatus={{ item.1.collection_attribute_value }} \
@@ -83,6 +89,8 @@
     - name: Reschedule Collections
       shell: |
         echo "Setting scheduler frequency for {{ item.1.target_type }} {{ item.0.target_name }} {{ item.1.collection_name }}"
+        . ~/.bash_profile
+        export JAVA_HOME=$ORACLE_HOME/jdk/jre
         {{ emcli }} modify_collection_schedule -targetNames={{ item.0.target_name }} -targetType={{ item.1.target_type }} \
               -collectionName={{ item.1.collection_name }} \
               -freqType={{ item.1.collection_attribute_value.split(' ')[1] }}\
