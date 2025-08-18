@@ -141,7 +141,8 @@ AS
         ai.business_interaction_id,
         ai.spg_username,
         ai.client_db,
-        ai.client_business_interact_code
+        ai.client_business_interact_code,
+        ai.external_service_code
     FROM
         delius_app_schema.audited_interaction              ai
         LEFT JOIN delius_audit_dms_pool.stage_business_interaction bi 
@@ -188,7 +189,8 @@ BEGIN
         business_interaction_id,
         spg_username,
         client_db,
-        client_business_interact_code
+        client_business_interact_code,
+        external_service_code
     ) VALUES (
         :new.date_time,
         :new.outcome,
@@ -200,7 +202,8 @@ BEGIN
         get_business_interaction_code(
             p_business_interaction_id => :new.business_interaction_id, 
             p_client_db => :new.client_db
-        )
+        ),
+        :new.external_service_code
     );
 END;
 /
@@ -314,7 +317,9 @@ AS
             ,COUNT(*)
             ,COALESCE(SUM(ORA_HASH(TO_CHAR(ai.date_time,'YYYYMMDDHH24MISS')||
                    ai.outcome||ai.interaction_parameters||
-                   ai.user_id||ai.business_interaction_id)),0)
+                   ai.user_id||ai.business_interaction_id||
+                   ai.external_service_code
+                   )),0)
       FROM  audited_interaction ai
       WHERE date_time BETWEEN l_date_range_start AND l_date_range_end;
 
@@ -349,7 +354,8 @@ AS
                              || ai.outcome
                              || ai.interaction_parameters
                              || ai.user_id
-                             || ai.business_interaction_id)),0)
+                             || ai.business_interaction_id
+                             || ai.external_service_code)),0)
           INTO  l_row_count
                ,l_checksum
           FROM  delius_app_schema.audited_interaction ai
