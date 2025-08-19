@@ -145,3 +145,5 @@
 
         COMMIT;
       EOF
+  register: non_production_urls
+  changed_when: non_production_urls.stdout is search('1 row updated.')
