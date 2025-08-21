@@ -23,7 +23,8 @@
         "TargetEnvironment":"delius-core-test",
         "TargetHost":"delius_primarydb",
         "CronSchedule":"10 11 * * THU"
-    },
+    }
+    /*
     {
         "TargetEnvironment":"delius-core-stage",
         "TargetHost":"delius_primarydb",
@@ -44,4 +45,5 @@
         "TargetHost":"dsd_primarydb",
         "CronSchedule":"10 11 * * MON"
     }
+    */
 ]
