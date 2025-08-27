@@ -196,7 +196,7 @@
     - database_primary_sid | regex_search('STGMIS.*$')
 
 - name: Create and restore MIS users
-  include_tasks: ../delius_users/playbook.yml
+  import_playbook: ../delius_users/playbook.yml
   vars:
     action_type: "all"
     application_type: "mis"
