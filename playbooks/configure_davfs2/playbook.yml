@@ -9,13 +9,15 @@
     aws secretsmanager get-secret-value --secret-id {{ secret_name }} --region {{ region }} --query SecretString --output text| jq -r .nextcloud_admin_user
   changed_when: false
   register: "nextcloud_admin_user"
-  no_log: true
 
 - name: Set Admin Creds
   set_fact:
     admin_user: "{{ nextcloud_admin_user.stdout }}"
-  no_log: true
 
+- name: Show value of admin_user
+  debug:
+    msg: "admin_user is '{{ admin_user | default('undefined') }}'"
+    
 # Always create the mount point so lower envs will write the extract files to the local directory instead of failing
 - name: Set cfo mountpoint
   set_fact:
@@ -51,10 +53,10 @@
           when: simple_environment_name == 'prod'
 
     - name:  Install davfs2
-      block: 
-        - name:  Install davfs2 package 
+      block:
+        - name: Install davfs2
           yum:
-            name: davfs2
+            name: https://yum.oracle.com/repo/OracleLinux/OL8/developer/EPEL/x86_64/getPackage/davfs2-1.5.6-1.el8.x86_64.rpm
             state: present
 
         - name:  Add oracle to davfs2 group
@@ -78,7 +80,7 @@
             force: no
             src: "{{ item }}"
             dest: "/home/oracle/.davfs2"
-          with_items:
+          loop:
             - '/etc/davfs2/secrets'
             - '/etc/davfs2/davfs2.conf'
 
