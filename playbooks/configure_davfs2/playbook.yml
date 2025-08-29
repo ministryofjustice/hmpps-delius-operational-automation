@@ -1,0 +1,173 @@
+---
+- name: Set Secret Manager Name
+  set_fact:
+    secret_name: "{{ environment_name }}-oracle-db-application-passwords"
+
+- name: Get admin username for nextcloud from secret manager
+  shell: |
+    export PATH=$PATH:/usr/local/bin
+    aws secretsmanager get-secret-value --secret-id {{ secret_name }} --region {{ region }} --query SecretString --output text| jq -r .nextcloud_admin_user
+  changed_when: false
+  register: "nextcloud_admin_user"
+
+- name: Set Admin Creds
+  set_fact:
+    admin_user: "{{ nextcloud_admin_user.stdout }}"
+
+- name: Show value of admin_user
+  debug:
+    msg: "admin_user is '{{ admin_user | default('undefined') }}'"
+
+# Always create the mount point directory so lower envs will write the extract files to the local directory instead of failing
+- name: Set cfo mountpoint
+  set_fact:
+    cfo_mountpoint: "/u01/app/oracle/admin/{{ database_primary_unique }}/cfo"
+
+- name: Create cfo mountpoint
+  file:
+    path: "{{ cfo_mountpoint }}"
+    state: directory
+    owner: oracle
+    group: oinstall
+
+- name: Execute the following tasks only when nextcloud admin username exists in Secrets Manager
+  when: admin_user is defined and admin_user != '' and admin_user != 'null'
+  block:
+    - name: Setup
+      block:
+        # In legacy this value was not hardcoded but derived from project_name variable and the dns search entry in /etc/resolv.conf.
+        # In MP there are multiple dns search entries so that won't work, and as NextCloud is being replaced we only need to run this
+        # for the migrations so we'll hardcode it for now.
+        - name: Set delius hostname fact
+          set_fact:
+            delius_hostname: "delius.probation.hmpps.dsd.io"
+
+        - name: Set https fact for non-prod
+          set_fact:
+            https_prefix: "https://nextcloud.{{ simple_environment_name }}.{{ delius_hostname }}/remote.php/dav/files"
+          when: simple_environment_name != 'prod'
+
+        - name: Set https fact for prod
+          set_fact:
+            https_prefix: "https://nextcloud.probation.{{ delius_hostname }}/remote.php/dav/files"
+          when: simple_environment_name == 'prod'
+
+    - name: Install davfs2
+      block:
+        - name: Install davfs2
+          yum:
+            name: https://yum.oracle.com/repo/OracleLinux/OL8/developer/EPEL/x86_64/getPackage/davfs2-1.5.6-1.el8.x86_64.rpm
+            state: present
+
+        - name: Add oracle to davfs2 group
+          user:
+            name: oracle
+            groups: davfs2
+            append: yes
+
+    - name: Create directories and configure
+      block:
+        - name: Create secrets directory
+          file:
+            path: "/home/oracle/.davfs2"
+            state: directory
+            owner: oracle
+            group: oinstall
+
+        - name: Copy secrets and config file
+          copy:
+            remote_src: yes
+            force: no
+            src: "{{ item }}"
+            dest: "/home/oracle/.davfs2"
+          loop:
+            - "/etc/davfs2/secrets"
+            - "/etc/davfs2/davfs2.conf"
+
+        - name: Change permission of secrets file
+          file:
+            path: "/home/oracle/.davfs2/secrets"
+            owner: oracle
+            group: oinstall
+            mode: "0600"
+
+        - name: Change davfs config
+          lineinfile:
+            dest: "/home/oracle/.davfs2/davfs2.conf"
+            regexp: "use_locks.*"
+            line: "use_locks 0"
+
+    - name: Get credentials and add to secrets
+      block:
+        - name: Get admin password for nextcloud from secret manager
+          shell: |
+            export PATH=$PATH:/usr/local/bin
+            aws secretsmanager get-secret-value --secret-id {{ secret_name }} --region {{ region }} --query SecretString --output text | jq -r .nextcloud_admin_password
+          changed_when: false
+          register: "nextcloud_admin_password"
+          no_log: true
+
+        - name: Set Admin Creds
+          set_fact:
+            admin_pwd: "{{ nextcloud_admin_password.stdout }}"
+          no_log: true
+
+        - name: Fail if admin_pwd is not set or null
+          fail:
+            msg: "Admin password for Nextcloud is not set"
+          when: admin_pwd is not defined or admin_pwd == '' or admin_pwd == 'null'
+
+        - name: Add nextcloud login credentials to secrets file
+          lineinfile:
+            owner: oracle
+            group: oinstall
+            dest: /home/oracle/.davfs2/secrets
+            state: present
+            insertafter: EOF
+            line: "{{ cfo_mountpoint }} {{ admin_user }} {{ admin_pwd }}"
+
+    - name: Configure fstab and mount
+      block:
+        - name: Add to fstab
+          mount:
+            path: "{{ cfo_mountpoint }}"
+            src: "{{ https_prefix }}/{{ admin_user }}/"
+            fstype: "davfs"
+            opts: "user,uid=oracle,gid=oinstall,rw,noauto"
+            state: present
+
+        - name: Mount nextcloud fileshare to filesystem as oracle
+          shell: |
+            . ~/.bash_profile
+            grep "{{ cfo_mountpoint }}" /proc/mounts > /dev/null
+            if [ $? -ne 0 ]
+            then
+              echo "Mounting {{ cfo_mountpoint }}"
+              mount {{ cfo_mountpoint }}
+            else
+              echo "Already mounted"
+            fi
+          args:
+            stdin: output
+          become: yes
+          become_user: oracle
+          become_method: sudo
+          changed_when: false
+          register: mount_result
+          failed_when: mount_result.rc != 0
+
+    - name: Schedule the unmount and mount of nextcloud filesystem
+      block:
+        - name: Add unmount nextcloud to cron
+          cron:
+            name: "Unmount nextcloud cfo mountpoint"
+            minute: "0"
+            hour: "0"
+            job: "/usr/bin/umount {{ cfo_mountpoint }}"
+
+        - name: Add mount nextcloud to cron
+          cron:
+            name: "mount nextcloud cfo mountpoint"
+            minute: "01"
+            hour: "0"
+            job: "/usr/bin/sudo -u oracle /usr/bin/mount {{ cfo_mountpoint }}"
