@@ -47,22 +47,28 @@ BEGIN
 
     IF v_enabled IS NULL
     THEN
+      -- Run this job at 4am so it doesn't clash with other jobs that deal with the audit tables
+      -- otherwise they may interfere with each other and raise exception ORA-46277: Conflicting operation on unified audit trail
       DBMS_SCHEDULER.CREATE_JOB (
               job_name => '"AUDSYS"."DELIUS_AUDIT_ARCHIVE"',
               job_type => 'PLSQL_BLOCK',
               job_action => 'BEGIN AUDSYS.delius_audit_management.archive_audit_trail; END;',
               number_of_arguments => 0,
               start_date => TRUNC(SYSDATE)+1,
-              repeat_interval => 'FREQ=DAILY;BYDAY=MON,TUE,WED,THU,FRI,SAT,SUN;BYHOUR=23;BYMINUTE=00;BYSECOND=0',
+              repeat_interval => 'FREQ=DAILY;BYHOUR=4;BYMINUTE=00;BYSECOND=0',
               end_date => NULL,
               enabled => TRUE,
               auto_drop => FALSE,
               comments => 'Move Database Audit Records to the History Table');
       -- enable dbms_output to DBA_SCHEDULER_JOB_RUN_DETAILS
       DBMS_SCHEDULER.SET_ATTRIBUTE ( 
-              name => '"AUDSYS"."DELIUS_AUDIT_ARCHIVE"',
+              name => 'AUDSYS.DELIUS_AUDIT_ARCHIVE',
               attribute => 'STORE_OUTPUT',
               value => TRUE);
+      DBMS_SCHEDULER.SET_ATTRIBUTE (
+              name => 'AUDSYS.DELIUS_AUDIT_ARCHIVE',
+              attribute => 'logging_level',
+              value => DBMS_SCHEDULER.LOGGING_FULL);
 
       DBMS_OUTPUT.PUT_LINE(v_playbook_search||': Scheduled');
     ELSIF v_enabled = 'FALSE'
