@@ -23,8 +23,8 @@
   set_fact:
     cfo_mountpoint: "/u01/app/oracle/admin/{{ database_primary_unique }}/cfo"
 
-- name:  Create cfo mountpoint
-  file: 
+- name: Create cfo mountpoint
+  file:
     path: "{{ cfo_mountpoint }}"
     state: directory
     owner: oracle
@@ -52,50 +52,50 @@
             https_prefix: "https://nextcloud.probation.{{ delius_hostname }}/remote.php/dav/files"
           when: simple_environment_name == 'prod'
 
-    - name:  Install davfs2
+    - name: Install davfs2
       block:
         - name: Install davfs2
           yum:
             name: https://yum.oracle.com/repo/OracleLinux/OL8/developer/EPEL/x86_64/getPackage/davfs2-1.5.6-1.el8.x86_64.rpm
             state: present
 
-        - name:  Add oracle to davfs2 group
-          user: 
+        - name: Add oracle to davfs2 group
+          user:
             name: oracle
             groups: davfs2
             append: yes
 
-    - name:  Create directories and configure
+    - name: Create directories and configure
       block:
-        - name:  Create secrets directory
-          file: 
+        - name: Create secrets directory
+          file:
             path: "/home/oracle/.davfs2"
             state: directory
             owner: oracle
             group: oinstall
 
-        - name:  Copy secrets and config file
+        - name: Copy secrets and config file
           copy:
             remote_src: yes
             force: no
             src: "{{ item }}"
             dest: "/home/oracle/.davfs2"
           loop:
-            - '/etc/davfs2/secrets'
-            - '/etc/davfs2/davfs2.conf'
+            - "/etc/davfs2/secrets"
+            - "/etc/davfs2/davfs2.conf"
 
-        - name:  Change permission of secrets file
+        - name: Change permission of secrets file
           file:
             path: "/home/oracle/.davfs2/secrets"
             owner: oracle
             group: oinstall
-            mode: '0600'
+            mode: "0600"
 
-        - name:  Change davfs config
-          lineinfile: 
-            dest:  "/home/oracle/.davfs2/davfs2.conf"
-            regexp: 'use_locks.*'
-            line: 'use_locks 0'
+        - name: Change davfs config
+          lineinfile:
+            dest: "/home/oracle/.davfs2/davfs2.conf"
+            regexp: "use_locks.*"
+            line: "use_locks 0"
 
     - name: Get credentials and add to secrets
       block:
@@ -117,26 +117,26 @@
             msg: "Admin password for Nextcloud is not set"
           when: admin_pwd is not defined or admin_pwd == '' or admin_pwd == 'null'
 
-        - name:  Add nextcloud login credentials to secrets file
+        - name: Add nextcloud login credentials to secrets file
           lineinfile:
             owner: oracle
             group: oinstall
-            dest:  /home/oracle/.davfs2/secrets
+            dest: /home/oracle/.davfs2/secrets
             state: present
             insertafter: EOF
             line: "{{ cfo_mountpoint }} {{ admin_user }} {{ admin_pwd }}"
 
     - name: Configure fstab and mount
-      block: 
-        - name:  Add to fstab 
+      block:
+        - name: Add to fstab
           mount:
             path: "{{ cfo_mountpoint }}"
             src: "{{ https_prefix }}/{{ admin_user }}/"
             fstype: "davfs"
-            opts: "user,uid=oracle,gid=oinstall,rw,noauto" 
+            opts: "user,uid=oracle,gid=oinstall,rw,noauto"
             state: present
 
-        - name:  Mount nextcloud fileshare to filesystem as oracle
+        - name: Mount nextcloud fileshare to filesystem as oracle
           shell: |
             . ~/.bash_profile
             grep "{{ cfo_mountpoint }}" /proc/mounts > /dev/null
@@ -155,21 +155,19 @@
           changed_when: false
           register: mount_result
           failed_when: mount_result.rc != 0
-        
+
     - name: Schedule the unmount and mount of nextcloud filesystem
       block:
-
         - name: Add unmount nextcloud to cron
           cron:
             name: "Unmount nextcloud cfo mountpoint"
             minute: "0"
             hour: "0"
             job: "/usr/bin/umount {{ cfo_mountpoint }}"
-  
+
         - name: Add mount nextcloud to cron
           cron:
             name: "mount nextcloud cfo mountpoint"
             minute: "01"
             hour: "0"
             job: "/usr/bin/sudo -u oracle /usr/bin/mount {{ cfo_mountpoint }}"
-
