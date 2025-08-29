@@ -49,6 +49,12 @@ BEGIN
         name => '"AUDSYS"."SET_LAST_ARCHIVE_TIMESTAMP"',
         attribute => 'STORE_OUTPUT',
         value => TRUE);
+      -- Run this job at 2am so it doesn't clash with other jobs that deal with the audit tables
+      -- otherwise they may interfere with each other and raise exception ORA-46277: Conflicting operation on unified audit trail
+      DBMS_SCHEDULER.SET_ATTRIBUTE(
+        name => '"AUDSYS"."SET_LAST_ARCHIVE_TIMESTAMP"',
+        attribute => 'repeat_interval',
+        value => 'freq=daily; byhour=2; byminute=0; bysecond=0;');
 
       DBMS_SCHEDULER.drop_job(job_name => '"SYS"."SET_LAST_ARCHIVE_TIMESTAMP"');
     ELSE
@@ -65,16 +71,20 @@ BEGIN
             job_action => 'BEGIN AUDSYS.delius_audit_management.set_last_archive_timestamp; END;',
             number_of_arguments => 0,
             start_date => TRUNC(SYSDATE)+1,
-            repeat_interval => 'FREQ=DAILY; INTERVAL=1;',
+            repeat_interval => 'freq=daily; byhour=2; byminute=0; bysecond=0;',
             end_date => NULL,
             enabled => TRUE,
             auto_drop => FALSE,
             comments => 'SET_LAST_ARCHIVE_TIMESTAMP for Audit Trails');
           -- enable dbms_output to DBA_SCHEDULER_JOB_RUN_DETAILS
           DBMS_SCHEDULER.SET_ATTRIBUTE(
-            name => '"AUDSYS"."SET_LAST_ARCHIVE_TIMESTAMP"',
+            name => 'AUDSYS.SET_LAST_ARCHIVE_TIMESTAMP',
             attribute => 'STORE_OUTPUT',
             value => TRUE);
+          DBMS_SCHEDULER.SET_ATTRIBUTE (
+                  name => 'AUDSYS.SET_LAST_ARCHIVE_TIMESTAMP',
+                  attribute => 'logging_level',
+                  value => DBMS_SCHEDULER.LOGGING_FULL);
           
       ELSE
         -- if the rentention period ever needs to be changed, update the job action here, e.g.
