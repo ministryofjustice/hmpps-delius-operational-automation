@@ -17,8 +17,8 @@
 - name: Show value of admin_user
   debug:
     msg: "admin_user is '{{ admin_user | default('undefined') }}'"
-    
-# Always create the mount point so lower envs will write the extract files to the local directory instead of failing
+
+# Always create the mount point directory so lower envs will write the extract files to the local directory instead of failing
 - name: Set cfo mountpoint
   set_fact:
     cfo_mountpoint: "/u01/app/oracle/admin/{{ database_primary_unique }}/cfo"
@@ -31,7 +31,7 @@
     group: oinstall
 
 - name: Execute the following tasks only when nextcloud admin username exists in Secrets Manager
-  when: admin_user is defined and admin_user != ''
+  when: admin_user is defined and admin_user != '' and admin_user != 'null'
   block:
     - name: Setup
       block:
@@ -111,6 +111,11 @@
           set_fact:
             admin_pwd: "{{ nextcloud_admin_password.stdout }}"
           no_log: true
+
+        - name: Fail if admin_pwd is not set or null
+          fail:
+            msg: "Admin password for Nextcloud is not set"
+          when: admin_pwd is not defined or admin_pwd == '' or admin_pwd == 'null'
 
         - name:  Add nextcloud login credentials to secrets file
           lineinfile:
