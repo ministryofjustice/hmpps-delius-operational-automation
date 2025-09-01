@@ -128,6 +128,8 @@ BEGIN
   FROM v$option
   WHERE parameter = 'Unified Auditing';
 
+  l_output := 'Unified Auditing set to '||l_audit_option;
+
   --
   -- UNIFIED AUDITING
   --
@@ -153,7 +155,7 @@ BEGIN
       use_last_arch_timestamp => TRUE
       );
     -- Check output in DBA_SCHEDULER_JOB_RUN_DETAILS
-    l_output := 'Unified recs archived to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.';
+    l_output := l_output || 'Unified recs archived to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.';
   END IF;
 
   -- TRADITIONAL AUDITING
@@ -245,7 +247,7 @@ BEGIN
       -- which should run with minimal impact on other users.
       EXECUTE IMMEDIATE 'INSERT /*+ APPEND NOPARALLEL */ INTO sys.hist_aud$
       SELECT * FROM sys.aud$
-      WHERE  ntimestamp# <= :archive_date' using l_archive_date;
+      WHERE  ntimestamp# <= TO_TIMESTAMP(''' || TO_CHAR(l_archive_date, 'YYYY-MM-DD HH24:MI:SS.FF') || ''', ''YYYY-MM-DD HH24:MI:SS.FF'')';
     END IF;
     
     -- Delete the old records from the audit table irrespective of whether the hist table exists
@@ -323,9 +325,13 @@ PROCEDURE set_last_archive_timestamp (
     p_unified_cap IN INTEGER DEFAULT 13 -- months
     )
 AS
+  l_output          VARCHAR2(4000);
 BEGIN
+  l_output := 'Setting last archive timestamp for audit trails.';
+
   IF DBMS_AUDIT_MGMT.IS_CLEANUP_INITIALIZED(DBMS_AUDIT_MGMT.audit_trail_aud_std)
   THEN
+    l_output := l_output ||' STD:'||TO_CHAR(SYSTIMESTAMP-p_day_cap,'DD Mon YYYY HH24:MI:SS');
     -- set the last archive timestamp to n days ago for Standard Audit Trail and FGA Audit Trails
     DBMS_AUDIT_MGMT.set_last_archive_timestamp(
       audit_trail_type => DBMS_AUDIT_MGMT.audit_trail_aud_std, 
@@ -334,12 +340,14 @@ BEGIN
   END IF;
   IF DBMS_AUDIT_MGMT.IS_CLEANUP_INITIALIZED(DBMS_AUDIT_MGMT.audit_trail_fga_std)
   THEN
+    l_output := l_output ||' FGA:'||TO_CHAR(SYSTIMESTAMP-p_day_cap,'DD Mon YYYY HH24:MI:SS');
     DBMS_AUDIT_MGMT.set_last_archive_timestamp(
       audit_trail_type => DBMS_AUDIT_MGMT.audit_trail_fga_std, 
       last_archive_time => SYSTIMESTAMP-p_day_cap
       );
   END IF;
-  
+
+  l_output := l_output ||' UNI:'||TO_CHAR(ADD_MONTHS(SYSTIMESTAMP, p_unified_cap*-1),'DD Mon YYYY HH24:MI:SS');
   -- Unified auditing changes:
   -- Set the last archive timestamp to 13 months ago for Unified Audit Trail per retentions rules in Security Guidance
   DBMS_AUDIT_MGMT.set_last_archive_timestamp(
@@ -349,6 +357,7 @@ BEGIN
 
   -- Load the os unified audit files from the audit directory if any exist
   DBMS_AUDIT_MGMT.LOAD_UNIFIED_AUDIT_FILES;
+  DBMS_OUTPUT.put_line(l_output);
 
 END set_last_archive_timestamp;
 
