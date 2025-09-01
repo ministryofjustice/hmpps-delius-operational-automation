@@ -47,7 +47,7 @@
         # instead result in the literal value of " " being used.  As a workaround we can
         # unset the threshold by specifying it directly as a command line parameter instead of
         # using the input file.
-        # (We currently don't handle metrics with key columns)
+        # (We currently do not handle metrics with key columns)
         while IFS= read -r line; do
             case "$line" in
                 START_RECORD*)
@@ -81,8 +81,6 @@
                     ;;
             esac
         done < {{ stage }}/oem_threshold.txt
-      args:
-        executable: /bin/bash
       loop: "{{ oem_targets | product(( all_oem_metrics | flatten_emcli_metrics ) + ( host_oem_metrics | flatten_emcli_metrics )) }}"
       when:
         - item.0.target_type == item.1.target_type
