@@ -30,6 +30,10 @@
         oem_targets: "{{ oem_targets + [{'target_name': (item.split(',')[0]), 'target_type': (item.split(',')[1] | trim) }]}}"
       loop: "{{ get_list_of_oem_targets.stdout_lines }}"
 
+    - name: Show OEM Targets
+      debug:
+         var: oem_targets
+
     - name: Set the Metric Thresholds
       shell: |
         # Quoting the heredoc delimiter is required to avoid expansion of $ symbol
