@@ -31,7 +31,8 @@
       loop: "{{ get_list_of_oem_targets.stdout_lines }}"
 
     - name: Set the Metric Thresholds
-      shell: |
+      shell: bash
+      run: |
         # Quoting the heredoc delimiter is required to avoid expansion of $ symbol
         # used in Metric Extension names ME$METRIC_EXTENSION
         cat <<-'EOINPUT' > {{ stage }}/oem_threshold.txt
