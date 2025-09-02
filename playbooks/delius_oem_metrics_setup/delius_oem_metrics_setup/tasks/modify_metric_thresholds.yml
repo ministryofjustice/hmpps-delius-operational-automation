@@ -30,10 +30,6 @@
         oem_targets: "{{ oem_targets + [{'target_name': (item.split(',')[0]), 'target_type': (item.split(',')[1] | trim) }]}}"
       loop: "{{ get_list_of_oem_targets.stdout_lines }}"
 
-    - name: Show OEM Targets
-      debug:
-         var: oem_targets
-
     - name: Set the Metric Thresholds
       shell: |
         # Quoting the heredoc delimiter is required to avoid expansion of $ symbol
@@ -41,7 +37,6 @@
         cat <<-'EOINPUT' > {{ stage }}/oem_threshold.txt
         {{ item.1.input_file }}
         EOINPUT
-        echo "Setting thresholds for {{ item.1.target_type }} {{ item.0.target_name }}"
         . ~/.bash_profile
         export JAVA_HOME=$ORACLE_HOME/jdk/jre
         {{ emcli }} modify_threshold -target_name={{ item.0.target_name }} -target_type={{ item.1.target_type }} \
@@ -67,13 +62,13 @@
                     column=$(echo "$line" | cut -d',' -f2 | xargs)
                     ;;
                 warning_threshold*,*)
-                    warning_threshold=$(echo "$line" | cut -d',' -f2 | xargs)
+                    warning_threshold=$(echo "$line" | cut -d',' -f2 | sed 's/^\s*//' )
                     if [[ "$warning_threshold" == "\" \"" ]]; then
-                        set_threshold=true
+                        set_threshold="true"
                     fi
                     ;;
                 END_RECORD*)
-                    if $set_threshold; then
+                    if [[ "$set_threshold" == "true" ]]; then
                         echo "Using workaround to unset Warning Threshold for $metric:$column."
                         {{ emcli }} modify_threshold \
                            -target_name={{ item.0.target_name }} \
@@ -90,9 +85,6 @@
         - item.0.target_type == item.1.target_type
         - (item.0.target_name == item.1.target_name) or (item.1.target_name == 'all')
       register: set_metric_thresholds
-
-    - debug:
-        var: set_metric_thresholds
 
     - name: Enable and Disable Collections
       shell: |
