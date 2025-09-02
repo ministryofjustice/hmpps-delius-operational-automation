@@ -37,7 +37,6 @@
         cat <<-'EOINPUT' > {{ stage }}/oem_threshold.txt
         {{ item.1.input_file }}
         EOINPUT
-        echo "Setting thresholds for {{ item.1.target_type }} {{ item.0.target_name }}"
         . ~/.bash_profile
         export JAVA_HOME=$ORACLE_HOME/jdk/jre
         {{ emcli }} modify_threshold -target_name={{ item.0.target_name }} -target_type={{ item.1.target_type }} \
@@ -46,16 +45,41 @@
         # Although the documentation suggests using " " to unset the threshold, this appears to
         # instead result in the literal value of " " being used.  As a workaround we can
         # unset the threshold by specifying it directly as a command line parameter instead of
-        # using the input file.   Currently this bug only manifests for setting the Warning
-        # Threshold for the db_alert_log genericErrStack metric, so we only apply for the 
-        # workaround in this case. 
-        WARNING_THRESHOLD_UNSET_BUG=$(awk '/START_RECORD/{flag=1}/metric\s*,\s*db_alert_log$/{flag++}/^column\s*,\s*genericErrStack$/{flag++}/^warning_threshold\s*,\s*" "/{flag++}/END_RECORD/{if(flag==4){print "YES"}}' {{ stage }}/oem_threshold.txt)
-        if [[ "{{ item.1.target_type}}" == "oracle_database" ]] && [[ "${WARNING_THRESHOLD_UNSET_BUG}" == "YES" ]]; then
-           echo "Using workaround to unset Warning Threshold."
-           {{ emcli }} modify_threshold -target_name={{ item.0.target_name }} -target_type={{ item.1.target_type }} \
-              -metric="db_alert_log" -column="genericErrStack" -warning_threshold="" \
-              -key_columns=";"
-        fi
+        # using the input file.
+        # (We currently do not handle metrics with key columns)
+        while IFS= read -r line; do
+            case "$line" in
+                START_RECORD*)
+                    metric=""
+                    column=""
+                    warning_threshold=""
+                    set_threshold=false
+                    ;;
+                metric*,*)
+                    metric=$(echo "$line" | cut -d',' -f2 | xargs)
+                    ;;
+                column*,*)
+                    column=$(echo "$line" | cut -d',' -f2 | xargs)
+                    ;;
+                warning_threshold*,*)
+                    warning_threshold=$(echo "$line" | cut -d',' -f2 | sed 's/^\s*//' )
+                    if [[ "$warning_threshold" == "\" \"" ]]; then
+                        set_threshold="true"
+                    fi
+                    ;;
+                END_RECORD*)
+                    if [[ "$set_threshold" == "true" ]]; then
+                        echo "Using workaround to unset Warning Threshold for $metric:$column."
+                        {{ emcli }} modify_threshold \
+                           -target_name={{ item.0.target_name }} \
+                           -target_type={{ item.1.target_type }} \
+                           -metric="$metric" -column="$column" \
+                           -warning_threshold="" \
+                           -key_columns=";"
+                    fi
+                    ;;
+            esac
+        done < {{ stage }}/oem_threshold.txt
       loop: "{{ oem_targets | product(( all_oem_metrics | flatten_emcli_metrics ) + ( host_oem_metrics | flatten_emcli_metrics )) }}"
       when:
         - item.0.target_type == item.1.target_type
