@@ -143,8 +143,8 @@
       register: orapki_display
       changed_when: false
       failed_when: >
-        orapki_display.rc not in [0] and
-        ('Auto login' not in orapki_display.stderr | default(''))  # tolerate orapki's noisy warnings
+        orapki_display.rc not in [0] or
+        ('Trusted Certificates' not in orapki_display.stdout | default(''))
 
     - name: Decide if Amazon CAs are present
       set_fact:
