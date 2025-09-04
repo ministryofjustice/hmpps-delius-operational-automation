@@ -11,6 +11,7 @@ on:
             - "stage"
             - "preprod"
             - "prod"
+            - "training"
 
       rbac_tag:
         required: true
