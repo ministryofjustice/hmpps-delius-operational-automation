@@ -46,6 +46,47 @@
       command: /usr/bin/cp -ar "{{ source_home }}/dbs/osbws_wallet" "{{ wallet_dir }}"
       register: copy_output
 
+    # Config file should exist in the new home but check to be sure
+    - name: Check osbws config exists in new home
+      stat:
+        path: "{{ target_home }}/dbs/osbws.ora"
+      register: osbws_config_exists_new
+
+    - name: Check osbws config exists in original home if it's not in the new home
+      stat:
+        path: "{{ source_home }}/dbs/osbws.ora"
+      register: osbws_config_exists_original
+      when: not osbws_config_exists_new.stat.exists
+
+    - name: Copy original osbws.ora to new home if original exists
+      command: /usr/bin/cp -p "{{ source_home }}/dbs/osbws.ora" "{{ target_home }}/dbs/osbws.ora"
+      when: osbws_config_exists_original.stat.exists and not osbws_config_exists_new.stat.exists
+
+    - name: Fail when config files not present in either home
+      fail:
+        msg: "osbws.ora does not exist. Run the oracle-secure-backup role first to create it in {{ source_home }}/dbs."
+      when: not osbws_config_exists_new.stat.exists and not osbws_config_exists_original.stat.exists
+
+    # Update config files to point to correct wallet location
+    - name: OSBWS Configuration should point to wallet_dir
+      lineinfile:
+        path: "{{ target_home }}/dbs/osbws.ora"
+        regexp: "OSB_WS_WALLET="
+        line: OSB_WS_WALLET='location=file:{{ wallet_dir }} CREDENTIAL_ALIAS=s3_aws'
+
+    - name: Check if OSBWS Duplication Configuration file exists
+      stat:
+        path: "/home/oracle/admin/rman_scripts/osbws_duplicate.ora"
+      register: osbws_duplicate
+
+    - name: OSBWS Duplication Configuration should point to wallet_dir
+      lineinfile:
+        path: "/home/oracle/admin/rman_scripts/osbws_duplicate.ora"
+        regexp: "OSB_WS_WALLET="
+        line: OSB_WS_WALLET='location=file:{{ wallet_dir }} CREDENTIAL_ALIAS=s3_aws'
+      when:
+        - osbws_duplicate.stat.exists
+        
 # Starting with Oracle Database 19c Release Update version 27 (19.27), the backup module library files
 # are available in the Oracle home directory after you install the Oracle Database.
 # As we no longer download these (as prod doesn't have access out to download them) we must unzip 
@@ -56,137 +97,3 @@
     dest: "{{ target_home }}/lib"
     remote_src: true
 
-- name: Check osbws config exists in new home
-  stat:
-    path: "{{ target_home }}/dbs/osbws.ora"
-  register: osbws_config_exists
-
-# Only run osbws_install.jar if osbws.ora file does not exist
-- name: Re-Install Only If OSBWS Not Already Configured
-  when: not osbws_config_exists.stat.exists
-  block:
-    - name: Check osbws installer exists
-      stat:
-        path: "{{ target_home }}/lib/osbws_installer.zip"
-      register: installer_exists
-
-    - name: fail when installer not present
-      fail:
-        msg: "{{ target_home }}/lib/osbws_installer.zip does not exist"
-      when: installer_exists.stat.exists == false
-
-    - name: Unzip OSBWS Installer
-      shell: |
-        cd {{ target_home }}/lib
-        unzip -o osbws_installer.zip
-      register: unzip_output
-
-    - name: Show Output from unzip Installer
-      debug: var=unzip_output.stdout
-
-    - name: Derive short hostname (fallback if facts unavailable)
-      command: hostname -s
-      register: short_host_cmd
-      changed_when: false
-      when: ansible_hostname is not defined
-
-    - name: Set IAM Role from short hostname
-      set_fact:
-        iam_role: "instance-role-{{ (ansible_hostname | default(inventory_hostname) | default(short_host_cmd.stdout) | regex_replace('\\..*$', '')) }}"
-
-    - name: Show iam_role
-      debug: var=iam_role
-
-    - name: Backup current wallet (contents) before reinstall
-      set_fact:
-        wallet_backup_dir: "{{ wallet_dir }}.bak"
-
-    - name: Create backup dir
-      file:
-        path: "{{ wallet_backup_dir }}"
-        state: directory
-        owner: oracle
-        group: oinstall
-        mode: "0755"
-
-    - name: Copy cwallet.sso to backup directory
-      copy:
-        src: "{{ wallet_dir }}/cwallet.sso"
-        dest: "{{ wallet_dir }}.bak/cwallet.sso"
-        remote_src: true
-        owner: oracle
-        group: oinstall
-        mode: "0600"
-        backup: true
-
-    # Running the osbws_install.jar no longer requires library download if -libDir is not supplied in the args.
-    # It will use the osbws library files provided by the patch. It will just generate a new osbws.ora and wallet file.
-    - name: Run OSBWS Install (without library download)
-      shell: |
-        . ~oracle/.bash_profile
-        cd {{ target_home }}/dbs
-        JAVA_HOME={{ target_home }}/jdk/jre
-        PATH=$PATH:$JAVA_HOME/bin
-        java -jar {{ target_home }}/lib/osbws_install.jar -IAMRole {{ iam_role }} \
-        -walletDir {{ wallet_dir }} \
-        -configFile {{ target_home }}/dbs/osbws.ora \
-        -location {{ region }} -awsEndpoint s3-{{ region }}.amazonaws.com \
-        -useHttps
-      register: install_output
-
-    - name: Show Output from Run OSBWS Install
-      debug: var=install_output.failed
-
-    # Check whether the new wallet contains Amazon Root CA certs.
-    - name: Display wallet certs (orapki) to check for Amazon CAs
-      command: "{{ target_home }}/bin/orapki wallet display -wallet {{ wallet_dir }}/cwallet.sso"
-      register: orapki_display
-      changed_when: false
-      failed_when: >
-        orapki_display.rc not in [0] or
-        ('Trusted Certificates' not in orapki_display.stdout | default(''))
-
-    - name: Decide if Amazon CAs are present
-      set_fact:
-        wallet_has_amazon_certs: "{{ 'Amazon Root CA' in (orapki_display.stdout | default('')) }}"
-
-    # Only restore if Amazon certs are missing and a backup exists
-    - name: Restore cwallet.sso from backup when Amazon certs missing
-      copy:
-        src: "{{ wallet_dir }}.bak/cwallet.sso"
-        dest: "{{ wallet_dir }}/cwallet.sso"
-        remote_src: true
-        owner: oracle
-        group: oinstall
-        mode: "0600"
-        backup: true
-      when:
-        - not wallet_has_amazon_certs
-        - backup_cwallet.stat.exists
-
-    # Optional: log what happened
-    - name: Log wallet Amazon CA check result
-      debug:
-        msg: >-
-          Amazon Root CA certs {{ 'FOUND' if wallet_has_amazon_certs else 'NOT FOUND' }};
-          {{ 'restored cwallet.sso from backup' if (not wallet_has_amazon_certs and backup_cwallet.stat.exists) else 'no restore needed' }}.
-
-# Update config file to point to correct wallet location
-- name: OSBWS Configuration Should point to wallet_dir
-  lineinfile:
-    path: "{{ target_home }}/dbs/osbws.ora"
-    regexp: "OSB_WS_WALLET="
-    line: OSB_WS_WALLET='location=file:{{ wallet_dir }} CREDENTIAL_ALIAS=s3_aws'
-
-- name: Check if OSBWS Duplication Configuration file exists
-  stat:
-    path: "/home/oracle/admin/rman_scripts/osbws_duplicate.ora"
-  register: osbws_duplicate
-
-- name: OSBWS Duplication Configuration Should point to wallet_dir
-  lineinfile:
-    path: "/home/oracle/admin/rman_scripts/osbws_duplicate.ora"
-    regexp: "OSB_WS_WALLET="
-    line: OSB_WS_WALLET='location=file:{{ wallet_dir }} CREDENTIAL_ALIAS=s3_aws'
-  when:
-    - osbws_duplicate.stat.exists
