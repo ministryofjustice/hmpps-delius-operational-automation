@@ -3,8 +3,8 @@
 # an increase in the backup process duration. The wallet should reside in the
 # $ORACLE_BASE/wallets directory so that it doesn't have to be reconfigured when
 # each patch is applied. The osbws.ora file should also be updated to point to the
-# new wallet location. When prepare-clone runs it will copy the osbws.ora file to 
-# the new Oracle home so it shouldn't need updating again, if it points to the 
+# new wallet location. When prepare-clone runs it will copy the osbws.ora file to
+# the new Oracle home so it shouldn't need updating again, if it points to the
 # correct wallet location.
 ---
 - name: Show Target Database Home
@@ -37,7 +37,7 @@
     path: "{{ wallet_dir }}"
   register: wallet_dir_exists
 
-# Copy Wallet Directory out of the original Oracle Home if the wallet directory does not exist 
+# Copy Wallet Directory out of the original Oracle Home if the wallet directory does not exist
 # in $ORACLE_BASE/wallets. The source home won't use it until the switch over to the new home.
 - name: Copy Wallet Directory if it does not exist
   when: not wallet_dir_exists.stat.exists
@@ -86,14 +86,13 @@
         line: OSB_WS_WALLET='location=file:{{ wallet_dir }} CREDENTIAL_ALIAS=s3_aws'
       when:
         - osbws_duplicate.stat.exists
-        
+
 # Starting with Oracle Database 19c Release Update version 27 (19.27), the backup module library files
 # are available in the Oracle home directory after you install the Oracle Database.
-# As we no longer download these (as prod doesn't have access out to download them) we must unzip 
+# As we no longer download these (as prod doesn't have access out to download them) we must unzip
 # the library files provided with the new Oracle Home.
 - name: Unzip OSBWS Library
   unarchive:
     src: "{{ target_home }}/lib/osbws_linux64.zip"
     dest: "{{ target_home }}/lib"
     remote_src: true
-
