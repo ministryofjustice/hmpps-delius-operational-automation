@@ -19,32 +19,32 @@
       register: oracle_base_result
       changed_when: false
 
+    - name: Ensure wallets parent directory exists
+      file:
+        path: "{{ oracle_base_result.stdout }}/wallets"
+        state: directory
+        owner: oracle
+        group: oinstall
+        mode: "0750"
+
     - name: Define Location for Oracle Wallet
       set_fact:
         wallet_dir: "{{ oracle_base_result.stdout }}/wallets/osbws_wallet"
-
-    - name: Show Wallet Location
-      debug: var=wallet_dir
 
 # Check if Wallet Directory exists
 - name: Check if Wallet Directory exists
   stat:
     path: "{{ wallet_dir }}"
-  register: wallet_dir
+  register: wallet_dir_exists
 
 # Copy Wallet Directory out of the original Oracle Home if the wallet directory does not exist 
 # in $ORACLE_BASE/wallets. The source home won't use it until the switch over to the new home.
 - name: Copy Wallet Directory if it does not exist
-  when: not wallet_dir.stat.exists
+  when: not wallet_dir_exists.stat.exists
   block:
     - name: Copy contents of original osbws_wallet folder
-      shell: |
-        cd {{ source_home }}/dbs
-        /usr/bin/cp -r osbws_wallet {{ wallet_dir }}
+      command: /usr/bin/cp -ar "{{ source_home }}/dbs/osbws_wallet" "{{ wallet_dir }}"
       register: copy_output
-
-    - name: Show Output from Copying osbws_wallet folder
-      debug: var=copy_output.failed
 
 # Starting with Oracle Database 19c Release Update version 27 (19.27), the backup module library files
 # are available in the Oracle home directory after you install the Oracle Database.
@@ -84,15 +84,6 @@
     - name: Show Output from unzip Installer
       debug: var=unzip_output.stdout
 
-    - name: Backup osbws_wallet folder as the reinstall overwrites the wallet contents
-      shell: |
-        cd {{ wallet_dir }}
-        /usr/bin/cp -r osbws_wallet osbws_wallet.bak
-      register: backup_output
-
-    - name: Show Output from Backup osbws_wallet folder
-      debug: var=backup_output.failed
-
     - name: Fail if IAM variable not defined
       fail:
         msg: "Please run get-ec2-facts role to collect IAM facts"
@@ -104,6 +95,25 @@
 
     - name: Show iam_role
       debug: var=iam_role
+
+    - name: Backup current wallet (contents) before reinstall
+      set_fact:
+        wallet_backup_dir: "{{ wallet_dir }}.bak"
+
+    - name: Create backup dir
+      file:
+        path: "{{ wallet_backup_dir }}"
+        state: directory
+        owner: oracle
+        group: oinstall
+        mode: "0755"
+
+    - name: Copy current wallet into backup dir
+      command: /usr/bin/cp -a "{{ wallet_dir }}/." "{{ wallet_backup_dir }}/"
+      register: backup_output
+
+    - name: Show Output from wallet backup
+      debug: var=backup_output.rc
 
     # Running the osbws_install.jar no longer requires library download if -libDir is not supplied in the args.
     # It will use the osbws library files provided by the patch. It will just generate a new osbws.ora and wallet file.
@@ -122,10 +132,8 @@
     - name: Show Output from Run OSBWS Install
       debug: var=install_output.failed
 
-    - name: Copy osbws_wallet folder contents back
-      shell: |
-        cd {{ wallet_dir }}
-        /usr/bin/cp -f osbws_wallet.bak/*sso* osbws_wallet/.
+    - name: Copy original osbws_wallet certificate file back into the wallet directory
+      command: /usr/bin/cp -f {{ wallet_backup_dir }}/*sso* {{ wallet_dir }}/.
       register: copy_output
 
     - name: Show Output from osbws_wallet folder copy
