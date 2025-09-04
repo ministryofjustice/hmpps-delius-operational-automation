@@ -269,6 +269,7 @@
     - apply_mode == 'prepare-clone'
   vars:
     target_home: "{{ target_db_home }}"
+    source_home: "{{ source_db_home }}"
 
 # Stop EM agent during switch-clone to avoid deadlock issues when patching
 - name: Check status of oem agent
@@ -310,9 +311,6 @@
     source_home: "{{ source_db_home }}"
     target_home: "{{ target_db_home }}"
     target_version: "{{ target_db_version }}"
-
-- name: Configure OSBWS to Point to New DB Home
-  include_tasks: configure_osbws.yml
 
 # Handle situration, on rare occassions, whereby the standby ec2 instances have been recreated
 # and there are no database instances configured
