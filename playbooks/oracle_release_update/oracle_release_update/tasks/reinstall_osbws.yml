@@ -109,12 +109,15 @@
         group: oinstall
         mode: "0755"
 
-    - name: Copy current wallet into backup dir
-      command: /usr/bin/cp -a "{{ wallet_dir }}/." "{{ wallet_backup_dir }}/"
-      register: backup_output
-
-    - name: Show Output from wallet backup
-      debug: var=backup_output.rc
+    - name: Copy cwallet.sso to backup directory
+      copy:
+        src: "{{ wallet_dir }}/cwallet.sso"
+        dest: "{{ wallet_dir }}.bak/cwallet.sso"
+        remote_src: true
+        owner: oracle
+        group: oinstall
+        mode: "0600"
+        backup: true
 
     # Running the osbws_install.jar no longer requires library download if -libDir is not supplied in the args.
     # It will use the osbws library files provided by the patch. It will just generate a new osbws.ora and wallet file.
@@ -126,6 +129,7 @@
         PATH=$PATH:$JAVA_HOME/bin
         java -jar {{ target_home }}/lib/osbws_install.jar -IAMRole {{ iam_role }} \
         -walletDir {{ wallet_dir }} \
+        -configFile {{ target_home }}/dbs/osbws.ora \
         -location {{ region }} -awsEndpoint s3-{{ region }}.amazonaws.com \
         -useHttps
       register: install_output
@@ -133,12 +137,39 @@
     - name: Show Output from Run OSBWS Install
       debug: var=install_output.failed
 
-    - name: Copy original osbws_wallet certificate file back into the wallet directory
-      command: /usr/bin/cp -f {{ wallet_backup_dir }}/*sso* {{ wallet_dir }}/.
-      register: copy_output
+    # Check whether the new wallet contains Amazon Root CA certs.
+    - name: Display wallet certs (orapki) to check for Amazon CAs
+      command: "{{ target_home }}/bin/orapki wallet display -wallet {{ wallet_dir }}/cwallet.sso"
+      register: orapki_display
+      changed_when: false
+      failed_when: >
+        orapki_display.rc not in [0] and
+        ('Auto login' not in orapki_display.stderr | default(''))  # tolerate orapki's noisy warnings
 
-    - name: Show Output from osbws_wallet folder copy
-      debug: var=copy_output
+    - name: Decide if Amazon CAs are present
+      set_fact:
+        wallet_has_amazon_certs: "{{ 'Amazon Root CA' in (orapki_display.stdout | default('')) }}"
+
+    # Only restore if Amazon certs are missing and a backup exists
+    - name: Restore cwallet.sso from backup when Amazon certs missing
+      copy:
+        src: "{{ wallet_dir }}.bak/cwallet.sso"
+        dest: "{{ wallet_dir }}/cwallet.sso"
+        remote_src: true
+        owner: oracle
+        group: oinstall
+        mode: "0600"
+        backup: true
+      when:
+        - not wallet_has_amazon_certs
+        - backup_cwallet.stat.exists
+
+    # Optional: log what happened
+    - name: Log wallet Amazon CA check result
+      debug:
+        msg: >-
+          Amazon Root CA certs {{ 'FOUND' if wallet_has_amazon_certs else 'NOT FOUND' }};
+          {{ 'restored cwallet.sso from backup' if (not wallet_has_amazon_certs and backup_cwallet.stat.exists) else 'no restore needed' }}.
 
 # Update config file to point to correct wallet location
 - name: OSBWS Configuration Should point to wallet_dir
