@@ -84,14 +84,15 @@
     - name: Show Output from unzip Installer
       debug: var=unzip_output.stdout
 
-    - name: Fail if IAM variable not defined
-      fail:
-        msg: "Please run get-ec2-facts role to collect IAM facts"
-      when: ansible_ec2_iam_instance_profile_role is not defined
+    - name: Derive short hostname (fallback if facts unavailable)
+      command: hostname -s
+      register: short_host_cmd
+      changed_when: false
+      when: ansible_hostname is not defined
 
-    - name: Set IAM Role
+    - name: Set IAM Role from short hostname
       set_fact:
-        iam_role: "{{ ansible_ec2_iam_instance_profile_role }}"
+        iam_role: "instance-role-{{ (ansible_hostname | default(inventory_hostname) | default(short_host_cmd.stdout) | regex_replace('\\..*$', '')) }}"
 
     - name: Show iam_role
       debug: var=iam_role
