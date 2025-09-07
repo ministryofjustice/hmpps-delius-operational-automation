@@ -8,6 +8,7 @@ on:
           options:
             - "dev"
             - "test"
+            - "stage"
             - "preprod"
             - "prod"
       roles:
@@ -38,10 +39,25 @@ on:
 
             
 jobs:
+    setup:
+        name: Set MP Environment
+        runs-on: ubuntu-latest
+        outputs:
+          mp_env_name: ${{ steps.setenv.outputs.mp_env_name }}
+        steps:
+          - id: setenv
+            run: |
+              if [[ "${{ github.event.inputs.environment }}" == "stage" ]]; then
+                echo "mp_env_name=preprod" >> $GITHUB_OUTPUT
+              else
+                echo "mp_env_name=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+              fi
+          
     deploy:
         name: Create ECS Task in delius-core ${{ github.event.inputs.environment }}
         runs-on: ubuntu-latest
-        environment: delius-core-${{ github.event.inputs.environment }}-preapproved
+        needs: setup
+        environment: delius-core-${{ needs.setup.outputs.mp_env_name }}-preapproved
         permissions:
           id-token: write
         steps:
