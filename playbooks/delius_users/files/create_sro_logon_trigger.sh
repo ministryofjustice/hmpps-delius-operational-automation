@@ -30,5 +30,14 @@ BEGIN
 END;
 /
 
+SELECT CASE
+         WHEN created = last_ddl_time THEN 'Trigger was created.'
+         ELSE 'Trigger was replaced.'
+       END AS trigger_status
+  FROM dba_objects
+ WHERE object_type   = 'TRIGGER'
+   AND owner  = 'DELIUS_USER_SUPPORT'
+   AND object_name   = '${STANDBY_RO_USER}';
+
 EXIT
 EOF

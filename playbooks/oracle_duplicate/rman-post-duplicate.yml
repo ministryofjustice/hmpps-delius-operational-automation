@@ -34,39 +34,49 @@
       vars:
         ansible_aws_ssm_timeout: 3600
 
-    # In case we have duplicated from a lower RU database, run datapatch to update
-    # (Will take no action if no release update patches required)
-    # Occassionally we might encounter ORA-54 if run with database open, so use upgrade mode
-    - name: Shutdown Primary Database
-      include_tasks: shutdown_database.yml
+    - name: Check if Data Patch is Installed
+      script: get_datapatch_applied.sh
+      changed_when: false
+      register: get_datapatch_applied
+      tags: datapatch
 
-    - name: Startup Primary Database in Upgrade Mode for Datapatch
-      script: startup_database_upgrade.sh
+    - name: Run Datapatch
+      tags: datapatch
+      when: get_datapatch_applied.stdout is search('.*Datapatch is not installed.*')
+      block:
+        # In case we have duplicated from a lower RU database, run datapatch to update
+        # (Will take no action if no release update patches required)
+        # Occassionally we might encounter ORA-54 if run with database open, so use upgrade mode
+        - name: Shutdown Primary Database
+          include_tasks: shutdown_database.yml
 
-    # Datapatch can occassionally fail when previous OJVM patch is rolled back.   However the replacement patch is
-    # then normally installed successfully.   Fix from Oracle if this happens is to simply re-run datapatch so
-    # we allow up to 3 retries to complete without errors.
-    - name: Run Datapatch on Primary
-      shell: |
-        . ~/.bash_profile
-        cd ${ORACLE_HOME}/OPatch
-        ./datapatch -verbose
-      register: datapatch
-      retries: 3
-      delay: 1
-      until: datapatch.rc == 0
-      async: 1800
-      poll: 60
-      failed_when: datapatch.rc !=0 or datapatch.stdout is search('command failed with errors')
+        - name: Startup Primary Database in Upgrade Mode for Datapatch
+          script: startup_database_upgrade.sh
 
-    - name: Show Datapatch Output
-      debug: var=datapatch.stdout_lines
+        # Datapatch can occassionally fail when previous OJVM patch is rolled back.   However the replacement patch is
+        # then normally installed successfully.   Fix from Oracle if this happens is to simply re-run datapatch so
+        # we allow up to 3 retries to complete without errors.
+        - name: Run Datapatch on Primary
+          shell: |
+            . ~/.bash_profile
+            cd ${ORACLE_HOME}/OPatch
+            ./datapatch -verbose
+          register: datapatch
+          retries: 3
+          delay: 1
+          until: datapatch.rc == 0
+          async: 1800
+          poll: 60
+          failed_when: datapatch.rc !=0 or datapatch.stdout is search('command failed with errors')
 
-    - name: Shutdown Primary Database
-      include_tasks: shutdown_database.yml
+        - name: Show Datapatch Output
+          debug: var=datapatch.stdout_lines
 
-    - name: Startup Database for Normal Use
-      include_tasks: startup_database.yml
+        - name: Shutdown Primary Database
+          include_tasks: shutdown_database.yml
+
+        - name: Startup Database for Normal Use
+          include_tasks: startup_database.yml
 
     - name: Setup Environment Specific Oracle Parameters
       import_role:
@@ -79,6 +89,7 @@
         name: "{{ playbook_dir }}/../oracle_autotasks/configure_oracle_autotasks"
       vars:
         target_host: "{{ duplicate_target }}"
+      tags: auto_tasks
 
     # Although the new database would be registered automatically during the next backup, we do the registration
     # now in advance as this allows us to backup any archive logs which may be required to support a restore point
@@ -91,6 +102,8 @@
         # with production IDs by incrementing these to a higher range
         - name: Bump sequences
           script: bump_sequences.sh
+          register: bump_sequences
+          changed_when: bump_sequences.stdout is search ('.*Bumped.*')
 
         - name: Update objects
           include_tasks: ../delius_objects/playbook.yml
@@ -100,6 +113,7 @@
           vars:
             action_type: "all"
             application_type: "delius"
+          tags: delius_users
 
         - name: Create Delius gdpr_pool database user
           include_tasks: ../delius_gdpr/playbook.yml
@@ -163,6 +177,8 @@
     - name: Bump sequences
       script: bump_sequences.sh
       when: duplicate_target | regex_search('.*_delius_primarydb')
+      register: re_bump_sequences
+      changed_when: re_bump_sequences.stdout is search ('.*Bumped.*')
 
 # The database uplift should already have unblocked the listener but we do it again
 # just in case that step had failed
@@ -207,6 +223,19 @@
     action: "copy"
   when:
     - duplicate_target | regex_search('.*_delius_primarydb')
+
+- name: Create and Restore MIS Users
+  hosts: "{{ duplicate_target }}"
+  gather_facts: no
+  become: yes
+  become_user: oracle
+
+  tasks:
+    - name: Create and restore MIS users
+      include_tasks: ../delius_users/playbook.yml
+      vars:
+        action_type: "all"
+        application_type: "mis"
 
 - name: Update ND Parameter values
   import_playbook: update-nd-parameters.yml
