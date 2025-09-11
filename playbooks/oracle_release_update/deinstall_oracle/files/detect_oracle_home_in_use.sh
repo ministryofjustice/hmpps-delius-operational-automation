@@ -62,11 +62,10 @@ done
 # If there are old controlfile snapshots present these may contain reference to previous Oracle Homes
 # Simply create a new snapshot controlfile if required
 
-INSTANCEID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+INSTANCEID=$(wget -q -O - --tries=1 --timeout=20 http://169.254.169.254/latest/meta-data/instance-id)
 ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
 DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=application"  --query "Tags[].Value" --output text | sed 's/-core//')
-SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME}-${DELIUS_ENVIRONMENT}-${APPLICATION}-dba-passwords --region eu-west-2 --query SecretString --output text| jq -r .sys)
+SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME%-*}-${DELIUS_ENVIRONMENT}-oracle-db-dba-passwords --query SecretString --output text| jq -r .sys)
 
 if [[ -f ${DB_ORACLE_HOME}/dbs/snapcf_${ORACLE_SID}.f ]];
 then
