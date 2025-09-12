@@ -396,6 +396,9 @@ dms_tables:
   - name: OFFENDER_PRISONER
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
+  - name: OFFENDER_RELIGION_HISTORY
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
   - name: OFFENDER_TRANSFER
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
