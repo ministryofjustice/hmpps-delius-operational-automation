@@ -11,7 +11,7 @@
     ALL_HOME_TARGETS=$({{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='oracle_home'" -column="TARGET_NAME" -script -noheader)
     for TARGET in ${ALL_HOME_TARGETS}; do {{ emcli }} list -resource="TargetProperties" -search="TARGET_NAME='$TARGET'" -search="PROPERTY_NAME='INSTALL_LOCATION'" -column="PROPERTY_VALUE" -script | grep -q "{{ oracle_home }}" && echo $TARGET && break; done
   register: existing_oracle_home
-  failed_when: existing_oracle_home.rc > 1
+  failed_when: (existing_oracle_home.rc > 1 or existing_oracle_home.stderr is search('Error:.*')
   changed_when: false
 
 - name: Search Output For Oracle Home Name
