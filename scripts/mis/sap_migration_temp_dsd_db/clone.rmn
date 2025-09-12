@@ -1,0 +1,12 @@
+RUN
+{
+  DUPLICATE TARGET DATABASE TO DMDDXB
+    FROM ACTIVE DATABASE
+    SPFILE
+      PARAMETER_VALUE_CONVERT 'DMDDSD','DMDDXB'
+      SET db_unique_name='DMDDXB'
+      SET db_create_file_dest='+DATA'
+      SET db_create_online_log_dest_1='+DATA'
+      SET control_files='+DATA'
+    NOFILENAMECHECK;
+}

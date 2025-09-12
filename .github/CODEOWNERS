@@ -7,3 +7,4 @@
 .github/workflows/delius-* @ministryofjustice/unilink @ministryofjustice/hosting-migrations
 playbooks/** @ministryofjustice/hmpps-dba @ministryofjustice/hosting-migrations
 ansible/** @ministryofjustice/hmpps-dba @ministryofjustice/hosting-migrations
+scripts/** @ministryofjustice/hmpps-dba @ministryofjustice/hosting-migrations
