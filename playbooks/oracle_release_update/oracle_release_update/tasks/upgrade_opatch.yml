@@ -17,7 +17,7 @@
 - debug: var=minimum_opatch_version
 
 - name: List OPatch Software Versions Available In S3
-  shell: aws s3 ls s3://{{ dependencies_bucket_name }}/dependencies/oracle/rdbms/ | grep -E "p6880880.*_{{ expected_version.split('.')[0] }}[0]{4}_.*$" | awk '{print $NF}' | sort
+  shell: aws s3 ls s3://{{ dependencies_bucket_name }}/dependencies/oracle/rdbms/ | grep -E "p6880880.*_{{ expected_version.split('.')[0] }}[0]{4}_.*\.[0-9]{2,3}\.zip$" | awk '{print $NF}' | sort
   register: opatch_versions
 
 - name: Set Latest OPatch Software Value
