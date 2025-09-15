@@ -60,7 +60,9 @@
 
     - name: Copy original osbws.ora to new home if original exists
       command: /usr/bin/cp -p "{{ source_home }}/dbs/osbws.ora" "{{ target_home }}/dbs/osbws.ora"
-      when: osbws_config_exists_original.stat.exists and not osbws_config_exists_new.stat.exists
+      when:
+        - not osbws_config_exists_new.stat.exists
+        - osbws_config_exists_original.stat.exists
 
     - name: Fail when config files not present in either home
       fail:
