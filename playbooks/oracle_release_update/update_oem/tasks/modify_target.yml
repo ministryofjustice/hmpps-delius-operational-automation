@@ -6,7 +6,9 @@
 # We only expect to see 1 HAS target, 1 ASM target and 1 Listener target on a given host (and all should be running from the Grid Infrastructure Home)
 - name: Generate Command to Get Existing Target Name
   shell: |
-    {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='{{ target_type }}'" -column="TARGET_NAME" -script -noheader
+      . ~/.bash_profile
+      export JAVA_HOME=$ORACLE_HOME/jdk/jre
+      {{ emcli }} list -resource="Targets" -search="HOST_NAME='{{ agent_host }}'" -search="TARGET_TYPE='{{ target_type }}'" -column="TARGET_NAME" -script -noheader
   register: existing_target_name
   changed_when: false
 
@@ -16,7 +18,9 @@
 
 - name: Get the Target Home
   shell: |
-    {{ get_target_home_cmd }}
+      . ~/.bash_profile
+      export JAVA_HOME=$ORACLE_HOME/jdk/jre
+      {{ get_target_home_cmd }}
   register: get_target_home_match
   changed_when: false
   when: existing_target_name.stdout != ''
@@ -29,6 +33,8 @@
   block:
     - name: Modify Target
       shell: |
+        . ~/.bash_profile
+        export JAVA_HOME=$ORACLE_HOME/jdk/jre
         PROPERTIES="OracleHome:{{ target_gi_home }}"
         [[ "{{ target_type }}" == "oracle_listener" ]] && PROPERTIES="${PROPERTIES};ListenerOraDir:{{ target_gi_home }}/network/admin/"
         [[ "{{ target_type }}" == "osm_instance" ]] && PROPERTIES="${PROPERTIES}"
