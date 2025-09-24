@@ -3,6 +3,9 @@ run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-statspack-setup"
 on:
   workflow_dispatch:
     inputs:
+      DummyEnvironment:
+        description: "Dummy Environment"
+        type: environment
       TargetEnvironment:
         description: "Target environment"
         required: true
