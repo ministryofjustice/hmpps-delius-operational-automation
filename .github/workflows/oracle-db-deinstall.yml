@@ -73,7 +73,7 @@ on:
         default: "main"
 
 env:
-  ansible_config: ansible/playbooks/ansible.cfg
+  ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/playbooks/oracle_release_update/deinstall_oracle.yml 
   inventory: inventory/ansible
 
