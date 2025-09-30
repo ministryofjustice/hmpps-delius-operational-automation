@@ -1,0 +1,94 @@
+name: Send Slack Notification
+description: Used to Send Slack Messages from Workflows
+
+inputs:
+    SlackChannel:
+      description: "Slack Channel to Send Message"
+      required: true
+    Emoji:
+      description: "Emoji to Prefix Message"
+      required: false
+      default: ":github:"
+    TextHeader:
+      description: "Text Header for Slack (this is not displayed)"
+      required: false
+      default: "Slack Message"
+    TextBody:
+      description: "Text Body for Slack Message"
+      required: true
+
+
+runs:
+   using: composite
+   steps:
+
+      # Environment variables like AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY set by the action are not shared across jobs.
+      # Therefore we need to reconfigure the AWS Credentials and not use those from any previous job.
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      - name: Get Slack Token
+        id: get-slack-token
+        shell: bash
+        run: |
+            ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+            # The OEM account associated with the current environment is always prefixed by hmpps-oem-
+            OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
+                  jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
+                  jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
+            SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
+            SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
+            SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
+            echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: Send Slack Message
+          id: slack
+          uses: slackapi/slack-github-action@v1.27.0
+          with:
+              channel-id: "${{ inputs.SlackChannel }}"
+              payload: |
+                { 
+                  "icon_emoji":"${{ inputs.Emoji }}",
+                  "text":"${{ inputs.Text }}",
+                  "blocks":[
+                    {
+                      "type": "section",
+                      "text": 
+                      {
+                        "type": "mrkdwn",
+                        "text": "${{ inputs.TextBody }}:"}
+                      },
+                      {
+                        "type": "section",
+                        "fields":[
+                            {
+                              "type": "mrkdwn",
+                              "text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"
+                            },
+                            {
+                              "type": "mrkdwn",
+                              "text": "*Job:*\n${{ steps.get-slack-token.outputs.jobid }}"
+                            },
+                            {
+                              "type": "mrkdwn",
+                              "text": "*Repo:*\n${{ github.repository }}"
+                            },
+                            {
+                              "type": "mrkdwn",
+                              "text": "*Target Host:*\n${{ env.TargetHost }}"
+                            },
+                            {
+                              "type": "mrkdwn",
+                              "text": "*Target Environment:*\n${{ env.TargetEnvironment }}"
+                            }
+                          ]
+                      }  
+                    ]
+                  }
+          env:
+            SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
