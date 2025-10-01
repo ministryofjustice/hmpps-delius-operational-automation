@@ -1,0 +1,96 @@
+name: Get Target Slack Channel
+description: Get Target Slack Channel from EM Properties
+
+inputs:
+    TargetHost:
+      description: "Host where this workflow is being run"
+      required: true
+    SourceCodeVersion:
+      description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+      default: "main"
+      required: false
+    SourceConfigVersion:
+      description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+      default: "main"
+      required: false
+
+outputs:
+    slack_channel:
+       description: "Slack Channel to Use for the Target Host"
+       value: ${{ steps.report_slack_channel.outputs.slack_channel }}
+
+runs:
+   using: composite
+   steps:
+
+      - name: Checkout Ansible Playbooks and Roles From hmpps-delius-operation-automation
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oracle_get_slack_channel
+            playbooks/ansible.cfg
+            common
+          path: operations
+          ref: ${{ inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/roles/secretsmanager-passwords
+            ansible/roles/get-modernisation-platform-facts
+          path: roles
+          ref: ${{ inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      # Repository variables like vars.AWS_ACCOUNT_ID are not available in composite actions,
+      # so make sure to pass these are environment variables instead.
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-get-target-slack-channel-${{ github.run_number }}"
+          role-duration-seconds: 21600
+          aws-region: "eu-west-2"
+
+      # ACT ONLY: Inside the job steps, before the "Configure AWS Credentials" step
+      # - name: Inject static AWS creds (for act)
+      #   run: |
+      #        echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"  >> "$GITHUB_ENV"
+      #        echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"  >> "$GITHUB_ENV"
+      #        echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"  >> "$GITHUB_ENV"
+
+      # We run an Ansible playbook to connect to EM and read the orcl_gtp_contact
+      # property for this database host target.   The output is spooled to a 
+      # temporary file which can then be grepped to get the required property.
+      - name: Get Target Slack Channel
+        shell: bash
+        run: |
+             export ANSIBLE_CONFIG=operations/playbooks/ansible.cfg
+             ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_get_slack_channel/roles
+             ansible-playbook operations/playbooks/oracle_get_slack_channel/playbook.yml \
+                -i inventory/ansible \
+                -e target_host=${{ inputs.TargetHost }} | tee /tmp/get_slack_channel.out
+
+      - name: Report Slack Channel
+        id: report_slack_channel
+        shell: bash
+        run: |
+             echo "slack_channel="$(grep SLACK_CHANNEL= /tmp/get_slack_channel.out  | sed 's/"//g' | cut -f2 -d=) >> $GITHUB_OUTPUT

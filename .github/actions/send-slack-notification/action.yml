@@ -1,0 +1,133 @@
+name: Send Slack Notification
+description: Used to Send Slack Messages from Workflows
+
+inputs:
+    Emoji:
+      description: "Emoji to Prefix Message"
+      required: false
+      default: ":github:"
+    TextHeader:
+      description: "Text Header for Slack (this is not displayed)"
+      required: true
+      default: "Slack Message"
+    TextBody:
+      description: "Text Body for Slack Message"
+      required: true
+    TargetEnvironment:
+      description: "Environment where this workflow is being run"
+      required: false
+    JobName:
+      description: "Job in Progress"
+      required: false
+    TargetHost:
+      description: "Host where this workflow is being run"
+      required: true
+    SourceCodeVersion:
+      description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+      default: "main"
+      required: false
+    SourceConfigVersion:
+      description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+      default: "main"
+      required: false
+
+runs:
+   using: composite
+   steps:
+
+      # Environment variables like AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY set by the action are not shared across jobs.
+      # Therefore we need to reconfigure the AWS Credentials and not use those from any previous job.
+      # Note that Repository variables like AWS_ACCOUNT_ID are also not available in a composite job,
+      # so we need to pass these as environment variables.
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-send_slack-notification-${{ github.run_number }}"
+          aws-region: "eu-west-2"
+
+      # ACT ONLY: Inside the job steps, before the "Configure AWS Credentials" step
+      # - name: Inject static AWS creds (for act)
+      #   run: |
+      #        echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"  >> "$GITHUB_ENV"
+      #        echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"  >> "$GITHUB_ENV"
+      #        echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"  >> "$GITHUB_ENV"
+
+      # The Slack Token is held in Secrets Manager for the respective hmpps-oem- account
+      - name: Get Slack Token
+        id: get-slack-token
+        shell: bash
+        run: |
+            ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+            # The OEM account associated with the current environment is always prefixed by hmpps-oem-
+            OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
+                  jq '.Parameter.Value' | tr -d '\\' | sed 's/^\"//' | sed 's/\"$//' | \
+                  jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
+            SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
+            SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --region eu-west-2 --output json)
+            SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
+            echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
+
+      # The Slack Channel to post to is defined by the EM Properties (orcl_gtp_contact) for
+      # the host target where the primary database is hosted.  We ignore any errors 
+      # getting this property and use a default channel instead.
+      - name: Get Target Slack Channel
+        id: get_target_slack_channel
+        continue-on-error: true
+        uses: ./.github/actions/get-target-slack-channel
+        env:
+           AWS_ACCOUNT_ID: "${{ env.AWS_ACCOUNT_ID }}"
+        with:
+           TargetHost: "${{ inputs.TargetHost }}"
+           SourceCodeVersion: "${{ inputs.SourceCodeVersion }}"
+           SourceConfigVersion: "${{ inputs.SourceConfigVersion }}"
+
+      # Send a Slack Message to the relevant channel.  Where it was not possible to get
+      # the appropriate channel from EM for the target, we default to #dba_probation_internal.
+      - name: Send Slack Message
+        id: slack
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+              channel-id: "${{ steps.get_target_slack_channel.outputs.slack_channel || '#dba_probation_internal' }}"
+              payload: |
+                { 
+                  "icon_emoji":"${{ inputs.Emoji }}",
+                  "text":"${{ inputs.TextHeader }}",
+                  "blocks":[
+                    {
+                      "type": "section",
+                      "text": 
+                      {
+                        "type": "mrkdwn",
+                        "text": "${{ inputs.TextBody }}:"}
+                      },
+                      {
+                        "type": "section",
+                        "fields":[
+                            {
+                              "type": "mrkdwn",
+                              "text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"
+                            },
+                            {
+                              "type": "mrkdwn",
+                              "text": "*Job:*\n${{ inputs.JobName }}"
+                            },
+                            {
+                              "type": "mrkdwn",
+                              "text": "*Repo:*\n${{ github.repository }}"
+                            },
+                            {
+                              "type": "mrkdwn",
+                              "text": "*Target Host:*\n${{ inputs.TargetHost }}"
+                            },
+                            {
+                              "type": "mrkdwn",
+                              "text": "*Target Environment:*\n${{ inputs.TargetEnvironment }}"
+                            }
+                          ]
+                      }  
+                    ]
+                  }
+        env:
+            SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
