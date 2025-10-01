@@ -43,7 +43,7 @@ runs:
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: "arn:aws:iam::$AWS_ACCOUNT_ID:role/modernisation-platform-oidc-cicd"
+          role-to-assume: "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-send_slack-notification-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
