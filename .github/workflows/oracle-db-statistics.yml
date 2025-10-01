@@ -77,9 +77,10 @@ env:
   ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/playbooks/oracle_statistics/oracle_statistics.yml
   inventory: inventory/ansible
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+  # Below for ACT testing only
+  # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  # AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
 
 
 permissions:
@@ -141,8 +142,8 @@ jobs:
           echo "Inputs="$(echo $Inputs | jq @json)
           Inputs=$(echo $Inputs | jq -r | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
-          
-          if [[ "${{ github.event.action }}" == "oracle-db-statistics-failure" ]]
+
+          if [[ "${{ github.event.event_type }}" == "oracle-db-statistics-failure" ]]
           then
               echo "Gathering of Delius statistics failed."
               exit 1
@@ -233,6 +234,8 @@ jobs:
         run: |
           TargetHost=environment_name_$(echo ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_delius_primarydb
           StatisticsIdentifier=${{ needs.oracle-pre-delius-statistics.outputs.StatisticsIdentifier }}
+          # If no Statistics Identifier has been specified as an input we generate one
+          # based on the timestamp
           if [[ -z $StatisticsIdentifier ]]
           then
             DATE=$(date +"%Y%m%dT%H%M%S")
@@ -367,10 +370,9 @@ jobs:
         id: foreground_slack_notification
         uses: ./.github/actions/send-slack-notification
         with:
-          SlackChannel: "#delius-aws-oracle-dev-alerts-test"
           Emoji: ":github-red:"
           TextHeader: "Statistics Job Failure"
-          TextBody: "Statistics job failed"
+          TextBody: ":cross-red: Statistics job failed"
           TargetHost: "${{ needs.oracle-pre-delius-statistics.outputs.TargetHost }}"
           TargetEnvironment: "${{ needs.oracle-pre-delius-statistics.outputs.TargetEnvironment }}"
           JobName: "${{ steps.determine_which_job_failed.outputs.failed_job }}"
@@ -396,10 +398,9 @@ jobs:
         id: background_success_slack_notification
         uses: ./.github/actions/send-slack-notification
         with:
-          SlackChannel: "#delius-aws-oracle-dev-alerts-test"
           Emoji: ":github-green:"
           TextHeader: "Statistics Job Success"
-          TextBody: "Statistics job completed successfully"
+          TextBody: ":github-tick: Statistics job completed successfully"
           TargetHost: "${{ needs.oracle-pre-delius-statistics.outputs.TargetHost }}"
           TargetEnvironment: "${{ needs.oracle-pre-delius-statistics.outputs.TargetEnvironment }}"
           JobName: "completed"

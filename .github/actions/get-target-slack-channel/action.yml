@@ -30,6 +30,7 @@ runs:
           sparse-checkout: |
             playbooks/oracle_get_slack_channel
             playbooks/ansible.cfg
+            common
           path: operations
           ref: ${{ inputs.SourceCodeVersion }}
           fetch-depth: 0
@@ -43,6 +44,18 @@ runs:
             ansible/hosts
             ansible/group_vars
           path: inventory
+          ref: ${{ inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/roles/secretsmanager-passwords
+            ansible/roles/get-modernisation-platform-facts
+          path: roles
           ref: ${{ inputs.SourceConfigVersion }}
           fetch-depth: 0
 
@@ -62,18 +75,20 @@ runs:
              echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"  >> "$GITHUB_ENV"
              echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"  >> "$GITHUB_ENV"
 
+      # We run an Ansible playbook to connect to EM and read the orcl_gtp_contact
+      # property for this database host target.   The output is spooled to a 
+      # temporary file which can then be grepped to get the required property.
       - name: Get Target Slack Channel
         shell: bash
         run: |
-             export ANSIBLE_CONFIG=operations/playbooks/ansible_config
+             export ANSIBLE_CONFIG=operations/playbooks/ansible.cfg
+             ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_get_slack_channel/roles
              ansible-playbook operations/playbooks/oracle_get_slack_channel/playbook.yml \
                 -i inventory/ansible \
                 -e target_host=${{ inputs.TargetHost }} | tee /tmp/get_slack_channel.out
 
-      # - name: Report Slack Channel
-      #   id: report_slack_channel
-      #   shell: bash
-      #   run: |
-      #        echo "slack_channel="$(grep SLACK_CHANNEL= /tmp/get_slack_channel.out  | sed 's/"//g' | cut -f2 -d=) >> $GITHUB_OUTPUT
-
-
+      - name: Report Slack Channel
+        id: report_slack_channel
+        shell: bash
+        run: |
+             echo "slack_channel="$(grep SLACK_CHANNEL= /tmp/get_slack_channel.out  | sed 's/"//g' | cut -f2 -d=) >> $GITHUB_OUTPUT

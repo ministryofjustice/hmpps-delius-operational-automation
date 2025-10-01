@@ -2,9 +2,6 @@ name: Send Slack Notification
 description: Used to Send Slack Messages from Workflows
 
 inputs:
-    SlackChannel:
-      description: "Slack Channel to Send Message"
-      required: true
     Emoji:
       description: "Emoji to Prefix Message"
       required: false
@@ -55,6 +52,7 @@ runs:
              echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"  >> "$GITHUB_ENV"
              echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"  >> "$GITHUB_ENV"
 
+      # The Slack Token is held in Secrets Manager for the respective hmpps-oem- account
       - name: Get Slack Token
         id: get-slack-token
         shell: bash
@@ -69,20 +67,25 @@ runs:
             SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
             echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
 
+      # The Slack Channel to post to is defined by the EM Properties (orcl_gtp_contact) for
+      # the host target where the primary database is hosted.  We ignore any errors 
+      # getting this property and use a default channel instead.
       - name: Get Target Slack Channel
         id: get_target_slack_channel
-        # continue-on-error: true
+        continue-on-error: true
         uses: ./.github/actions/get-target-slack-channel
         with:
            TargetHost: "${{ inputs.TargetHost }}"
            SourceCodeVersion: "${{ inputs.SourceCodeVersion }}"
            SourceConfigVersion: "${{ inputs.SourceConfigVersion }}"
 
+      # Send a Slack Message to the relevant channel.  Where it was not possible to get
+      # the appropriate channel from EM for the target, we default to #dba_probation_internal.
       - name: Send Slack Message
         id: slack
         uses: slackapi/slack-github-action@v1.27.0
         with:
-              channel-id: "${{ inputs.SlackChannel }}"
+              channel-id: "${{ steps.get_target_slack_channel.outputs.slack_channel || '#dba_probation_internal' }}"
               payload: |
                 { 
                   "icon_emoji":"${{ inputs.Emoji }}",
