@@ -21,7 +21,7 @@ inputs:
       required: false
     TargetHost:
       description: "Host where this workflow is being run"
-      required: false
+      required: true
     SourceCodeVersion:
       description: "Source version for the hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
       default: "main"
