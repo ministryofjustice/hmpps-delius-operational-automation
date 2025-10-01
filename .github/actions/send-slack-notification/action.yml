@@ -77,7 +77,7 @@ runs:
         continue-on-error: true
         uses: ./.github/actions/get-target-slack-channel
         env:
-           AWS_ACCOUNT_ID: "$AWS_ACCOUNT_ID"
+           AWS_ACCOUNT_ID: "${{ env.AWS_ACCOUNT_ID }}"
         with:
            TargetHost: "${{ inputs.TargetHost }}"
            SourceCodeVersion: "${{ inputs.SourceCodeVersion }}"
