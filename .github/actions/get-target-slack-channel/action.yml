@@ -59,6 +59,8 @@ runs:
           ref: ${{ inputs.SourceConfigVersion }}
           fetch-depth: 0
 
+      # Repository variables like vars.AWS_ACCOUNT_ID are not available in composite actions,
+      # so make sure to pass these are environment variables instead.
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@v4
