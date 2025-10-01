@@ -77,6 +77,10 @@ env:
   ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/playbooks/oracle_statistics/oracle_statistics.yml
   inventory: inventory/ansible
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+
 
 permissions:
   contents: read
@@ -122,15 +126,10 @@ jobs:
           elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]
           then
             echo "${{ github.event.client_payload }}"
-            if [ "${{ github.event.action }}" = "oracle-db-statistics-failure" ]
-            then
-              echo "Gathering of Delius statistics failed."
-              exit 1
-            fi
             Inputs='${{ toJson(github.event.client_payload) }}'
           fi
 
-          echo "TargetHost=$TargetHost" >> $GITHUB_OUTPUT
+          echo "TargetHost=$(echo $Inputs | jq -r '.TargetHost')"  >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')" >> $GITHUB_OUTPUT
           echo "ImportSourceEnvironment=$(echo $Inputs | jq -r '.ImportSourceEnvironment')" >> $GITHUB_OUTPUT
           echo "StatisticsIdentifier=$(echo $Inputs | jq -r '.StatisticsIdentifier')" >> $GITHUB_OUTPUT
@@ -142,6 +141,12 @@ jobs:
           echo "Inputs="$(echo $Inputs | jq @json)
           Inputs=$(echo $Inputs | jq -r | jq @json)
           echo "Inputs="$(echo $Inputs | jq @json) >> $GITHUB_OUTPUT
+          
+          if [[ "${{ github.event.action }}" == "oracle-db-statistics-failure" ]]
+          then
+              echo "Gathering of Delius statistics failed."
+              exit 1
+          fi
 
   oracle-gather-delius-statistics:
     if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.GatherNewStatistics == 'yes' || github.event.inputs.ExportBackupStatisticsToS3 == 'yes') }}
@@ -204,7 +209,7 @@ jobs:
           ${{ github.event.inputs.VerboseOutput }}
 
   oracle-export-remote-delius-statistics:
-    if: ${{ always() && needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment != 'None' && needs.oracle-gather-delius-statistics.result == 'skipped' }}
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment != 'None' && needs.oracle-gather-delius-statistics.result == 'skipped' }}
     needs: [oracle-pre-delius-statistics,oracle-gather-delius-statistics]
     environment: ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -220,7 +225,7 @@ jobs:
       SourceConfigVersion: ${{ needs.oracle-pre-delius-statistics.outputs.SourceConfigVersion }}
       Verbose: ${{ needs.oracle-pre-delius-statistics.outputs.Verbose }}
       JobId: ${{ github.job }}
-      RemoteStatisticsIdentifier: ${{ steps.preparation.outputs.RemoteStatisticsIdentifier }}
+      RemoteStatisticsIdentifier: ${{ github.event.inputs.StatisticsIdentifier }}
     steps:
       - name: Prepare Remote Target Name And Remote Statistics Identifier
         id: preparation
@@ -344,40 +349,60 @@ jobs:
     needs: [oracle-pre-delius-statistics,oracle-gather-delius-statistics,oracle-export-remote-delius-statistics,oracle-import-delius-statistics]
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     steps:
-       
+
+      - name: Checkout Local Repo to get Composite Action
+        uses: actions/checkout@v5
+
+      - name: Determine Which Job Failed
+        id: determine_which_job_failed
+        shell: bash
+        run: |
+             [ "${{ needs.oracle-pre-delius-statistics.result }}" == "failure" ] && echo "failed_job=oracle-pre-delius-statistics" >> "$GITHUB_OUTPUT"
+             [ "${{ needs.oracle-gather-delius-statistics.result }}" == "failure" ] && echo "failed_job=oracle-gather-delius-statistics" >> "$GITHUB_OUTPUT"
+             [ "${{ needs.oracle-export-remote-delius-statistics.result }}" == "failure" ] && echo "failed_job=oracle-export-remote-delius-statistics" >> "$GITHUB_OUTPUT"
+             [ "${{ needs.oracle-import-delius-statistics.result }}" == "failure" ] && echo "failed_job=oracle-import-delius-statistics" >> "$GITHUB_OUTPUT"
+             exit 0
+
       - name: Send Slack Failure Notification
         id: foreground_slack_notification
-        uses: ./.github/actions/send_slack_notification
+        uses: ./.github/actions/send-slack-notification
         with:
           SlackChannel: "#delius-aws-oracle-dev-alerts-test"
           Emoji: ":github-red:"
           TextHeader: "Statistics Job Failure"
-          TextBody: "Statistics job failed during foreground run. "
-
+          TextBody: "Statistics job failed"
+          TargetHost: "${{ needs.oracle-pre-delius-statistics.outputs.TargetHost }}"
+          TargetEnvironment: "${{ needs.oracle-pre-delius-statistics.outputs.TargetEnvironment }}"
+          JobName: "${{ steps.determine_which_job_failed.outputs.failed_job }}"
+          SourceCodeVersion: ${{ needs.oracle-pre-delius-statistics.outputs.SourceCodeVersion }}
+          SourceConfigVersion: ${{ needs.oracle-pre-delius-statistics.outputs.SourceConfigVersion }}
+ 
   completion-slack:
     if: github.event_name == 'repository_dispatch'
+    needs: [oracle-pre-delius-statistics]
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     steps:
-       
-      - name: Send Slack Failure Notification
-        if: github.event.action == 'oracle-db-statistics-failure'
-        id: background_failure_slack_notification
-        uses: ./.github/actions/send_slack_notification
-        with:
-          SlackChannel: "#delius-aws-oracle-dev-alerts-test"
-          Emoji: ":github-red:"
-          TextHeader: "Statistics Job Failure"
-          TextBody: "Statistics job failed during background run. "
 
-      - name: Send Slack Success Notification
-        if: github.event.action == 'oracle-db-statistics-success'
+      - name: Checkout Local Repo to get Composite Action
+        uses: actions/checkout@v5
+       
+      # If there was a failure during the background run this would have
+      # been trapped already by the oracle-pre-delius-statistics job, so
+      # we only need to handle the successful completion case here.
+      - name: Send Slack Completion Success Notification
         id: background_success_slack_notification
-        uses: ./.github/actions/send_slack_notification
+        uses: ./.github/actions/send-slack-notification
         with:
           SlackChannel: "#delius-aws-oracle-dev-alerts-test"
           Emoji: ":github-green:"
           TextHeader: "Statistics Job Success"
-          TextBody: "Statistics job completed successfully. "
+          TextBody: "Statistics job completed successfully"
+          TargetHost: "${{ needs.oracle-pre-delius-statistics.outputs.TargetHost }}"
+          TargetEnvironment: "${{ needs.oracle-pre-delius-statistics.outputs.TargetEnvironment }}"
+          JobName: "completed"
+          SourceCodeVersion: ${{ needs.oracle-pre-delius-statistics.outputs.SourceCodeVersion }}
+          SourceConfigVersion: ${{ needs.oracle-pre-delius-statistics.outputs.SourceConfigVersion }}
+ 
