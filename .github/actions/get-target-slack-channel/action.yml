@@ -59,21 +59,21 @@ runs:
           ref: ${{ inputs.SourceConfigVersion }}
           fetch-depth: 0
 
-      # - name: Configure AWS Credentials
-      #   id: login-aws
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-      #     role-session-name: "hmpps-delius-operational-automation-get-target-slack-channel-${{ github.run_number }}"
-      #     role-duration-seconds: 21600
-      #     aws-region: "eu-west-2"
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-get-target-slack-channel-${{ github.run_number }}"
+          role-duration-seconds: 21600
+          aws-region: "eu-west-2"
 
-      # ACT Inside the job steps, before the "Configure AWS Credentials" step
-      - name: Inject static AWS creds (for act)
-        run: |
-             echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"  >> "$GITHUB_ENV"
-             echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"  >> "$GITHUB_ENV"
-             echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"  >> "$GITHUB_ENV"
+      # ACT ONLY: Inside the job steps, before the "Configure AWS Credentials" step
+      # - name: Inject static AWS creds (for act)
+      #   run: |
+      #        echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"  >> "$GITHUB_ENV"
+      #        echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"  >> "$GITHUB_ENV"
+      #        echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"  >> "$GITHUB_ENV"
 
       # We run an Ansible playbook to connect to EM and read the orcl_gtp_contact
       # property for this database host target.   The output is spooled to a 
