@@ -13,17 +13,17 @@
 
 - name: Get Slack Channel for the Host Target
   shell: |
-          . ~/.bash_profile
-          export JAVA_HOME=$ORACLE_HOME/jdk/jre
-          {{ emcli }} list -resource="TargetProperties" -search="TARGET_NAME='{{ agent_host }}'" -column="PROPERTY_NAME,PROPERTY_VALUE" -script | grep orcl_gtp_contact          
+    . ~/.bash_profile
+    export JAVA_HOME=$ORACLE_HOME/jdk/jre
+    {{ emcli }} list -resource="TargetProperties" -search="TARGET_NAME='{{ agent_host }}'" -column="PROPERTY_NAME,PROPERTY_VALUE" -script | grep orcl_gtp_contact
   register: get_slack_channel
   changed_when: false
 
 - name: Set Slack Channel for the Host Target
   set_fact:
-     slack_channel: "{{ get_slack_channel.stdout.split()[1] }}"
+    slack_channel: "{{ get_slack_channel.stdout.split()[1] }}"
 
 # Default Unknown Channel to the Common Internal Channel
 - name: Report Slack Channel
   debug:
-     msg: "SLACK_CHANNEL={{ slack_channel | default('#dba_probation_internal') }}"
+    msg: "SLACK_CHANNEL={{ slack_channel | default('#dba_probation_internal') }}"

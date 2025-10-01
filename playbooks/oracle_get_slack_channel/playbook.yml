@@ -4,4 +4,3 @@
   become_user: oracle
   roles:
     - oracle_get_slack_channel
-
