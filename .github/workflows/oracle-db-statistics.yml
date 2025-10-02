@@ -350,7 +350,7 @@ jobs:
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     needs: [oracle-pre-delius-statistics,oracle-gather-delius-statistics,oracle-export-remote-delius-statistics,oracle-import-delius-statistics]
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+    environment: ${{ needs.oracle-pre-delius-statistics.outputs.TargetEnvironment }}-preapproved
     steps:
 
       - name: Checkout Local Repo to get Composite Action
@@ -387,7 +387,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+    environment: ${{ needs.oracle-pre-delius-statistics.outputs.TargetEnvironment }}-preapproved
     steps:
 
       - name: Checkout Local Repo to get Composite Action
