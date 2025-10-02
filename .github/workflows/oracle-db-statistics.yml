@@ -393,10 +393,6 @@ jobs:
       - name: Checkout Local Repo to get Composite Action
         uses: actions/checkout@v5
        
-      - name: Debug
-        run: |
-             echo "AWS_ACCOUNT_ID=${{ vars.AWS_ACCOUNT_ID }}"
-
       # If there was a failure during the background run this would have
       # been trapped already by the oracle-pre-delius-statistics job, so
       # we only need to handle the successful completion case here.
