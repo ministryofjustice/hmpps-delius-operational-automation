@@ -83,11 +83,18 @@ runs:
       - name: Get Target Slack Channel
         shell: bash
         run: |
-             export ANSIBLE_CONFIG=operations/playbooks/ansible.cfg
-             ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_get_slack_channel/roles
-             ansible-playbook operations/playbooks/oracle_get_slack_channel/playbook.yml \
-                -i inventory/ansible \
-                -e target_host=${{ inputs.TargetHost }} | tee /tmp/get_slack_channel.out
+             if [ -z ${{ inputs.TargetHost }} ]
+             then
+                # If this alert is not for a specific host then we cannot 
+                # determine which Slack channel to use; so default it instead
+                touch /tmp/get_slack_channel.out
+             else
+                export ANSIBLE_CONFIG=operations/playbooks/ansible.cfg
+                ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_get_slack_channel/roles
+                ansible-playbook operations/playbooks/oracle_get_slack_channel/playbook.yml \
+                    -i inventory/ansible \
+                    -e target_host=${{ inputs.TargetHost }} | tee /tmp/get_slack_channel.out
+              fi
 
       - name: Report Slack Channel
         id: report_slack_channel
