@@ -65,7 +65,15 @@ done
 INSTANCEID=$(wget -q -O - --tries=1 --timeout=20 http://169.254.169.254/latest/meta-data/instance-id)
 ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
 DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME%-*}-${DELIUS_ENVIRONMENT}-oracle-db-dba-passwords --query SecretString --output text| jq -r .sys)
+APPLICATION_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=database" --query "Tags[].Value" --output text | cut -d_ -f1)
+if [[ "${APPLICATION_NAME}" == "delius" ]]
+then 
+   # There is only one set of DBA secrets for Delius, whereas MIS has one per application name (MIS, BOE, DSD)
+   APPLICATION_SECRET_PATH="oracle-db"
+else
+   APPLICATION_SECRET_PATH="oracle-${APPLICATION_NAME}-db"
+fi
+SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME%-*}-${DELIUS_ENVIRONMENT}-${APPLICATION_SECRET_PATH}-dba-passwords --query SecretString --output text| jq -r .sys)
 
 if [[ -f ${DB_ORACLE_HOME}/dbs/snapcf_${ORACLE_SID}.f ]];
 then
