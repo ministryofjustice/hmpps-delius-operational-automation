@@ -19,25 +19,25 @@ export ORACLE_SID=${DB_SID}
 
 if [[ $( ls -l /proc/*/exe 2>/dev/null | awk -F\-\> '{print $2}' | xargs dirname | grep -c "^${DEINSTALL_HOME}[/].*") -gt 0 ]];
 then
-   echo "Active processes found using ${DEINSTALL_HOME}."
+   echo "[ERROR] Active processes found using ${DEINSTALL_HOME}."
    exit 1
 fi
 
 if [[ $(grep -c "[^#].*${DEINSTALL_HOME}:.*" /etc/oratab) -gt 0 ]];
 then
-   echo "References to ${DEINSTALL_HOME} found in /etc/oratab."
+   echo "[ERROR] References to ${DEINSTALL_HOME} found in /etc/oratab."
    exit 1
 fi
 
 if [[ $(grep "^ORA_CRS_HOME" /etc/init.d/init.ohasd | awk -F= '{print $2}') == "${DEINSTALL_HOME}" ]];
 then
-   echo "${DEINSTALL_HOME} used in /etc/init.d/init.ohasd."
+   echo "[ERROR] ${DEINSTALL_HOME} used in /etc/init.d/init.ohasd."
    exit 1
 fi
 
 if [[ $(. ~oracle/.bash_profile; srvctl config database | xargs -I {} srvctl config database -d {} | grep "Oracle home:" | cut -d: -f2 | sed 's/^ //') == "${DEINSTALL_HOME}" ]];
 then
-   echo "Oracle database server configuration contains ${DEINSTALL_HOME}."
+   echo "[ERROR] Oracle database server configuration contains ${DEINSTALL_HOME}."
    exit 1
 fi
 
@@ -47,14 +47,14 @@ IFS=$'\n'
 # not relevant.   This file is reset (to exclude these variables) by restarting ASM but this is not convenient in higher environments.
 for x in $(ls -1 ${GI_ORACLE_HOME}/dbs/* | grep -v ab_+ASM.dat | xargs grep "${DEINSTALL_HOME}" 2>/dev/null);
 do
-   echo "$x ${DEINSTALL_HOME}"
+   echo "[ERROR] Obsolete file reference in $x ${DEINSTALL_HOME}"
    exit 1
 done
 
 # Check if the ASM mapping file contains any references to the old home other than the known obsolete environment settings
 for x in $(strings ${GI_ORACLE_HOME}/dbs/ab_+ASM.dat | grep "${DEINSTALL_HOME}" | grep -v ^oracleHome= | grep -v ^OPATCHAUTO_PERL_PATH= | grep -v ^HOME= | grep -v ^CLASSPATH=)
 do
-   echo "ab_+ASM.dat $x"
+   echo "[ERROR] ASM Mapping File ab_+ASM.dat $x"
    exit 1
 done
 
@@ -65,7 +65,15 @@ done
 INSTANCEID=$(wget -q -O - --tries=1 --timeout=20 http://169.254.169.254/latest/meta-data/instance-id)
 ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
 DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
-SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME%-*}-${DELIUS_ENVIRONMENT}-oracle-db-dba-passwords --query SecretString --output text| jq -r .sys)
+APPLICATION_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=database" --query "Tags[].Value" --output text | cut -d_ -f1)
+if [[ "${APPLICATION_NAME}" == "delius" ]]
+then 
+   # There is only one set of DBA secrets for Delius, whereas MIS has one per application name (MIS, BOE, DSD)
+   APPLICATION_SECRET_PATH="oracle-db"
+else
+   APPLICATION_SECRET_PATH="oracle-${APPLICATION_NAME}-db"
+fi
+SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME%-*}-${DELIUS_ENVIRONMENT}-${APPLICATION_SECRET_PATH}-dba-passwords --query SecretString --output text| jq -r .sys)
 
 if [[ -f ${DB_ORACLE_HOME}/dbs/snapcf_${ORACLE_SID}.f ]];
 then
@@ -100,13 +108,13 @@ exit;
 EORMAN
 if [[ $? -eq 0 ]];
 then  
-   echo "RMAN default channel contains ${DEINSTALL_HOME}"
+   echo "[ERROR] RMAN default channel contains ${DEINSTALL_HOME}"
    exit 1
 fi
 
 for x in $(grep -r "${DEINSTALL_HOME}" ${DB_ORACLE_HOME}/dbs/* 2>/dev/null);
 do
-   echo "$x ${DEINSTALL_HOME}"
+   echo "[ERROR] Obsolete file reference in $x ${DEINSTALL_HOME}"
    exit 1
 done
 
