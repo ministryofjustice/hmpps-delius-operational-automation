@@ -470,7 +470,7 @@
 
 - name: User passwords output
   debug:
-    msg: "{{ item.stdout }}"
+    msg: "{{ item.stdout | default('') }}"
   loop: "{{ plsql.results }}"
   loop_control:
     label: "{{ item.item.key }}"
