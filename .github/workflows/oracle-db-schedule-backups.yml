@@ -11,6 +11,10 @@ on:
     - cron: '0 6 * * 3'         # 7am BST Runs (Wed)
     - cron: '30 6 * * 3'        # 6:30am GMT Runs (Wed)
     - cron: '30 5 * * 3'        # 6:30am BST runs (Wed)
+    - cron: '0 2 * * 0'         # 2am GMT Runs (Sun)
+    - cron: '0 1 * * 0'         # 2am BST Runs (Sun)
+    - cron: '0 3 * * 1-6'       # 3am GMT Runs (Mon-Sat)
+    - cron: '0 2 * * 1-6'       # 3am BST Runs (Mon-Sat)
 
 jobs:
 
