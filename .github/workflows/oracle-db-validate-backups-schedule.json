@@ -28,5 +28,11 @@
         "TargetHost":"dsd_primarydb",
         "CronSchedule":"20 15 * * THU",
         "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
+    },
+    {
+        "TargetEnvironment":"delius-core-stage",
+        "TargetHost":"delius_primarydb",
+        "CronSchedule":"00 18 * * SAT",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
     }
 ]

@@ -10,6 +10,9 @@ on:
     - cron: '20 15 * * THU'     # 3pm GMT Runs (Thu)
     - cron: '00 18 * * TUE'     # 6pm GMT Runs (Tue)
     - cron: '00 17 * * TUE'     # 6pm BST Runs (Tue)
+    - cron: '00 18 * * SAT'     # 6pm BST Runs (Sat)
+    - cron: '00 17 * * SAT'     # 6pm BST Runs (Sat)
+
 jobs:
   prepare-run-matrix:
     runs-on: ubuntu-latest
