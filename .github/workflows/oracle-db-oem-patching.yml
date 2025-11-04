@@ -299,7 +299,7 @@ jobs:
       - name: Start OEM Agent Update
         run: |
           export ANSIBLE_CONFIG=$ansible_config
-          if [[ "${{ github.event.inputs.CreateGoldImage }}" == "yes" ]]
+          if [ "${{ github.event.inputs.CreateGoldImage }}" == "yes" ]
           then
              # Only build a new Gold Image if requested
              GOLD_IMAGE_TAG="--tags oem_agent_gold_image"
