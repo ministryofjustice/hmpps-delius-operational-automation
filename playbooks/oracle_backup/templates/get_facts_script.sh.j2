@@ -15,6 +15,7 @@ if [[ ! -z "${EMCLI_COMMANDS}" ]]
 then
   SYSMAN_PASSWORD=$(aws secretsmanager get-secret-value --secret-id "${OEM_SECRET_ARN}" --query SecretString --output text | jq -r .sysman)
   export PATH=$PATH:/u01/app/oracle/product/oem-agent/agent_{{ OEM_AGENT_VERSION }}/oracle_common/jdk/jre/bin
+  export JAVA_HOME=$ORACLE_HOME/jdk/jre
   {{ emcli }} sync 1>/dev/null 2>&1 || ( {{ emcli }} login -username=sysman -password=${SYSMAN_PASSWORD} -force && {{ emcli }} sync ) 1>/dev/null 2>&1
   eval ${EMCLI_COMMANDS}
 elif [[ "${STEP}" == "CONNECT_CATALOG" ]]
