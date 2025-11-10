@@ -292,6 +292,7 @@ jobs:
 
   oracle-import-delius-statistics:
     needs: [oracle-export-remote-delius-statistics]
+    if: ${{ always() && needs.oracle-export-remote-delius-statistics.result == 'success' }}
     environment: ${{ needs.oracle-export-remote-delius-statistics.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
