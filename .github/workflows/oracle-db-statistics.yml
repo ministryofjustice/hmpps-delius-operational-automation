@@ -226,7 +226,7 @@ jobs:
       SourceConfigVersion: ${{ needs.oracle-pre-delius-statistics.outputs.SourceConfigVersion }}
       Verbose: ${{ needs.oracle-pre-delius-statistics.outputs.Verbose }}
       JobId: ${{ github.job }}
-      RemoteStatisticsIdentifier: ${{ github.event.inputs.StatisticsIdentifier }}
+      RemoteStatisticsIdentifier: $${{ steps.preparation.outputs.RemoteStatisticsIdentifier }}
     steps:
       - name: Prepare Remote Target Name And Remote Statistics Identifier
         id: preparation
@@ -239,7 +239,7 @@ jobs:
           if [[ -z $StatisticsIdentifier ]]
           then
             DATE=$(date +"%Y%m%dT%H%M%S")
-            ENV=$(echo ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }} | awk -F- '{printf("%s_%s",$1,$NF)}')
+            ENV=$(echo ${{ needs.oracle-pre-delius-statistics.outputs.ImportSourceEnvironment }} | sed 's/-/_/g')
             RemoteStatisticsIdentifier="${ENV^^}_${DATE}"
           else
             RemoteStatisticsIdentifier="$StatisticsIdentifier"
