@@ -23,27 +23,10 @@
         "TargetEnvironment":"delius-core-test",
         "TargetHost":"delius_primarydb",
         "CronSchedule":"10 11 * * THU"
-    }
-    /*
+    },
     {
         "TargetEnvironment":"delius-core-stage",
         "TargetHost":"delius_primarydb",
-        "CronSchedule":"10 11 * * MON"
-    },
-    {
-        "TargetEnvironment":"delius-mis-stage",
-        "TargetHost":"mis_primarydb",
-        "CronSchedule":"10 11 * * MON"
-    },
-    {
-        "TargetEnvironment":"delius-mis-stage",
-        "TargetHost":"boe_primarydb",
-        "CronSchedule":"10 11 * * MON"
-    },
-    {
-        "TargetEnvironment":"delius-mis-stage",
-        "TargetHost":"dsd_primarydb",
-        "CronSchedule":"10 11 * * MON"
+        "CronSchedule":"10 11 * * TUE"
     }
-    */
 ]
