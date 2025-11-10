@@ -226,7 +226,7 @@ jobs:
       SourceConfigVersion: ${{ needs.oracle-pre-delius-statistics.outputs.SourceConfigVersion }}
       Verbose: ${{ needs.oracle-pre-delius-statistics.outputs.Verbose }}
       JobId: ${{ github.job }}
-      RemoteStatisticsIdentifier: $${{ steps.preparation.outputs.RemoteStatisticsIdentifier }}
+      RemoteStatisticsIdentifier: ${{ steps.preparation.outputs.RemoteStatisticsIdentifier }}
     steps:
       - name: Prepare Remote Target Name And Remote Statistics Identifier
         id: preparation
