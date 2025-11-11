@@ -46,6 +46,7 @@ usage () {
   echo "                                              [ -s <SSM Parameter Path where Runtime details are written>]"
   echo "                                              [ -r <GitHub repository for sending repository dispatch events back to the calling workflow>] "
   echo "                                              [ -j <JSON formatted string of inputs to the Github backup workflow>] "
+  echo "                                              [ -C <RMAN backup channel cap>]"
   echo ""
   echo "where"
   echo ""
@@ -81,6 +82,8 @@ usage () {
   echo ""
   echo "  The SSM parameter path optionally specified with -s is used to identify the path for storing the phase, "
   echo "     status, and status messages for a backup held in a JSON string at this location."
+  echo ""  
+  echo "  RMAN backup channel cap = maximum channels to use (if unspecified dafaults to number of CPUs)"
 
   exit $ERROR_STATUS
 }
@@ -270,7 +273,7 @@ validate () {
                                 *) error "Please secify correct incremental level"
                             esac
                           fi ;;
-                      * ) usage ;;
+                      * ) error "${BACKUP_TYPE} is not a valid backup type (must be HOLD or COLD)" ;;
              esac
              info "Backup type ok"
              ;;
@@ -308,7 +311,8 @@ validate () {
               MINS=$( echo $MINIMIZE_LOAD | cut -d: -f2 )
               if [[ $MINS =~ ^[0-9][0-9]$ && $MINS -ge 0 && $MINS -lt 60 ]]; 
               then
-                 if [[ $HOURS =~ ^[0-9]+$ && $HOURS -ge 0 && $HOURS -lt 100 ]]; 
+                 # Force base 10 for hours check (since leading 0 is otherwise treated as Octal)
+                 if [[ $HOURS =~ ^[0-9]+$ && $(10#$HOURS) -ge 0 && $(10#$HOURS) -lt 100 ]]; 
                  then   
                     info "Load duration ok at $HOURS hours and $MINS minutes"
                  else
@@ -554,7 +558,22 @@ EOF
   else
     TYPE="disk;"
   fi
-  for (( i=1; i<=${CPU_COUNT}; i++ ))
+
+  # Cap the number of backup channels to use if specified, otherwise
+  # use the number of CPUs.
+  if [ "$TOTAL_CHANNEL_CAP" == "UNCAPPED" ]
+  then
+     MAX_CHANNELS=$CPU_COUNT
+  else
+     if [ $TOTAL_CHANNEL_CAP -lt $CPU_COUNT ]
+     then 
+        MAX_CHANNELS=$TOTAL_CHANNEL_CAP
+     else
+        MAX_CHANNELS=$CPU_COUNT
+     fi
+  fi
+
+  for (( i=1; i<=${MAX_CHANNELS}; i++ ))
   do
     echo -e "  allocate channel c${i} device type $TYPE" 						>> $RMANCMDFILE
   done
@@ -643,7 +662,7 @@ EOF
         echo " backup archivelog all not backed up 1 times  $AL_TAG_FORMAT;"                    		          >>$RMANCMDFILE
     fi
   fi
-  for (( i=1; i<=${CPU_COUNT}; i++ ))
+  for (( i=1; i<=${MAX_CHANNELS}; i++ ))
   do
     echo "  release channel c${i};"                                                   			  >> $RMANCMDFILE
   done
@@ -726,7 +745,7 @@ MINIMIZE_LOAD=UNSPECIFIED
 TRACE_FILE=N
 ARCHIVELOGS=UNSPECIFIED
 DATAFILES=UNSPECIFIED
-while getopts "d:t:b:f:i:n:m:u:c:e:a:A:l:g:p:s:r:j:" opt
+while getopts "d:t:b:f:i:n:m:u:c:e:a:A:l:g:p:s:r:j:C:" opt
 do
   case $opt in
     d) TARGET_DB_SID=$OPTARG ;;
@@ -750,10 +769,12 @@ do
     s) SSM_PARAMETER=$OPTARG ;;
     r) REPOSITORY_DISPATCH=$OPTARG ;;
     j) JSON_INPUTS=$OPTARG ;;
+    C) TOTAL_CHANNEL_CAP=$OPTARG ;;
     *) usage ;;
   esac
 done
 [ -z $TARGET_DB_NAME ] && TARGET_DB_NAME=$TARGET_DB_SID
+[ -z $TOTAL_CHANNEL_CAP ] && TOTAL_CHANNEL_CAP="UNCAPPED"
 info "Target SID          = $TARGET_DB_SID"
 info "Target Name         = $TARGET_DB_NAME"
 info "Backup type         = $BACKUP_TYPE"

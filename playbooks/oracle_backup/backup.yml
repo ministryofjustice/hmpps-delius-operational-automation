@@ -184,7 +184,7 @@
 
         - name: Create RMAN Command
           set_fact:
-            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ ssm_parameter_path | default() }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }} {{ repository_dispatch_flag|default() }}"
+            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ ssm_parameter_path | default() }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }} {{ ('-C '+(rman_channel_cap|string)) if rman_channel_cap is defined else '' }} {{ repository_dispatch_flag|default() }}"
 
         - name: Show RMAN Command
           debug:
