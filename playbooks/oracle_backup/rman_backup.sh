@@ -83,7 +83,7 @@ usage () {
   echo "  The SSM parameter path optionally specified with -s is used to identify the path for storing the phase, "
   echo "     status, and status messages for a backup held in a JSON string at this location."
   echo ""  
-  echo "  RMAN backup channel cap = maximum channels to use (if unspecified dafaults to number of CPUs)"
+  echo "  RMAN backup channel cap = maximum channels to use (if unspecified defaults to number of CPUs)"
 
   exit $ERROR_STATUS
 }
@@ -270,7 +270,7 @@ validate () {
                           then
                             case $LEVEL in
                               0|1) ;;
-                                *) error "Please secify correct incremental level"
+                                *) error "Please specify correct incremental level"
                             esac
                           fi ;;
                       * ) error "${BACKUP_TYPE} is not a valid backup type (must be HOLD or COLD)" ;;
