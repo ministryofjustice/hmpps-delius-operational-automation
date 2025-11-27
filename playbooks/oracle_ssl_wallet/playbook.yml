@@ -1,9 +1,0 @@
----
-- hosts: "{{ target_hosts }}"
-  gather_facts: no
-  become: true
-  become_user: oracle
-
-  tasks:
-    - include_role:
-        name: oracle_ssl_wallet
