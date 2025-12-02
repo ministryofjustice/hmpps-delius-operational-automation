@@ -1,0 +1,37 @@
+# This profile is only relevant to Delius databases and should not be created elsewhere
+# It is for the DELIUS_AUDIT_DMS_POOL user when AWS DMS uses to connect to run the
+# AUDITED_INTERACTION replication tasks.
+- block:
+    - name: Check if AUDIT_REPLICATION Profile Exists
+      script: get_database_profile.sh
+      register: get_database_profile
+      changed_when: false
+      environment:
+        PROFILE_NAME: "AUDIT_REPLICATION_PROFILE"
+
+    # Check Which Profile DELIUS_AUDIT_DMS_POOL is Using
+    - name: Check Current Audit Replication Profile
+      script: get_current_profile.sh
+      register: get_current_profile
+      changed_when: false
+      environment:
+        PROFILE_USER: "DELIUS_AUDIT_DMS_POOL"
+
+    - name: Create AUDIT_REPLICATION_PROFILE Profile
+      script: create_database_profile.sh
+      register: out
+      when: get_database_profile.stdout_lines[-1] != 'AUDIT_REPLICATION_PROFILE'
+      environment:
+          PROFILE_NAME: "AUDIT_REPLICATION_PROFILE"
+
+    - name: Customize AUDIT_REPLICATION_PROFILE Profile
+      script: alter_database_profile.sh
+      environment:
+          PROFILE_NAME: "AUDIT_REPLICATION_PROFILE"
+
+    - name: Set AUDIT_REPLICATION_PROFILE Profile
+      script: set_database_profile.sh
+      when: get_current_profile.stdout_lines[-1] != 'AUDIT_REPLICATION_PROFILE'
+      environment:
+        PROFILE_USER: "DELIUS_AUDIT_DMS_POOL"
+        PROFILE_NAME: "AUDIT_REPLICATION_PROFILE"

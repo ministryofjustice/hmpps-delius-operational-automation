@@ -1,0 +1,73 @@
+# Set passwords for the Audited Interaction DMS Endpoints
+
+# Include role inside a block so that it may be delegated
+- name: Stop Audited Interaction Replication
+  when:
+    - rotate_groups | regex_search('delius_dbs')
+    - database_primary_sid is defined
+  delegate_to: localhost
+  become: no
+  run_once: true
+  block:
+    - include_role:
+        name: oracle_audit_replication_management
+      vars:
+        replication_action: stop
+        target_hosts: "{{ rotate_groups | replace('dbs','primarydb') }}"
+
+- name: Get a List of Endpoints for Password update
+  shell: |
+        aws dms describe-endpoints --region eu-west-2 \
+        --query "Endpoints[?EngineName=='oracle' && starts_with(DatabaseName,'{{ database_primary_sid }}') && (contains(EndpointIdentifier,'audit-data') || contains(EndpointIdentifier,'user-data')) ].EndpointArn" \
+        --output json | jq -r | jq -r '.[]'
+  delegate_to: localhost
+  become: no
+  changed_when: false
+  register: describe_endpoints
+  when: database_primary_sid is defined
+
+# Unlike the database account, the DELIUS_AUDIT_DMS_POOL password must be changed
+# individually on each host in the database system (do not restrict to primary)
+# This account will only exist in the primary database and any ADG standby in the system
+- name: Update DELIUS_AUDIT_DMS_POOL password in ASM to match database
+  script: set_asm_password.sh
+  environment:
+    SECRET_NAME: "{{ secret_name }}"
+    ASM_USERNAME: "delius_audit_dms_pool"
+  when: (database_primary_sid is defined) or (active_data_guard | default(false))
+
+# We use the same password for the database and ASM instance
+- name: Loop through the Endpoints and Update the Database and ASM Passwords
+  shell: |
+       aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
+         --password {{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }} \
+         --region {{ region }}
+       aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
+         --oracle-settings '{"AsmPassword":"{{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }}"}' \
+         --no-exact-settings \
+         --region {{ region }}
+  delegate_to: localhost
+  become: no
+  loop: "{{ describe_endpoints.stdout_lines }}"
+  loop_control:
+     loop_var: endpoint_arn
+  when: database_primary_sid is defined
+  # no_log: true
+
+- name: Resume Audited Interaction Replication
+  when:
+    - rotate_groups | regex_search('delius_dbs')
+    - database_primary_sid is defined
+  delegate_to: localhost
+  become: no
+  run_once: true
+  block:
+    - include_role:
+        name: oracle_audit_replication_management
+      vars:
+        replication_action: resume
+        target_hosts: "{{ rotate_groups | replace('dbs','primarydb') }}"
+
+
+
+
