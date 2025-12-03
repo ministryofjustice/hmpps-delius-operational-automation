@@ -7,7 +7,6 @@
     - database_primary_sid is defined
   delegate_to: localhost
   become: no
-  run_once: true
   block:
     - include_role:
         name: oracle_audit_replication_management
@@ -35,6 +34,7 @@
     SECRET_NAME: "{{ secret_name }}"
     ASM_USERNAME: "delius_audit_dms_pool"
   when: (database_primary_sid is defined) or (active_data_guard | default(false))
+  register: set_asm_password
 
 # We use the same password for the database and ASM instance
 - name: Loop through the Endpoints and Update the Database and ASM Passwords
@@ -52,7 +52,7 @@
   loop_control:
      loop_var: endpoint_arn
   when: database_primary_sid is defined
-  # no_log: true
+  no_log: true
 
 - name: Resume Audited Interaction Replication
   when:
@@ -60,7 +60,6 @@
     - database_primary_sid is defined
   delegate_to: localhost
   become: no
-  run_once: true
   block:
     - include_role:
         name: oracle_audit_replication_management
