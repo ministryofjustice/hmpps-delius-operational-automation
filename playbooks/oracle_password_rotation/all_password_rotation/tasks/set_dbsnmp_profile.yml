@@ -19,13 +19,13 @@
       register: out
       when: get_dbsnmp_monitoring_profile.stdout_lines[-1] != 'DBSNMP_MONITORING_PROFILE'
       environment:
-          PROFILE_NAME: "DBSNMP_MONITORING_PROFILE"
+        PROFILE_NAME: "DBSNMP_MONITORING_PROFILE"
 
     - name: Customize DBSNMP Profile
       script: alter_database_profile.sh
       environment:
-          PROFILE_NAME: "DBSNMP_MONITORING_PROFILE"
-          IDLE_TIME: 30
+        PROFILE_NAME: "DBSNMP_MONITORING_PROFILE"
+        IDLE_TIME: 30
 
     - name: Set DBSNMP Profile
       script: set_database_profile.sh

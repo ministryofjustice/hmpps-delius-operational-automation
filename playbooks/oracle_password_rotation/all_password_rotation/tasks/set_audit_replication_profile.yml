@@ -22,12 +22,12 @@
       register: out
       when: get_database_profile.stdout_lines[-1] != 'AUDIT_REPLICATION_PROFILE'
       environment:
-          PROFILE_NAME: "AUDIT_REPLICATION_PROFILE"
+        PROFILE_NAME: "AUDIT_REPLICATION_PROFILE"
 
     - name: Customize AUDIT_REPLICATION_PROFILE Profile
       script: alter_database_profile.sh
       environment:
-          PROFILE_NAME: "AUDIT_REPLICATION_PROFILE"
+        PROFILE_NAME: "AUDIT_REPLICATION_PROFILE"
 
     - name: Set AUDIT_REPLICATION_PROFILE Profile
       script: set_database_profile.sh

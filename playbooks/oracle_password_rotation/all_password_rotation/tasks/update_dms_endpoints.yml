@@ -16,9 +16,9 @@
 
 - name: Get a List of Endpoints for Password update
   shell: |
-        aws dms describe-endpoints --region eu-west-2 \
-        --query "Endpoints[?EngineName=='oracle' && starts_with(DatabaseName,'{{ database_primary_sid }}') && (contains(EndpointIdentifier,'audit-data') || contains(EndpointIdentifier,'user-data')) ].EndpointArn" \
-        --output json | jq -r | jq -r '.[]'
+    aws dms describe-endpoints --region eu-west-2 \
+    --query "Endpoints[?EngineName=='oracle' && starts_with(DatabaseName,'{{ database_primary_sid }}') && (contains(EndpointIdentifier,'audit-data') || contains(EndpointIdentifier,'user-data')) ].EndpointArn" \
+    --output json | jq -r | jq -r '.[]'
   delegate_to: localhost
   become: no
   changed_when: false
@@ -39,18 +39,18 @@
 # We use the same password for the database and ASM instance
 - name: Loop through the Endpoints and Update the Database and ASM Passwords
   shell: |
-       aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
-         --password {{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }} \
-         --region {{ region }}
-       aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
-         --oracle-settings '{"AsmPassword":"{{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }}"}' \
-         --no-exact-settings \
-         --region {{ region }}
+    aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
+      --password {{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }} \
+      --region {{ region }}
+    aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
+      --oracle-settings '{"AsmPassword":"{{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }}"}' \
+      --no-exact-settings \
+      --region {{ region }}
   delegate_to: localhost
   become: no
   loop: "{{ describe_endpoints.stdout_lines }}"
   loop_control:
-     loop_var: endpoint_arn
+    loop_var: endpoint_arn
   when: database_primary_sid is defined
   no_log: true
 
@@ -66,7 +66,3 @@
       vars:
         replication_action: resume
         target_hosts: "{{ rotate_groups | replace('dbs','primarydb') }}"
-
-
-
-
