@@ -42,8 +42,9 @@ BEGIN
         -- (2) ORACLE SCHEDULER
         IF  NOT (SYS_CONTEXT('USERENV','CLIENT_PROGRAM_NAME') LIKE 'repctl%' AND SYS_CONTEXT('USERENV','OS_USER') = 'rdsdb')
         AND NOT (SYS_CONTEXT('USERENV','CLIENT_PROGRAM_NAME') LIKE 'oracle%(J%' AND SYS_CONTEXT('USERENV','OS_USER') = 'oracle')
+        AND NOT (SYS_CONTEXT('USERENV','CLIENT_PROGRAM_NAME') LIKE 'DataMigEndpointDriverService%' AND SYS_CONTEXT('USERENV','OS_USER') = 'eds')        
         THEN
-            RAISE_APPLICATION_ERROR(-20921,'This account is for use by the AWS DMS Agent only.');
+            RAISE_APPLICATION_ERROR(-20921,'This account is for use by the AWS DMS Agent only - not '||SYS_CONTEXT('USERENV','CLIENT_PROGRAM_NAME')||' by '||SYS_CONTEXT('USERENV','OS_USER'));
         END IF;
         SELECT database_role
         INTO   l_database_role

@@ -1,6 +1,6 @@
 - block:
     - name: Check if SYS Profile Exists
-      script: get_monitoring_profile.sh
+      script: get_database_profile.sh
       register: get_sys_monitoring_profile
       changed_when: false
       environment:
@@ -24,7 +24,7 @@
       script: alter_sys_profile.sh
 
     - name: Set SYS Profile
-      script: set_monitoring_profile.sh
+      script: set_database_profile.sh
       when: get_sys_current_profile.stdout_lines[-1] != 'SYS_PROFILE'
       environment:
         PROFILE_USER: "SYS"

@@ -86,6 +86,7 @@ objects:
 system_privileges:
   - name: CREATE SESSION
   - name: CREATE TABLE
+  - name: ALTER DATABASE LINK
 
 dms_tables:
   - name: AUDITED_INTERACTION
