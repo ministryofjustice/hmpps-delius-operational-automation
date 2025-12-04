@@ -448,6 +448,23 @@ END;
 
 
 /*
+   Allow DELIUS_AUDIT_DMS_POOL to update the password on the database link
+   it uses to connect to the primary db from the ADG standby.  The database 
+   link is executed from the standby instance to query the open transactions 
+   running on the primary database.
+*/
+CREATE OR REPLACE PROCEDURE set_db_link_password (
+    p_password VARCHAR2
+) AS
+BEGIN
+    EXECUTE IMMEDIATE 'ALTER DATABASE LINK awsdms_dblink CONNECT TO delius_audit_dms_pool '
+                      || 'IDENTIFIED BY "'
+                      || dbms_assert.simple_sql_name(p_password)
+                      || '"';
+END;
+/
+
+/*
    DMS creates its own operational tables under the DELIUS_AUDIT_DMS_POOL schema.
    Ensure this account has quota to write to them in the defalt tablespace.
 */

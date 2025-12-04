@@ -36,6 +36,12 @@
   when: (database_primary_sid is defined) or (active_data_guard | default(false))
   register: set_asm_password
 
+- name: Update DELIUS_AUDIT_DMS_POOL password for the AWSDMS_DBLINK database link
+  script: set_awsdms_dblink_password.sh
+  environment:
+    SECRET_NAME: "{{ secret_name }}"
+  when: database_primary_sid is defined
+
 # We use the same password for the database and ASM instance
 - name: Loop through the Endpoints and Update the Database and ASM Passwords
   shell: |
