@@ -13,7 +13,7 @@ if [[ "${ASM_USERNAME}" == "delius_audit_dms_pool" ]]
 then
    SECRET_NAME=$(echo ${SECRET_NAME} | sed 's/-dba-/-application-/')
 fi
-ASM_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${SECRET_NAME} --region eu-west-2 --query SecretString --output text| jq -r .${ASM_USERNAME})
+ASM_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${SECRET_NAME} --region eu-west-2 --query SecretString --output text| jq -r .${ASM_USERNAME_SECRET_KEY})
 
 export ORACLE_SID=+ASM
 export ORAENV_ASK=NO

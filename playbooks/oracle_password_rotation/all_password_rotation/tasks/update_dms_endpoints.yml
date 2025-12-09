@@ -33,6 +33,7 @@
   environment:
     SECRET_NAME: "{{ secret_name }}"
     ASM_USERNAME: "delius_audit_dms_pool"
+    ASM_USERNAME_SECRET_KEY: "delius_audit_dms_pool"
   when: (database_primary_sid is defined) or (active_data_guard | default(false))
   register: set_asm_password
 
