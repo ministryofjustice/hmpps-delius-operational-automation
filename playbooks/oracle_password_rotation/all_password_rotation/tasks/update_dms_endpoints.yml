@@ -36,6 +36,7 @@
     ASM_USERNAME_SECRET_KEY: "delius_audit_dms_pool"
   when: (database_primary_sid is defined) or (active_data_guard | default(false))
   register: set_asm_password
+  no_log: true
 
 - name: Update DELIUS_AUDIT_DMS_POOL password for the AWSDMS_DBLINK database link
   script: set_awsdms_dblink_password.sh
