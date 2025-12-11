@@ -1,4 +1,4 @@
-name: Alfresco Database Migration
+name: GDPR/Merge Database Migration
 
 on:
   workflow_dispatch:
