@@ -1,14 +1,14 @@
-name: GDPR/Merge Database Migration
+name: "Delius Core: GDPR/Merge Database Migration"
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environment where db migration will be done (dev, preprod, prod)"
+        description: "Environment where db migration will be done (delius-mis-dev)"
         required: true
         type: choice
         options:
-          - dev
+          - delius-mis-dev
       app:
         description: "Application DB to migrated ('gdpr' or 'merge')"
         required: true
@@ -17,7 +17,7 @@ on:
           - gdpr
           - merge
       ssm_prefix:
-        description: "SSM Parameter Store prefix for legacy RDS credentials"
+        description: "SSM Parameter Store prefix for legacy RDS credentials (e.g. '/delius-mis-dev/delius/merge/db/')"
         required: true
         type: string
 
@@ -25,6 +25,7 @@ jobs:
   db-migration:
     name: Run RDS Migration
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
 
     permissions:
       contents: read
@@ -36,8 +37,10 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: eu-west-2
+          role-to-assume: "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-db-migration-${{ github.run_number }}"
+          role-duration-seconds: 21600
+          aws-region: "eu-west-2"
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
