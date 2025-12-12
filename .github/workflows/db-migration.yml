@@ -29,7 +29,7 @@ on:
 
 jobs:
   get-source-rds-creds:
-    name: Retrieve source RDS credentials (Legacy)
+    name: Source RDS credentials (Legacy)
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.env_source }}
     outputs:
@@ -62,9 +62,22 @@ jobs:
       #     role-session-name: "hmpps-delius-operational-automation-db-migration-${{ github.run_number }}"
       #     role-duration-seconds: 21600
       #     aws-region: "eu-west-2"
+
+      - name: Test
+        run: |
+          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          export AWS_DEFAULT_REGION=eu-west-2
+          if [[ -z "$AWS_ACCESS_KEY_ID" || -z "$AWS_SECRET_ACCESS_KEY" ]]; then
+            echo "Error: AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY is not set!"
+            exit 1
+          else
+            echo "AWS credentials are set."
+            aws sts get-caller-identity
+          fi
       
       - name: Configure AWS Credentials (Legacy)
-        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -85,7 +98,7 @@ jobs:
           echo "db_host=$DB_HOST" >> $GITHUB_OUTPUT
 
   get-dest-rds-creds:
-    name: Retrieve destination RDS credentials (CP)
+    name: Dest RDS credentials (CP)
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.env_dest }}
     needs: get-source-rds-creds
