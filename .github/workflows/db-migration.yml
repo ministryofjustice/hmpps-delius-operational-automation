@@ -55,12 +55,19 @@ jobs:
         with:
           version: v3.15.3
 
-      - name: Configure AWS credentials (Legacy)
-        uses: aws-actions/configure-aws-credentials@v4
+      # - name: Configure AWS credentials (Legacy)
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/terraform"
+      #     role-session-name: "hmpps-delius-operational-automation-db-migration-${{ github.run_number }}"
+      #     role-duration-seconds: 21600
+      #     aws-region: "eu-west-2"
+      
+      - name: Configure AWS Credentials (Legacy)
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
-          role-to-assume: "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
-          role-session-name: "hmpps-delius-operational-automation-db-migration-${{ github.run_number }}"
-          role-duration-seconds: 21600
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: "eu-west-2"
 
       # Fetch DB credentials from SSM (legacy account)
