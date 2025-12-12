@@ -118,18 +118,18 @@ jobs:
 
       - name: Create Kubernetes Secret
         run: |
-          kubectl delete secret legacy-rds-creds --ignore-not-found -namespace hmpps-delius-core-${{ github.event.inputs.env_dest }}
+          kubectl delete secret legacy-rds-creds --ignore-not-found -namespace=hmpps-delius-core-${{ github.event.inputs.env_dest }}
           kubectl create secret generic legacy-rds-creds \
             --from-literal=username=${{ needs.get-source-rds-creds.outputs.db_user }} \
             --from-literal=password=${{ needs.get-source-rds-creds.outputs.db_pass }} \
             --from-literal=database=${{ needs.get-source-rds-creds.outputs.db_name }} \
             --from-literal=host=${{ needs.get-source-rds-creds.outputs.db_host }} \
-            -namespace hmpps-delius-core-${{ github.event.inputs.env_dest}}
+            -namespace=hmpps-delius-core-${{ github.event.inputs.env_dest}}
 
       - name: Deploy Migration Job via Helm
         run: |
           helm upgrade --install db-migration ./helm/migrate-db \
-            --namespace hmpps-delius-core-${{ github.event.inputs.env_dest }} \
+            --namespace=hmpps-delius-core-${{ github.event.inputs.env_dest }} \
             --set appName=${{ github.event.inputs.app }} \
             --set job.environment=${{ github.event.inputs.env_dest }} \
             --wait
