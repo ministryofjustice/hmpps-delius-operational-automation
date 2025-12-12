@@ -87,10 +87,10 @@ jobs:
       - name: Get RDS credentials from SSM
         id: rds_creds
         run: |
-          DB_USER=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}/db-username" --query "Parameter.Value" --output text)
-          DB_PASS=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}/admin_password" --query "Parameter.Value" --output text)
-          DB_NAME=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}/db-name" --query "Parameter.Value" --output text)
-          DB_HOST=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}/db-endpoint" --query "Parameter.Value" --output text)
+          DB_USER=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}db-username" --query "Parameter.Value" --output text)
+          DB_PASS=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}admin_password" --query "Parameter.Value" --output text)
+          DB_NAME=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}db-name" --query "Parameter.Value" --output text)
+          DB_HOST=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}db-endpoint" --query "Parameter.Value" --output text)
 
           echo "db_user=$DB_USER" >> $GITHUB_OUTPUT
           echo "db_pass=$DB_PASS" >> $GITHUB_OUTPUT
