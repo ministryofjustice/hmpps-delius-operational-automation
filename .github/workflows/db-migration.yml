@@ -120,10 +120,10 @@ jobs:
         run: |
           kubectl delete secret legacy-rds-creds --ignore-not-found --namespace=hmpps-delius-core-${{ github.event.inputs.env_dest }}
           kubectl create secret generic legacy-rds-creds \
-            --from-literal=username=${{ needs.get-source-rds-creds.outputs.db_user }} \
-            --from-literal=password=${{ needs.get-source-rds-creds.outputs.db_pass }} \
-            --from-literal=database=${{ needs.get-source-rds-creds.outputs.db_name }} \
-            --from-literal=host=${{ needs.get-source-rds-creds.outputs.db_host }} \
+            --from-literal=DATABASE_USERNAME=${{ needs.get-source-rds-creds.outputs.db_user }} \
+            --from-literal=DATABASE_PASSWORD=${{ needs.get-source-rds-creds.outputs.db_pass }} \
+            --from-literal=DATABASE_NAME=${{ needs.get-source-rds-creds.outputs.db_name }} \
+            --from-literal=RDS_INSTANCE_ADDRESS=${{ needs.get-source-rds-creds.outputs.db_host }} \
             --namespace=hmpps-delius-core-${{ github.event.inputs.env_dest}}
 
       - name: Deploy Migration Job via Helm
