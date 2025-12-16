@@ -1,0 +1,24 @@
+- name: Start Test of DMS Endpoint {{ endpoint_arn }}
+  shell: |
+    aws dms test-connection --endpoint-arn {{ endpoint_arn }} \
+     --region {{ region }} --replication-instance-arn {{ replication_instance_arn }}
+  delegate_to: localhost
+  become: no
+
+- name: Poll connection status until successful or failed for {{ endpoint_arn }}
+  ansible.builtin.command: >
+    aws dms describe-connections
+    --region {{ region }}
+    --filters "Name=endpoint-arn,Values={{ endpoint_arn }}" "Name=replication-instance-arn,Values={{ replication_instance_arn }}"
+    --query "Connections[0].Status"
+    --output text
+  register: dms_conn_status
+  changed_when: false
+  retries: 24
+  delay: 10
+  until: dms_conn_status.stdout | trim in ['successful', 'failed']
+
+- name: Fail if {{ endpoint_identifier }} did not pass
+  ansible.builtin.fail:
+    msg: "DMS endpoint {{ endpoint_arn }} test FAILED."
+  when: dms_conn_status.stdout | trim == 'failed'
