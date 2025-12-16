@@ -78,6 +78,7 @@
   vars:
      endpoint_arn: "{{ item }}"
      replication_instance_arn: "{{ get_replication_instance_arn.stdout }}"
+  when: database_primary_sid is defined
 
 - name: Resume Audited Interaction Replication
   when:
