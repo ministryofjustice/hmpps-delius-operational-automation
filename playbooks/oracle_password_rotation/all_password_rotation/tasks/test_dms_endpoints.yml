@@ -30,7 +30,7 @@
   delegate_to: localhost
   become: no
 
-- name: Fail if {{ endpoint_identifier }} did not pass
+- name: Fail if {{ endpoint_arn }} did not pass
   ansible.builtin.fail:
     msg: "DMS endpoint {{ endpoint_arn }} test FAILED."
   when: dms_conn_status.stdout | trim == 'failed'
