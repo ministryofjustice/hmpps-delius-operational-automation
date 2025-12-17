@@ -1,6 +1,6 @@
 - name: Get ARN for Audited Interaction Replication Task
   shell: |
-    aws dms describe-replication-tasks --filters Name=endpoint-arn,Values={{ source_endpoint }}  --region {{ region }}  | \
+    aws dms describe-replication-tasks --region {{ region }}  | \
        jq -r '.ReplicationTasks[] | select(.TableMappings | contains("\"AUDITED_INTERACTION\"")) | .ReplicationTaskArn'
   register: get_audited_interaction_task_arn
   delegate_to: localhost
@@ -14,7 +14,7 @@
 
 - name: Get ARN for Business Interaction Replication Task
   shell: |
-    aws dms describe-replication-tasks --filters Name=endpoint-arn,Values={{ source_endpoint }}  --region {{ region }}  | \
+    aws dms describe-replication-tasks --region {{ region }}  | \
        jq -r '.ReplicationTasks[] | select(.TableMappings | contains("BUSINESS_INTERACTION")) | .ReplicationTaskArn'
   register: get_business_interaction_task_arn
   delegate_to: localhost
@@ -25,7 +25,7 @@
 
 - name: Get ARN for Audited Interaction Checksum Replication Task
   shell: |
-    aws dms describe-replication-tasks --filters Name=endpoint-arn,Values={{ source_endpoint }}  --region {{ region }}  | \
+    aws dms describe-replication-tasks --region {{ region }}  | \
        jq -r '.ReplicationTasks[] | select(.TableMappings | contains("\"AUDITED_INTERACTION_CHECKSUM\"")) | .ReplicationTaskArn'
   register: get_audited_interaction_checksum_task_arn
   changed_when: false
@@ -33,22 +33,13 @@
 - set_fact:
     audited_interaction_checksum_task_arn: "{{ get_audited_interaction_checksum_task_arn.stdout }}"
 
-- name: Get ARN for Replication Instance
+- name: Get ARN for User Replication Task
   shell: |
-    aws dms describe-replication-tasks --filters Name=endpoint-arn,Values={{ source_endpoint }} \
-      --query "ReplicationTasks[0].{ReplicationInstance:ReplicationInstanceArn}"  --region {{ region }}  --output text
-  register: get_replication_instance_arn
-  changed_when: FALSE
+    aws dms describe-replication-tasks --filters Name=endpoint-arn,Values={{ get_target_endpoint.stdout }}  --region {{ region }}  | \
+       jq -r '.ReplicationTasks[] | select(.TableMappings | contains("USER_")) | .ReplicationTaskArn'
+  register: get_user__task_arn
+  changed_when: false
+  when: get_target_endpoint.stdout != ''
 
 - set_fact:
-    replication_instance_arn: "{{ get_replication_instance_arn.stdout }}"
-
-- name: Get Identifier for Replication Instance
-  shell: |
-    aws dms describe-replication-instances --filters Name=replication-instance-arn,Values={{ replication_instance_arn }} \
-      --query "ReplicationInstances[0].ReplicationInstanceIdentifier"  --region {{ region }}  --output text
-  register: get_replication_instance_identifier
-  changed_when: FALSE
-
-- set_fact:
-    replication_instance_identifier: "{{ get_replication_instance_identifier.stdout }}"
+    user__task_arn: "{{ get_user__task_arn.stdout }}"
