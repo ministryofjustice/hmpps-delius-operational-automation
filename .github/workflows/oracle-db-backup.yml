@@ -431,10 +431,6 @@ jobs:
           if [[ "$BackupStatus" == "failed" ]]; then
              echo "The Backup Failed"
           fi
-          echo "Looking for $RmanTarget in $inventory"
-          echo "=========================================================="
-          ansible-inventory -i $inventory --list
-          echo "=========================================================="          
           # If the target host does not exist in the Ansible inventory then treat that as a failure -
           # the inventory is dynamic, so if the host is down then it will not appear in the inventory.
           # This allows the primary job to run on the standby if needed (so this is a different type
