@@ -62,6 +62,24 @@
   when: database_primary_sid is defined
   no_log: true
 
+- name: Get ARN for the first DMS replication instance
+  shell: |
+    aws dms describe-replication-instances --region {{ region }} \
+      --query "ReplicationInstances[0].ReplicationInstanceArn" \
+      --output text
+  delegate_to: localhost
+  become: no
+  changed_when: false
+  register: get_replication_instance_arn
+
+- name: Test All Endpoints Following Password Change
+  include_tasks: test_dms_endpoints.yml
+  loop: "{{ describe_endpoints.stdout_lines }}"
+  vars:
+    endpoint_arn: "{{ item }}"
+    replication_instance_arn: "{{ get_replication_instance_arn.stdout }}"
+  when: database_primary_sid is defined
+
 - name: Resume Audited Interaction Replication
   when:
     - rotate_groups | regex_search('delius_dbs')
