@@ -15,7 +15,6 @@ on:
     - cron: '0 1 * * 0'         # 2am BST Runs (Sun)
     - cron: '0 3 * * 1-6'       # 3am GMT Runs (Mon-Sat)
     - cron: '0 2 * * 1-6'       # 3am BST Runs (Mon-Sat)
-    - cron: '30 * * * 4,5'        # DEBUG
 
 jobs:
 
