@@ -436,6 +436,16 @@ jobs:
           # This allows the primary job to run on the standby if needed (so this is a different type
           # of failure to running it on the primary and getting an RMAN error, i.e. it doesn't run at all,
           # but we just want to do the same thing, which is to re-try on standby).
+          echo "==============================================================================="
+          echo "Inventory: $inventory"
+          ls -l $inventory
+          echo "Contents:"
+          find $inventory
+          echo "Ansible Inventory:"
+          ansible-inventory -i $inventory --list
+          echo "Looking for: $RmanTarget"
+          ansible-inventory -i $inventory --list | grep -c $RmanTarget
+          echo "==============================================================================="
           if [[ $(ansible-inventory -i $inventory --list | grep -c $RmanTarget) -eq 0 ]]; then
              echo "Target does not appear in the inventory"
              BackupStatus="failed"
