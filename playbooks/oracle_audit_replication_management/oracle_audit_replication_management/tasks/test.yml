@@ -41,6 +41,20 @@
   - debug:
       var: endpoint_results
 
+  - name: Get the Client Endpoints
+    set_fact:
+       client_source_endpoint: "{{ endpoint_results.results 
+                                   | selectattr('stderr','equalto','') 
+                                   | selectattr('item.direction','equalto','from')
+                                   | selectattr('item.name','equalto','audit-data')
+                                   | map(attribute='item')
+                                   | map(attribute='source_host')
+                                   | list
+                                   }}"
+
+  - debug:
+       var: client_source_endpoint
+
   - meta: end_play
 
   # Loop through endpoint types to find endpoints dynamically
