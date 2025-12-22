@@ -15,6 +15,10 @@
           vars:
             region: eu-west-2
 
+    - name: Show if Audited Interaction Client
+      debug:
+         msg: "Audited Interaction Client: {{ audited_interaction_client }}"
+
 - hosts: "{{ target_hosts }}"
   gather_facts: no
   become: true
