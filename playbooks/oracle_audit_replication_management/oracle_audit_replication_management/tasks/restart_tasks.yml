@@ -9,7 +9,7 @@
 
   - name: Run RMAN Restore
     script: restore_archivelogs.sh
-    delegate_to: "{{ groups[client_source_endpoint_host][0] }}"
+    delegate_to: "{{ groups[audit_source_host][0] }}"
     become: true
     become_user: oracle
     environment:

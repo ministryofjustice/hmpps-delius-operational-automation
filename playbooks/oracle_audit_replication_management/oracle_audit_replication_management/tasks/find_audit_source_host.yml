@@ -30,3 +30,5 @@
     set_fact:
        audit_source_host: "{{ endpoint_results.results | rejectattr('stdout','equalto','') | map(attribute='item') | map(attribute='source_host') | list | first }}"
 
+  - debug:
+       var: audit_source_host
