@@ -1,4 +1,18 @@
 ---
+- hosts: localhost
+  gather_facts: no
+  become: no
+
+  tasks:
+
+    - name: Check if this is an Audit Client
+      delegate_to: localhost
+      become: no
+      block:
+        - include_role:
+            name: oracle_audit_replication_management
+            tasks_from: is_audit_client.yml
+
 - hosts: "{{ target_hosts }}"
   gather_facts: no
   become: true
@@ -6,8 +20,11 @@
 
   tasks:
 
+    # We want the audit from the startup SCN but only for the client environments
     - name: Get Restart Point
-      when: replication_action == 'restart'
+      when:
+         - audited_interaction_client 
+         - replication_action == 'restart'
       block:
         - name: Get Database Startup SCN
           script: ../../common/files/get_db_startup_scn.sh
@@ -23,12 +40,14 @@
           register: get_max_seq
           changed_when: false
 
-# Prior to restarting the replication tasks we take a backup of all archivelogs
+# Prior to restarting the replication tasks in a client environment we take a backup of all archivelogs
 # so that we can restore them onto the standby database used by DMS to ensure
 # it can read all changes since resetlogs
 - name: Backup Archivelogs
   import_playbook: ../oracle_backup/backup.yml
-  when: replication_action == 'restart'
+  when: 
+     - audited_interaction_client
+     - replication_action == 'restart'
   vars:
     rman_target: "{{ target_hosts }}"
     json_inputs: {}
@@ -53,4 +72,4 @@
           vars:
             replication_action: restart
             audit_cdc_scn: "{{ get_db_startup_scn.stdout | default('') | trim }}"
-            max_seqno: "{{ ( get_max_seq.stdout | trim ) if (replication_action == 'restart') else 'NOT_APPLICABLE' }}"
+            max_seqno: "{{ ( get_max_seq.stdout | trim ) if (audited_interaction_client && replication_action == 'restart') else 'NOT_APPLICABLE' }}"

@@ -1,7 +1,16 @@
 # The environment type is determined by whether audit replication tasks are configured as output (client)
 # or inbound (repository)
 - name: Determine the Environment Type 
-  include_tasks: is_audit_client.yml
+  shell: |
+    aws dms describe-replication-tasks --region {{ region }}  | \  
+       jq -r '.ReplicationTasks[] | select(.ReplicationTaskIdentifier | test("-audited-interaction-outbound-")) | .ReplicationTaskArn'
+  register: is_client
+  delegate_to: localhost
+  changed_when: false
+
+- set_fact:
+     audited_interaction_client: true
+  when: is_client.stdout != ''
 
 - name: Get ARN for Audited Interaction Replication Task
   shell: |
