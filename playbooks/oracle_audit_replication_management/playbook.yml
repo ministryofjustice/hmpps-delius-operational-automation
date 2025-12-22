@@ -7,6 +7,11 @@
   # We run this
 
   tasks:
+
+    - include_role:
+         name: oracle_audit_replication_management
+         tasks_from: test.yml
+
     - name: Get Restart Point
       when: replication_action == 'restart'
       block:
