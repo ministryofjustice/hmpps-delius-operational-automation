@@ -10,7 +10,7 @@
 
 - set_fact:
      audited_interaction_client: true
-  when: is_client != ''
+  when: is_client.stdout != ''
 
 - name: Get ARN for Audited Interaction Replication Task
   shell: |
