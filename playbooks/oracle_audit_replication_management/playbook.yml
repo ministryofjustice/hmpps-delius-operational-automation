@@ -4,18 +4,7 @@
   become: true
   become_user: oracle
 
-  # We run this
-
   tasks:
-
-    - name: TESTING ONLY
-      delegate_to: localhost
-      become: no
-      block:
-
-      - include_role:
-            name: oracle_audit_replication_management
-            tasks_from: test.yml
 
     - name: Get Restart Point
       when: replication_action == 'restart'
