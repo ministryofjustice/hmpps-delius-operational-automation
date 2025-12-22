@@ -26,7 +26,7 @@
 # Prior to restarting the replication tasks we take a backup of all archivelogs
 # so that we can restore them onto the standby database used by DMS to ensure
 # it can read all changes since resetlogs
-#  DEBUG DISABLE
+# DEBUG DEBUG DEBUG (DISABLED)
 # - name: Backup Archivelogs
 #   import_playbook: ../oracle_backup/backup.yml
 #   when: replication_action == 'restart'

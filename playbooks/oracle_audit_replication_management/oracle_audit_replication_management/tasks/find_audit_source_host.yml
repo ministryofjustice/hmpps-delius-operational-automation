@@ -23,12 +23,10 @@
     loop: "{{ db_sources }}"
     changed_when: false
 
-  - debug:
-       var: endpoint_results
-
   - name: Get the Name of the Source Host for Audited Interaction Data
     set_fact:
        audit_source_host: "{{ endpoint_results.results | rejectattr('stdout','equalto','') | map(attribute='item') | map(attribute='source_host') | list | first }}"
 
-  - debug:
+  -  name: Show Host Used as Redo Source for Audited Interaction data
+     debug:
        var: audit_source_host
