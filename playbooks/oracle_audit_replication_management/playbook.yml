@@ -26,17 +26,16 @@
 # Prior to restarting the replication tasks we take a backup of all archivelogs
 # so that we can restore them onto the standby database used by DMS to ensure
 # it can read all changes since resetlogs
-# DEBUG DEBUG DEBUG (DISABLED)
-# - name: Backup Archivelogs
-#   import_playbook: ../oracle_backup/backup.yml
-#   when: replication_action == 'restart'
-#   vars:
-#     rman_target: "{{ target_hosts }}"
-#     json_inputs: {}
-#     daily_weekly: archivelog
-#     min_seq: 1
-#     max_seq: "{{ get_max_seq.stdout | trim }}"
-#     run_in_foreground: true
+- name: Backup Archivelogs
+  import_playbook: ../oracle_backup/backup.yml
+  when: replication_action == 'restart'
+  vars:
+    rman_target: "{{ target_hosts }}"
+    json_inputs: {}
+    daily_weekly: archivelog
+    min_seq: 1
+    max_seq: "{{ get_max_seq.stdout | trim }}"
+    run_in_foreground: true
 
 - hosts: "{{ target_hosts }}"
   gather_facts: no
