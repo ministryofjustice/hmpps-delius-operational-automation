@@ -9,11 +9,10 @@
     OEM_SECRET_ROLE: "{{ oem_secret_role }}"
     CATALOG_DB: "{{ catalog }}"
     MAX_SEQNO: "{{ max_seqno }}"
-  when: client_source_endpoint_host | default() != ''
+  when: audited_interaction_client
 
 - name: Restart Business Interaction Replication Task
   include_tasks: restart_business_interaction_task.yml
-  when: business_interaction_task_arn is defined
 
 # We do not need to wait for the Audited Interaction Checksum Replication to start as the main
 # Audited Interaction data replication is not dependent on it.  We only supply a start SCN
@@ -23,14 +22,21 @@
     aws dms start-replication-task --replication-task-arn "{{ audited_interaction_checksum_task_arn }}" \
        --cdc-start-position "{{ audit_cdc_scn }}"  --region {{ region }}  \
        --start-replication-task-type start-replication
-  when: client_source_endpoint_host | default() != ''
+  when: audited_interaction_client
+
+# The repository does not need an SCN for a restart since it is reading from S3
+- name: Restart the Repository Side Audited Interaction Checksum DMS CDC Replication Tasks from S3
+  shell: |
+    aws dms start-replication-task --replication-task-arn "{{ audited_interaction_checksum_task_arn }}" \
+       --region {{ region }}  \
+       --start-replication-task-type start-replication
+  when: not audited_interaction_client
 
 - name: Restart the Repository Side Audited Interaction Checksum DMS CDC Replication Tasks
   shell: |
     aws dms start-replication-task --replication-task-arn "{{ audited_interaction_checksum_task_arn }}" \
        --region {{ region }}  \
        --start-replication-task-type start-replication
-  when: repository_source_endpoint_host | default() != ''
 
 # We cannot supply a lower bound for User and Probation Area replication since we have to use
 # an S3 bucket for staging between Mod Platform environments, and Start Positions may not
@@ -43,22 +49,3 @@
     aws dms start-replication-task --replication-task-arn "{{ user__task_arn }}" \
        --region {{ region }}  \
        --start-replication-task-type start-replication
-
-# We supply audit_cdc_scn as the lower bound for audit replication
-# (we do not replicate any audit records earlier than this time).  This is used
-# to ensure we only replicate audit created after the database has been opened
-# to users and not old audit records which were already present as a result of
-# a restore, duplicate or flashback.   This is only relevant on the client side.
-- name: Restart the Client Side Audited Interaction DMS CDC Replication Tasks from Requested Time
-  shell: |
-    aws dms start-replication-task --replication-task-arn "{{ audited_interaction_task_arn }}" \
-       --cdc-start-position "{{ audit_cdc_scn }}"  --region {{ region }} \
-       --start-replication-task-type start-replication
-  when: client_source_endpoint_host | default() != ''
-
-- name: Restart the Repository Side Audited Interaction DMS CDC Replication Tasks
-  shell: |
-    aws dms start-replication-task --replication-task-arn "{{ audited_interaction_task_arn }}" \
-       --region {{ region }} \
-       --start-replication-task-type start-replication
-  when: repository_source_endpoint_host | default() != ''

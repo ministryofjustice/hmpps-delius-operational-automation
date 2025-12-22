@@ -1,10 +1,21 @@
-#  THIS PLAY IS OBSOLETE!!!!
+# The environment type is determined by whether audit replication tasks are configured as output (client)
+# or inbound (repository)
+- name: Determine the Environment Type 
+  shell: |
+    aws dms describe-replication-tasks --region {{ region }}  | \  
+       jq -r '.ReplicationTasks[] | select(.ReplicationTaskIdentifier | test("-audited-interaction-outbound-")) | .ReplicationTaskArn'
+  register: is_client
+  delegate_to: localhost
+  changed_when: false
 
+- set_fact:
+     audited_interaction_client: true
+  when: is_client != ''
 
 - name: Get ARN for Audited Interaction Replication Task
   shell: |
-    aws dms describe-replication-tasks --region {{ region }}  | \
-       jq -r '.ReplicationTasks[] | select(.TableMappings | contains("\"AUDITED_INTERACTION\"")) | .ReplicationTaskArn'
+    aws dms describe-replication-tasks --region {{ region }}  | \  
+       jq -r '.ReplicationTasks[] | select(.ReplicationTaskIdentifier | test("-audited-interaction-(inbound|outbound)-")) | .ReplicationTaskArn'
   register: get_audited_interaction_task_arn
   delegate_to: localhost
   changed_when: false
@@ -18,7 +29,7 @@
 - name: Get ARN for Business Interaction Replication Task
   shell: |
     aws dms describe-replication-tasks --region {{ region }}  | \
-       jq -r '.ReplicationTasks[] | select(.TableMappings | contains("BUSINESS_INTERACTION")) | .ReplicationTaskArn'
+        jq -r '.ReplicationTasks[] | select(.ReplicationTaskIdentifier | test("-business-interaction-(inbound|outbound)-")) | .ReplicationTaskArn'
   register: get_business_interaction_task_arn
   delegate_to: localhost
   changed_when: false
@@ -29,7 +40,7 @@
 - name: Get ARN for Audited Interaction Checksum Replication Task
   shell: |
     aws dms describe-replication-tasks --region {{ region }}  | \
-       jq -r '.ReplicationTasks[] | select(.TableMappings | contains("\"AUDITED_INTERACTION_CHECKSUM\"")) | .ReplicationTaskArn'
+       jq -r '.ReplicationTasks[] | select(.ReplicationTaskIdentifier | test("-audited-interaction-checksum-(inbound|outbound)-")) | .ReplicationTaskArn'
   register: get_audited_interaction_checksum_task_arn
   changed_when: false
 
@@ -38,11 +49,10 @@
 
 - name: Get ARN for User Replication Task
   shell: |
-    aws dms describe-replication-tasks --filters Name=endpoint-arn,Values={{ get_target_endpoint.stdout }}  --region {{ region }}  | \
-       jq -r '.ReplicationTasks[] | select(.TableMappings | contains("USER_")) | .ReplicationTaskArn'
+    aws dms describe-replication-tasks  --region {{ region }}  | \
+       jq -r '.ReplicationTasks[] | select(.ReplicationTaskIdentifier | test("-user-(inbound|outbound)-")) | .ReplicationTaskArn'
   register: get_user__task_arn
   changed_when: false
-  when: get_target_endpoint.stdout != ''
 
 - set_fact:
     user__task_arn: "{{ get_user__task_arn.stdout }}"

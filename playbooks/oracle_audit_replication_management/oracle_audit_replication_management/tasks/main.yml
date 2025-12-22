@@ -13,74 +13,19 @@
     - replication_action == 'restart'
     - audit_cdc_scn == ''
 
-- name: Get Database Environment
-  set_fact:
-    database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
+- name: Get Replication Task Details
+  include_tasks: get_task_details.yml
 
-# Define a list of endpoint types and their corresponding variable names
-- name: Set endpoint types to process
-  set_fact:
-    endpoint_types:
-      - { name: "audit-data", var_prefix: "client" }
-      - { name: "user-data", var_prefix: "repository" }
-
-# Loop through endpoint types to find endpoints dynamically
-- name: Loop through all possible database sources for each endpoint type
-  vars:
-    endpoint_id: "{{ simple_environment_name }}-{{ item.name }}-from-{{ db_item.source_db | lower }}"
-  shell: |
-    aws dms describe-endpoints \
-    --filters Name=endpoint-type,Values=source Name=endpoint-id,Values={{ endpoint_id }} \
-    --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
-  register: endpoint_results
-  changed_when: false
-  loop: "{{ endpoint_types | subelements('db_sources') }}"
-  loop_control:
-    label: "{{ item.0.name }}:{{ item.1.source_db }}"
-  vars:
-    db_sources:
-      - source_host: "{{ database_environment + '_primarydb' }}"
-        source_db: "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
-      - source_host: "{{ database_environment + '_standbydb1' if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
-        source_db: "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
-      - source_host: "{{ database_environment + '_standbydb2' if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
-        source_db: "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
-
-# Set facts for the first non-empty endpoint found for each type
-- name: Set facts for found endpoints
-  set_fact:
-    "{{ item.0.var_prefix }}_source_endpoint": "{{ item.1.stdout }}"
-    "{{ item.0.var_prefix }}_source_endpoint_host": "{{ item.1.item.source_host }}"
-  loop: "{{ endpoint_types | product(endpoint_results.results) | list }}"
-  when: item.1.item.0.name == item.0.name and item.1.stdout != ""
-  loop_control:
-    label: "{{ item.0.name }}"
-
-# Show found endpoints for debugging
-- name: Show found endpoints
-  debug:
-    msg:
-      - "Client Source Endpoint: {{ client_source_endpoint | default('Not found') }}"
-      - "Client Source Endpoint Host: {{ client_source_endpoint_host | default('Not found') }}"
-      - "Repository Source Endpoint: {{ repository_source_endpoint | default('Not found') }}"
-      - "Repository Source Endpoint Host: {{ repository_source_endpoint_host | default('Not found') }}"
-
-
-# If we do not find a Source DMS Endpoint for the supplied environment then
-# we skip all tasks associated with Audited Interaction preservation tasks as it
-# has not been configured for this environment.
+# If we do not find an Audited Interaction replication taks then this environment is not configured as a client or repository
+# and no further action is needed
 - name: Skip Message
   debug:
     msg: "This environment is not configured as an Audited Interaction data client or repository.  No action taken."
-  when: 
-    - client_source_endpoint | default() == ''
-    - repository_source_endpoint | default() == ''
+  when: get_audited_interaction_task_arn == ''
 
 - name: Perform Requested Actions on Replication Tasks
-  when: client_source_endpoint | default() != '' or repository_source_endpoint | default() != ''
+  when: get_audited_interaction_task_arn != ''
   block:
-    - name: Get Details of Replication Tasks
-      include_tasks: get_task_details.yml
 
     - name: Wait for Audit Replication to Finish
       include_tasks: wait_for_zero_throughput.yml
