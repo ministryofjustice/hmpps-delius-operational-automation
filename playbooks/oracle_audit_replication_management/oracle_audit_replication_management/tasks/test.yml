@@ -45,9 +45,10 @@
     set_fact:
        client_source_endpoint: "{{ endpoint_results.results 
                                    | selectattr('stderr','equalto','') 
-                                   | selectattr('item.direction','equalto','from')
-                                   | selectattr('item.name','equalto','audit-data')
                                    | map(attribute='item')
+                                   | map('items2dict')
+                                   | selectattr('direction','equalto','from')
+                                   | selectattr('name','equalto','audit-data')
                                    | map(attribute='source_host')
                                    | list
                                    }}"
