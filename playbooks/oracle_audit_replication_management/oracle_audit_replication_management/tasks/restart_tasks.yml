@@ -1,15 +1,20 @@
 # When restarting a Client replication we must ensure we have all the required
 # redo logs available on the host to cover the perido since the start SCN
 - name: Restore Archivelogs
-  script: restore_archivelogs.sh
-  delegate_to: "{{ groups[client_source_endpoint_host][0] }}"
-  become: true
-  become_user: oracle
-  environment:
-    OEM_SECRET_ROLE: "{{ oem_secret_role }}"
-    CATALOG_DB: "{{ catalog }}"
-    MAX_SEQNO: "{{ max_seqno }}"
   when: audited_interaction_client
+
+  - name: Get Host where Source Database is running
+    include_tasks: find_audit_source_host.yml
+
+  - name: Run RMAN Restore
+    script: restore_archivelogs.sh
+    delegate_to: "{{ groups[client_source_endpoint_host][0] }}"
+    become: true
+    become_user: oracle
+    environment:
+      OEM_SECRET_ROLE: "{{ oem_secret_role }}"
+      CATALOG_DB: "{{ catalog }}"
+      MAX_SEQNO: "{{ max_seqno }}"
 
 - name: Restart Business Interaction Replication Task
   include_tasks: restart_business_interaction_task.yml
