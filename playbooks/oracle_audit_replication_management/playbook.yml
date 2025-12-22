@@ -29,7 +29,7 @@
     # Use previous localhost check if this is an audited interaction client environment 
     - name: Set if this an Audited Interaction Client Environment
       set_fact:
-         audited_interaction_client: "{{ hostvars[localhost]['audited_interaction_client'] }}"
+         audited_interaction_client: "{{ hostvars['localhost']['audited_interaction_client'] }}"
 
     # We want the audit from the startup SCN but only for the client environments
     - name: Get Restart Point
