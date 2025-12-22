@@ -12,6 +12,8 @@
         - include_role:
             name: oracle_audit_replication_management
             tasks_from: is_audit_client.yml
+          vars:
+            region: eu-west-2
 
 - hosts: "{{ target_hosts }}"
   gather_facts: no
