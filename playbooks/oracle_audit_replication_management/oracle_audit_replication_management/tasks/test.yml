@@ -1,8 +1,3 @@
-- hosts: "{{ target_host }}"
-  gather_facts: no
-
-  tasks:
-
   - name: Get Database Environment
     set_fact:
       database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
