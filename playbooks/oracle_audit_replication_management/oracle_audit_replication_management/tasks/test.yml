@@ -30,7 +30,7 @@
   - name: Loop through all possible endpoints and find those which exist in this environment
     shell: |
       aws dms describe-endpoints \
-      --filters Name=endpoint-type,Values=source Name=endpoint-id,Values={{ endpoint_id }} \
+      --filters Name=endpoint-type,Values={{ 'source' if (item.0.direction == 'from') else 'target' }} Name=endpoint-id,Values={{ endpoint_id }} \
       --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
     register: endpoint_results
     vars:
@@ -40,43 +40,6 @@
 
   - debug:
       var: endpoint_results
-
-  - name: Initialise collector
-    set_fact:
-      source_hosts: []
-
-  - name: Collect source_host when stderr == "" and item.direction == "from" and item.name == "audit-data"
-    set_fact:
-      source_hosts: "{{ source_hosts + [ merged.source_host ] }}"
-    vars:
-      merged: "{{ {} | combine(*item.item) }}"
-    when:
-      - item.stderr == ''
-      - (merged.direction | default('')) == 'from'
-      - (merged.name | default('')) == 'audit-data'
-      - (merged.source_host | default('')) != ''
-    loop: "{{ endpoint_results.results }}"
-    loop_control:
-      label: "{{ item.item }}"
-      
-  - debug:
-      var: source_hosts
-
-
-  - name: Get the Client Endpoints
-    set_fact:
-       client_source_endpoint: "{{ endpoint_results.results 
-                                   | selectattr('stderr','equalto','') 
-                                   | map(attribute='item')
-                                   | map('items2dict')
-                                   | selectattr('direction','equalto','from')
-                                   | selectattr('name','equalto','audit-data')
-                                   | map(attribute='source_host')
-                                   | list
-                                   }}"
-
-  - debug:
-       var: client_source_endpoint
 
   - meta: end_play
 
@@ -120,6 +83,11 @@
         - "Client Source Endpoint Host: {{ client_source_endpoint_host | default('Not found') }}"
         - "Repository Source Endpoint: {{ repository_source_endpoint | default('Not found') }}"
         - "Repository Source Endpoint Host: {{ repository_source_endpoint_host | default('Not found') }}"
+
+
+# WHAT DO WE ACTUALLY NEED TO RESTART TASKS????
+
+
 
 
   # If we do not find a Source DMS Endpoint for the supplied environment then

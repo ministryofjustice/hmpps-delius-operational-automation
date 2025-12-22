@@ -1,3 +1,6 @@
+#  THIS PLAY IS OBSOLETE!!!!
+
+
 - name: Get ARN for Audited Interaction Replication Task
   shell: |
     aws dms describe-replication-tasks --region {{ region }}  | \
