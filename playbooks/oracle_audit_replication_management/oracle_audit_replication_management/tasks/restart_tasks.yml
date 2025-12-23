@@ -3,19 +3,18 @@
 - name: Restore Archivelogs
   when: audited_interaction_client
   block:
+    - name: Get Host where Source Database is running
+      include_tasks: find_audit_source_host.yml
 
-  - name: Get Host where Source Database is running
-    include_tasks: find_audit_source_host.yml
-
-  - name: Run RMAN Restore
-    script: restore_archivelogs.sh
-    delegate_to: "{{ groups[audit_source_host][0] }}"
-    become: true
-    become_user: oracle
-    environment:
-      OEM_SECRET_ROLE: "{{ oem_secret_role }}"
-      CATALOG_DB: "{{ catalog }}"
-      MAX_SEQNO: "{{ max_seqno }}"
+    - name: Run RMAN Restore
+      script: restore_archivelogs.sh
+      delegate_to: "{{ groups[audit_source_host][0] }}"
+      become: true
+      become_user: oracle
+      environment:
+        OEM_SECRET_ROLE: "{{ oem_secret_role }}"
+        CATALOG_DB: "{{ catalog }}"
+        MAX_SEQNO: "{{ max_seqno }}"
 
 - name: Restart Business Interaction Replication Task
   include_tasks: restart_business_interaction_task.yml

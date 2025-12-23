@@ -22,7 +22,6 @@
   shell: |
     aws dms start-replication-task --replication-task-arn "{{ audited_interaction_task_arn }}" \
         --region {{ region }}  --start-replication-task-type resume-processing
-  when: 
-     - audit_cdc_scn | default('') == ''
-     - audited_interaction_task_arn is defined
-
+  when:
+    - audit_cdc_scn | default('') == ''
+    - audited_interaction_task_arn is defined

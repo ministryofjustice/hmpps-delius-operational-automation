@@ -4,7 +4,6 @@
   become: no
 
   tasks:
-
     - name: Check if this is an Audit Client
       delegate_to: localhost
       become: no
@@ -17,7 +16,7 @@
 
     - name: Show if Audited Interaction Client
       debug:
-         msg: "Audited Interaction Client: {{ audited_interaction_client }}"
+        msg: "Audited Interaction Client: {{ audited_interaction_client }}"
 
 - hosts: "{{ target_hosts }}"
   gather_facts: no
@@ -25,17 +24,16 @@
   become_user: oracle
 
   tasks:
-
-    # Use previous localhost check if this is an audited interaction client environment 
+    # Use previous localhost check if this is an audited interaction client environment
     - name: Set if this an Audited Interaction Client Environment
       set_fact:
-         audited_interaction_client: "{{ hostvars['localhost']['audited_interaction_client'] }}"
+        audited_interaction_client: "{{ hostvars['localhost']['audited_interaction_client'] }}"
 
     # We want the audit from the startup SCN but only for the client environments
     - name: Get Restart Point
       when:
-         - audited_interaction_client 
-         - replication_action == 'restart'
+        - audited_interaction_client
+        - replication_action == 'restart'
       block:
         - name: Get Database Startup SCN
           script: ../../common/files/get_db_startup_scn.sh
@@ -56,9 +54,9 @@
 # it can read all changes since resetlogs
 - name: Backup Archivelogs
   import_playbook: ../oracle_backup/backup.yml
-  when: 
-     - audited_interaction_client
-     - replication_action == 'restart'
+  when:
+    - audited_interaction_client
+    - replication_action == 'restart'
   vars:
     rman_target: "{{ target_hosts }}"
     json_inputs: {}

@@ -1,32 +1,32 @@
-  - name: Get Database Environment
-    set_fact:
-      database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
+- name: Get Database Environment
+  set_fact:
+    database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
 
-  - name: Get All Possible databases
-    set_fact:
-      db_sources:
-        - source_host: "{{ database_environment + '_primarydb' }}"
-          source_db: "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
-        - source_host: "{{ database_environment + '_standbydb1' if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
-          source_db: "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
-        - source_host: "{{ database_environment + '_standbydb2' if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
-          source_db: "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
+- name: Get All Possible databases
+  set_fact:
+    db_sources:
+      - source_host: "{{ database_environment + '_primarydb' }}"
+        source_db: "{{ hostvars[groups[database_environment + '_primarydb'][0]]['database_primary_sid'] }}"
+      - source_host: "{{ database_environment + '_standbydb1' if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
+        source_db: "{{ hostvars[groups[database_environment + '_standbydb1'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb1'] is defined) else 'NONE' }}"
+      - source_host: "{{ database_environment + '_standbydb2' if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
+        source_db: "{{ hostvars[groups[database_environment + '_standbydb2'][0]]['database_standby_sid'] if (groups[database_environment + '_standbydb2'] is defined) else 'NONE' }}"
 
-  - name: Loop through all possible endpoints and find those which exist in this environment
-    shell: |
-      aws dms describe-endpoints \
-      --filters Name=endpoint-type,Values=source Name=endpoint-id,Values={{ endpoint_id }} \
-      --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
-    register: endpoint_results
-    vars:
-      endpoint_id: "{{ simple_environment_name }}-audit-data-from-{{ item.source_db | lower }}"
-    loop: "{{ db_sources }}"
-    changed_when: false
+- name: Loop through all possible endpoints and find those which exist in this environment
+  shell: |
+    aws dms describe-endpoints \
+    --filters Name=endpoint-type,Values=source Name=endpoint-id,Values={{ endpoint_id }} \
+    --query "Endpoints[].EndpointArn" --region {{ region }} --output text || true
+  register: endpoint_results
+  vars:
+    endpoint_id: "{{ simple_environment_name }}-audit-data-from-{{ item.source_db | lower }}"
+  loop: "{{ db_sources }}"
+  changed_when: false
 
-  - name: Get the Name of the Source Host for Audited Interaction Data
-    set_fact:
-       audit_source_host: "{{ endpoint_results.results | rejectattr('stdout','equalto','') | map(attribute='item') | map(attribute='source_host') | list | first }}"
+- name: Get the Name of the Source Host for Audited Interaction Data
+  set_fact:
+    audit_source_host: "{{ endpoint_results.results | rejectattr('stdout','equalto','') | map(attribute='item') | map(attribute='source_host') | list | first }}"
 
-  -  name: Show Host Used as Redo Source for Audited Interaction data
-     debug:
-       var: audit_source_host
+- name: Show Host Used as Redo Source for Audited Interaction data
+  debug:
+    var: audit_source_host

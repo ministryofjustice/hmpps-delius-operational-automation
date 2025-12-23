@@ -1,7 +1,6 @@
-
 # After changing the password AWS will attempt to test the Endpoints automatically so
 # a test may already be in progress when we get here - ignore any error related to this,
-# otherwise start a new test so we can wait for the status to be updated in a timely 
+# otherwise start a new test so we can wait for the status to be updated in a timely
 # manner
 - name: Start Test of DMS Endpoint {{ endpoint_arn }}
   shell: |
@@ -12,8 +11,8 @@
   changed_when: false
   register: test_connection
   failed_when:
-     - test_connection.rc != 0
-     - not test_connection.stderr is search('.*Connection is already being tested.*')
+    - test_connection.rc != 0
+    - not test_connection.stderr is search('.*Connection is already being tested.*')
 
 - name: Poll connection status until successful or failed for {{ endpoint_arn }}
   ansible.builtin.command: >

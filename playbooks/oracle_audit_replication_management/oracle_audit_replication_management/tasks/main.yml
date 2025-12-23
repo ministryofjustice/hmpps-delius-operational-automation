@@ -27,7 +27,6 @@
 - name: Perform Requested Actions on Replication Tasks
   when: get_audited_interaction_task_arn != ''
   block:
-
     - name: Wait for Audit Replication to Finish
       include_tasks: wait_for_zero_throughput.yml
       when: replication_action == 'stop'
