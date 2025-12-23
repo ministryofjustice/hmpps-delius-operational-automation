@@ -1,5 +1,11 @@
 # Check if there are still records being replicated, and wait for those to
 # complete if required - abort if audit still replicating after 20 minutes
+- name: Get Name of AWS DMS Replication instance
+  shell: |
+    aws dms describe-replication-instances \
+       --region {{ region }} --query "ReplicationInstances[0].ReplicationInstanceIdentifier" --output text
+  register: get_replication_instance
+
 - name: Wait for CDC Throughput to Drop on Source
   shell: |
     aws cloudwatch get-metric-statistics --metric-name CDCThroughputRowsSource \
@@ -7,7 +13,7 @@
        --end-time $(date '+%Y-%m-%dT%H:%M:%SZ') \
         --region {{ region }} \
        --namespace 'AWS/DMS' --period 60 --statistics Maximum \
-       --dimensions Name=ReplicationInstanceIdentifier,Value={{ replication_instance_identifier }} \
+       --dimensions Name=ReplicationInstanceIdentifier,Value={{ get_replication_instance.stdout }} \
                     Name=ReplicationTaskIdentifier,Value={{ audited_interaction_task_arn.split(':')[-1] }} \
        --query "Datapoints[0].Maximum" --output text
   register: get_cdc_throughput_row_source
