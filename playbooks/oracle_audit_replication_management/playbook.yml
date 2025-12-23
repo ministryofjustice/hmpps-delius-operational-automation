@@ -83,4 +83,4 @@
           vars:
             replication_action: restart
             audit_cdc_scn: "{{ get_db_startup_scn.stdout | default('') | trim }}"
-            max_seqno: "{{ ( get_max_seq.stdout | trim ) if (audited_interaction_client && replication_action == 'restart') else 'NOT_APPLICABLE' }}"
+            max_seqno: "{{ ( get_max_seq.stdout | trim ) if (audited_interaction_client and replication_action == 'restart') else 'NOT_APPLICABLE' }}"
