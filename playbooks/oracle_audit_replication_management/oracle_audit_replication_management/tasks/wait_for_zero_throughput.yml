@@ -2,8 +2,8 @@
 # complete if required - abort if audit still replicating after 20 minutes
 - name: Get Name of AWS DMS Replication instance
   shell: |
-      aws dms describe-replication-instances \
-         --region {{ region }} --query "ReplicationInstances[0].ReplicationInstanceIdentifier" --output text
+    aws dms describe-replication-instances \
+       --region {{ region }} --query "ReplicationInstances[0].ReplicationInstanceIdentifier" --output text
   register: get_replication_instance
 
 - name: Wait for CDC Throughput to Drop on Source

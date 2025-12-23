@@ -1,6 +1,6 @@
 # The environment type is determined by whether audit replication tasks are configured as output (client)
 # or inbound (repository)
-- name: Determine the Environment Type 
+- name: Determine the Environment Type
   include_tasks: is_audit_client.yml
 
 - name: Get ARN for Audited Interaction Replication Task
