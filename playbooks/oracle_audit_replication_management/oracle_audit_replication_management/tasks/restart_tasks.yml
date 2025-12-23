@@ -1,5 +1,5 @@
 # When restarting a Client replication we must ensure we have all the required
-# redo logs available on the host to cover the perido since the start SCN
+# redo logs available on the host to cover the period since the start SCN
 - name: Restore Archivelogs
   when: audited_interaction_client
   block:
