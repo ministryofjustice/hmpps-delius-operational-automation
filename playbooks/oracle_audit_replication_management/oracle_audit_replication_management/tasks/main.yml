@@ -8,10 +8,11 @@
 #     table on the client.
 - name: Validate Restart Parameters
   fail:
-    msg: "When restarting, the lower bound SCN for audited interaction, and lower bound date for User replication must be provided"
+    msg: "When restarting a replication client, the lower bound SCN for audited interaction, and lower bound date for User replication must be provided"
   when:
     - replication_action == 'restart'
     - audit_cdc_scn == ''
+    - audited_interaction_client
 
 - name: Get Replication Task Details
   include_tasks: get_task_details.yml
