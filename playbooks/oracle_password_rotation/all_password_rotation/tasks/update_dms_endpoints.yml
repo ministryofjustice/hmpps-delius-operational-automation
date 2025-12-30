@@ -60,7 +60,7 @@
   loop_control:
     loop_var: endpoint_arn
   when: database_primary_sid is defined
-  no_log: true
+  # no_log: true
 
 - name: Get ARN for the first DMS replication instance
   shell: |
