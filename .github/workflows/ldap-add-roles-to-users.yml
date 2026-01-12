@@ -56,7 +56,7 @@ jobs:
                     $.executionRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-ecs-task-exec"
                     $.taskRoleArn: "arn:aws:iam::${{vars.AWS_ACCOUNT_ID}}:role/${{ github.event.inputs.environment }}-ldap-ecs-task"
 
-                    $.containerDefinitions[0].image: "ghcr.io/ministryofjustice/hmpps-ldap-automation:dst-20864-20921093491-43"
+                    $.containerDefinitions[0].image: "ghcr.io/ministryofjustice/hmpps-ldap-automation:dst-20864-20922477017-45"
 
                     $.containerDefinitions[0].containerName: "ldap-automation-task-${{ github.run_id }}"
 
