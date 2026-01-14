@@ -121,7 +121,7 @@ jobs:
 
       - name: Generate Token For Access To hmpps-delius-audit-stub-accounts
         if: ${{ github.event.inputs.DeployAuditStubUsers == 'yes' }}
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         id: generate_token
         with:
           app-id: ${{ secrets.HMPPS_BOT_APP_ID }}
