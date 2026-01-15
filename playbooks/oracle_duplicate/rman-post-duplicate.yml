@@ -86,6 +86,10 @@
     - name: Register Database with RMAN Catalog
       include_tasks: register_with_rman.yml
 
+    - name: Create MIS database links
+      include_tasks: ../mis_database_links/playbook.yml
+      when: duplicate_target | regex_search('.*_mis_primarydb')
+
     - name: Create and restore users
       include_tasks: ../delius_users/playbook.yml
       when: ( duplicate_target | regex_search('.*_delius_primarydb')) or ( duplicate_target | regex_search('.*_mis_primarydb') )
@@ -176,17 +180,6 @@
   import_playbook: ../oracle_statspack/playbook.yml
   vars:
     target_hosts: "{{ duplicate_target }}"
-
-- name: Create mis database links if required
-  hosts: "{{ duplicate_target }}"
-  gather_facts: no
-  become: yes
-  become_user: oracle
-
-  tasks:
-    - name: create database links
-      include_tasks: ../mis_database_links/playbook.yml
-      when: duplicate_target | regex_search('.*_mis_primarydb')
 
 - name: Import dfi schemas only for STGMIS
   import_playbook: dfi-schemas.yml
