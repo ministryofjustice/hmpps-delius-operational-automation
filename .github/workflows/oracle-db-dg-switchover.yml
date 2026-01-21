@@ -1,0 +1,110 @@
+name: "Oracle: Data Guard Switchover"
+run-name: "Oracle: ${{ format('{0}-{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}-dg-switchover"
+on:
+  workflow_dispatch:
+    inputs:
+      TargetEnvironment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - "delius-core-dev"
+          - "delius-core-test"
+          - "delius-core-training"
+          - "delius-core-stage"
+          - "delius-core-preprod"
+          - "delius-core-prod"
+      TargetHost:
+        description: "Select switchover target"
+        type: choice
+        options:
+          - "delius_primarydb"
+          - "delius_standbydb1"
+          - "delius_standbydb2"
+      Action:
+        description: "Select action to perform"
+        type: choice
+        options:
+          - "Check Readiness"
+          - "Switchover"
+      SourceCodeVersion:
+        description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+      SourceConfigVersion:
+        description: "Source version for the modernisation-platform-configuration-management. Enter a pull request, branch, commit ID, tag, or reference."
+        type: string
+        default: "main"
+
+env:
+  ansible_config: operations/playbooks/ansible.cfg
+  command: ansible-playbook operations/playbooks/oracle_dg_switchover/playbook.yml
+  inventory: inventory/ansible
+
+# Allow permissions on repository and docker image respectively 
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:
+  deployment:
+    name: oracle-db-dg-switchover
+    environment: ${{ github.event.inputs.TargetEnvironment }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
+    timeout-minutes: 1440
+    continue-on-error: false
+    steps:
+
+      - name: Output Input Parameters
+        shell: bash
+        run: |
+          echo -e "Action: ${{ github.event.inputs.Action }}\n\
+          SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
+          SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
+
+      - name: Prepare Switchover Target Name
+        id: preparetargetname
+        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
+
+      - name: Checkout hmpps-delius-operation-automation
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            playbooks/oracle_dg_switchover
+            playbooks/ansible.cfg
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
+      - name: Checkout modernisation-platform-configuration-management
+        uses: actions/checkout@v4
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/hosts
+            ansible/group_vars
+          path: inventory
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
+          role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
+          role-duration-seconds: 21600
+          aws-region: "eu-west-2"
+
+      - name: Start Ansible Data Guard Switchover
+        shell: bash
+        run: |
+          export ANSIBLE_CONFIG=$ansible_config
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+          -e switchover_host=${{ steps.preparetargetname.outputs.TargetHost }} \
+          -e "action='${{ github.event.inputs.Action }}'" 
