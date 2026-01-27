@@ -48,12 +48,12 @@
 - name: Loop through the Endpoints and Update the Database and ASM Passwords
   shell: |
     aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
-      --password ${DATABASE_PASSWORD} \
-      --region {{ region }}
-    aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
-      --oracle-settings '{"AsmPassword":"${ASM_PASSWORD}"}' \
-      --no-exact-settings \
-      --region {{ region }}
+       --password ${DATABASE_PASSWORD} \
+        --region {{ region }}
+          aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
+        --oracle-settings "{\"AsmPassword\":\"${ASM_PASSWORD}\"}" \
+        --no-exact-settings \
+        --region {{ region }}
   delegate_to: localhost
   become: no
   loop: "{{ describe_endpoints.stdout_lines }}"
