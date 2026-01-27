@@ -13,10 +13,16 @@
        --filters Name=replication-task-arn,Values="{{ replication_task_arn }}" \
         --region {{ region }}  --query "ReplicationTasks[0].Status" --output text
   register: task_status
-  until: not task_status.stdout in ["running","stopping","starting"]
+  until: task_status.stdout == "stopped"
   retries: 60
   delay: 10
   loop: "{{ [audited_interaction_checksum_task_arn, audited_interaction_task_arn, business_interaction_task_arn, user__task_arn] | select('defined') | list }}"
   loop_control:
     loop_var: "replication_task_arn"
   changed_when: FALSE
+
+# Sometimes DMS will take a while to perform cleanup on a replication task even after it has stopped
+# Allow for a 3 minute delay to ensure all "behind-the-scenes" clean-up is completed otherwise
+- name: Wait 3 minutes for DMS cleanup after stopping replication tasks
+  pause:
+    minutes: 3
