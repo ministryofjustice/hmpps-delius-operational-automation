@@ -48,19 +48,21 @@
 - name: Loop through the Endpoints and Update the Database and ASM Passwords
   shell: |
     aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
-      --password {{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }} \
-      --region {{ region }}
-    aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
-      --oracle-settings '{"AsmPassword":"{{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }}"}' \
-      --no-exact-settings \
-      --region {{ region }}
+       --password ${DATABASE_PASSWORD} \
+        --region {{ region }}
+          aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
+        --oracle-settings "{\"AsmPassword\":\"${ASM_PASSWORD}\"}" \
+        --no-exact-settings \
+        --region {{ region }}
   delegate_to: localhost
   become: no
   loop: "{{ describe_endpoints.stdout_lines }}"
   loop_control:
     loop_var: endpoint_arn
   when: database_primary_sid is defined
-  no_log: true
+  environment:
+    DATABASE_PASSWORD: "{{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }}"
+    ASM_PASSWORD: "{{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }}"
 
 - name: Get ARN for the first DMS replication instance
   shell: |
