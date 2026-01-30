@@ -1,6 +1,6 @@
 - name: Get Switchover Target Database Name
   set_fact:
-     switchover_target_database_name: "{{ database_primary_sid | default(database_standby_sid) }}"
+    switchover_target_database_name: "{{ database_primary_sid | default(database_standby_sid) }}"
 
 - name: Check Ready for Switchover
   import_tasks: check_readiness.yml

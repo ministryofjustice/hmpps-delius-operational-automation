@@ -1,7 +1,7 @@
 - name: Get Current Primary Database
   shell: |
-     . ~/.bash_profile
-     dgmgrl / "show configuration" | awk '/- Primary database/{print $1}'
+    . ~/.bash_profile
+    dgmgrl / "show configuration" | awk '/- Primary database/{print $1}'
   changed_when: false
   register: get_current_primary_database
 
@@ -11,8 +11,8 @@
 
 - name: Check Primary is Ready to Switchover
   shell: |
-     . ~/.bash_profile
-     dgmgrl / "validate database {{ get_current_primary_database.stdout }}" | awk '/Ready for Switchover:/{print $NF}'
+    . ~/.bash_profile
+    dgmgrl / "validate database {{ get_current_primary_database.stdout }}" | awk '/Ready for Switchover:/{print $NF}'
   changed_when: false
   register: check_primary
 
@@ -22,8 +22,8 @@
 
 - name: Check Standby is Ready to Switchover
   shell: |
-     . ~/.bash_profile
-     dgmgrl / "validate database {{ switchover_target_database_name }}" | awk '/Ready for Switchover:/{print $NF}'
+    . ~/.bash_profile
+    dgmgrl / "validate database {{ switchover_target_database_name }}" | awk '/Ready for Switchover:/{print $NF}'
   changed_when: false
   register: check_standby
 
