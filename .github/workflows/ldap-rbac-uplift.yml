@@ -42,7 +42,7 @@ jobs:
             id: get-ids
             run: |
                 echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ecs-service-ldap-${{ github.event.inputs.environment }}" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
-                echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-general-private-eu-west-2b" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
+                echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=general-private-eu-west-2b,general-private-eu-west-2c" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
           - name: Update RBAC Version SSM Parameter
             id: update-ssm
             run: |
@@ -111,4 +111,4 @@ jobs:
               container_name=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].name')
               log_stream_name="${log_stream_prefix}/${container_name}/${{steps.run-task.outputs.TASK_ID}}"
 
-              aws logs tail "$log_group_name" --log-stream-names "$log_stream_name" || echo "Log stream not found yet"
+              aws logs tail "$log_group_name" --log-stream-names "$log_stream_name"
