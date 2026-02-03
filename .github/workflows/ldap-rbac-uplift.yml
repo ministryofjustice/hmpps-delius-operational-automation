@@ -111,4 +111,4 @@ jobs:
               container_name=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].name')
               log_stream_name="${log_stream_prefix}/${container_name}/${{steps.run-task.outputs.TASK_ID}}"
 
-              aws logs tail "$log_group_name" --log-stream-names "$log_stream_name"
+              aws logs tail "$log_group_name" --log-stream-names "$log_stream_name" || echo "Log stream not found yet"
