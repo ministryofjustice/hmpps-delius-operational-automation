@@ -15,13 +15,17 @@
 - name: Confirm Apply Mode is Valid
   fail:
     msg: "Invalid Apply Mode {{ apply_mode }}"
-  when: not apply_mode in ['prepare-clone','switch-clone','apply-ojvm-standby']
+  when: not apply_mode in ['prepare-clone','switch-clone','apply-ojvm-standby','run-datapatch']
 
 - name: Get Database Role
   script: ../../common/files/get_database_role.sh
   register: getdatabaserole
   changed_when: false
 
+# Get the current database role.  During patching we may switchover temporarily
+# to one of the standby databases.  The database which is normally the primary
+# during daily operations is known as the "Intended Primary" even if it is
+# temporarily in the standby role during patching.
 - name: Set Database Role (Primary)
   set_fact:
     database_role: primary
@@ -38,12 +42,18 @@
     msg: "Database role of {{ getdatabaserole.stdout }} is not supported for patching."
   when: database_role is not defined
 
-- name: Find the name of the Primary Host Group
+# The Intended Primary is the database which usually acts as the primary database
+# regardless of its current role.
+- name: Check if this is the Intended Primary
   set_fact:
-    primary_host_group: "{{ ( (group_names | select('match','.*_standbydb\\d+')) if (database_standby_sid is defined) else (group_names | select('match','.*_primarydb')) ) | list | first | regex_replace('^(.*)_standbydb\\d+', '\\1_primarydb') }}"
+     intended_primary: "{{ true if (database_primary_sid is defined) else false }}"
 
-# Now get the primary Hostname
-- name: Get Hostname of Primary
+- name: Find the name of the Intended Primary Host Group
+  set_fact:
+    primary_host_group: "{{ ( (group_names | select('match','.*_standbydb\\d+')) if (not intended_primary) else (group_names | select('match','.*_primarydb')) ) | list | first | regex_replace('^(.*)_standbydb\\d+', '\\1_primarydb') }}"
+
+# Now get the Intended Primary Hostname (even if this is temporarily switched over for patching)
+- name: Get Hostname of Intended Primary
   set_fact:
     primary_host: "{{ groups[primary_host_group][0] }}"
 
@@ -288,16 +298,17 @@
   ignore_errors: true
   register: oem_agent_running
   changed_when: false
+  when: apply_mode == 'switch-clone'
 
 - name: Stop oem agent
   shell: |
     . ~/.bash_profile
      {{ emctl_agent }} stop agent
   when:
-    - oem_agent_running.stdout is search('Agent is Running and Ready')
     - source_gi_version is version(target_gi_version,'<')
     - apply_mode == 'switch-clone'
     - stat_target_gi_home.stat.exists
+    - oem_agent_running.stdout is search('Agent is Running and Ready')
 
 - name: Switch to New Grid Infrastructure Home
   include_tasks: switch_clone.yml
@@ -321,7 +332,7 @@
     target_home: "{{ target_db_home }}"
     target_version: "{{ target_db_version }}"
 
-# Handle situration, on rare occassions, whereby the standby ec2 instances have been recreated
+# Handle situation, on rare occassions, whereby the standby ec2 instances have been recreated
 # and there are no database instances configured
 - name: Check Standby Database Is Setup
   when: (apply_mode == 'switch-clone' or apply_mode == 'apply-ojvm-standby') and database_role != 'primary'
@@ -372,9 +383,17 @@
 
 # The OJVM Patch may not be installed onto Standby databases before being applied to Primary
 # Once the primary is ready use the apply-ojvm-standby mode to apply this patch to the standbys
+# The restriction is lifted from Oracle 26ai onwards - revise this code after upgrading.
 - name: Install OJVM Release Update
   include_tasks: install_ojvm_ru.yml
-  when: ( apply_mode == 'switch-clone' and database_role == 'primary' ) or ( apply_mode == 'apply-ojvm-standby' and database_role != 'primary' )
+  when: ( apply_mode == 'switch-clone' and intended_primary ) or ( apply_mode == 'apply-ojvm-standby' and database_role != 'primary' )
+
+# Run Datapatch on Request
+- name: Run Datapatch
+  include_tasks: run_datapatch.yml
+  when:
+     - apply_mode == 'run-datapatch'
+     - database_role == 'primary'
 
 # Restart EM agent
 - name: Check status of oem agent

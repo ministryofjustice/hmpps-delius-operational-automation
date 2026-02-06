@@ -19,11 +19,13 @@ on:
           - "delius-mis-preprod"
           - "delius-mis-prod"
       TargetHost:
-        description: "Backup target host"
+        description: "Target host for blocking sessions"
         required: true
         type: choice
         options: 
           - "delius_primarydb"
+          - "delius_standbydb1"
+          - "delius_standbydb2"
           - "mis_primarydb"
           - "boe_primarydb"
           - "dsd_primarydb"

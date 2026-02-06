@@ -1,0 +1,25 @@
+# Allow Datapatch to terminate any sessions that get in its way.  We should not be
+# running this during day-to-day operations but should be acceptable during the interval
+# where we are restarting during a period of patching downtime.
+- name: Run Datapatch on Primary
+  shell: |
+    . ~/.bash_profile
+    cd {{ target_db_home }}/OPatch
+    ./datapatch -verbose -force_terminate_blocking_sessions
+  register: datapatch
+  async: 1800
+  poll: 0
+  args:
+     executable: /bin/bash
+
+- name: Wait for Datapatch Completion
+  async_status:
+    jid: "{{ datapatch.ansible_job_id }}"
+  register: datapatch_result
+  until: datapatch_result.finished
+  retries: 120
+  delay: 30
+  failed_when: datapatch_result.rc !=0 or datapatch_result.stdout is search('command failed with errors')
+
+- name: Show Datapatch Output
+  debug: var=datapatch_result.stdout_lines
