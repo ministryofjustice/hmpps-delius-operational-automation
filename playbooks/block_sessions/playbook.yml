@@ -26,28 +26,17 @@
     - set_fact:
         is_aws_environment: "{{ aws_uri_check.status == 200 }}"
 
-    - name: Find local ip address of ec2 database server to add as an iptables accept rule
-      command: curl http://169.254.169.254/latest/meta-data/local-ipv4
-      when: is_aws_environment
-      register: ec2_local_ip
-      changed_when: false
-
-    - name: Find local ip address of non-ec2 database server to add as an iptables accept rule
-      command: hostname -i
-      when: not is_aws_environment
-      register: non_ec2_local_ip
-      changed_when: false
-
-    - name: Set IP of local database server
-      set_fact:
-        local_ip: "{{ ec2_local_ip.stdout | default(non_ec2_local_ip.stdout) }}"
-
-    - debug: var=local_ip
-
     - name: Get database type and database environment
       set_fact:
         database_environment: "{{ target_host | replace(target_host.split('_')[-2] + '_' + target_host.split('_')[-1],'') }}"
         database_type: "{{ target_host.split('_')[-2] }}"
+
+    - name: Get ip address of primary database host
+      shell: hostname -i
+      delegate_to: "{{ hostvars[groups[database_environment + database_type + '_primarydb'][0]]['inventory_hostname'] }}"
+      register: primary_ip
+
+    - debug: var=primary_ip
 
     - name: Get ip address of standby database 1 if high_availability_count >= 1
       shell: hostname -i
@@ -102,8 +91,8 @@
             state: present
           with_items:
             - { source: "{{ localhost_ip }}", jump: ACCEPT }
-            - { source: "{{ local_ip }}", jump: ACCEPT }
             - { source: "{{ oem_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
+            - { source: "{{ primary_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb1_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb2_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
 
@@ -135,8 +124,8 @@
             state: absent
           with_items:
             - { source: "{{ localhost_ip }}", jump: ACCEPT }
-            - { source: "{{ local_ip }}", jump: ACCEPT }
             - { source: "{{ oem_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
+            - { source: "{{ primary_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb1_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb2_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
 
