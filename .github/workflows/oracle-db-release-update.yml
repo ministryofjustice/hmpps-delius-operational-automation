@@ -142,7 +142,12 @@ jobs:
              [dsd]=delius-mis
              [mis]=delius-mis
           )
-          echo "line_of_business=${application_to_line_of_business[$application]}"
+          line_of_business="${application_to_line_of_business[$application]}"
+          if [[ -z "$line_of_business" ]]; then
+            echo "No line_of_business mapping for application: $application" >&2
+            exit 1
+          fi
+          echo "line_of_business=${line_of_business}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
