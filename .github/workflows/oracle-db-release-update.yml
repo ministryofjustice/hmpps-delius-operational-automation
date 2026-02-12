@@ -134,6 +134,20 @@ jobs:
           # Lookup application
           application="${host_to_app[$host_prefix_key]}"
           echo "application=$(echo ${application} | sed 's/_.*//')" >> $GITHUB_OUTPUT
+          # Mapping from application to line of business
+          # (Used for setting dynamic group membership in OEM)
+          declare -A application_to_line_of_business=(
+             [delius]=delius
+             [boe]=delius-mis
+             [dsd]=delius-mis
+             [mis]=delius-mis
+          )
+          line_of_business="${application_to_line_of_business[$application]}"
+          if [[ -z "$line_of_business" ]]; then
+            echo "No line_of_business mapping for application: $application" >&2
+            exit 1
+          fi
+          echo "line_of_business=${line_of_business}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
         uses: actions/checkout@v4
@@ -212,4 +226,5 @@ jobs:
           -e gi_ru_patch_info='' \
           -e ojvm_ru_patch_info='' \
           -e application=${{ steps.prepareinventorynames.outputs.application }} \
+          -e line_of_business=${{ steps.prepareinventorynames.outputs.line_of_business }} \
           ${{ github.event.inputs.VerboseOutput }}
