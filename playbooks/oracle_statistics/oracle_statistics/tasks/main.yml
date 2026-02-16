@@ -134,6 +134,15 @@
         loop_var: schema
       tags: statistics
 
+    - name: Set Histogram Preferences
+      script: set_histogram_preferences.sh "{{ schema }}"
+      register: set_histogram_preferences
+      changed_when: not set_histogram_preferences.stdout is search('.*Histogram preferences changed on 0 tables.*')
+      loop: "{{ all_schemas | upper }}"
+      loop_control:
+          loop_var: schema
+      tags: statistics 
+
     - name: Create Statistics Directory
       file:
         path: /home/oracle/admin/statistics
@@ -159,7 +168,7 @@
         - repository_dispatch is defined
         - json_inputs is defined
 
-    - name: Single Varaible Containing Schemas And Table Names To Remove Transient Table Statistics Locks
+    - name: Single Variable Containing Schemas And Table Names To Remove Transient Table Statistics Locks
       set_fact:
         database_locked_statistics: "-t {{ database_locked_statistics | default([]) | to_nice_json | b64encode }}"
       when: database_locked_statistics
