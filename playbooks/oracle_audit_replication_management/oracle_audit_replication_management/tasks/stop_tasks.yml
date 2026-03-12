@@ -7,13 +7,15 @@
     loop_var: "replication_task_arn"
   ignore_errors: true # Some of these tasks may already be stopped, so ignore errors stopping them
 
+# Tasks in "ready" state have never been started - treat these as the equivalent
+# to being stopped
 - name: Wait for DMS Replication Tasks to stop
   shell: |
     aws dms describe-replication-tasks \
        --filters Name=replication-task-arn,Values="{{ replication_task_arn }}" \
         --region {{ region }}  --query "ReplicationTasks[0].Status" --output text
   register: task_status
-  until: task_status.stdout == "stopped"
+  until: task_status.stdout in ['stopped','ready']
   retries: 60
   delay: 10
   loop: "{{ [audited_interaction_checksum_task_arn, audited_interaction_task_arn, business_interaction_task_arn, user__task_arn] | select('defined') | list }}"
