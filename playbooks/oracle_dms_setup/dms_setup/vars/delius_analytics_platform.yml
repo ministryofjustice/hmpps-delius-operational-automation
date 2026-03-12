@@ -276,6 +276,9 @@ dms_tables:
   - name: FORM_20_30
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
+  - name: FTS_RESULT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
   - name: GDPR_DESTRUCTION_LOG
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
