@@ -14,5 +14,5 @@
   environment:
     DMS_USER: "{{ dms_user }}"
     USER_SUPPORT_USER: "{{ user_support_user }}"
-    STANDBY_ONLY: "{{ 'FALSE' if (read_host == 'delius_primarydb') else (standby_only | upper) }}"
+    STANDBY_ONLY: "{{ 'FALSE' if (read_host | regex_search('delius_primarydb$')) else (standby_only | upper) }}"
     SET_NLS_DATE_FORMAT: "{{ 'TRUE' if ( set_nls_date_format | default(false) | bool ) else 'FALSE' }}"
