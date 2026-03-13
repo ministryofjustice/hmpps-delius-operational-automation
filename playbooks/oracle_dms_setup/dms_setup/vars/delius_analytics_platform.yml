@@ -696,7 +696,13 @@ dms_tables:
   - name: R_REGISTER_DUPLICATE_GROUP
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
+  - name: R_REGISTER_REVIEW_PERIOD
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
   - name: R_REGISTER_TYPE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_REGISTER_TYPE_ALT_REG_TYPE
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
   - name: R_REGISTER_TYPE_CATEGORY
@@ -747,7 +753,13 @@ dms_tables:
   - name: RECALL
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
+  - name: RECENT_FTS_TERM
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
   - name: REFERRAL
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: REG_CATEGORY_LEVEL_HISTORY
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
   - name: REGISTRATION
