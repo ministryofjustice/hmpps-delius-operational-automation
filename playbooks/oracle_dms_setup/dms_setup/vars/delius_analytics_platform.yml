@@ -756,7 +756,7 @@ dms_tables:
   - name: REFERRAL
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
-  - name: REG_CATEGORY_LEVEL_TYPE
+  - name: REG_CATEGORY_LEVEL_HISTORY
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
   - name: REGISTRATION
