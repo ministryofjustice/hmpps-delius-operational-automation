@@ -84,7 +84,6 @@
     - alfresco_host != 'NOT CONFIGURED'
     - not check_alfresco_url.failed
   block:
-
     - name: Get Let's Enrypt Root Certificate
       include_tasks: get-root-certificate.yml
 
