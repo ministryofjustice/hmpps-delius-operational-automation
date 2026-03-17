@@ -16,7 +16,7 @@
         url: "{{ le_roots[le_root].url }}"
         dest: "{{ le_root_dest }}"
         mode: "0644"
-        force: no  # idempotent: do not re-download if unchanged
+        force: no  # do not re-download if unchanged
       register: download_root
 
     - name: Read and parse certificate info
@@ -35,10 +35,9 @@
           - (le_root_info.subject.organizationName | default('')) == "Internet Security Research Group"
           - (le_root_info.subject.countryName | default('')) == "US"
 
-          # Optional helper flag if available in your collection
           - (le_root_info.is_self_signed | default(true)) == true
         fail_msg: >-
-          The downloaded certificate doesn't look like the expected Let's Encrypt self-signed root
+          The downloaded certificate doesn't look like the expected Let's Encrypt root
           (subject={{ le_root_info.subject }}, issuer={{ le_root_info.issuer }})
         success_msg: >-
           Verified Let's Encrypt root {{ le_roots[le_root].name }} at {{ le_root_dest }}
