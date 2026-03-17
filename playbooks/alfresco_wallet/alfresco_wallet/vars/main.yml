@@ -1,0 +1,9 @@
+le_root: "x1"  # or "x2"
+le_root_dest: "/etc/ssl/certs/isrg-root-{{ le_root }}.pem"
+le_roots:
+  x1:
+    name: "ISRG Root X1"
+    url: "https://letsencrypt.org/certs/isrgrootx1.pem"
+  x2:
+    name: "ISRG Root X2"
+    url: "https://letsencrypt.org/certs/isrgrootx2.pem"

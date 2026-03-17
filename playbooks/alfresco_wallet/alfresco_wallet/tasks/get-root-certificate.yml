@@ -1,0 +1,44 @@
+- name: Get Let's Encrypt Root Certificate
+  become: true
+  become_user: root
+  block:
+    # The certificate will be placed in the local certificate store under /etc/ssl
+    # so this will require root privileges (use become)
+
+    - name: Ensure parent directory exists
+      ansible.builtin.file:
+        path: "{{ le_root_dest | dirname }}"
+        state: directory
+        mode: "0755"
+
+    - name: Download the Let's Encrypt root certificate
+      ansible.builtin.get_url:
+        url: "{{ le_roots[le_root].url }}"
+        dest: "{{ le_root_dest }}"
+        mode: "0644"
+        force: no  # idempotent: do not re-download if unchanged
+      register: download_root
+
+    - name: Read and parse certificate info
+      community.crypto.x509_certificate_info:
+        path: "{{ le_root_dest }}"
+      register: le_root_info
+
+    - name: Assert the downloaded cert is self-signed and matches expected subject
+      ansible.builtin.assert:
+        that:
+          # Self-signed check: subject equals issuer
+          - le_root_info.subject == le_root_info.issuer
+
+          # Expected subject fields
+          - (le_root_info.subject.commonName | default('')) == le_roots[le_root].name
+          - (le_root_info.subject.organizationName | default('')) == "Internet Security Research Group"
+          - (le_root_info.subject.countryName | default('')) == "US"
+
+          # Optional helper flag if available in your collection
+          - (le_root_info.is_self_signed | default(true)) == true
+        fail_msg: >-
+          The downloaded certificate doesn't look like the expected Let's Encrypt self-signed root
+          (subject={{ le_root_info.subject }}, issuer={{ le_root_info.issuer }})
+        success_msg: >-
+          Verified Let's Encrypt root {{ le_roots[le_root].name }} at {{ le_root_dest }}
