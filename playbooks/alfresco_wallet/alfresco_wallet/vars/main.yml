@@ -1,4 +1,4 @@
-le_root: "x1"  # or "x2"
+le_root: "x1" # or "x2"
 le_root_dest: "/etc/ssl/certs/isrg-root-{{ le_root }}.pem"
 le_roots:
   x1:
