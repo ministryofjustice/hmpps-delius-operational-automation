@@ -84,7 +84,7 @@
     - alfresco_host != 'NOT CONFIGURED'
     - not check_alfresco_url.failed
   block:
-    - name: Get Let's Enrypt Root Certificate
+    - name: Get Let's Encrypt Root Certificate
       include_tasks: get-root-certificate.yml
 
     - name: Define Working Directory for Recreating Oracle Wallet
@@ -228,15 +228,6 @@
       loop:
         - cwallet.sso
         - ewallet.p12
-
-      # Tidy up temporary certificate files from the file system
-      # As this is a simple tidy up we do not consider it a configuratioin change.
-    - name: Get List of Individual Certificate Files
-      find:
-        paths: /tmp
-        patterns: alf.[0-9][0-9].crt
-      register: files_to_delete
-      changed_when: false
 
     - name: Remove Working Directory if Used
       file:
