@@ -16,7 +16,7 @@
         url: "{{ le_roots[le_root].url }}"
         dest: "{{ le_root_dest }}"
         mode: "0644"
-        force: no  # do not re-download if unchanged
+        force: no # do not re-download if unchanged
       register: download_root
 
     - name: Read and parse certificate info
