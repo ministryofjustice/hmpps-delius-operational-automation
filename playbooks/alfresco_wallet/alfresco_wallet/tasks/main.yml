@@ -84,42 +84,8 @@
     - alfresco_host != 'NOT CONFIGURED'
     - not check_alfresco_url.failed
   block:
-    # We use the OpenSSL Client to get the SSL certificates from the Alfresco server.
-    # This will create a file on the target called /tmp/alf_certs.txt but we do not consider this
-    # a configuration change as it is only a temporary file for fetching information so we
-    # set changed_when to be false.
-    - name: Fetch Alfresco SSL Certificates
-      shell: |
-        echo Q | openssl s_client -connect {{ alfresco_host }}:443 -tls1_2 -showcerts > /tmp/alf_certs.txt
-      changed_when: false
-
-      # We remove any pre-existing certificate files on the target; assuming the job
-      # completed successfully last time these should not exist but we want to be certain
-      # to avoid uploading old out-of-date certificates into the wallet.
-    - name: Get List of Any Pre-Existing Individual Certificate Files
-      find:
-        paths: /tmp
-        patterns: alf.[0-9][0-9].crt
-      register: files_to_delete
-
-    - name: Remove Any Pre-Existing Individual Certificate Files
-      file:
-        path: "{{ item.path }}"
-        state: absent
-      with_items: "{{ files_to_delete.files }}"
-
-      # The Open SSL Client will fetch all certificates into a large aggregate file.  There will
-      # be several certificates here for each link in the authentication chain.  We want to break
-      # these out into individual certificate files.   Similar to the above this is merely fetching
-      # information and does not constitute a change to the target configuration so we set
-      # changed_when to be false.
-    - name: Split Certificate Output into Individual Certificate Files
-      shell: |
-        awk 'BEGIN{INFLAG=0}
-        /-----BEGIN CERTIFICATE-----/{INFLAG=1}
-        {if(INFLAG==1){print $0}}
-        /-----END CERTIFICATE-----/{INFLAG=0}' /tmp/alf_certs.txt | csplit --prefix='/tmp/alf.' --suffix-format='%02d.crt' --elide-empty-files  - "/-----END CERTIFICATE-----/+1" {*}
-      changed_when: false
+    - name: Get Let's Encrypt Root Certificate
+      include_tasks: get-root-certificate.yml
 
     - name: Define Working Directory for Recreating Oracle Wallet
       set_fact:
@@ -182,15 +148,10 @@
       set_fact:
         wallet_build_dir: "{{ wallet_dir if (password_correct) else wallet_working_dir }}"
 
-    # When adding the SSL Certificate Chain to the Wallet we must exclude
-    # the leaf certificate (HTTPS Server).  See MOS Note 2287905.1
-    # This will always be the first certificate returned so we can simply
-    # exclude alf.00.crt
     - name: Get List of Certificate Files
       find:
-        paths: /tmp
-        patterns: alf.[0-9][0-9].crt
-        excludes: alf.00.crt
+        paths: /etc/ssl/certs
+        patterns: "isrg-root-{{ le_root }}.pem"
         file_type: file
         recurse: no
       register: certificate_files
@@ -267,28 +228,6 @@
       loop:
         - cwallet.sso
         - ewallet.p12
-
-      # Tidy up temporary certificate files from the file system
-      # As this is a simple tidy up we do not consider it a configuratioin change.
-    - name: Get List of Individual Certificate Files
-      find:
-        paths: /tmp
-        patterns: alf.[0-9][0-9].crt
-      register: files_to_delete
-      changed_when: false
-
-    - name: Remove Any Individual Certificate Files
-      file:
-        path: "{{ item.path }}"
-        state: absent
-      with_items: "{{ files_to_delete.files }}"
-      changed_when: false
-
-    - name: Remove Aggregate Certificate File
-      file:
-        path: /tmp/alf_certs.txt
-        state: absent
-      changed_when: false
 
     - name: Remove Working Directory if Used
       file:
