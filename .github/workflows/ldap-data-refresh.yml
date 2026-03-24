@@ -27,7 +27,7 @@ on:
         required: false
         type: string
       test_users:
-        description: Test users to export and re-import so they are not overwritten by the refresh
+        description: Test users to export and re-import so they are not overwritten by the refresh. Leave blank to use SSM value.
         required: false # but required in preprod
         type: string
 
@@ -51,20 +51,20 @@ jobs:
             exit 1
           fi
           
-          env_list=("dev" "test" "preprod" "prod") 
+          env_list=("dev" "test" "preprod" "prod")
                    
           index_of() {
             local word="$1"
             shift
             local idx=-1
-          
+
             for ((i=0; i<=$#; i++)); do
               if [ "${!i}" = "$word" ]; then
                 idx=$i
                 break
               fi
             done
-          
+
             echo $idx
           }
 
@@ -88,6 +88,7 @@ jobs:
           
           echo "Copying from ${source_env} to ${destination_env}"
   test-user-export:
+    if: ${{ github.event.inputs.destination_env == 'preprod' }}
     needs:
       - pre-checks
     runs-on: ubuntu-latest
@@ -102,41 +103,36 @@ jobs:
 
       - name: Get list of test users
         run: |
-          destination_env="${{ github.event.inputs.destination_env }}"
           TEST_USERS="${{ github.event.inputs.test_users }}"
 
-          ##if [[ "${destination_env}" == "preprod" ]]; then
-          if [[ "${destination_env}" == "dev" ]]; then
-            echo "Checking test users have been supplied..."
-            if [[ -z "${TEST_USERS}" ]]; then
-              # try get list of users from AWS secret
+          echo "Checking test users have been supplied..."
+          if [[ -z "${TEST_USERS}" ]]; then
+            # try get list of users from AWS secret
 
-              SECRET_NAME="ldap_test_users"
-              REGION="eu-west-2"
+            SECRET_NAME="ldap_test_users"
+            REGION="eu-west-2"
 
-              TEST_USERS=$(aws secretsmanager get-secret-value \
-                --secret-id "$SECRET_NAME" \
-                --region "$REGION" \
-                --query SecretString \
-                --output text 2>/tmp/aws_secret_error)
+            TEST_USERS=$(aws secretsmanager get-secret-value \
+              --secret-id "$SECRET_NAME" \
+              --region "$REGION" \
+              --query SecretString \
+              --output text 2>/tmp/aws_secret_error)
 
-              if [[ $? -ne 0 ]]; then
-                echo "Failed to retrieve test users from AWS Secrets Manager:"
-                cat /tmp/aws_secret_error
-                echo "Test users list has not been supplied, cancelling run..." 
-                exit 1
-              else
-                user_count=$(wc -w <<< "${TEST_USERS}")
-                echo "Test users list supplied, number of users is: $(wc -w <<< $TEST_USERS)"
-              fi
+            if [[ $? -ne 0 ]]; then
+              echo "Failed to retrieve test users from AWS Secrets Manager:"
+              cat /tmp/aws_secret_error
+              echo "Test users list has not been supplied, cancelling run..."
+              exit 1
             else
+              user_count=$(wc -w <<< "${TEST_USERS}")
               echo "Test users list supplied, number of users is: $(wc -w <<< $TEST_USERS)"
             fi
           else
-            echo "Destination is not pre-prod, skipping..."
+            echo "Test users list supplied, number of users is: $(wc -w <<< $TEST_USERS)"
           fi
 
-          echo "TEST_USERS=$TEST_USERS" >> $GITHUB_ENV 
+          echo "TEST_USERS=$TEST_USERS" >> $GITHUB_ENV
+
       - name: Export test users
         run: |
           destination_env="${{ github.event.inputs.destination_env }}"
