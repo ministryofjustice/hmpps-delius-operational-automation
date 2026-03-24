@@ -27,7 +27,7 @@ on:
         required: false
         type: string
       test_users:
-        description: Test users to export and re-import so they are not overwritten by the refresh. Leave blank to use SSM value.
+        description: Space-separated list of test users to export and re-import so they are not overwritten by the refresh. Leave blank to use SSM value.
         required: false # but required in preprod
         type: string
 
@@ -109,8 +109,11 @@ jobs:
           if [[ -z "${TEST_USERS}" ]]; then
             # try get list of users from AWS secret
 
-            SECRET_NAME="ldap_test_users"
+            SECRET_NAME="ldap-test-users"
             REGION="eu-west-2"
+
+            # you can copy the column of users from the excel spreadsheet and space-separate with this command on macOS:
+            # pbpaste | tr -s '[:space:]' ' '
 
             TEST_USERS=$(aws secretsmanager get-secret-value \
               --secret-id "$SECRET_NAME" \
