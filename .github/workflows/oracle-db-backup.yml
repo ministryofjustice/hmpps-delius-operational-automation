@@ -98,6 +98,16 @@ on:
         description: "Is this a daily, weekly or archivelog backup?"
         required: true
         type: string
+      BackupStandbyOnPrimaryFailure:
+        description: "Retry the backup on the standby if primary backup fails"
+        required: false
+        type: string
+        default: "no"
+      FixAbsentChunks:
+        description: "Validate and fix absent S3 missing backup chunks"
+        required: false
+        type: string
+        default: "yes"
 
   repository_dispatch:
     types: ["oracle-db-backup-success","oracle-db-backup-failure"]
