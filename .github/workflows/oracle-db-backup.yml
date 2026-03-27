@@ -33,12 +33,13 @@ on:
           - "dsd_standbydb1"
           - "delius_standbydb2"
       Period: 
-        description: "Is this a daily or weekly backup?"
+        description: "Is this a daily, weekly or archivelog backup?"
         required: true
         type: choice
         options: 
           - "daily"
           - "weekly"
+          - "archivelog"
       BackupStandbyOnPrimaryFailure:
         description: "Retry the backup on the standby if primary backup fails"
         type: choice
@@ -94,7 +95,7 @@ on:
         required: true
         type: string
       Period:
-        description: "Is this a daily or weekly backup?"
+        description: "Is this a daily, weekly or archivelog backup?"
         required: true
         type: string
 
