@@ -393,7 +393,7 @@ jobs:
                     LAST_UPDATED=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.LastModifiedDate" --output text | cut -d. -f1)
                     CURRENT_EPOCH=$(date +%s)
                     if [[ $((CURRENT_EPOCH-LAST_UPDATED)) -le 82800 ]]; then
-                        echo "Backup is already active on this host.  Multiple concurrent runs are not allowed."
+                        echo "Backup is already active on this host ($PHASE).  Multiple concurrent runs are not allowed."
                         Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Concurrent Backup Attempt"' | jq @json)
                         exit 1
                     fi
