@@ -118,6 +118,7 @@ jobs:
       BackupStandbyOnPrimaryFailure: ${{ steps.preparermantargetname.outputs.BackupStandbyOnPrimaryFailure }}
       SourceCodeVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceConfigVersion }}
+      FixAbsentChunks: ${{ steps.preparermantargetname.outputs.FixAbsentChunks }}
       Inputs: ${{ steps.preparermantargetname.outputs.Inputs }}
       SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
       IsRetryJob: ${{ steps.preparermantargetname.outputs.IsRetryJob }}
@@ -235,6 +236,7 @@ jobs:
               TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')
               Period=$(echo $Inputs | jq -r '.Period')
               IsRetryJob=$(echo $Inputs | jq -r '.IsRetryJob // "no"')
+              FixAbsentChunks=$(echo $Inputs | jq -r '.FixAbsentChunks // "yes"')
               # The following 2 parameters are mandatory; abort if they are missing from JSON inputs
               [[ -z $TargetEnvironment ]] && "Target Environment is not specified in JSON inputs" && exit 3
               [[ -z $Period ]] && "Backup Period (daily/weekly) is not specified in JSON inputs" && exit 4
@@ -258,6 +260,7 @@ jobs:
           echo "SourceCodeVersion=$SourceCodeVersion" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$SourceConfigVersion" >> $GITHUB_OUTPUT
           echo "IsRetryJob=$IsRetryJob" >> $GITHUB_OUTPUT
+          echo "FixAbsentChunks=$FixAbsentChunks" >> $GITHUB_OUTPUT
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
@@ -287,6 +290,7 @@ jobs:
       BackupStandbyOnPrimaryFailure: "${{needs.build_rman_target_name.outputs.BackupStandbyOnPrimaryFailure}}"
       SourceCodeVersion:  "${{needs.build_rman_target_name.outputs.SourceCodeVersion}}"
       SourceConfigVersion:  "${{needs.build_rman_target_name.outputs.SourceConfigVersion}}"
+      FixAbsentChunks:  "${{needs.build_rman_target_name.outputs.FixAbsentChunks}}" 
       Inputs:  "${{needs.build_rman_target_name.outputs.Inputs}}"
       SlackChannel: ${{ needs.build_rman_target_name.outputs.SlackChannel }}
       IsRetryJob: "${{needs.build_rman_target_name.outputs.IsRetryJob }}"
@@ -523,7 +527,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
 
       - name: Run Ansible Validate And Fix Absent Chunks
-        if: env.BackupStatus == 'success'
+        if: env.BackupStatus == 'success' && env.FixAbsentChunks != 'no'
         run: |
           # We only come here by a repository_dispatch event which reports that the backup was successful.
           # If this is the case then we run a second Ansible play which checks that all backup chunk pieces are available
