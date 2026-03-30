@@ -25,7 +25,7 @@ updates:
     schedule:
       interval: "daily"
     cooldown:
-      default-days: 7 
+      default-days: 7
 
   # -------------------------------------------------------
   # GitHub Actions (NOT semver → use default-days only)
@@ -35,7 +35,7 @@ updates:
     schedule:
       interval: "daily"
     cooldown:
-      default-days: 7 
+      default-days: 7
     # GitHub Action versions can be tagged in arbitrary ways; semver categorisation unreliable
 
   # -------------------------------------------------------
