@@ -13,7 +13,7 @@ jobs:
       scheduled_matrix: ${{ steps.filter-dbid-deletion-schedule.outputs.scheduling_matrix }}
     steps:
       - name: Checkout DBIDs Deletion Schedule
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -75,7 +75,7 @@ jobs:
     steps:
 
       - name: Checkout Local Repo to get Composite Action
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Send Slack Failure Notification
         id: foreground_slack_notification
