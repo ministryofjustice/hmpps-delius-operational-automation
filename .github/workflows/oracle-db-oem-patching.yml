@@ -219,7 +219,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ needs.get_oem_account_id.outputs.account_id }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -289,7 +289,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ needs.get_agent_account_id.outputs.account_id }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"

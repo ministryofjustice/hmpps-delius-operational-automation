@@ -39,7 +39,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -47,7 +47,7 @@ jobs:
           aws-region: "eu-west-2"
             
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -58,7 +58,7 @@ jobs:
           aws s3 cp s3://mod-platform-image-artefact-bucket20230203091453221500000001/dependencies/oracle/rdbms/LINUX.X64_193000_client.zip /tmp/LINUX.X64_193000_client.zip
 
       - name: Upload Oracle Client ZIP as Artifact for the Build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: oracle-client-zip
           path: /tmp/LINUX.X64_193000_client.zip
@@ -74,18 +74,18 @@ jobs:
           fetch-depth: 0
 
       - name: Download Oracle Client ZIP File
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: oracle-client-zip
           path: ./docker/oracle-observer/LINUX.X64_193000_client.zip
 
       - name: Set up Docker Buildx
         id: setup_buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build and push to ghcr
         id: build_publish
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./docker/oracle-observer
           file: ./docker/oracle-observer/Dockerfile
@@ -97,7 +97,7 @@ jobs:
           outputs: type=docker,dest=/tmp/oracle-observer-image.tar
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: oracle-observer-image
           path: /tmp/oracle-observer-image.tar
@@ -120,7 +120,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: oracle-observer-image
           path: /tmp
@@ -145,14 +145,14 @@ jobs:
           fetch-depth: 0
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-oracle-observer-${{ github.run_number }}"
           aws-region: eu-west-2
 
       - name: Download Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: oracle-observer-image
           path: /tmp
