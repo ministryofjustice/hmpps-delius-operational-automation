@@ -9,7 +9,7 @@
 #
 # Example inclusion of the role in a workflow:
 #      - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
-#        uses: actions/checkout@v4
+#        uses: actions/checkout@<SHA> # v6.0.2
 #        with:
 #          repository: ministryofjustice/modernisation-platform-configuration-management
 #          sparse-checkout-cone-mode: false
