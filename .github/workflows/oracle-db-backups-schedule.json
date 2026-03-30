@@ -16,7 +16,7 @@
     {
         "TargetEnvironment":"delius-core-dev",
         "TargetHost":"delius_standbydb1",
-        "CronSchedule":"0 6,12,18 * * 1-5",
+        "CronSchedule":"0 8-19 * * 1-5",
         "Period": "archivelog",
         "FixAbsentChunks": "no",
         "BackupStandbyOnPrimaryFailure": "no",

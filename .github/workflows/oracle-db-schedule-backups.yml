@@ -15,6 +15,8 @@ on:
     - cron: '0 1 * * 0'         # 2am BST Runs (Sun)
     - cron: '0 3 * * 1-6'       # 3am GMT Runs (Mon-Sat)
     - cron: '0 2 * * 1-6'       # 3am BST Runs (Mon-Sat)
+    - cron: '0 8-19 * * 1-5' # GMT Hourly Weekday Runs (Archivelogs)
+    - cron: '0 7-18 * * 1-5' # BST Hourly Weekday Runs (Archivelogs)
 
 jobs:
 
