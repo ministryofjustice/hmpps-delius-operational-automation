@@ -33,12 +33,13 @@ on:
           - "dsd_standbydb1"
           - "delius_standbydb2"
       Period: 
-        description: "Is this a daily or weekly backup?"
+        description: "Is this a daily, weekly or archivelog backup?"
         required: true
         type: choice
         options: 
           - "daily"
           - "weekly"
+          - "archivelog"
       BackupStandbyOnPrimaryFailure:
         description: "Retry the backup on the standby if primary backup fails"
         type: choice
@@ -94,9 +95,19 @@ on:
         required: true
         type: string
       Period:
-        description: "Is this a daily or weekly backup?"
+        description: "Is this a daily, weekly or archivelog backup?"
         required: true
         type: string
+      BackupStandbyOnPrimaryFailure:
+        description: "Retry the backup on the standby if primary backup fails"
+        required: false
+        type: string
+        default: "no"
+      FixAbsentChunks:
+        description: "Validate and fix absent S3 missing backup chunks"
+        required: false
+        type: string
+        default: "yes"
 
   repository_dispatch:
     types: ["oracle-db-backup-success","oracle-db-backup-failure"]
@@ -117,6 +128,7 @@ jobs:
       BackupStandbyOnPrimaryFailure: ${{ steps.preparermantargetname.outputs.BackupStandbyOnPrimaryFailure }}
       SourceCodeVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceConfigVersion }}
+      FixAbsentChunks: ${{ steps.preparermantargetname.outputs.FixAbsentChunks }}
       Inputs: ${{ steps.preparermantargetname.outputs.Inputs }}
       SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
       IsRetryJob: ${{ steps.preparermantargetname.outputs.IsRetryJob }}
@@ -234,6 +246,7 @@ jobs:
               TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')
               Period=$(echo $Inputs | jq -r '.Period')
               IsRetryJob=$(echo $Inputs | jq -r '.IsRetryJob // "no"')
+              FixAbsentChunks=$(echo $Inputs | jq -r '.FixAbsentChunks // "yes"')
               # The following 2 parameters are mandatory; abort if they are missing from JSON inputs
               [[ -z $TargetEnvironment ]] && "Target Environment is not specified in JSON inputs" && exit 3
               [[ -z $Period ]] && "Backup Period (daily/weekly) is not specified in JSON inputs" && exit 4
@@ -257,6 +270,7 @@ jobs:
           echo "SourceCodeVersion=$SourceCodeVersion" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$SourceConfigVersion" >> $GITHUB_OUTPUT
           echo "IsRetryJob=$IsRetryJob" >> $GITHUB_OUTPUT
+          echo "FixAbsentChunks=$FixAbsentChunks" >> $GITHUB_OUTPUT
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
@@ -286,6 +300,7 @@ jobs:
       BackupStandbyOnPrimaryFailure: "${{needs.build_rman_target_name.outputs.BackupStandbyOnPrimaryFailure}}"
       SourceCodeVersion:  "${{needs.build_rman_target_name.outputs.SourceCodeVersion}}"
       SourceConfigVersion:  "${{needs.build_rman_target_name.outputs.SourceConfigVersion}}"
+      FixAbsentChunks:  "${{needs.build_rman_target_name.outputs.FixAbsentChunks}}" 
       Inputs:  "${{needs.build_rman_target_name.outputs.Inputs}}"
       SlackChannel: ${{ needs.build_rman_target_name.outputs.SlackChannel }}
       IsRetryJob: "${{needs.build_rman_target_name.outputs.IsRetryJob }}"
@@ -392,7 +407,7 @@ jobs:
                     LAST_UPDATED=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.LastModifiedDate" --output text | cut -d. -f1)
                     CURRENT_EPOCH=$(date +%s)
                     if [[ $((CURRENT_EPOCH-LAST_UPDATED)) -le 82800 ]]; then
-                        echo "Backup is already active on this host.  Multiple concurrent runs are not allowed."
+                        echo "Backup is already active on this host ($PHASE).  Multiple concurrent runs are not allowed."
                         Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Concurrent Backup Attempt"' | jq @json)
                         exit 1
                     fi
@@ -522,7 +537,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
 
       - name: Run Ansible Validate And Fix Absent Chunks
-        if: env.BackupStatus == 'success'
+        if: env.BackupStatus == 'success' && env.FixAbsentChunks != 'no'
         run: |
           # We only come here by a repository_dispatch event which reports that the backup was successful.
           # If this is the case then we run a second Ansible play which checks that all backup chunk pieces are available

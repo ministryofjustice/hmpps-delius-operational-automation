@@ -14,6 +14,15 @@
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
+        "TargetEnvironment":"delius-core-dev",
+        "TargetHost":"delius_standbydb1",
+        "CronSchedule":"0 8-19 * * 1-5",
+        "Period": "archivelog",
+        "FixAbsentChunks": "no",
+        "BackupStandbyOnPrimaryFailure": "no",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
+    },
+    {
         "TargetEnvironment":"delius-mis-dev",
         "TargetHost":"mis_primarydb",
         "CronSchedule":"0 7 * * 1,2,4,5",

@@ -15,6 +15,8 @@ on:
     - cron: '0 1 * * 0'         # 2am BST Runs (Sun)
     - cron: '0 3 * * 1-6'       # 3am GMT Runs (Mon-Sat)
     - cron: '0 2 * * 1-6'       # 3am BST Runs (Mon-Sat)
+    - cron: '0 8-19 * * 1-5' # GMT Hourly Weekday Runs (Archivelogs)
+    - cron: '0 7-18 * * 1-5' # BST Hourly Weekday Runs (Archivelogs)
 
 jobs:
 
@@ -40,7 +42,7 @@ jobs:
         run: |
           # Convert Cron Expression for the Schedule to Europe/London timezone
           CRONSCHEDULE=$(python3 operations/common/files/convert_cron_expression_to_London.py "${{ github.event.schedule }}")
-          SCHEDULED_JSON=$(jq --arg CRONSCHEDULE "$CRONSCHEDULE" '[.[] | select (.CronSchedule==$CRONSCHEDULE) | {"TargetEnvironment","TargetHost","Period"}]' operations/.github/workflows/oracle-db-backups-schedule.json | jq '{include: .}')
+          SCHEDULED_JSON=$(jq --arg CRONSCHEDULE "$CRONSCHEDULE" '[.[] | select(.CronSchedule == $CRONSCHEDULE) | {"TargetEnvironment": .TargetEnvironment, "TargetHost": .TargetHost, "Period": .Period, "FixAbsentChunks": (.FixAbsentChunks // "yes"), "BackupStandbyOnPrimaryFailure": (.BackupStandbyOnPrimaryFailure // "yes")}]' operations/.github/workflows/oracle-db-backups-schedule.json | jq '{include: .}')
           echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   report-schedule-backup:
@@ -76,4 +78,6 @@ jobs:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       TargetHost: ${{ matrix.TargetHost }}
       Period: ${{ matrix.Period }}
+      FixAbsentChunks: ${{ matrix.FixAbsentChunks || 'yes' }}
+      BackupStandbyOnPrimaryFailure: ${{ matrix.BackupStandbyOnPrimaryFailure || 'yes' }}
     secrets: inherit
