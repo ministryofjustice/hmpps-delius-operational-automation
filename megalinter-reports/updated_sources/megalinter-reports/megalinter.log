@@ -105,10 +105,3 @@ Kept [70] files on [72] found files
 | Descriptor | Linter | Criteria | Matching files | Format/Fix |
 +------------+--------+----------+----------------+------------+
 ::endgroup::
-[Updated Sources Reporter] copied 1 fixed source files in folder megalinter-reports/updated_sources.
-
-+----SUMMARY-+--------+------+-------+-------+--------+----------+--------------+
-| Descriptor | Linter | Mode | Files | Fixed | Errors | Warnings | Elapsed time |
-+------------+--------+------+-------+-------+--------+----------+--------------+
-
-[32m✅ Successfully linted all files without errors[0m
