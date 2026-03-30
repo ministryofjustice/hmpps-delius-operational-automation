@@ -12,7 +12,7 @@ The MegaLinter documentation can be found at:
 MegaLinter will analyze workspace [/github/workspace]
 GITHUB_REPOSITORY: ministryofjustice/hmpps-delius-operational-automation
 GITHUB_REF: refs/pull/724/merge
-GITHUB_RUN_ID: 23752238545
+GITHUB_RUN_ID: 23753061594
 
 
 JSON_ESLINT_PLUGIN_JSONC has been disabled in MegaLinter for the following reason: Bug in eslint-plugin-jsonc: https://github.com/ota-meshi/eslint-plugin-jsonc/issues/328
@@ -96,10 +96,11 @@ Modified files:
 .github/workflows/weblogic-update-task-def.yml
 megalinter-reports/IDE-config.txt
 megalinter-reports/megalinter.log
+megalinter-reports/updated_sources/megalinter-reports/megalinter.log
 - File extensions: .json, .md, .tf, .yaml, .yml
 - Excluding regex: README.md
 - Excluding .gitignored files [0]: 
-Kept [70] files on [72] found files
+Kept [70] files on [73] found files
 
 +----MATCHING LINTERS-+----------+----------------+------------+
 | Descriptor | Linter | Criteria | Matching files | Format/Fix |
