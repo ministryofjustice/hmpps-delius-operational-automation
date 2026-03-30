@@ -70,16 +70,16 @@
         - name: Set rman_options when "archivelog" and sequence range given
           set_fact:
             rman_options: "-t HOT -i 0 -b Y -A {{ min_seq }},{{ max_seq | default(min_seq) }}"
-          when: 
-             - daily_weekly == 'archivelog'
-             - min_seq is defined
+          when:
+            - daily_weekly == 'archivelog'
+            - min_seq is defined
 
         - name: Set rman_options when "archivelog" and no sequence range given (backup all sequences)
           set_fact:
             rman_options: "-t HOT -i 0 -b Y -A all"
-          when: 
-             - daily_weekly == 'archivelog'
-             - not min_seq is defined
+          when:
+            - daily_weekly == 'archivelog'
+            - not min_seq is defined
 
         - name: Setup catalog connect identifier in tnsnames if catalog defined
           include_tasks: setup-catalog-tnsnames.yml
