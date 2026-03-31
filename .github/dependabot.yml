@@ -5,31 +5,78 @@
 
 version: 2
 updates:
+  # -------------------------------------------------------
+  # Ruby / Bundler (semver-supported → granular cooldowns)
+  # -------------------------------------------------------
   - package-ecosystem: "bundler"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+
+  # -------------------------------------------------------
+  # Terraform (modules/providers often versioned semver-like)
+  # -------------------------------------------------------
   - package-ecosystem: "terraform"
     directory: "/terraform"
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 7
+
+  # -------------------------------------------------------
+  # GitHub Actions (NOT semver → use default-days only)
+  # -------------------------------------------------------
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 7
+    # GitHub Action versions can be tagged in arbitrary ways; semver categorisation unreliable
+
+  # -------------------------------------------------------
+  # Python pip (semver-supported → granular cooldowns)
+  # -------------------------------------------------------
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "daily"
+    cooldown:
+      semver-patch-days: 3
+      semver-minor-days: 7
+      semver-major-days: 30
+
+  # -------------------------------------------------------
+  # npm (semver-supported → granular cooldowns)
+  # -------------------------------------------------------
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "daily"
+    cooldown:
+      semver-patch-days: 3
+      semver-minor-days: 7
+      semver-major-days: 30
+
+  # -------------------------------------------------------
+  # Go modules (semver-supported → granular cooldowns)
+  # -------------------------------------------------------
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
       interval: "daily"
+    cooldown:
+      semver-patch-days: 3
+      semver-minor-days: 7
+      semver-major-days: 30
+
+  # -------------------------------------------------------
+  # Docker (tags not semver → use default-days only)
+  # -------------------------------------------------------
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 7
+    # Docker tags are arbitrary; semver categorisation unreliable

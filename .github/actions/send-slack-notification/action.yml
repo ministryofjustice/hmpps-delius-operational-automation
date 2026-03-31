@@ -41,7 +41,7 @@ runs:
       # so we need to pass these as environment variables.
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-send_slack-notification-${{ github.run_number }}"
@@ -87,7 +87,7 @@ runs:
       # the appropriate channel from EM for the target, we default to #dba_probation_internal.
       - name: Send Slack Message
         id: slack
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.27.0
         with:
               channel-id: "${{ steps.get_target_slack_channel.outputs.slack_channel || '#dba_probation_internal' }}"
               payload: |

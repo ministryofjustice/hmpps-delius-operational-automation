@@ -98,7 +98,7 @@ jobs:
           echo "allHost=$(echo ${hosts} | sed 's/delius_primarydb/all/')" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -110,7 +110,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout From hmpps-delius-operational-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
@@ -121,7 +121,7 @@ jobs:
 
       - name: Generate Token For Access To hmpps-delius-audit-stub-accounts
         if: ${{ github.event.inputs.DeployAuditStubUsers == 'yes' }}
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
         id: generate_token
         with:
           app-id: ${{ secrets.HMPPS_BOT_APP_ID }}
@@ -130,7 +130,7 @@ jobs:
 
       - name: Checkout From hmpps-delius-audit-stub-accounts
         if: ${{ github.event.inputs.DeployAuditStubUsers == 'yes' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/hmpps-delius-audit-stub-accounts
           token: ${{ steps.generate_token.outputs.token }}
@@ -142,7 +142,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
