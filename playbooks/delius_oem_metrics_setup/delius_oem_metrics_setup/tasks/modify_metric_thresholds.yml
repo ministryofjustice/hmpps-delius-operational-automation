@@ -44,8 +44,9 @@
         # There appears to be an undocumented bug unsetting thresholds using EMCLI input files.
         # Although the documentation suggests using " " to unset the threshold, this appears to
         # instead result in the literal value of " " being used.  As a workaround we can
-        # unset the threshold by specifying it directly as a command line parameter instead of
-        # using the input file.
+        # unset the threshold by specifying the thresholds directly as a command line parameter instead of
+        # using the input file (any sections of the input file with " " for the warning threshold will have
+        # been skipped in the above step.)
         # (We currently do not handle metrics with key columns)
         while IFS= read -r line; do
             case "$line" in
@@ -67,14 +68,18 @@
                         set_threshold="true"
                     fi
                     ;;
+                critical_threshold*,*)
+                    critical_threshold=$(echo "$line" | cut -d',' -f2 | sed 's/^\s*//' )
+                    ;;
                 END_RECORD*)
                     if [[ "$set_threshold" == "true" ]]; then
-                        echo "Using workaround to unset Warning Threshold for $metric:$column."
+                         echo "Using workaround to set thresholds for $metric:$column."
                         {{ emcli }} modify_threshold \
                            -target_name={{ item.0.target_name }} \
                            -target_type={{ item.1.target_type }} \
                            -metric="$metric" -column="$column" \
                            -warning_threshold="" \
+                           -critical_threshold="${critical_threshold}" \
                            -key_columns=";"
                     fi
                     ;;
