@@ -69,9 +69,8 @@
                     fi
                     ;;
                 critical_threshold*,*)
-                    critical_threshold=$(echo "$line" | cut -d',' -f2 | sed 's/^\s*//' )
-                    ;;
-                END_RECORD*)
+                          critical_threshold=$(echo "$line" | cut -d',' -f2- | sed 's/^\s*//' )
+                          ;;    END_RECORD*)
                     if [[ "$set_threshold" == "true" ]]; then
                          echo "Using workaround to set thresholds for $metric:$column."
                         {{ emcli }} modify_threshold \
