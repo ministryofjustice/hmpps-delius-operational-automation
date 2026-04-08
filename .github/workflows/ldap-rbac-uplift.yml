@@ -46,10 +46,10 @@ jobs:
                 echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ecs-service-ldap-${{ github.event.inputs.environment }}" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
                 echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*general-private-eu-west-2b,*general-private-eu-west-2c" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
 
-          # - name: Update RBAC Version SSM Parameter
-          #   id: update-ssm
-          #   run: |
-          #       aws ssm put-parameter --name "/delius-core-${{ github.event.inputs.environment }}/LDAP_RBAC_VERSION" --value "${{ github.event.inputs.rbac_tag }}" --overwrite
+          - name: Update RBAC Version SSM Parameter
+            id: update-ssm
+            run: |
+                aws ssm put-parameter --name "/delius-core-${{ github.event.inputs.environment }}/LDAP_RBAC_VERSION" --value "${{ github.event.inputs.rbac_tag }}" --overwrite
                 
           - name: Template task def with jq
             id: render
@@ -131,32 +131,32 @@ jobs:
               # # Run task and store task id for later use
               # echo "TASK_ID=$(aws ecs run-task --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --task-definition $task_definition_arn --network-configuration "awsvpcConfiguration={subnets=${{ steps.get-ids.outputs.SUBNET_IDS }},securityGroups=${{ steps.get-ids.outputs.SEC_GROUPS }},assignPublicIp=DISABLED}" --launch-type FARGATE --count 1 | jq -r '.tasks[0].taskArn' | cut -d '/' -f 3)" >> $GITHUB_OUTPUT
 
-          # - name: Delete Task Definition
-          #   run: |
-          #     aws ecs deregister-task-definition --task-definition ${{steps.run-task.outputs.TASK_DEF_ARN}}
+          - name: Delete Task Definition
+            run: |
+              aws ecs deregister-task-definition --task-definition ${{steps.run-task.outputs.TASK_DEF_ARN}}
 
-          # - name: Output Cloudwatch Logs
-          #   run: |
-          #     task_running=true
-          #     while [ "$task_running" = true ]; do
+          - name: Output Cloudwatch Logs
+            run: |
+              task_running=true
+              while [ "$task_running" = true ]; do
 
-          #         task_info=$(aws ecs describe-tasks --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --tasks ${{steps.run-task.outputs.TASK_ID}})
-          #         last_status=$(echo "$task_info" | jq -r '.tasks[0].lastStatus')
+                  task_info=$(aws ecs describe-tasks --cluster ${{ steps.set-cluster-arn.outputs.CLUSTER_ARN }} --tasks ${{steps.run-task.outputs.TASK_ID}})
+                  last_status=$(echo "$task_info" | jq -r '.tasks[0].lastStatus')
 
-          #         if [ "$last_status" == "STOPPED" ]; then
-          #             task_running=false
-          #         else
-          #             sleep 10
-          #         fi
-          #     done
+                  if [ "$last_status" == "STOPPED" ]; then
+                      task_running=false
+                  else
+                      sleep 10
+                  fi
+              done
 
-          #     task_definition_arn=$(echo "$task_info" | jq -r '.tasks[0].taskDefinitionArn')
-          #     task_definition=$(aws ecs describe-task-definition --task-definition $task_definition_arn)
+              task_definition_arn=$(echo "$task_info" | jq -r '.tasks[0].taskDefinitionArn')
+              task_definition=$(aws ecs describe-task-definition --task-definition $task_definition_arn)
 
-          #     log_group_name=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-group"')
+              log_group_name=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-group"')
               
-          #     log_stream_prefix=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-stream-prefix"')
-          #     container_name=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].name')
-          #     log_stream_name="${log_stream_prefix}/${container_name}/${{steps.run-task.outputs.TASK_ID}}"
+              log_stream_prefix=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-stream-prefix"')
+              container_name=$(echo "$task_definition" | jq -r '.taskDefinition.containerDefinitions[0].name')
+              log_stream_name="${log_stream_prefix}/${container_name}/${{steps.run-task.outputs.TASK_ID}}"
 
-          #     aws logs tail "$log_group_name" --log-stream-names "$log_stream_name"
+              aws logs tail "$log_group_name" --log-stream-names "$log_stream_name"
