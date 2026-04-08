@@ -45,7 +45,7 @@ jobs:
             run: |
                 echo "SEC_GROUPS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ecs-service-ldap-${{ github.event.inputs.environment }}" --query "SecurityGroups[].GroupId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
                 echo "SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*general-private-eu-west-2b,*general-private-eu-west-2c" --query "Subnets[].SubnetId" --output json | jq -s -c '.[]')" >> $GITHUB_OUTPUT
-                
+
           # - name: Update RBAC Version SSM Parameter
           #   id: update-ssm
           #   run: |
@@ -72,7 +72,7 @@ jobs:
                 .executionRoleArn = $executionRoleArn
                 | .taskRoleArn = $taskRoleArn
                 | .containerDefinitions[0].image = $image
-                | .containerDefinitions[0].containerName = $containerName
+                | .containerDefinitions[0].name = $containerName
 
                 # command
                 | .containerDefinitions[0].command = ["ldap-automation", "rbac-uplift", "-t", $rbacTag]
