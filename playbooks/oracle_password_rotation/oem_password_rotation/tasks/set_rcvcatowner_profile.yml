@@ -20,7 +20,7 @@
     - name: Create RMAN_CATALOG Profile
       script: ../../all_password_rotation/files/create_database_profile.sh
       register: out
-      when: get_rman_catalog_profile.stdout_lines[-1] != 'RMAN_CATALOG_PROFILE'
+      when: get_rman_catalog_profile.stdout != 'RMAN_CATALOG_PROFILE'
       environment:
         PROFILE_NAME: "RMAN_CATALOG_PROFILE"
 
@@ -30,7 +30,7 @@
 
     - name: Set RCVCATOWNER Profile
       script: ../../all_password_rotation/files/set_database_profile.sh
-      when: get_rcvcatowner_current_profile.stdout_lines[-1] != 'RMAN_CATALOG_PROFILE'
+      when: get_rcvcatowner_current_profile.stdout != 'RMAN_CATALOG_PROFILE'
       environment:
         PROFILE_USER: "RCVCATOWNER"
         PROFILE_NAME: "RMAN_CATALOG_PROFILE"
