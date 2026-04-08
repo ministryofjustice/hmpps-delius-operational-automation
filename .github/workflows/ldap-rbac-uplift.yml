@@ -115,8 +115,8 @@ jobs:
               echo "rendered-json-file=$OUTPUT_FILE" >> "$GITHUB_OUTPUT"
                     
           - name: Show rendered task definition
-          run: |
-            cat ${{ steps.render.outputs.rendered-json-file }}
+            run: |
+              cat ${{ steps.render.outputs.rendered-json-file }}
           # - name: Show rendered user service task
           #   if: github.ref != 'refs/heads/main'
           #   run: cat ${{ steps.render.outputs.rendered-json-file }}
