@@ -14,19 +14,12 @@
       environment:
         PROFILE_USER: "RCVCATOWNER"
 
-    - debug:
-        var: get_rman_catalog_profile
-
     - name: Create RMAN_CATALOG Profile
       script: ../../all_password_rotation/files/create_database_profile.sh
       register: out
       when: get_rman_catalog_profile.stdout | trim != 'RMAN_CATALOG_PROFILE' 
       environment:
         PROFILE_NAME: "RMAN_CATALOG_PROFILE"
-
-
-    - debug:
-        var: get_rcvcatowner_current_profile
 
     - name: Set RCVCATOWNER Profile
       script: ../../all_password_rotation/files/set_database_profile.sh
