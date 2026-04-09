@@ -55,6 +55,7 @@
                     column=""
                     warning_threshold=""
                     set_threshold=false
+                    keyed_metric=false
                     ;;
                 metric*,*)
                     metric=$(echo "$line" | cut -d',' -f2 | xargs)
