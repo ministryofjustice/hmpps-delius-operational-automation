@@ -48,6 +48,17 @@
         # using the input file (any sections of the input file with " " for the warning threshold will have
         # been skipped in the above step.)
         # (We currently do not handle metrics with key columns)
+        run_modify_threshold() {
+          {{ emcli }} modify_threshold \
+            -target_name={{ item.0.target_name }} \
+            -target_type={{ item.1.target_type }} \
+            -metric="$metric" \
+            -column="$column" \
+            -warning_threshold="" \
+            -critical_threshold="${critical_threshold}" \
+            "$@"
+        }
+
         while IFS= read -r line; do
             case "$line" in
                 START_RECORD*)
@@ -74,13 +85,21 @@
                 END_RECORD*)
                     if [[ "$set_threshold" == "true" ]]; then
                          echo "Using workaround to set thresholds for $metric:$column."
-                        {{ emcli }} modify_threshold \
-                           -target_name={{ item.0.target_name }} \
-                           -target_type={{ item.1.target_type }} \
-                           -metric="$metric" -column="$column" \
-                           -warning_threshold="" \
-                           -critical_threshold="${critical_threshold}" \
-                           -key_columns=";"
+                    modify_threshold_output=$( run_modify_threshold -key_columns=";" 2>&1 )
+                        modify_threshold_status=$?
+
+                        # It is not obvious how we can detect which metrics are key-based and
+                        # which aren't, so we simply retry without the -key_columns switch if
+                        # an error about it not being a key-based metric is detected.
+                        if [[ $modify_threshold_status -ne 0 ]]; then
+                            if [[ "$modify_threshold_output" == *"is not key based."* ]]; then
+                                echo "Retrying workaround without key columns for $metric:$column."
+                        run_modify_threshold
+                            else
+                                echo "$modify_threshold_output"
+                                exit $modify_threshold_status
+                            fi
+                        fi
                     fi
                     ;;
             esac
