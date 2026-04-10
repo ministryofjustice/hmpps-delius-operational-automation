@@ -77,7 +77,7 @@
                     ;;
                 END_RECORD*)
                     if [[ "$set_threshold" == "true" ]]; then
-                         echo "Using workaround to set thresholds for $metric:$column."
+                        echo "Using workaround to set thresholds for $metric:$column."
                         if [[ "$keyed_metric" == "true" ]]; then
                           {{ emcli }} modify_threshold \
                             -target_name={{ item.0.target_name }} \
