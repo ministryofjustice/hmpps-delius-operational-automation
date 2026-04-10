@@ -47,7 +47,7 @@
         # unset the threshold by specifying the thresholds directly as a command line parameter instead of
         # using the input file (any sections of the input file with " " for the warning threshold will have
         # been skipped in the above step.)
-        # (We currently do not handle metrics with key columns)
+        # (We currently do not handle metrics with defined key columns)
         while IFS= read -r line; do
             case "$line" in
                 START_RECORD*)
@@ -55,6 +55,7 @@
                     column=""
                     warning_threshold=""
                     set_threshold=false
+                    keyed_metric=false
                     ;;
                 metric*,*)
                     metric=$(echo "$line" | cut -d',' -f2 | xargs)
@@ -71,16 +72,28 @@
                 critical_threshold*,*)
                     critical_threshold=$(echo "$line" | cut -d',' -f2- | sed 's/^\s*//' )
                     ;;
+                key_columns*,*)
+                    keyed_metric=true
+                    ;;
                 END_RECORD*)
                     if [[ "$set_threshold" == "true" ]]; then
-                         echo "Using workaround to set thresholds for $metric:$column."
-                        {{ emcli }} modify_threshold \
-                           -target_name={{ item.0.target_name }} \
-                           -target_type={{ item.1.target_type }} \
-                           -metric="$metric" -column="$column" \
-                           -warning_threshold="" \
-                           -critical_threshold="${critical_threshold}" \
-                           -key_columns=";"
+                        echo "Using workaround to set thresholds for $metric:$column."
+                        if [[ "$keyed_metric" == "true" ]]; then
+                          {{ emcli }} modify_threshold \
+                            -target_name={{ item.0.target_name }} \
+                            -target_type={{ item.1.target_type }} \
+                            -metric="$metric" -column="$column" \
+                            -warning_threshold="" \
+                            -critical_threshold="${critical_threshold}" \
+                            -key_columns=";"
+                        else
+                          {{ emcli }} modify_threshold \
+                            -target_name={{ item.0.target_name }} \
+                            -target_type={{ item.1.target_type }} \
+                            -metric="$metric" -column="$column" \
+                            -warning_threshold="" \
+                            -critical_threshold="${critical_threshold}" 
+                        fi
                     fi
                     ;;
             esac

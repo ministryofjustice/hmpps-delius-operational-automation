@@ -42,7 +42,7 @@ BEGIN
   AND    object_type = 'TABLE';
 
   IF l_obj_exists = 1 THEN
-    EXECUTE IMMEDIATE 'GRANT INSERT ON '||l_owner||'.'||l_obj_name||' TO AUDSYS';
+    EXECUTE IMMEDIATE 'GRANT INSERT,DELETE ON '||l_owner||'.'||l_obj_name||' TO AUDSYS';
   END IF;
 
 END;
@@ -325,7 +325,15 @@ PROCEDURE set_last_archive_timestamp (
     p_unified_cap IN INTEGER DEFAULT 13 -- months
     )
 AS
-  l_output          VARCHAR2(4000);
+  l_output            VARCHAR2(4000);
+  -- Control variables for retrying the load of unified audit files in a loop
+  l_retry_count       INTEGER := 0;
+  l_max_retries       INTEGER := 60;
+  l_retry_delay       INTEGER := 60; -- seconds
+  l_exception_handled BOOLEAN := FALSE;
+  -- Trap exception where we attempt more than one concurrent operation on the unified audit trail
+  conflicting_operation EXCEPTION;
+  PRAGMA EXCEPTION_INIT(conflicting_operation,-46277);
 BEGIN
   l_output := 'Setting last archive timestamp for audit trails.';
 
@@ -356,7 +364,26 @@ BEGIN
     );
 
   -- Load the os unified audit files from the audit directory if any exist
-  DBMS_AUDIT_MGMT.LOAD_UNIFIED_AUDIT_FILES;
+  BEGIN
+    WHILE l_retry_count < l_max_retries AND NOT l_exception_handled LOOP
+      BEGIN
+        DBMS_AUDIT_MGMT.LOAD_UNIFIED_AUDIT_FILES;
+        l_exception_handled := TRUE;
+      EXCEPTION
+        -- If we attempt to load unified audit files whilst archival is running
+        -- we may encounter ORA-46277: Conflicting operation on unified audit trail
+        -- Keep retrying this operation of up to 1 hour or until it succeeds
+        -- (i.e. once the archival has completed)
+        WHEN conflicting_operation THEN
+            l_retry_count := l_retry_count + 1;
+            IF l_retry_count < l_max_retries THEN
+              DBMS_LOCK.SLEEP(l_retry_delay);
+            ELSE
+              RAISE;  -- If too many retries then raise the error
+            END IF;
+      END;
+    END LOOP;
+  END;
   DBMS_OUTPUT.put_line(l_output);
 
 END set_last_archive_timestamp;
