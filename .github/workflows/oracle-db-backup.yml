@@ -272,6 +272,7 @@ jobs:
           echo "SourceConfigVersion=$SourceConfigVersion" >> $GITHUB_OUTPUT
           echo "IsRetryJob=$IsRetryJob" >> $GITHUB_OUTPUT
           echo "FixAbsentChunks=$FixAbsentChunks" >> $GITHUB_OUTPUT
+          echo "VerboseOutput=$VerboseOutput" >> $GITHUB_OUTPUT
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
