@@ -14,14 +14,17 @@ DECLARE
     AND object_type = 'PACKAGE BODY';
 
   CURSOR cur_check_job (p_owner varchar2) IS
-    SELECT enabled 
+    SELECT enabled,
+           repeat_interval
     FROM dba_scheduler_jobs
     WHERE owner = p_owner
     AND job_name = 'SET_LAST_ARCHIVE_TIMESTAMP';
 
   v_object_name dba_objects.object_name%TYPE;
   v_enabled dba_scheduler_jobs.enabled%TYPE;
+  v_repeat_interval dba_scheduler_jobs.repeat_interval%TYPE;
   v_playbook_search VARCHAR2(50):='Audit Management';
+  v_job_status VARCHAR2(30);
 
 BEGIN
    
@@ -34,7 +37,7 @@ BEGIN
 
     -- check for the old sys-owned SET_LAST_ARCHIVE_TIMESTAMP job
     OPEN cur_check_job ('SYS');
-    FETCH cur_check_job INTO v_enabled;
+    FETCH cur_check_job INTO v_enabled, v_repeat_interval;
     CLOSE cur_check_job;
 
     IF v_enabled IS NOT NULL
@@ -59,14 +62,21 @@ BEGIN
         value => 'freq=daily; byhour=2; byminute=0; bysecond=0;');
 
       DBMS_SCHEDULER.drop_job(job_name => '"SYS"."SET_LAST_ARCHIVE_TIMESTAMP"');
+      v_job_status := 'Rescheduled';
     ELSE
     -- create the new audsys job if it doesn't exist
       OPEN cur_check_job ('AUDSYS');
-      FETCH cur_check_job INTO v_enabled;
+      FETCH cur_check_job INTO v_enabled, v_repeat_interval;
       CLOSE cur_check_job;
 
       IF v_enabled IS NULL
+        OR NVL(UPPER(TRIM(v_repeat_interval)), '#NULL#') <> UPPER(TRIM('&REPEATINTERVAL'))
       THEN
+          IF v_enabled IS NOT NULL
+          THEN
+            DBMS_SCHEDULER.drop_job('AUDSYS.SET_LAST_ARCHIVE_TIMESTAMP');
+          END IF;
+
           DBMS_SCHEDULER.CREATE_JOB (
             job_name => '"AUDSYS"."SET_LAST_ARCHIVE_TIMESTAMP"',
             job_type => 'PLSQL_BLOCK',
@@ -87,18 +97,25 @@ BEGIN
                   name => 'AUDSYS.SET_LAST_ARCHIVE_TIMESTAMP',
                   attribute => 'logging_level',
                   value => DBMS_SCHEDULER.LOGGING_FULL);
-          
+
+          IF v_enabled IS NULL
+          THEN
+            v_job_status := 'Scheduled';
+          ELSE
+            v_job_status := 'Rescheduled';
+          END IF;
+
+      ELSIF v_enabled = 'FALSE'
+      THEN
+        DBMS_SCHEDULER.enable(name => '"AUDSYS"."SET_LAST_ARCHIVE_TIMESTAMP"');
+        v_job_status := 'Enabled';
+
       ELSE
-        -- if the rentention period ever needs to be changed, update the job action here, e.g.
-        --DBMS_SCHEDULER.set_attribute (
-          --name => '"AUDSYS"."SET_LAST_ARCHIVE_TIMESTAMP"',
-          --attribute => 'job_action',
-          --value => 'BEGIN AUDSYS.delius_audit_management.set_last_archive_timestamp(p_day_cap => 31, p_unified_cap => 3); END;');
-        NULL; -- do nothing for now and use the default retention periods
+        v_job_status := 'Already Scheduled';
       END IF;
     END IF;
 
-    DBMS_OUTPUT.PUT_LINE(v_playbook_search||': Enabled');
+    DBMS_OUTPUT.PUT_LINE(v_playbook_search||': '||v_job_status);
   ELSE
     DBMS_OUTPUT.PUT_LINE(v_playbook_search||': No Audit Management Artefacts');
   END IF;

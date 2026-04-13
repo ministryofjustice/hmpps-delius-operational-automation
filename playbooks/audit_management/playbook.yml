@@ -73,7 +73,7 @@
                "{{ dbms_scheduler.delius_audit_archive.repeat_interval | default('FREQ=DAILY;BYHOUR=4;BYMINUTE=0;BYSECOND=0;') }}"
             EOF
           register: sql_result
-          changed_when: false
+          changed_when: "'Scheduled' in sql_result.stdout or 'Rescheduled' in sql_result.stdout"
           failed_when: "'Audit Management' not in sql_result.stdout"
 
         # Ensure the REPEAT_INTERVAL for this job is during normal scheduled uptime for the database
@@ -86,7 +86,7 @@
               "{{ dbms_scheduler.set_last_archive_timestamp.repeat_interval | default('freq=daily; byhour=2; byminute=0; bysecond=0;') }}"
             EOF
           register: sql_result
-          changed_when: false
+          changed_when: "'Scheduled' in sql_result.stdout or 'Rescheduled' in sql_result.stdout"
           failed_when: "'Audit Management' not in sql_result.stdout"
 
         - name: Configure Audit Policies
