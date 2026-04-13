@@ -1,6 +1,8 @@
 WHENEVER SQLERROR EXIT FAILURE
 SET SERVEROUTPUT ON SIZE UNLIMITED
-SET VERIFY OFF 
+SET VERIFY OFF
+
+REPEATINTERVAL=&1
 
 DECLARE
 
@@ -55,7 +57,7 @@ BEGIN
               job_action => 'BEGIN AUDSYS.delius_audit_management.archive_audit_trail; END;',
               number_of_arguments => 0,
               start_date => TRUNC(SYSDATE)+1,
-              repeat_interval => 'FREQ=DAILY;BYHOUR=4;BYMINUTE=00;BYSECOND=0',
+              repeat_interval => '&REPEATINTERVAL',
               end_date => NULL,
               enabled => TRUE,
               auto_drop => FALSE,

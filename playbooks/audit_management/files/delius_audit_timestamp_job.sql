@@ -2,6 +2,8 @@ WHENEVER SQLERROR EXIT FAILURE
 SET SERVEROUTPUT ON SIZE UNLIMITED
 SET VERIFY OFF 
 
+REPEATINTERVAL=&1
+
 DECLARE
 
   CURSOR cur_check_pkg IS
@@ -71,7 +73,7 @@ BEGIN
             job_action => 'BEGIN AUDSYS.delius_audit_management.set_last_archive_timestamp; END;',
             number_of_arguments => 0,
             start_date => TRUNC(SYSDATE)+1,
-            repeat_interval => 'freq=daily; byhour=2; byminute=0; bysecond=0;',
+            repeat_interval => '&REPEATINTERVAL',
             end_date => NULL,
             enabled => TRUE,
             auto_drop => FALSE,
