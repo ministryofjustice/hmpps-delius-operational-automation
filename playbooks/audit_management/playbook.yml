@@ -76,6 +76,9 @@
           changed_when: "'Scheduled' in sql_result.stdout or 'Rescheduled' in sql_result.stdout"
           failed_when: "'Audit Management' not in sql_result.stdout"
 
+        - debug:
+              var: sql_result.stdout
+
         # Ensure the REPEAT_INTERVAL for this job is during normal scheduled uptime for the database
         # and does not clash with other audit-related jobs
         - name: Schedule Archiving Timestamp Job
