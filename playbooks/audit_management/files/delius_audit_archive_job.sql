@@ -1,6 +1,8 @@
 WHENEVER SQLERROR EXIT FAILURE
 SET SERVEROUTPUT ON SIZE UNLIMITED
-SET VERIFY OFF 
+SET VERIFY OFF
+
+DEFINE REPEATINTERVAL=&1
 
 DECLARE
 
@@ -12,13 +14,15 @@ DECLARE
     AND object_type = 'PACKAGE BODY';
 
   CURSOR cur_check_job (p_owner varchar2) IS
-    SELECT enabled 
+    SELECT enabled,
+           repeat_interval
     FROM dba_scheduler_jobs
     WHERE owner = p_owner
     AND job_name = 'DELIUS_AUDIT_ARCHIVE';
 
   v_object_name dba_objects.object_name%TYPE;
   v_enabled dba_scheduler_jobs.enabled%TYPE;
+  v_repeat_interval dba_scheduler_jobs.repeat_interval%TYPE;
   v_playbook_search VARCHAR2(50):='Audit Management';
 
 BEGIN
@@ -32,7 +36,7 @@ BEGIN
 
     -- Check for the old archive sys-owned job and drop it
     OPEN cur_check_job ('SYS');
-    FETCH cur_check_job INTO v_enabled;
+    FETCH cur_check_job INTO v_enabled, v_repeat_interval;
     CLOSE cur_check_job;
 
     IF v_enabled IS NOT NULL
@@ -42,11 +46,17 @@ BEGIN
 
     -- Check for the new AUDSYS archive job and create the job if needed
     OPEN cur_check_job ('AUDSYS');
-    FETCH cur_check_job INTO v_enabled;
+    FETCH cur_check_job INTO v_enabled, v_repeat_interval;
     CLOSE cur_check_job;
 
     IF v_enabled IS NULL
+      OR NVL(UPPER(TRIM(v_repeat_interval)), '#NULL#') <> UPPER(TRIM('&REPEATINTERVAL'))
     THEN
+      IF v_enabled IS NOT NULL
+      THEN
+        DBMS_SCHEDULER.drop_job('AUDSYS.DELIUS_AUDIT_ARCHIVE');
+      END IF;
+
       -- Run this job at 4am so it doesn't clash with other jobs that deal with the audit tables
       -- otherwise they may interfere with each other and raise exception ORA-46277: Conflicting operation on unified audit trail
       DBMS_SCHEDULER.CREATE_JOB (
@@ -55,7 +65,7 @@ BEGIN
               job_action => 'BEGIN AUDSYS.delius_audit_management.archive_audit_trail; END;',
               number_of_arguments => 0,
               start_date => TRUNC(SYSDATE)+1,
-              repeat_interval => 'FREQ=DAILY;BYHOUR=4;BYMINUTE=00;BYSECOND=0',
+              repeat_interval => '&REPEATINTERVAL',
               end_date => NULL,
               enabled => TRUE,
               auto_drop => FALSE,
@@ -70,7 +80,12 @@ BEGIN
               attribute => 'logging_level',
               value => DBMS_SCHEDULER.LOGGING_FULL);
 
-      DBMS_OUTPUT.PUT_LINE(v_playbook_search||': Scheduled');
+      IF v_enabled IS NULL
+      THEN
+        DBMS_OUTPUT.PUT_LINE(v_playbook_search||': Scheduled');
+      ELSE
+        DBMS_OUTPUT.PUT_LINE(v_playbook_search||': Rescheduled');
+      END IF;
     ELSIF v_enabled = 'FALSE'
     THEN
       DBMS_SCHEDULER.enable(name => '"AUDSYS"."DELIUS_AUDIT_ARCHIVE"');
