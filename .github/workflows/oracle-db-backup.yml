@@ -132,6 +132,7 @@ jobs:
       Inputs: ${{ steps.preparermantargetname.outputs.Inputs }}
       SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
       IsRetryJob: ${{ steps.preparermantargetname.outputs.IsRetryJob }}
+      VerboseOutput: ${{ steps.preparermantargetname.outputs.VerboseOutput }}
     steps:
       - name: Prepare Rman Target
         id: preparermantargetname
@@ -271,6 +272,7 @@ jobs:
           echo "SourceConfigVersion=$SourceConfigVersion" >> $GITHUB_OUTPUT
           echo "IsRetryJob=$IsRetryJob" >> $GITHUB_OUTPUT
           echo "FixAbsentChunks=$FixAbsentChunks" >> $GITHUB_OUTPUT
+          echo "VerboseOutput=$VerboseOutput" >> $GITHUB_OUTPUT
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
@@ -304,6 +306,7 @@ jobs:
       Inputs:  "${{needs.build_rman_target_name.outputs.Inputs}}"
       SlackChannel: ${{ needs.build_rman_target_name.outputs.SlackChannel }}
       IsRetryJob: "${{needs.build_rman_target_name.outputs.IsRetryJob }}"
+      VerboseOutput: "${{needs.build_rman_target_name.outputs.VerboseOutput }}"
       ansible_config: operations/playbooks/ansible.cfg
     continue-on-error: false
     steps:
@@ -451,16 +454,19 @@ jobs:
           # This allows the primary job to run on the standby if needed (so this is a different type
           # of failure to running it on the primary and getting an RMAN error, i.e. it doesn't run at all,
           # but we just want to do the same thing, which is to re-try on standby).
-          echo "==============================================================================="
-          echo "Inventory: $inventory"
-          ls -l $inventory
-          echo "Contents:"
-          find $inventory
-          echo "Ansible Inventory:"
-          ansible-inventory -i $inventory --list
-          echo "Looking for: $RmanTarget"
-          ansible-inventory -i $inventory --list | grep -c $RmanTarget
-          echo "==============================================================================="
+          if [[ "${VerboseOutput}" == "-vv" || "${VerboseOutput}" == "-vvv" || "${VerboseOutput}" == "-vvvv" ]]
+          then 
+              echo "==============================================================================="
+              echo "Inventory: $inventory"
+              ls -l $inventory
+              echo "Contents:"
+              find $inventory
+              echo "Ansible Inventory:"
+              ansible-inventory -i $inventory --list
+              echo "Looking for: $RmanTarget"
+              ansible-inventory -i $inventory --list | grep -c $RmanTarget
+              echo "==============================================================================="
+          fi
           if [[ $(ansible-inventory -i $inventory --list | grep -c $RmanTarget) -eq 0 ]]; then
              echo "Target does not appear in the inventory"
              BackupStatus="failed"
