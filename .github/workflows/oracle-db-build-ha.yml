@@ -131,6 +131,7 @@ jobs:
             echo "standbydb2Host=$(echo ${{ steps.prepareinventorynames.outputs.primaryHost }} | sed 's/primarydb/standbydb2/')" >> $GITHUB_OUTPUT
           fi
           echo "high_availability_count=${high_availability_count}" >> $GITHUB_OUTPUT
+          cat $GITHUB_OUTPUT
 
       - name: Checkout From hmpps-delius-operational-automation
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
