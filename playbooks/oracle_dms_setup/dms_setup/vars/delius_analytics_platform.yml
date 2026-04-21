@@ -168,6 +168,9 @@ dms_tables:
   - name: CONTACT_ALERT_CLEAR
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
+  - name: CONTACT_SPARKS
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
   - name: CONTACT_TYPE_ICON
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
