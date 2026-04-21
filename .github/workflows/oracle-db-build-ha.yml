@@ -94,7 +94,7 @@ jobs:
       - name: Prepare Primary And All Inventory Name
         id: prepareinventorynames
         run: |
-          primaryHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}"
+          primaryHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/preprod/preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}"
           echo "primaryHost=${primaryHost}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
@@ -114,7 +114,7 @@ jobs:
         shell: bash
         working-directory: ${{ env.inventory }}
         run: |
-          database_environment="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')"
+          database_environment="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/preprod/preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')"
           database_type=$(echo ${{ github.event.inputs.TargetHost }} | cut -d_ -f1)
           high_availability_count=$(yq .high_availability_count.${database_type} group_vars/${database_environment}_all.yml)
           if [[ ${high_availability_count} -eq 0 ]]
