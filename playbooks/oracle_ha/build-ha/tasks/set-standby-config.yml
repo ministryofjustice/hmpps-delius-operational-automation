@@ -6,6 +6,15 @@
     state: present
     owner: "{{ rdbms_service_user.name }}"
 
+- name: Setting up TNSNames
+  debug:
+     msg: |
+          Path:                {{ oracle_database_oracle_home }}/network/admin/tnsnames.ora
+          Primary Unique Name: {{ primary_host_tns }})
+          Primary Host TNS:    {{ primary_host_tns }}
+          Standby Unique Name: {{ database_standby_unique_name }}
+          Standby Host TNS:    {{ standby_host_tns }}
+
 - name: (main/set-standby-config) Setup standby tnsnames
   blockinfile:
     create: yes
