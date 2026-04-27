@@ -115,7 +115,7 @@ jobs:
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
-          DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
+          DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/-preprod$/_preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           # Check the combination of Source Database and Source Bucket is correct if NOT duplicating from AWS legacy
           if [[ "${SourceLegacy}" == "no" ]]
@@ -505,7 +505,7 @@ jobs:
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
           echo "RestoreDatetime=$(echo $Inputs | jq -r '.RestoreDatetime')" >> $GITHUB_OUTPUT
-          DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
+          DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/-preprod$/_preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           echo "SourceLegacy=$(echo $Inputs | jq -r '.SourceLegacy')" >> $GITHUB_OUTPUT
           Action='${{ github.event.action }}'

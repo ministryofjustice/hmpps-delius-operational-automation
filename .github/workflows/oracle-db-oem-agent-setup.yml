@@ -70,7 +70,7 @@ jobs:
     steps:
       - name: Prepare Target Name
         id: preparetargetname
-        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/preprod/preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
+        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
   deployment:
     name: oracle-db-oem-agent-setup
     needs: build_target_name
