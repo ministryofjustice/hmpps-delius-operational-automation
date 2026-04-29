@@ -187,7 +187,7 @@
     {
         "TargetEnvironment":"delius-core-preprod",
         "TargetHost":"delius_standbydb1",
-        "CronSchedule":"0 41 * * *",
+        "CronSchedule":"41 * * * *",
         "Period": "archivelog",
         "FixAbsentChunks": "no",
         "BackupStandbyOnPrimaryFailure": "no",
