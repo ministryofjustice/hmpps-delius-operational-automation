@@ -192,5 +192,5 @@
         "FixAbsentChunks": "no",
         "BackupStandbyOnPrimaryFailure": "no",
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
+    }
 ]
