@@ -222,6 +222,7 @@ jobs:
 
       - name: Start Ansible Validate Backup
         id: validate-backup
+        shell: bash
         run: |
           [[ ! -z ${{ steps.randomizetargethost.outputs.RmanTarget }} ]] && RmanTarget="${{ steps.randomizetargethost.outputs.RmanTarget }}"
           export ANSIBLE_CONFIG=$ansible_config
