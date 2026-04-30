@@ -204,7 +204,7 @@ jobs:
           echo "Prefix        : ${prefix}"
           high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
           echo "HA Count      : ${high_availability_count}"
-          if [[ ${high_availability_count} -gt 0 ]]; then
+          if [ ${high_availability_count} -gt 0 ]; then
               RmanTarget="${prefix}_${databasetype}_standbydb$(($RANDOM % ${high_availability_count} + 1 ))"
           fi
           echo "RMAN Target   : ${RmanTarget}"
