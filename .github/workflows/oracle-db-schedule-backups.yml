@@ -40,10 +40,12 @@ jobs:
       - name: Filter Backups Schedule
         id: filter-backups-schedule
         run: |
-          # Convert Cron Expression for the Schedule to Europe/London timezone
-          CRONSCHEDULE=$(python3 operations/common/files/convert_cron_expression_to_London.py "${{ github.event.schedule }}")
-          SCHEDULED_JSON=$(jq --arg CRONSCHEDULE "$CRONSCHEDULE" '[.[] | select(.CronSchedule == $CRONSCHEDULE) | {"TargetEnvironment": .TargetEnvironment, "TargetHost": .TargetHost, "Period": .Period, "FixAbsentChunks": (.FixAbsentChunks // "yes"), "BackupStandbyOnPrimaryFailure": (.BackupStandbyOnPrimaryFailure // "yes")}]' operations/.github/workflows/oracle-db-backups-schedule.json | jq '{include: .}')
-          echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
+            set -euo pipefail
+
+            # Convert Cron Expression for the Schedule to Europe/London timezone
+            CRONSCHEDULE=$(python3 operations/common/files/convert_cron_expression_to_London.py "${{ github.event.schedule }}")
+            SCHEDULED_JSON=$(jq --arg CRONSCHEDULE "$CRONSCHEDULE" '[.[] | select(.CronSchedule == $CRONSCHEDULE) | {"TargetEnvironment": .TargetEnvironment, "TargetHost": .TargetHost, "Period": .Period, "FixAbsentChunks": (.FixAbsentChunks // "yes"), "BackupStandbyOnPrimaryFailure": (.BackupStandbyOnPrimaryFailure // "yes")}]' operations/.github/workflows/oracle-db-backups-schedule.json | jq '{include: .}')
+            echo "scheduling_matrix="$(echo ${SCHEDULED_JSON} | sed 's/ //g') >> $GITHUB_OUTPUT
 
   report-schedule-backup:
     needs: prepare-run-matrix
@@ -81,3 +83,32 @@ jobs:
       FixAbsentChunks: ${{ matrix.FixAbsentChunks || 'yes' }}
       BackupStandbyOnPrimaryFailure: ${{ matrix.BackupStandbyOnPrimaryFailure || 'yes' }}
     secrets: inherit
+
+  # If the GHA fails during calculation of the scheduling matrix we will not have configured
+  # any specific environment to use yet, so we default to running the failure notification from
+  # the development OEM environment (this is arbitrary)
+  setup-notification-failure-slack:
+    if: failure()
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
+    needs: [prepare-run-matrix]
+    environment: "hmpps-oem-development-preapproved"
+    permissions:
+       id-token: write
+    steps:
+
+      - name: Checkout Local Repo to get Composite Action
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Send Slack Failure Notification
+        id: foreground_slack_notification
+        uses: ./.github/actions/send-slack-notification
+        env:
+            AWS_ACCOUNT_ID: "${{ vars.AWS_ACCOUNT_ID }}"
+        with:
+          Emoji: ":github-red:"
+          TextHeader: "Backup Job Scheduling Failure"
+          TextBody: ":cross-red: Backup job could not be scheduled"
+          TargetEnvironment: "GHA(Scheduling)"
+          JobName: "prepare-run-matrix"

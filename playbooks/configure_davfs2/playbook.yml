@@ -42,9 +42,10 @@
           set_fact:
             delius_hostname: "delius.probation.hmpps.dsd.io"
 
+        # Legacy version of Preprod nextcloud has the environment name hyphenated
         - name: Set https fact for non-prod
           set_fact:
-            https_prefix: "https://nextcloud.{{ simple_environment_name }}.{{ delius_hostname }}/remote.php/dav/files"
+            https_prefix: "https://nextcloud.{{ simple_environment_name | replace('preprod','pre-prod') }}.{{ delius_hostname }}/remote.php/dav/files"
           when: simple_environment_name != 'prod'
 
         - name: Set https fact for prod

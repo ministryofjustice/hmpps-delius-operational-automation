@@ -140,7 +140,7 @@ jobs:
             TargetHost="${{ inputs.TargetHost }}"
             TargetEnvironment="${{ inputs.TargetEnvironment }}"
           fi;
-          RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_$TargetHost"
+          RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_$TargetHost"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
           
@@ -197,11 +197,18 @@ jobs:
         if: ${{ contains( env.RmanTarget,'Random') }}
         working-directory: ${{ env.inventory }}
         id: randomizetargethost
+        shell: bash
         run: |
           databasetype=$(echo ${RmanTarget} | sed 's/^.*_Random \(.*\) Standby$/\1/' | tr '[:upper:]' '[:lower:]')
+          echo "Database Type : ${databasetype}"
           prefix=$(echo ${RmanTarget} | sed 's/^\(.*\)_Random \(.*\) Standby$/\1/' |  tr '[:upper:]' '[:lower:]')
+          echo "Prefix        : ${prefix}"
           high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
-          [[ ${high_availability_count} -gt 0 ]] && RmanTarget="${prefix}_${databasetype}_standbydb$(($RANDOM % ${high_availability_count} + 1 ))"
+          echo "HA Count      : ${high_availability_count}"
+          if [[ ${high_availability_count} -gt 0 ]]; then
+              RmanTarget="${prefix}_${databasetype}_standbydb$(($RANDOM % ${high_availability_count} + 1 ))"
+          fi
+          echo "RMAN Target   : ${RmanTarget}"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
@@ -215,6 +222,7 @@ jobs:
 
       - name: Start Ansible Validate Backup
         id: validate-backup
+        shell: bash
         run: |
           [[ ! -z ${{ steps.randomizetargethost.outputs.RmanTarget }} ]] && RmanTarget="${{ steps.randomizetargethost.outputs.RmanTarget }}"
           export ANSIBLE_CONFIG=$ansible_config
