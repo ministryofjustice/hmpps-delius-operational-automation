@@ -197,6 +197,7 @@ jobs:
         if: ${{ contains( env.RmanTarget,'Random') }}
         working-directory: ${{ env.inventory }}
         id: randomizetargethost
+        shell: bash
         run: |
           databasetype=$(echo ${RmanTarget} | sed 's/^.*_Random \(.*\) Standby$/\1/' | tr '[:upper:]' '[:lower:]')
           echo "Database Type : ${databasetype}"
@@ -204,7 +205,7 @@ jobs:
           echo "Prefix        : ${prefix}"
           high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
           echo "HA Count      : ${high_availability_count}"
-          if [ ${high_availability_count} -gt 0 ]; then
+          if [[ ${high_availability_count} -gt 0 ]]; then
               RmanTarget="${prefix}_${databasetype}_standbydb$(($RANDOM % ${high_availability_count} + 1 ))"
           fi
           echo "RMAN Target   : ${RmanTarget}"
