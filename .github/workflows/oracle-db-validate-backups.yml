@@ -199,9 +199,13 @@ jobs:
         id: randomizetargethost
         run: |
           databasetype=$(echo ${RmanTarget} | sed 's/^.*_Random \(.*\) Standby$/\1/' | tr '[:upper:]' '[:lower:]')
+          echo "Database Type : ${databasetype}"
           prefix=$(echo ${RmanTarget} | sed 's/^\(.*\)_Random \(.*\) Standby$/\1/' |  tr '[:upper:]' '[:lower:]')
+          echo "Prefix        : ${prefix}"
           high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
+          echo "HA Count      : ${high_availability_count}"
           [[ ${high_availability_count} -gt 0 ]] && RmanTarget="${prefix}_${databasetype}_standbydb$(($RANDOM % ${high_availability_count} + 1 ))"
+          echo "RMAN Target   : ${RmanTarget}"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
