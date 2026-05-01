@@ -82,6 +82,49 @@ END delius_audit_management;
 
 CREATE OR REPLACE PACKAGE BODY AUDSYS.delius_audit_management
 AS
+
+-- Private helper: retry a DBMS_AUDIT_MGMT operation that may raise ORA-46277
+-- (Conflicting operation on unified audit trail) for up to p_max_retries attempts,
+-- sleeping p_retry_delay seconds between each attempt.
+-- Supported operations: 'CLEAN_AUDIT_TRAIL', 'LOAD_UNIFIED_AUDIT_FILES'
+PROCEDURE retry_on_conflict (
+  p_operation   IN VARCHAR2,
+  p_max_retries IN INTEGER DEFAULT 60,
+  p_retry_delay IN INTEGER DEFAULT 60  -- seconds
+)
+AS
+  conflicting_operation EXCEPTION;
+  PRAGMA EXCEPTION_INIT(conflicting_operation, -46277);
+  l_done    BOOLEAN := FALSE;
+  l_retries INTEGER := 0;
+BEGIN
+  WHILE l_retries < p_max_retries AND NOT l_done LOOP
+    BEGIN
+      IF p_operation = 'CLEAN_AUDIT_TRAIL' THEN
+        DBMS_AUDIT_MGMT.CLEAN_AUDIT_TRAIL(
+          audit_trail_type        => DBMS_AUDIT_MGMT.audit_trail_unified_table,
+          use_last_arch_timestamp => TRUE
+        );
+      ELSIF p_operation = 'LOAD_UNIFIED_AUDIT_FILES' THEN
+        DBMS_AUDIT_MGMT.LOAD_UNIFIED_AUDIT_FILES;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20001, 'retry_on_conflict: unknown operation: ' || p_operation);
+      END IF;
+      l_done := TRUE;
+    EXCEPTION
+      -- ORA-46277: Conflicting operation on unified audit trail
+      -- Retry until success or the retry limit is reached
+      WHEN conflicting_operation THEN
+        l_retries := l_retries + 1;
+        IF l_retries < p_max_retries THEN
+          DBMS_LOCK.SLEEP(p_retry_delay);
+        ELSE
+          RAISE;
+        END IF;
+    END;
+  END LOOP;
+END retry_on_conflict;
+
 -- Archive audit records to history table
 -- Apply a cap on the number of days data to be archived at once to prevent overloading
 PROCEDURE     archive_audit_trail (p_day_cap IN INTEGER DEFAULT 2)
@@ -150,10 +193,7 @@ BEGIN
     END IF;
 
     -- Direct DML can't be used on the unified audit trail so we use the built-in cleanup procedure.
-    DBMS_AUDIT_MGMT.CLEAN_AUDIT_TRAIL(
-      audit_trail_type => DBMS_AUDIT_MGMT.audit_trail_unified_table,
-      use_last_arch_timestamp => TRUE
-      );
+    retry_on_conflict('CLEAN_AUDIT_TRAIL');
     -- Check output in DBA_SCHEDULER_JOB_RUN_DETAILS
     l_output := l_output || 'Unified recs archived to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.';
   END IF;
@@ -326,14 +366,6 @@ PROCEDURE set_last_archive_timestamp (
     )
 AS
   l_output            VARCHAR2(4000);
-  -- Control variables for retrying the load of unified audit files in a loop
-  l_retry_count       INTEGER := 0;
-  l_max_retries       INTEGER := 60;
-  l_retry_delay       INTEGER := 60; -- seconds
-  l_exception_handled BOOLEAN := FALSE;
-  -- Trap exception where we attempt more than one concurrent operation on the unified audit trail
-  conflicting_operation EXCEPTION;
-  PRAGMA EXCEPTION_INIT(conflicting_operation,-46277);
 BEGIN
   l_output := 'Setting last archive timestamp for audit trails.';
 
@@ -364,26 +396,7 @@ BEGIN
     );
 
   -- Load the os unified audit files from the audit directory if any exist
-  BEGIN
-    WHILE l_retry_count < l_max_retries AND NOT l_exception_handled LOOP
-      BEGIN
-        DBMS_AUDIT_MGMT.LOAD_UNIFIED_AUDIT_FILES;
-        l_exception_handled := TRUE;
-      EXCEPTION
-        -- If we attempt to load unified audit files whilst archival is running
-        -- we may encounter ORA-46277: Conflicting operation on unified audit trail
-        -- Keep retrying this operation of up to 1 hour or until it succeeds
-        -- (i.e. once the archival has completed)
-        WHEN conflicting_operation THEN
-            l_retry_count := l_retry_count + 1;
-            IF l_retry_count < l_max_retries THEN
-              DBMS_LOCK.SLEEP(l_retry_delay);
-            ELSE
-              RAISE;  -- If too many retries then raise the error
-            END IF;
-      END;
-    END LOOP;
-  END;
+  retry_on_conflict('LOAD_UNIFIED_AUDIT_FILES');
   DBMS_OUTPUT.put_line(l_output);
 
 END set_last_archive_timestamp;
