@@ -64,7 +64,7 @@ jobs:
                 .executionRoleArn = $executionRoleArn
                 | .taskRoleArn = $taskRoleArn
                 | .containerDefinitions[0].image = $image
-                | .containerDefinitions[0].containerName = $containerName
+                | .containerDefinitions[0].name = $containerName
 
                 # command (array)
                 | .containerDefinitions[0].command = ["ldap-automation", "add-roles-to-users", $userRoleList]
