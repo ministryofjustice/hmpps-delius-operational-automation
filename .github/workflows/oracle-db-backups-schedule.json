@@ -192,5 +192,28 @@
         "FixAbsentChunks": "no",
         "BackupStandbyOnPrimaryFailure": "no",
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
+    },
+    {
+        "TargetEnvironment":"delius-core-prod",
+        "TargetHost":"delius_primarydb",
+        "CronSchedule":"0 2 * * 0",
+        "Period": "weekly",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
+    },
+    {
+        "TargetEnvironment":"delius-core-prod",
+        "TargetHost":"delius_primarydb",
+        "CronSchedule":"0 3 * * 1-6",
+        "Period": "daily",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
+    },
+    {
+        "TargetEnvironment":"delius-core-prod",
+        "TargetHost":"delius_standbydb1",
+        "CronSchedule":"41 * * * *",
+        "Period": "archivelog",
+        "FixAbsentChunks": "no",
+        "BackupStandbyOnPrimaryFailure": "no",
+        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     }
 ]
