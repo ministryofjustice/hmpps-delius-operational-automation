@@ -9,7 +9,9 @@
     - name: Bomb out if target is production db
       fail:
         msg: "Cannot refresh any production database !"
-      when: database_primary_sid | regex_search('PRD.*')
+      when: 
+         - database_primary_sid | regex_search('PRD.*')
+         - source_legacy == 'no'
 
     - name: Exit if rman catalog not specified
       fail:
