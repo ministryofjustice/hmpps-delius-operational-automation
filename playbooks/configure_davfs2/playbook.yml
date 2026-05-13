@@ -50,7 +50,7 @@
 
         - name: Set https fact for prod
           set_fact:
-            https_prefix: "https://nextcloud.probation.{{ delius_hostname }}/remote.php/dav/files"
+            https_prefix: "https://nextcloud.probation.service.justice.gov.uk/remote.php/dav/files"
           when: simple_environment_name == 'prod'
 
     - name: Install davfs2
