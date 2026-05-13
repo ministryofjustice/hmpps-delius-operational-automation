@@ -193,24 +193,6 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || 'main' }}
           fetch-depth: 0
 
-      - name: Randomize TargetHost If Specified
-        if: ${{ contains( env.RmanTarget,'Random') }}
-        working-directory: ${{ env.inventory }}
-        id: randomizetargethost
-        shell: bash
-        run: |
-          databasetype=$(echo ${RmanTarget} | sed 's/^.*_Random \(.*\) Standby$/\1/' | tr '[:upper:]' '[:lower:]')
-          echo "Database Type : ${databasetype}"
-          prefix=$(echo ${RmanTarget} | sed 's/^\(.*\)_Random \(.*\) Standby$/\1/' |  tr '[:upper:]' '[:lower:]')
-          echo "Prefix        : ${prefix}"
-          high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
-          echo "HA Count      : ${high_availability_count}"
-          if [[ ${high_availability_count} -gt 0 ]]; then
-              RmanTarget="${prefix}_${databasetype}_standbydb$(($RANDOM % ${high_availability_count} + 1 ))"
-          fi
-          echo "RMAN Target   : ${RmanTarget}"
-          echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
-
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
@@ -219,6 +201,24 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           role-duration-seconds: 21600
           aws-region: "eu-west-2"
+
+      - name: Randomize TargetHost If Specified
+        if: ${{ contains( env.RmanTarget,'Random') }}
+        working-directory: ${{ env.inventory }}
+        id: randomizetargethost
+        shell: bash
+        run: |
+          databasetype=$(echo ${RmanTarget} | sed 's/^.*_Random\(.*\)Standby$/\1/' | tr '[:upper:]' '[:lower:]')
+          echo "Database Type : ${databasetype}"
+          prefix=$(echo ${RmanTarget} | sed 's/^\(.*\)_Random\(.*\)Standby$/\1/' |  tr '[:upper:]' '[:lower:]')
+          echo "Prefix        : ${prefix}"
+          high_availability_count=$(yq .high_availability_count.${databasetype} group_vars/${prefix}_all.yml)
+          echo "HA Count      : ${high_availability_count}"
+          if [[ ${high_availability_count} -gt 0 ]]; then
+              RmanTarget="${prefix}_${databasetype}_standbydb$(($RANDOM % ${high_availability_count} + 1 ))"
+          fi
+          echo "RMAN Target   : ${RmanTarget}"
+          echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
 
       - name: Start Ansible Validate Backup
         id: validate-backup
