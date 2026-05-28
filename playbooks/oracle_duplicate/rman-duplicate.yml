@@ -13,6 +13,17 @@
          - database_primary_sid | regex_search('PRD.*')
          - source_legacy == 'no'
 
+    - name: When duplicating from legacy assume the DB name will stay the same
+      set_fact:
+         source_db: "{{ database_primary_sid }}"
+      when:
+        - source_legacy == 'yes'
+        - source_db is not defined
+
+    - name: Show Duplication
+      debug:
+         msg: "Duplication is from {{ source_db }} to {{ database_primary_sid }}"
+
     - name: Exit if rman catalog not specified
       fail:
         msg: "No rman catalog specified...exiting"
