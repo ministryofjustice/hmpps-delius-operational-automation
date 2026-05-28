@@ -17,7 +17,7 @@
       set_fact:
          source_db: "{{ database_primary_sid }}"
       when:
-        - source_legacy == 'yes'
+        - source_legacy != 'no'
         - source_db is not defined
 
     - name: Show Duplication
