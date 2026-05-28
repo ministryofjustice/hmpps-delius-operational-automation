@@ -12,6 +12,6 @@ RMAN_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} --r
 
 sqlplus /nolog <<EOSQL
 connect / as sysdba
-alter user rcvcatowner identified by ${RMAN_PASSWORD};
+alter user rcvcatowner identified by ${RMAN_PASSWORD} account unlock;
 exit;
 EOSQL
