@@ -90,13 +90,6 @@ lookup_db_passwords() {
 
   INSTANCE_ID=$(wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
   APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCE_ID}" "Name=key,Values=application" --query 'Tags[0].Value' --output text)
- 
-  info "The application is $APPLICATION"
-
-  info "The Instance is $INSTANCE_ID"
-
-  info "The Database Type is $DATABASE_TYPE"
- 
   if [ "$APPLICATION" = "delius" ]
   then
     SECRET_ID="${ENVIRONMENT_NAME}-oracle-db-dba-passwords"
@@ -105,9 +98,6 @@ lookup_db_passwords() {
     DATABASE_TYPE=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=database" --query 'Tags[0].Value' --output text | cut -d'_' -f1)
     SECRET_ID="${ENVIRONMENT_NAME}-oracle-${DATABASE_TYPE}-db-dba-passwords"
   fi
-
-  info "Getting SYSPASS from ${SECRET_ID}"
-
   SYSPASS=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} --query SecretString --output text| jq -r .sys)
   ASMSNMPPASS=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} --query SecretString --output text| jq -r .asmsnmp)
   [ -z ${SYSPASS} ] && error "Password for sys in aws secret ${SECRET_ID} does not exist"
@@ -449,9 +439,6 @@ initialise_password_file() {
    srvctl modify database -d ${STANDBYDB} -pwfile ${ORACLE_HOME}/dbs/orapw${STANDBYDB}
    info "Creating seed password file (will be replaced by active duplicate)"
    rm -f ${ORACLE_HOME}/dbs/orapw${STANDBYDB}
-
-   info "orapwd file=${ORACLE_HOME}/dbs/orapw${STANDBYDB} password=${SYSPASS}"
-
    orapwd file=${ORACLE_HOME}/dbs/orapw${STANDBYDB} password=${SYSPASS}
 }
 
