@@ -439,6 +439,9 @@ initialise_password_file() {
    srvctl modify database -d ${STANDBYDB} -pwfile ${ORACLE_HOME}/dbs/orapw${STANDBYDB}
    info "Creating seed password file (will be replaced by active duplicate)"
    rm -f ${ORACLE_HOME}/dbs/orapw${STANDBYDB}
+
+   info "orapwd file=${ORACLE_HOME}/dbs/orapw${STANDBYDB} password=${SYSPASS}"
+
    orapwd file=${ORACLE_HOME}/dbs/orapw${STANDBYDB} password=${SYSPASS}
 }
 
