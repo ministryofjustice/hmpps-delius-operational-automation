@@ -123,8 +123,8 @@ jobs:
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
           # Mapping from hostname prefix to application name
           declare -A host_to_app=(
-            [boe]=misboe
-            [dsd]=misdsd
+            [boe]=boe
+            [dsd]=dsd
             [mis]=mis
             [delius]=delius
           )
