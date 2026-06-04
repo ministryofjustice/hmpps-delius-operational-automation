@@ -20,6 +20,15 @@
         - source_legacy != 'no'
         - source_db is not defined
 
+      # Special cases for MIS Duplication from Legacy
+      # See https://dsdmoj.atlassian.net/wiki/x/EIDObwE
+    - name: Handle MIS Database Migration Map
+      set_fact:
+         source_db: "{{ {'PREDSD': 'PREDXB', 'PREBOE': 'PREBXE'}[database_primary_sid] }}"
+      when:
+        - source_legacy != 'no'
+        - database_primary_sid in ['PREDSD', 'PREBOE']
+
     - name: Show Duplication
       debug:
          msg: "Duplication is from {{ source_db }} to {{ database_primary_sid }}"
