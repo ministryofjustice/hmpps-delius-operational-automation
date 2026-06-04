@@ -20,14 +20,18 @@
         - source_legacy != 'no'
         - source_db is not defined
 
-      # Special cases for MIS Duplication from Legacy
-      # See https://dsdmoj.atlassian.net/wiki/x/EIDObwE
-    - name: Handle MIS Database Migration Map
-      set_fact:
-         source_db: "{{ {'PREDSD': 'PREDXB', 'PREBOE': 'PREBXE'}[database_primary_sid] }}"
-      when:
-        - source_legacy != 'no'
-        - database_primary_sid in ['PREDSD', 'PREBOE']
+    #  THIS CODE CANNOT BE USED SINCE DUPLICATION FROM LEGACY REQUIRES
+    #  THAT THE DATABASE NAME IS KEPT THE SAME (SINCE IT IS DUPLICATING FOR STANDBY).
+    #  INSTEAD:
+    #    DUPLICATE USING PREDXB AND PREBXE AND THEN RENAME ON COMPLETION.
+    #   # Special cases for MIS Duplication from Legacy
+    #   # See https://dsdmoj.atlassian.net/wiki/x/EIDObwE
+    # - name: Handle MIS Database Migration Map
+    #   set_fact:
+    #      source_db: "{{ {'PREDSD': 'PREDXB', 'PREBOE': 'PREBXE'}[database_primary_sid] }}"
+    #   when:
+    #     - source_legacy != 'no'
+    #     - database_primary_sid in ['PREDSD', 'PREBOE']
 
     - name: Show Duplication
       debug:
