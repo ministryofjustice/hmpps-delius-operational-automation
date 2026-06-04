@@ -812,8 +812,13 @@ EOF
 
   DUPLICATEPFILE=${ORACLE_HOME}/dbs/init${TARGET_DB}_duplicate.ora
   info "Create ${DUPLICATEPFILE} pfile"
+  info "Setting db_name to ${TARGET_DB}"
   echo "db_name=${TARGET_DB}" > ${DUPLICATEPFILE}
+  : ${COMPATIBLE:="compatible=19.14.0"}
+  info "Setting compatible to ${COMPATIBLE}"
   echo "${COMPATIBLE}" >> ${DUPLICATEPFILE}
+
+  info $(cat ${DUPLICATEPFILE})
 
   info "Place ${TARGET_DB} in nomount mode"
   if ! sqlplus -s / as sysdba << EOF
