@@ -494,11 +494,14 @@ add_spfile_asm () {
 
   info "Restart database using asm spfile"
   TARGET_DB_STATUS=$(srvctl status database -d ${TARGET_DB})
+  info "Current Database Status: ${TARGET_DB_STATUS}"
   if [[ ${TARGET_DB_STATUS} =~ 'Database is running' ]]
   then
     srvctl stop database -d ${TARGET_DB} || error "Stopping database ${TARGET_DB}"
   fi
   srvctl start database -d ${TARGET_DB} || error "Starting database ${TARGET_DB}"
+  TARGET_DB_STATUS=$(srvctl status database -d ${TARGET_DB})
+  info "Updated Database Status: ${TARGET_DB_STATUS}"
 }
 
 enable_bct () {
