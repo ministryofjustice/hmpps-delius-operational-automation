@@ -41,6 +41,8 @@ on:
           - "DMDNDA"
           - "PRDNDA"
           - "PRDMIS"
+          - "PREDXB"
+          - "PREBXC"
       S3SourceBucket: 
         description: "Source s3 bucket containing backups"
         type: choice
@@ -51,6 +53,7 @@ on:
           - "delius-core-dev-oracle-db-backups"
           - "delius-mis-prod-oracle-mis-db-backups"
           - "delius-core-prod-oracle-db-backups"
+          - "eu-west-2-del-pre-prod-oracledb-backups"
       RestoreDatetime:
         description: Restore datetime from source database, format [YYMMDDHH24MISS] (use the value '0' if you wish to skip duplicate altogether -- development purposes only)
         type: string
@@ -457,7 +460,13 @@ jobs:
                 dev) SourceOemEnvironment=development ;;
                prod) SourceOemEnvironment=production ;;
              esac
-             SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
+             # Handle Special Case of MIS databases which need to be renamed
+             if [[ "${{ github.event.inputs.SourceDb }}" == "PREDXB" || "${{ github.event.inputs.SourceDb }}" == "PREBXC" ]]
+             then
+                SourceCatalogSchema=rman19c
+             else
+                SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
+             fi
              extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }} -e noop_mode=$NoOpMode"
           else
              extra_vars="-e source_legacy=${{ github.event.inputs.SourceLegacy }} -e noop_mode=$NoOpMode"
