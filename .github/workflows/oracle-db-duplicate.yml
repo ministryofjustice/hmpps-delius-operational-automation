@@ -42,7 +42,7 @@ on:
           - "PRDNDA"
           - "PRDMIS"
           - "PREDXB"
-          - "PREBXC"
+          - "PREBXE"
       S3SourceBucket: 
         description: "Source s3 bucket containing backups"
         type: choice
