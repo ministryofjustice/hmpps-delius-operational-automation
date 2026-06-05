@@ -193,7 +193,6 @@ set_ora_env () {
 }
 
 get_catalog_connection () {
-  set -x
   # Determine the rman password depending where the catalog database resides
   if [[ ! ${CATALOG_DB} =~ ^\(DESCRIPTION.* ]]
   then
