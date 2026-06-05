@@ -461,7 +461,7 @@ jobs:
                prod) SourceOemEnvironment=production ;;
              esac
              # Handle Special Case of MIS databases which need to be renamed
-             if [[ "${{ github.event.inputs.SourceDb }}" == "PREDXB" || "${{ github.event.inputs.SourceDb }}" == "PREBXC" ]]
+             if [[ "${{ github.event.inputs.SourceDb }}" == "PREDXB" || "${{ github.event.inputs.SourceDb }}" == "PREBXE" ]]
              then
                 SourceCatalogSchema=rman19c
              else
