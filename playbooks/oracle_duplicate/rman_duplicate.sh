@@ -784,7 +784,7 @@ fi
 # Workaround for MIS DB migration and rename
 if [[ -z "${COMPATIBLE}" && "${SOURCE_DB}" =~ ^(PREDXB|PREBXE)$ ]]
 then
-  COMPATIBLE="compatible=19.14"
+  COMPATIBLE="compatible='19.14.0'"
 fi
 
 if [[ ! "${LEGACY_OPTION}" =~ ^(recover|open)$ ]]
