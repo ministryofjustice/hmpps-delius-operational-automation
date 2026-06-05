@@ -193,7 +193,6 @@ set_ora_env () {
 }
 
 get_catalog_connection () {
-  set -x
   # Determine the rman password depending where the catalog database resides
   if [[ ! ${CATALOG_DB} =~ ^\(DESCRIPTION.* ]]
   then
@@ -495,11 +494,14 @@ add_spfile_asm () {
 
   info "Restart database using asm spfile"
   TARGET_DB_STATUS=$(srvctl status database -d ${TARGET_DB})
+  info "Current Database Status: ${TARGET_DB_STATUS}"
   if [[ ${TARGET_DB_STATUS} =~ 'Database is running' ]]
   then
     srvctl stop database -d ${TARGET_DB} || error "Stopping database ${TARGET_DB}"
   fi
   srvctl start database -d ${TARGET_DB} || error "Starting database ${TARGET_DB}"
+  TARGET_DB_STATUS=$(srvctl status database -d ${TARGET_DB})
+  info "Updated Database Status: ${TARGET_DB_STATUS}"
 }
 
 enable_bct () {
@@ -780,6 +782,12 @@ then
       COMPATIBLE=${PARAM//\'/}
     fi
   done
+fi
+
+# Workaround for MIS DB migration and rename
+if [[ -z "${COMPATIBLE}" && "${SOURCE_DB}" =~ ^(PREDXB|PREBXE)$ ]]
+then
+  COMPATIBLE="compatible='19.14.0'"
 fi
 
 if [[ ! "${LEGACY_OPTION}" =~ ^(recover|open)$ ]]
