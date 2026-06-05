@@ -817,7 +817,7 @@ EOF
   info "Create ${DUPLICATEPFILE} pfile"
   info "Setting db_name to ${TARGET_DB}"
   echo "db_name=${TARGET_DB}" > ${DUPLICATEPFILE}
-  info "Setting compatible to ${COMPATIBLE}
+  info "Setting compatible to ${COMPATIBLE}"
   echo "${COMPATIBLE}" >> ${DUPLICATEPFILE}
 
   info $(cat ${DUPLICATEPFILE})
