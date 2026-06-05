@@ -193,9 +193,11 @@ set_ora_env () {
 }
 
 get_catalog_connection () {
+  set -x
   # Determine the rman password depending where the catalog database resides
   if [[ ! ${CATALOG_DB} =~ ^\(DESCRIPTION.* ]]
   then
+    info "Using method #1 to get the catalog password (MP catalog)"
     ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
     ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${OEM_SECRET_ROLE}"
     SESSION="catalog-ansible"
@@ -209,6 +211,7 @@ get_catalog_connection () {
     RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
     unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
   else
+    info "Using method #2 to get the catalog password (legacy catalog)"
     INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
     APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=application" --query 'Tags[0].Value' --output text)
     RMANUSER=rman19c
@@ -814,8 +817,7 @@ EOF
   info "Create ${DUPLICATEPFILE} pfile"
   info "Setting db_name to ${TARGET_DB}"
   echo "db_name=${TARGET_DB}" > ${DUPLICATEPFILE}
-  : ${COMPATIBLE:="compatible=19.14.0"}
-  info "Setting compatible to ${COMPATIBLE}"
+  info "Setting compatible to ${COMPATIBLE}
   echo "${COMPATIBLE}" >> ${DUPLICATEPFILE}
 
   info $(cat ${DUPLICATEPFILE})
