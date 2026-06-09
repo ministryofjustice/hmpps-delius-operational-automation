@@ -86,7 +86,7 @@ jobs:
               TargetEnvironment="${{ inputs.TargetEnvironment }}"
               TargetHost="${{ inputs.TargetHost }}"
             fi
-            RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_$TargetHost"
+            RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_$TargetHost"
             echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
             echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
 
