@@ -917,7 +917,7 @@ get_rman_target_connection
 
 rman log $RMANLOGFILE $ENABLE_TRACE <<ERMAN > /dev/null
 $CONNECT_TO_CATALOG
-$RMAN_TARGET_CONNECT
+$RMAN_TARGET_CONNECTION
 @$RMANCMDFILE
 ERMAN
 info "Checking for errors"
