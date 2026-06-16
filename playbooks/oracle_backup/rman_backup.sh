@@ -913,7 +913,7 @@ info "Generating rman command file"
 build_rman_command_file
 info "Running rman cmd file $RMANCMDFILE"
 info "Please check progress ${RMANLOGFILE} ..."
-
+get_rman_target_connection
 
 rman log $RMANLOGFILE $ENABLE_TRACE <<ERMAN > /dev/null
 $CONNECT_TO_CATALOG
