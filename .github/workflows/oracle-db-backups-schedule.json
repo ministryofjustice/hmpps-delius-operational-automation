@@ -193,7 +193,7 @@
     },
     {
         "TargetEnvironment":"delius-mis-preprod",
-        "TargetHost":"mis_primarydb",
+        "TargetHost":"mis_standbydb1",
         "CronSchedule":"0 12 * * 1-5",
         "Period": "archivelog",
         "FixAbsentChunks": "no",
@@ -216,7 +216,7 @@
     },
     {
         "TargetEnvironment":"delius-mis-preprod",
-        "TargetHost":"boe_primarydb",
+        "TargetHost":"boe_standbydb1",
         "CronSchedule":"0 12 * * 1-5",
         "Period": "archivelog",
         "FixAbsentChunks": "no",
@@ -239,7 +239,7 @@
     },
     {
         "TargetEnvironment":"delius-mis-preprod",
-        "TargetHost":"dsd_primarydb",
+        "TargetHost":"dsd_standbydb1",
         "CronSchedule":"0 12 * * 1-5",
         "Period": "archivelog",
         "FixAbsentChunks": "no",
