@@ -344,7 +344,7 @@ jobs:
     if: ${{ github.event_name != 'repository_dispatch' }}
     needs: [oracle-rman-export-schema]
     name: oracle-rman-import-schema
-    environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }}-preapproved
+    environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
@@ -399,7 +399,7 @@ jobs:
   oracle-rman-duplicate:
     if: ${{ success('oracle-rman-pre-duplicate') && github.event_name != 'repository_dispatch' && (needs.oracle-rman-import-schema.result == 'skipped' || needs.oracle-rman-import-schema.result == 'success') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
     name: oracle-rman-duplicate
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+    environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
@@ -480,7 +480,7 @@ jobs:
   oracle-rman-duplicate-check:
     if: ${{ github.event_name == 'repository_dispatch' }}
     name: oracle-rman-duplicate-check
-    environment: ${{ github.event.client_payload.TargetEnvironment }}-preapproved
+    environment: ${{ github.event.client_payload.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
