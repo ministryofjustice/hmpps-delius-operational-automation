@@ -88,7 +88,7 @@ jobs:
   oracle-rman-pre-duplicate:
     if: ${{ always() && (github.event_name != 'repository_dispatch') }}
     name: oracle-rman-pre-duplicate
-    environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
+    environment: ${{ github.event.inputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
@@ -533,7 +533,7 @@ jobs:
   oracle-rman-post-duplicate:
     if: ${{ (github.event_name == 'repository_dispatch') && (needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'duplicate' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'open') }}
     name: oracle-rman-post-duplicate
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
+    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
@@ -615,7 +615,7 @@ jobs:
   oracle-build-ha:
     if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0' || needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == null) && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && (needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'duplicate' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'open') }}
     name: oracle-build-ha
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
+    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
@@ -752,7 +752,7 @@ jobs:
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     needs: [oracle-rman-pre-duplicate,oracle-rman-export-schema,oracle-rman-import-schema,oracle-rman-duplicate,oracle-rman-duplicate-check,oracle-rman-post-duplicate,oracle-build-ha]
-    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}
     env:
       DuplicateTarget: ${{ github.event_name == 'workflow_dispatch' && needs.oracle-rman-pre-duplicate.outputs.DuplicateTarget || needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
     steps:
