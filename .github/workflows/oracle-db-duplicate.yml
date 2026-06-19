@@ -14,6 +14,7 @@ on:
           - "delius-core-prod"
           - "delius-mis-stage"
           - "delius-mis-preprod"
+          - "delius-mis-prod"
       TargetHost:
         description: "Duplicate to target host"
         type: choice
@@ -43,6 +44,7 @@ on:
           - "PRDMIS"
           - "PREDXB"
           - "PREBXE"
+          - "PRDDXB"
       S3SourceBucket: 
         description: "Source s3 bucket containing backups"
         type: choice
