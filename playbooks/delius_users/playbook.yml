@@ -81,6 +81,8 @@
         pragma               exception_init(table_does_not_exist,-942);
         service_does_not_exist exception;
         pragma               exception_init(service_does_not_exist,-12514);
+        connection_description_not_found exception;
+        pragma               exception_init(connection_description_not_found,-2019);
 
       begin
 
@@ -102,7 +104,9 @@
           begin
               EXECUTE IMMEDIATE l_command;
           exception
-              when table_does_not_exist or service_does_not_exist
+              when table_does_not_exist 
+              or service_does_not_exist
+              or connection_description_not_found
               then 
                 null; -- Ignore missing remote tables using database links
           end;
