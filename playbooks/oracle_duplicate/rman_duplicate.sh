@@ -853,7 +853,15 @@ $CONNECT_TO_CATALOG
 @$RMANDUPLICATECMDFILE
 EOF
     info "Checking for errors"
-    grep -i "ERROR MESSAGE STACK" $RMANDUPLICATELOGFILE>/dev/null 2>&1 && error "Rman Duplicate reported errors" || info "RMAN Duplicate Completed successfully"
+    if grep -i "ERROR MESSAGE STACK" $RMANDUPLICATELOGFILE>/dev/null 2>&1; then
+        if ! grep -A 10 "ERROR MESSAGE STACK" $RMANDUPLICATELOGFILE | grep -i "ORA-38713" >/dev/null 2>&1; then
+            error "Rman Duplicate reported errors"
+        else
+            info "RMAN Duplicate Completed successfully (ignoring ORA-38713: Flashback Database logging is already turned on)"
+        fi
+    else
+        info "RMAN Duplicate Completed successfully"
+    fi
     # Do not perform post actions when duplicating from legacy when the following options are specified
     if [[ ! "${LEGACY_OPTION}" =~ ^(restore|recover)$ ]]; then
       info "Perform post actions"
