@@ -17,7 +17,8 @@ SET PAGES 0
 SET FEEDBACK OFF
 SET HEADING OFF
 WHENEVER SQLERROR EXIT FAILURE
-DEFINE perfstat_password=p#$(openssl rand -base64 15)
+-- We use openssl to generate a random password and swap out any / and + characters as these are not allowed
+DEFINE perfstat_password=p#$(openssl rand -base64 15 | sed 's/\//SLASH/g' | sed 's/+/PLUS/g')
 DEFINE default_tablespace=STATSPACK_DATA
 DEFINE temporary_tablespace=$1
 @?/rdbms/admin/spcreate
