@@ -18,6 +18,8 @@ on:
     - cron: '0 12 * * 1-5'        # GMT Hourly Noon Runs (Archivelogs)
     - cron: '0 11 * * 1-5'        # BST Hourly Noon Runs (Archivelogs)
     - cron: '41 * * * *'   # GMT/BST Hourly Runs (Archivelogs)
+    - cron: '0 0 * * 0' # Midnight GMT Runs (Sun)
+    - cron: '0 23 * * 6' # Midnight BST Runs (Sun)
 
 jobs:
   prepare-run-matrix:

@@ -55,6 +55,18 @@
     },
     {
         "TargetEnvironment":"delius-mis-preprod",
+        "TargetHost":"mis_primarydb",
+        "CronSchedule":"00 18 * * SAT",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
+    },
+    {
+        "TargetEnvironment":"delius-mis-preprod",
+        "TargetHost":"boe_primarydb",
+        "CronSchedule":"00 18 * * SAT",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
+    },
+    {
+        "TargetEnvironment":"delius-mis-preprod",
         "TargetHost":"dsd_primarydb",
         "CronSchedule":"00 18 * * SAT",
         "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
@@ -64,5 +76,23 @@
         "TargetHost":"Random Delius Standby",
         "CronSchedule":"00 18 * * SAT",
         "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
-    }
+    },
+    {
+        "TargetEnvironment":"delius-mis-prod",
+        "TargetHost":"mis_primarydb",
+        "CronSchedule":"00 18 * * SAT",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
+    },
+    {
+        "TargetEnvironment":"delius-mis-prod",
+        "TargetHost":"boe_primarydb",
+        "CronSchedule":"00 18 * * SAT",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
+    },
+    {
+        "TargetEnvironment":"delius-mis-prod",
+        "TargetHost":"dsd_primarydb",
+        "CronSchedule":"00 18 * * SAT",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
+    },
 ]
