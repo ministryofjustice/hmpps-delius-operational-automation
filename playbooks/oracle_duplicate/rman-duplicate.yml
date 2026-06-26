@@ -6,12 +6,14 @@
   become_user: oracle
   become_method: sudo
   tasks:
+    # Allow overwrite of the PRDDSD database during migration
     - name: Bomb out if target is production db
       fail:
         msg: "Cannot refresh any production database !"
       when: 
          - database_primary_sid | regex_search('PRD.*')
          - source_legacy == 'no'
+         - not source_db in ['PRDDXB']
 
     - name: When duplicating from legacy assume the DB name will stay the same
       set_fact:
