@@ -738,7 +738,13 @@ dms_tables:
   - name: R_RQMNT_TYPE_TERMINATION
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
+  - name: R_SERVICE_USER
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
   - name: R_STANDARD_REFERENCE_LIST
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: R_SUPERVISION_PACKAGE_TYPE
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
   - name: R_TEAM_LONG_POSTCODE
@@ -808,6 +814,9 @@ dms_tables:
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
   - name: SUBJECT_ACCESS_REPORT_CONTACT
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
+  - name: SUPERVISION_PACKAGE
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
   - name: TEAM
