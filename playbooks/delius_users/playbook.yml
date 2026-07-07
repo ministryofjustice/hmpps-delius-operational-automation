@@ -323,9 +323,13 @@
         - revoke_result.stdout_lines is defined
         - revoke_result.stdout_lines | length > 0
 
+    - name: Set grant sql directory
+      set_fact:
+        grant_sql_dir: "{{ playbook_dir }}/delius_users/files/{{ database_primary_sid }}"
+
     - name: Find grant sql files on controller
       find:
-        paths: "{{ playbook_dir }}/files/{{ database_primary_sid }}"
+        paths: "{{ grant_sql_dir }}"
         patterns: "grant_*_user.sql"
         file_type: file
       delegate_to: localhost
@@ -336,7 +340,6 @@
 
     - name: Build grant sql file facts
       set_fact:
-        grant_sql_file_basenames: "{{ grant_sql_files_found.files | default([]) | map(attribute='path') | map('basename') | list }}"
         grant_sql_file_users: >-
           {{
             grant_sql_files_found.files | default([])
@@ -351,10 +354,9 @@
         msg:
           - "database_primary_sid={{ database_primary_sid }}"
           - "playbook_dir={{ playbook_dir }}"
-          - "searched_dir={{ playbook_dir }}/files/{{ database_primary_sid }}"
+          - "grant_sql_dir={{ grant_sql_dir }}"
           - "matched_file_count={{ grant_sql_files_found.matched | default(0) }}"
           - "matched_files={{ grant_sql_files_found.files | default([]) | map(attribute='path') | list }}"
-          - "grant_sql_file_basenames={{ grant_sql_file_basenames }}"
           - "grant_sql_file_users={{ grant_sql_file_users }}"
 
     - name: Build list of eligible read write users
@@ -365,12 +367,6 @@
             | selectattr('key', 'search', '_rw$')
             | list
           }}
-
-    - name: Debug eligible read write users
-      debug:
-        msg:
-          - "eligible_rw_users={{ eligible_rw_users | map(attribute='key') | list }}"
-          - "eligible_rw_user_count={{ eligible_rw_users | length }}"
 
     - name: Build list of read write users with grant sql files
       set_fact:
@@ -391,7 +387,7 @@
 
     - name: Copy required sql files for Delius read write users
       copy:
-        src: "{{ database_primary_sid }}/grant_{{ grant_sql_user.key }}_user.sql"
+        src: "{{ grant_sql_dir }}/grant_{{ grant_sql_user.key }}_user.sql"
         dest: "/tmp/grant_{{ grant_sql_user.key }}_user.sql"
         mode: "0600"
       loop: "{{ grant_sql_users | default([]) }}"
@@ -399,10 +395,6 @@
         loop_var: grant_sql_user
         label: "{{ grant_sql_user.key }}"
       register: copy_file_result
-
-    - name: Debug copied grant sql files
-      debug:
-        msg: "{{ copy_file_result.results | default([]) | map(attribute='dest') | list }}"
 
     - name: Execute grant sql files on the target
       shell:
