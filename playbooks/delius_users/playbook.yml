@@ -507,8 +507,9 @@
         loop_var: copy_result
         label: "{{ copy_result.delius_user.key }}"
       when:
+        - not copy_result.failed | default(false)
         - not copy_result.skipped | default(false)
-        - copy_result.dest is defined
+        - copy_result.invocation.module_args.dest is defined
       register: grant_execution_result
       changed_when: true
 
@@ -523,7 +524,7 @@
       when:
         - not grant_result.failed | default(false)
         - not grant_result.skipped | default(false)
-        - grant_result.copy_result.dest is defined
+        - grant_result.copy_result.invocation.module_args.dest is defined
 
     - name: Gather any errors from grant spool files
       shell: |
@@ -543,8 +544,9 @@
       loop: "{{ grant_error_output.results | default([]) }}"
       loop_control:
         loop_var: grant_error_result
-        label: "Grant errors for {{ grant_error_result.grant_result.copy_result.delius_user.key }}"
+        label: "Grant errors"
       when:
+        - grant_error_result.stdout_lines is defined
         - grant_error_result.stdout_lines | length > 0
 
   when:
