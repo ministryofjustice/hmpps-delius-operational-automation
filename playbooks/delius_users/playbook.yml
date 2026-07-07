@@ -483,42 +483,64 @@
       failed_when: false
       changed_when: false
 
+    - name: Build grant sql file facts
+      set_fact:
+        grant_sql_file_basenames: "{{ grant_sql_files_found.files | default([]) | map(attribute='path') | map('basename') | list }}"
+        grant_sql_file_users: >-
+          {{
+            grant_sql_files_found.files | default([])
+            | map(attribute='path')
+            | map('basename')
+            | map('regex_replace', '^grant_(.*)_user\\.sql$', '\\1')
+            | list
+          }}
+
     - name: Debug grant sql file discovery
       debug:
         msg:
           - "database_primary_sid={{ database_primary_sid }}"
           - "playbook_dir={{ playbook_dir }}"
           - "searched_dir={{ playbook_dir }}/files/{{ database_primary_sid }}"
+          - "matched_file_count={{ grant_sql_files_found.matched | default(0) }}"
           - "matched_files={{ grant_sql_files_found.files | default([]) | map(attribute='path') | list }}"
+          - "grant_sql_file_basenames={{ grant_sql_file_basenames }}"
+          - "grant_sql_file_users={{ grant_sql_file_users }}"
 
-    - name: Reset list of read write users with grant sql files
+    - name: Build list of eligible read write users
       set_fact:
-        grant_sql_users: []
+        eligible_rw_users: >-
+          {{
+            delius_users | dict2items
+            | selectattr('key', 'search', '_rw$')
+            | list
+          }}
+
+    - name: Debug eligible read write users
+      debug:
+        msg:
+          - "eligible_rw_users={{ eligible_rw_users | map(attribute='key') | list }}"
+          - "eligible_rw_user_count={{ eligible_rw_users | length }}"
 
     - name: Build list of read write users with grant sql files
       set_fact:
-        grant_sql_users: "{{ grant_sql_users + [delius_user] }}"
-      loop: "{{ delius_users | dict2items }}"
+        grant_sql_users: "{{ grant_sql_users | default([]) + [delius_user] }}"
+      loop: "{{ eligible_rw_users }}"
       loop_control:
         loop_var: delius_user
         label: "{{ delius_user.key }}"
-      vars:
-        expected_grant_sql_file: "{{ playbook_dir }}/files/{{ database_primary_sid }}/grant_{{ delius_user.key }}_user.sql"
-        matched_grant_sql_files: "{{ grant_sql_files_found.files | default([]) | map(attribute='path') | list }}"
       when:
-        - delius_user.key | lower is search('_rw$')
         - not ((delius_user.value | default({}, true)).drop_user | default(false))
-        - expected_grant_sql_file in matched_grant_sql_files
+        - delius_user.key in grant_sql_file_users
 
     - name: Debug read write users with grant sql files
       debug:
         msg:
-          - "grant_sql_users={{ grant_sql_users | map(attribute='key') | list }}"
-          - "grant_sql_user_count={{ grant_sql_users | length }}"
+          - "grant_sql_users={{ grant_sql_users | default([]) | map(attribute='key') | list }}"
+          - "grant_sql_user_count={{ grant_sql_users | default([]) | length }}"
 
     - name: Copy required sql files for Delius read write users
       copy:
-        src: "{{ playbook_dir }}/files/{{ database_primary_sid }}/grant_{{ grant_sql_user.key }}_user.sql"
+        src: "{{ database_primary_sid }}/grant_{{ grant_sql_user.key }}_user.sql"
         dest: "/tmp/grant_{{ grant_sql_user.key }}_user.sql"
         mode: "0600"
       loop: "{{ grant_sql_users | default([]) }}"
@@ -552,6 +574,7 @@
         label: "{{ grant_sql_user.key }}"
       register: grant_execution_result
       changed_when: true
+      failed_when: grant_execution_result.rc != 0
 
     - name: Debug grant sql execution results
       debug:
