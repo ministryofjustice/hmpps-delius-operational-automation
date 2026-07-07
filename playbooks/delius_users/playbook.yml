@@ -338,6 +338,8 @@
             dbms_output.put_line('Role granted to user {{ item.key }}');
           elsif substr('{{ item.key }}',-3) = '_rw'
           then
+            execute immediate 'grant '||v_role||' to {{ item.key }}';
+            dbms_output.put_line('Role granted to user {{ item.key }}');
             execute immediate 'grant create session to {{ item.key }}';
             execute immediate 'grant exempt access policy to {{ item.key }}';
             dbms_output.put_line('Grant exempt access policy user {{ item.key }}');
@@ -405,17 +407,74 @@
 # These type of database users are scarce.
 # Object privileges granted are not generic and vary on a user by user basis.
 # User custom sql files have been created containing the granted object privileges required.
-# The custom sql files MUST reside in the files directory with file format of grant_<database user name>_user.sql
-# where the <database user name> is the key defined in the delius_users dictionary
+# The custom sql files MUST reside in the files directory under the database SID with file format of grant_<database user name>_user.sql
+# where the <database user name> is the key defined in the delius_users dictionary.
+# If the file doesn't exist then their account will just get the read-only role.
 
 - name: Grant privileges to Delius read write users
   block:
+    - name: Remove any existing grants from the users
+      shell:
+        cmd: |
+          . ~/.bash_profile
+          sqlplus -s / as sysdba << EOF
+            whenever sqlerror exit failure
+            set pages 100 head off lines 200 feed off serveroutput on
+            
+            declare
+              v_username varchar2(128) := upper('{{ item.key }}');
+            begin
+              -- Only revoke grants for read/write users
+              if lower(substr('{{ item.key }}', -3)) = '_rw' then
+
+                for r in (
+                  select owner,
+                        table_name,
+                        privilege
+                  from dba_tab_privs
+                  where grantee = v_username
+                  order by owner, table_name, privilege
+                )
+                loop
+                  dbms_output.put_line(
+                    'Revoking ' || r.privilege || ' on ' || r.owner || '.' || r.table_name || ' from ' || v_username
+                  );
+
+                  execute immediate
+                    'revoke ' || r.privilege ||
+                    ' on ' || r.owner || '.' || r.table_name ||
+                    ' from ' || v_username;
+                end loop;
+
+              end if;
+            end;
+            /
+
+          EOF
+      with_dict: "{{ delius_users }}"
+      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
+      register: plsql
+      changed_when: false
+      failed_when: plsql.rc != 0
+
+    - name: Revoke grants output for Delius read write users
+      debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ plsql.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
+
+    # The src file may not exist for all read/write users.  If it doesn't exist then the user will just have the read-only role.
+    # Do not fail if the src file does not exist.
     - name: Copy required sql files for grant privileges for Delius read write users
       copy:
-        src: "grant_{{ item.key }}_user.sql"
+        src: "{{ database_primary_sid }}/grant_{{ item.key }}_user.sql"
         dest: "/tmp"
       with_dict: "{{ delius_users }}"
       when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
+      register: copy_file_result
+      failed_when: false
 
     - name: Execute the grant sql files on the target
       shell:
@@ -427,7 +486,7 @@
             spool off
           EOF
       with_dict: "{{ delius_users }}"
-      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
+      when: (item.key[-3:]=="_rw") and (not item.value.drop_user | default(false)) and copy_file_result is defined and copy_file_result.results[item.ansible_loop.index0].changed
 
     - name: Gather any errors of the execution by checking spool files
       shell: grep "^GRANT.*$" /tmp/grant_{{ item.key }}_user.lst | cat
@@ -435,6 +494,7 @@
       when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
       changed_when: false
       register: output
+      when: (item.key[-3:]=="_rw") and (not item.value.drop_user | default(false)) and copy_file_result is defined and copy_file_result.results[item.ansible_loop.index0].changed
 
     - name: Output any errors during granting privileges
       debug:
@@ -442,7 +502,7 @@
       with_items: "{{ output.results }}"
       loop_control:
         label: "Failed grants for {{ item.item.key }}..."
-      when: (item.item.key[-3:]=="_rw") and (item.stdout_lines | length > 0)
+      when: (item.item.key[-3:]=="_rw") and (item.stdout_lines | length > 0) and copy_file_result is defined and copy_file_result.results[item.ansible_loop.index0].changed
 
   when: (delius_users is defined) and ( action_type=="create" or action_type == "all")
 
