@@ -340,12 +340,11 @@
 
     - name: Build grant sql file facts
       set_fact:
-        grant_sql_file_users: >-
+        grant_sql_file_basenames: >-
           {{
             grant_sql_files_found.files | default([])
             | map(attribute='path')
             | map('basename')
-            | map('regex_replace', '^grant_(.*)_user\\.sql$', '\1')
             | list
           }}
 
@@ -353,11 +352,13 @@
       debug:
         msg:
           - "database_primary_sid={{ database_primary_sid }}"
-          - "playbook_dir={{ playbook_dir }}"
           - "grant_sql_dir={{ grant_sql_dir }}"
           - "matched_file_count={{ grant_sql_files_found.matched | default(0) }}"
-          - "matched_files={{ grant_sql_files_found.files | default([]) | map(attribute='path') | list }}"
-          - "grant_sql_file_users={{ grant_sql_file_users }}"
+          - "grant_sql_file_basenames={{ grant_sql_file_basenames }}"
+
+    - name: Reset list of read write users with grant sql files
+      set_fact:
+        grant_sql_users: []
 
     - name: Build list of eligible read write users
       set_fact:
@@ -370,27 +371,31 @@
 
     - name: Build list of read write users with grant sql files
       set_fact:
-        grant_sql_users: "{{ grant_sql_users | default([]) + [delius_user] }}"
+        grant_sql_users: "{{ grant_sql_users + [delius_user] }}"
       loop: "{{ eligible_rw_users }}"
       loop_control:
         loop_var: delius_user
         label: "{{ delius_user.key }}"
+      vars:
+        expected_grant_file: "grant_{{ delius_user.key }}_user.sql"
       when:
         - not ((delius_user.value | default({}, true)).drop_user | default(false))
-        - delius_user.key in grant_sql_file_users
+        - expected_grant_file in grant_sql_file_basenames
 
     - name: Debug read write users with grant sql files
       debug:
         msg:
-          - "grant_sql_users={{ grant_sql_users | default([]) | map(attribute='key') | list }}"
-          - "grant_sql_user_count={{ grant_sql_users | default([]) | length }}"
+          - "eligible_rw_users={{ eligible_rw_users | map(attribute='key') | list }}"
+          - "grant_sql_file_basenames={{ grant_sql_file_basenames }}"
+          - "grant_sql_users={{ grant_sql_users | map(attribute='key') | list }}"
+          - "grant_sql_user_count={{ grant_sql_users | length }}"
 
     - name: Copy required sql files for Delius read write users
       copy:
         src: "{{ grant_sql_dir }}/grant_{{ grant_sql_user.key }}_user.sql"
         dest: "/tmp/grant_{{ grant_sql_user.key }}_user.sql"
         mode: "0600"
-      loop: "{{ grant_sql_users | default([]) }}"
+      loop: "{{ grant_sql_users }}"
       loop_control:
         loop_var: grant_sql_user
         label: "{{ grant_sql_user.key }}"
