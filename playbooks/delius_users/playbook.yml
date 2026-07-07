@@ -457,9 +457,9 @@
         label: "{{ delius_user.key }}"
       when:
         - delius_user.key | lower is search('_rw$')
-        - not delius_user.value.drop_user | default(false)
+        - not ((delius_user.value | default({}, true)).drop_user | default(false))
       register: revoke_grants_result
-      changed_when: false
+      changed_when: "'Revoking' in revoke_grants_result.stdout"
 
     - name: Revoke grants output for Delius read write users
       debug:
@@ -467,25 +467,45 @@
       loop: "{{ revoke_grants_result.results | default([]) }}"
       loop_control:
         loop_var: revoke_result
-        label: "{{ revoke_result.delius_user.key }}"
+        label: "{{ revoke_result.delius_user.key | default('unknown') }}"
       when:
         - revoke_result.stdout_lines is defined
         - revoke_result.stdout_lines | length > 0
 
-    - name: Copy required sql files for grant privileges for Delius read write users
-      copy:
-        src: "{{ database_primary_sid }}/grant_{{ delius_user.key }}_user.sql"
-        dest: "/tmp/grant_{{ delius_user.key }}_user.sql"
-        mode: "0600"
+    - name: Check grant sql files exist on controller
+      stat:
+        path: "{{ playbook_dir }}/files/{{ database_primary_sid }}/grant_{{ delius_user.key }}_user.sql"
+      delegate_to: localhost
       loop: "{{ delius_users | dict2items }}"
       loop_control:
         loop_var: delius_user
         label: "{{ delius_user.key }}"
       when:
         - delius_user.key | lower is search('_rw$')
-        - not delius_user.value.drop_user | default(false)
+        - not ((delius_user.value | default({}, true)).drop_user | default(false))
+      register: grant_file_stat_result
+
+    - name: Build list of read write users with grant sql files
+      set_fact:
+        grant_sql_users: "{{ grant_sql_users | default([]) + [grant_file_stat.delius_user] }}"
+      loop: "{{ grant_file_stat_result.results | default([]) }}"
+      loop_control:
+        loop_var: grant_file_stat
+        label: "{{ grant_file_stat.delius_user.key | default('unknown') }}"
+      when:
+        - grant_file_stat.stat is defined
+        - grant_file_stat.stat.exists | default(false)
+
+    - name: Copy required sql files for Delius read write users
+      copy:
+        src: "{{ database_primary_sid }}/grant_{{ grant_sql_user.key }}_user.sql"
+        dest: "/tmp/grant_{{ grant_sql_user.key }}_user.sql"
+        mode: "0600"
+      loop: "{{ grant_sql_users | default([]) }}"
+      loop_control:
+        loop_var: grant_sql_user
+        label: "{{ grant_sql_user.key }}"
       register: copy_file_result
-      failed_when: false
 
     - name: Execute grant sql files on the target
       shell:
@@ -495,46 +515,36 @@
             whenever sqlerror exit failure
             whenever oserror exit failure
             set pages 100 head off lines 200 feed off serveroutput on
-            spool /tmp/grant_{{ copy_result.delius_user.key }}_user.lst
+            spool /tmp/grant_{{ grant_sql_user.key }}_user.lst
 
-            @/tmp/grant_{{ copy_result.delius_user.key }}_user.sql
+            @/tmp/grant_{{ grant_sql_user.key }}_user.sql
 
             spool off
             exit
           EOF
-      loop: "{{ copy_file_result.results | default([]) }}"
+      loop: "{{ grant_sql_users | default([]) }}"
       loop_control:
-        loop_var: copy_result
-        label: "{{ copy_result.delius_user.key }}"
-      when:
-        - not copy_result.failed | default(false)
-        - not copy_result.skipped | default(false)
-        - copy_result.invocation.module_args.dest is defined
+        loop_var: grant_sql_user
+        label: "{{ grant_sql_user.key }}"
       register: grant_execution_result
       changed_when: true
 
     - name: Remove copied grant sql files from /tmp
       file:
-        path: "/tmp/grant_{{ grant_result.copy_result.delius_user.key }}_user.sql"
+        path: "/tmp/grant_{{ grant_sql_user.key }}_user.sql"
         state: absent
-      loop: "{{ grant_execution_result.results | default([]) }}"
+      loop: "{{ grant_sql_users | default([]) }}"
       loop_control:
-        loop_var: grant_result
-        label: "{{ grant_result.copy_result.delius_user.key }}"
-      when:
-        - not grant_result.failed | default(false)
-        - not grant_result.skipped | default(false)
-        - grant_result.copy_result.invocation.module_args.dest is defined
+        loop_var: grant_sql_user
+        label: "{{ grant_sql_user.key }}"
 
     - name: Gather any errors from grant spool files
       shell: |
-        grep -E "ORA-|SP2-|PLS-" /tmp/grant_{{ grant_result.copy_result.delius_user.key }}_user.lst || true
-      loop: "{{ grant_execution_result.results | default([]) }}"
+        grep -E "ORA-|SP2-|PLS-" /tmp/grant_{{ grant_sql_user.key }}_user.lst || true
+      loop: "{{ grant_sql_users | default([]) }}"
       loop_control:
-        loop_var: grant_result
-        label: "{{ grant_result.copy_result.delius_user.key }}"
-      when:
-        - not grant_result.skipped | default(false)
+        loop_var: grant_sql_user
+        label: "{{ grant_sql_user.key }}"
       changed_when: false
       register: grant_error_output
 
@@ -544,7 +554,7 @@
       loop: "{{ grant_error_output.results | default([]) }}"
       loop_control:
         loop_var: grant_error_result
-        label: "Grant errors"
+        label: "{{ grant_error_result.grant_sql_user.key | default('unknown') }}"
       when:
         - grant_error_result.stdout_lines is defined
         - grant_error_result.stdout_lines | length > 0
