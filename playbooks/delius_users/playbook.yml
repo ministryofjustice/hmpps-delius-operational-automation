@@ -472,34 +472,53 @@
         - revoke_result.stdout_lines is defined
         - revoke_result.stdout_lines | length > 0
 
-    - name: Check grant sql files exist on controller
-      stat:
-        path: "{{ playbook_dir }}/files/{{ database_primary_sid }}/grant_{{ delius_user.key }}_user.sql"
+    - name: Find grant sql files on controller
+      find:
+        paths: "{{ playbook_dir }}/files/{{ database_primary_sid }}"
+        patterns: "grant_*_user.sql"
+        file_type: file
       delegate_to: localhost
       become: false
+      register: grant_sql_files_found
+      failed_when: false
+      changed_when: false
+
+    - name: Debug grant sql file discovery
+      debug:
+        msg:
+          - "database_primary_sid={{ database_primary_sid }}"
+          - "playbook_dir={{ playbook_dir }}"
+          - "searched_dir={{ playbook_dir }}/files/{{ database_primary_sid }}"
+          - "matched_files={{ grant_sql_files_found.files | default([]) | map(attribute='path') | list }}"
+
+    - name: Reset list of read write users with grant sql files
+      set_fact:
+        grant_sql_users: []
+
+    - name: Build list of read write users with grant sql files
+      set_fact:
+        grant_sql_users: "{{ grant_sql_users + [delius_user] }}"
       loop: "{{ delius_users | dict2items }}"
       loop_control:
         loop_var: delius_user
         label: "{{ delius_user.key }}"
+      vars:
+        expected_grant_sql_file: "{{ playbook_dir }}/files/{{ database_primary_sid }}/grant_{{ delius_user.key }}_user.sql"
+        matched_grant_sql_files: "{{ grant_sql_files_found.files | default([]) | map(attribute='path') | list }}"
       when:
         - delius_user.key | lower is search('_rw$')
         - not ((delius_user.value | default({}, true)).drop_user | default(false))
-      register: grant_file_stat_result
+        - expected_grant_sql_file in matched_grant_sql_files
 
-    - name: Build list of read write users with grant sql files
-      set_fact:
-        grant_sql_users: "{{ grant_sql_users | default([]) + [grant_file_stat.delius_user] }}"
-      loop: "{{ grant_file_stat_result.results | default([]) }}"
-      loop_control:
-        loop_var: grant_file_stat
-        label: "{{ grant_file_stat.delius_user.key | default('unknown') }}"
-      when:
-        - grant_file_stat.stat is defined
-        - grant_file_stat.stat.exists | default(false)
+    - name: Debug read write users with grant sql files
+      debug:
+        msg:
+          - "grant_sql_users={{ grant_sql_users | map(attribute='key') | list }}"
+          - "grant_sql_user_count={{ grant_sql_users | length }}"
 
     - name: Copy required sql files for Delius read write users
       copy:
-        src: "{{ database_primary_sid }}/grant_{{ grant_sql_user.key }}_user.sql"
+        src: "{{ playbook_dir }}/files/{{ database_primary_sid }}/grant_{{ grant_sql_user.key }}_user.sql"
         dest: "/tmp/grant_{{ grant_sql_user.key }}_user.sql"
         mode: "0600"
       loop: "{{ grant_sql_users | default([]) }}"
@@ -507,6 +526,10 @@
         loop_var: grant_sql_user
         label: "{{ grant_sql_user.key }}"
       register: copy_file_result
+
+    - name: Debug copied grant sql files
+      debug:
+        msg: "{{ copy_file_result.results | default([]) | map(attribute='dest') | list }}"
 
     - name: Execute grant sql files on the target
       shell:
@@ -529,6 +552,18 @@
         label: "{{ grant_sql_user.key }}"
       register: grant_execution_result
       changed_when: true
+
+    - name: Debug grant sql execution results
+      debug:
+        msg:
+          user: "{{ grant_result.grant_sql_user.key }}"
+          rc: "{{ grant_result.rc | default('n/a') }}"
+          stdout: "{{ grant_result.stdout_lines | default([]) }}"
+          stderr: "{{ grant_result.stderr_lines | default([]) }}"
+      loop: "{{ grant_execution_result.results | default([]) }}"
+      loop_control:
+        loop_var: grant_result
+        label: "{{ grant_result.grant_sql_user.key | default('unknown') }}"
 
     - name: Remove copied grant sql files from /tmp
       file:
