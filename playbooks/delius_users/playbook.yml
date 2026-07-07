@@ -476,6 +476,7 @@
       stat:
         path: "{{ playbook_dir }}/files/{{ database_primary_sid }}/grant_{{ delius_user.key }}_user.sql"
       delegate_to: localhost
+      become: false
       loop: "{{ delius_users | dict2items }}"
       loop_control:
         loop_var: delius_user
