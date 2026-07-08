@@ -253,7 +253,6 @@
       script: create_ash_wrapper.sh
       when: diagnostic_pack | default(false)
 
-
 - name: Create temporary tablespace
   shell:
     cmd: |
@@ -339,6 +338,8 @@
             dbms_output.put_line('Role granted to user {{ item.key }}');
           elsif substr('{{ item.key }}',-3) = '_rw'
           then
+            execute immediate 'grant '||v_role||' to {{ item.key }}';
+            dbms_output.put_line('Role granted to user {{ item.key }}');
             execute immediate 'grant create session to {{ item.key }}';
             execute immediate 'grant exempt access policy to {{ item.key }}';
             dbms_output.put_line('Grant exempt access policy user {{ item.key }}');
