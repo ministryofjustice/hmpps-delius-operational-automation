@@ -225,7 +225,7 @@ jobs:
       - name: Define Delius Targets
         id: definetargets
         run: |
-          delius_target=environment_name_delius_core_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/')_delius_dbs
+          delius_target=environment_name_delius_core_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/^preprod$/preproduction_preprod/;s/-prod/_production_prod/')_delius_dbs
           echo "delius_target=${delius_target}" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
