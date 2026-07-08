@@ -338,6 +338,8 @@
             dbms_output.put_line('Role granted to user {{ item.key }}');
           elsif substr('{{ item.key }}',-3) = '_rw'
           then
+            execute immediate 'grant '||v_role||' to {{ item.key }}';
+            dbms_output.put_line('Role granted to user {{ item.key }}');
             execute immediate 'grant create session to {{ item.key }}';
             execute immediate 'grant exempt access policy to {{ item.key }}';
             dbms_output.put_line('Grant exempt access policy user {{ item.key }}');
@@ -405,46 +407,219 @@
 # These type of database users are scarce.
 # Object privileges granted are not generic and vary on a user by user basis.
 # User custom sql files have been created containing the granted object privileges required.
-# The custom sql files MUST reside in the files directory with file format of grant_<database user name>_user.sql
-# where the <database user name> is the key defined in the delius_users dictionary
+# The custom sql files MUST reside in the files directory under the database SID with file format of grant_<database user name>_user.sql
+# where the <database user name> is the key defined in the delius_users dictionary.
+# If the file doesn't exist then their account will just get the read-only role.
 
 - name: Grant privileges to Delius read write users
   block:
-    - name: Copy required sql files for grant privileges for Delius read write users
-      copy:
-        src: "grant_{{ item.key }}_user.sql"
-        dest: "/tmp"
-      with_dict: "{{ delius_users }}"
-      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
 
-    - name: Execute the grant sql files on the target
+    - name: Remove any existing object grants from Delius read write users
       shell:
         cmd: |
-          . ~/.bash_profile;
-            sqlplus -s / as sysdba << EOF
-            spool /tmp/grant_{{ item.key }}_user.lst
-            @/tmp/grant_{{ item.key }}_user.sql
-            spool off
-          EOF
-      with_dict: "{{ delius_users }}"
-      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
+          . ~/.bash_profile
+          sqlplus -s / as sysdba << EOF
+            whenever sqlerror exit failure
+            set pages 100 head off lines 200 feed off serveroutput on
 
-    - name: Gather any errors of the execution by checking spool files
-      shell: grep "^GRANT.*$" /tmp/grant_{{ item.key }}_user.lst | cat
-      with_dict: "{{ delius_users }}"
-      when: (item.key[-3:]=="_rw") and not item.value.drop_user | default(false)
+            declare
+              v_username varchar2(128) := upper('{{ delius_user.key }}');
+            begin
+              for r in (
+                select owner,
+                       table_name,
+                       privilege
+                from dba_tab_privs
+                where grantee = v_username
+                order by owner, table_name, privilege
+              )
+              loop
+                dbms_output.put_line(
+                  'Revoking ' || r.privilege ||
+                  ' on ' || r.owner || '.' || r.table_name ||
+                  ' from ' || v_username
+                );
+
+                execute immediate
+                  'revoke ' || r.privilege ||
+                  ' on ' || dbms_assert.enquote_name(r.owner, false) ||
+                  '.' || dbms_assert.enquote_name(r.table_name, false) ||
+                  ' from ' || dbms_assert.enquote_name(v_username, false);
+              end loop;
+            end;
+            /
+
+            exit
+          EOF
+      loop: "{{ delius_users | dict2items }}"
+      loop_control:
+        loop_var: delius_user
+        label: "{{ delius_user.key }}"
+      when:
+        - delius_user.key | lower is search('_rw$')
+        - not ((delius_user.value | default({}, true)).drop_user | default(false))
+      register: revoke_grants_result
+      changed_when: "'Revoking' in revoke_grants_result.stdout"
+
+    - name: Revoke grants output for Delius read write users
+      debug:
+        msg: "{{ revoke_result.stdout_lines }}"
+        verbosity: 1
+      loop: "{{ revoke_grants_result.results | default([]) }}"
+      loop_control:
+        loop_var: revoke_result
+        label: "{{ revoke_result.delius_user.key | default('unknown') }}"
+      when:
+        - revoke_result.stdout_lines is defined
+        - revoke_result.stdout_lines | length > 0
+
+    - name: Set grant sql directory
+      set_fact:
+        grant_sql_dir: "{{ playbook_dir }}/delius_users/files/{{ database_primary_sid }}"
       changed_when: false
-      register: output
+
+    - name: Find grant sql files on controller
+      find:
+        paths: "{{ grant_sql_dir }}"
+        patterns: "grant_*_user.sql"
+        file_type: file
+      delegate_to: localhost
+      become: false
+      register: grant_sql_files_found
+      failed_when: false
+      changed_when: false
+
+    - name: Build grant sql file facts
+      set_fact:
+        grant_sql_file_basenames: >-
+          {{
+            grant_sql_files_found.files | default([])
+            | map(attribute='path')
+            | map('basename')
+            | list
+          }}
+
+    - name: Debug grant sql file discovery
+      debug:
+        msg:
+          - "database_primary_sid={{ database_primary_sid }}"
+          - "grant_sql_dir={{ grant_sql_dir }}"
+          - "matched_file_count={{ grant_sql_files_found.matched | default(0) }}"
+          - "grant_sql_file_basenames={{ grant_sql_file_basenames }}"
+
+    - name: Reset list of read write users with grant sql files
+      set_fact:
+        grant_sql_users: []
+
+    - name: Build list of eligible read write users
+      set_fact:
+        eligible_rw_users: >-
+          {{
+            delius_users | dict2items
+            | selectattr('key', 'search', '_rw$')
+            | list
+          }}
+
+    - name: Build list of read write users with grant sql files
+      set_fact:
+        grant_sql_users: "{{ grant_sql_users + [delius_user] }}"
+      loop: "{{ eligible_rw_users }}"
+      loop_control:
+        loop_var: delius_user
+        label: "{{ delius_user.key }}"
+      vars:
+        expected_grant_file: "grant_{{ delius_user.key }}_user.sql"
+      when:
+        - not ((delius_user.value | default({}, true)).drop_user | default(false))
+        - expected_grant_file in grant_sql_file_basenames
+
+    - name: Debug read write users with grant sql files
+      debug:
+        msg:
+          - "eligible_rw_users={{ eligible_rw_users | map(attribute='key') | list }}"
+          - "grant_sql_file_basenames={{ grant_sql_file_basenames }}"
+          - "grant_sql_users={{ grant_sql_users | map(attribute='key') | list }}"
+          - "grant_sql_user_count={{ grant_sql_users | length }}"
+
+    - name: Copy required sql files for Delius read write users
+      copy:
+        src: "{{ grant_sql_dir }}/grant_{{ grant_sql_user.key }}_user.sql"
+        dest: "/tmp/grant_{{ grant_sql_user.key }}_user.sql"
+        mode: "0600"
+      loop: "{{ grant_sql_users }}"
+      loop_control:
+        loop_var: grant_sql_user
+        label: "{{ grant_sql_user.key }}"
+      register: copy_file_result
+
+    - name: Execute grant sql files on the target
+      shell:
+        cmd: |
+          . ~/.bash_profile
+          sqlplus -s / as sysdba << EOF
+            whenever sqlerror exit failure
+            whenever oserror exit failure
+            set pages 100 head off lines 200 feed off serveroutput on
+            spool /tmp/grant_{{ grant_sql_user.key }}_user.lst
+
+            @/tmp/grant_{{ grant_sql_user.key }}_user.sql
+
+            spool off
+            exit
+          EOF
+      loop: "{{ grant_sql_users | default([]) }}"
+      loop_control:
+        loop_var: grant_sql_user
+        label: "{{ grant_sql_user.key }}"
+      register: grant_execution_result
+      changed_when: true
+      failed_when: grant_execution_result.rc != 0
+
+    - name: Debug grant sql execution results
+      debug:
+        msg:
+          user: "{{ grant_result.grant_sql_user.key }}"
+          rc: "{{ grant_result.rc | default('n/a') }}"
+          stdout: "{{ grant_result.stdout_lines | default([]) }}"
+          stderr: "{{ grant_result.stderr_lines | default([]) }}"
+      loop: "{{ grant_execution_result.results | default([]) }}"
+      loop_control:
+        loop_var: grant_result
+        label: "{{ grant_result.grant_sql_user.key | default('unknown') }}"
+
+    - name: Remove copied grant sql files from /tmp
+      file:
+        path: "/tmp/grant_{{ grant_sql_user.key }}_user.sql"
+        state: absent
+      loop: "{{ grant_sql_users | default([]) }}"
+      loop_control:
+        loop_var: grant_sql_user
+        label: "{{ grant_sql_user.key }}"
+
+    - name: Gather any errors from grant spool files
+      shell: |
+        grep -E "ORA-|SP2-|PLS-" /tmp/grant_{{ grant_sql_user.key }}_user.lst || true
+      loop: "{{ grant_sql_users | default([]) }}"
+      loop_control:
+        loop_var: grant_sql_user
+        label: "{{ grant_sql_user.key }}"
+      changed_when: false
+      register: grant_error_output
 
     - name: Output any errors during granting privileges
       debug:
-        msg: "{{ item.stdout_lines }}"
-      with_items: "{{ output.results }}"
+        msg: "{{ grant_error_result.stdout_lines }}"
+      loop: "{{ grant_error_output.results | default([]) }}"
       loop_control:
-        label: "Failed grants for {{ item.item.key }}..."
-      when: (item.item.key[-3:]=="_rw") and (item.stdout_lines | length > 0)
+        loop_var: grant_error_result
+        label: "{{ grant_error_result.grant_sql_user.key | default('unknown') }}"
+      when:
+        - grant_error_result.stdout_lines is defined
+        - grant_error_result.stdout_lines | length > 0
 
-  when: (delius_users is defined) and ( action_type=="create" or action_type == "all")
+  when:
+    - delius_users is defined
+    - action_type == "create" or action_type == "all"
 
 - name: Restore delius user passwords
   shell:
