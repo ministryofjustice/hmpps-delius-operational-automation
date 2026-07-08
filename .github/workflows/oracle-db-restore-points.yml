@@ -158,7 +158,7 @@ jobs:
         id: mis_exists
         working-directory: ${{ env.inventory }}
         run: |
-          environment_name=environment_name_delius_mis_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/')
+          environment_name=environment_name_delius_mis_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/')
           # Only required to check if mis_primarydb.yml Ansible inventory group vars file exists
           # to check MIS is in this environment
           if [[ -e group_vars/${environment_name}_mis_primarydb.yml ]]
