@@ -87,7 +87,7 @@
             FETCH cs INTO l_rec;
             CLOSE cs;
             --
-            IF NOT ( l_rec.client_os_user IN ( 'root', 'bcladmin' ) AND 
+            IF NOT ( l_rec.client_os_user IN ( 'root', 'bcladmin', 'ubuntu' ) AND 
                     l_rec.client_prog IN ( 'JDBC Thin Client', 'SQL Developer' ))
             THEN
                 RAISE_APPLICATION_ERROR(-20000,'Denied!  You are not allowed to logon from host ' || l_rec.client_prog || ' using '|| l_rec.client_os_user);
