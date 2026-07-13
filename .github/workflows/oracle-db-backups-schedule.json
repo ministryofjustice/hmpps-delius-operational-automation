@@ -14,15 +14,6 @@
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
-        "TargetEnvironment": "delius-core-dev",
-        "TargetHost": "delius_standbydb1",
-        "CronSchedule": "0 12 * * 1-5",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
         "TargetEnvironment": "delius-mis-dev",
         "TargetHost": "mis_primarydb",
         "CronSchedule": "0 7 * * 1,2,4,5",
@@ -93,15 +84,6 @@
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
-        "TargetEnvironment": "delius-core-stage",
-        "TargetHost": "delius_primarydb",
-        "CronSchedule": "0 12 * * 1-5",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
         "TargetEnvironment": "delius-mis-stage",
         "TargetHost": "mis_primarydb",
         "CronSchedule": "0 2 * * 0",
@@ -113,15 +95,6 @@
         "TargetHost": "mis_primarydb",
         "CronSchedule": "0 3 * * 1-6",
         "Period": "daily",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
-        "TargetEnvironment": "delius-mis-stage",
-        "TargetHost": "mis_primarydb",
-        "CronSchedule": "0 12 * * 1-5",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
@@ -140,15 +113,6 @@
     },
     {
         "TargetEnvironment": "delius-mis-stage",
-        "TargetHost": "boe_primarydb",
-        "CronSchedule": "0 12 * * 1-5",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
-        "TargetEnvironment": "delius-mis-stage",
         "TargetHost": "dsd_primarydb",
         "CronSchedule": "0 2 * * 0",
         "Period": "weekly",
@@ -159,15 +123,6 @@
         "TargetHost": "dsd_primarydb",
         "CronSchedule": "0 3 * * 1-6",
         "Period": "daily",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
-        "TargetEnvironment": "delius-mis-stage",
-        "TargetHost": "dsd_primarydb",
-        "CronSchedule": "0 12 * * 1-5",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
@@ -193,15 +148,6 @@
     },
     {
         "TargetEnvironment": "delius-mis-preprod",
-        "TargetHost": "mis_standbydb1",
-        "CronSchedule": "0 12 * * 1-5",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
-        "TargetEnvironment": "delius-mis-preprod",
         "TargetHost": "boe_primarydb",
         "CronSchedule": "0 2 * * 0",
         "Period": "weekly",
@@ -212,15 +158,6 @@
         "TargetHost": "boe_primarydb",
         "CronSchedule": "0 3 * * 1-6",
         "Period": "daily",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
-        "TargetEnvironment": "delius-mis-preprod",
-        "TargetHost": "boe_standbydb1",
-        "CronSchedule": "0 12 * * 1-5",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
@@ -238,28 +175,10 @@
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
-        "TargetEnvironment": "delius-mis-preprod",
-        "TargetHost": "dsd_standbydb1",
-        "CronSchedule": "0 12 * * 1-5",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
         "TargetEnvironment": "delius-core-preprod",
         "TargetHost": "delius_primarydb",
         "CronSchedule": "0 3 * * 1-6",
         "Period": "daily",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
-        "TargetEnvironment": "delius-core-preprod",
-        "TargetHost": "delius_standbydb1",
-        "CronSchedule": "41 * * * *",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
@@ -274,15 +193,6 @@
         "TargetHost": "delius_primarydb",
         "CronSchedule": "0 3 * * 1-6",
         "Period": "daily",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
-        "TargetEnvironment": "delius-core-prod",
-        "TargetHost": "delius_standbydb1",
-        "CronSchedule": "41 * * * *",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
     {
@@ -301,15 +211,6 @@
     },
     {
         "TargetEnvironment": "delius-mis-prod",
-        "TargetHost": "mis_standbydb1",
-        "CronSchedule": "41 * * * *",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
-        "TargetEnvironment": "delius-mis-prod",
         "TargetHost": "boe_primarydb",
         "CronSchedule": "0 3 * * 0",
         "Period": "weekly",
@@ -324,15 +225,6 @@
     },
     {
         "TargetEnvironment": "delius-mis-prod",
-        "TargetHost": "boe_standbydb1",
-        "CronSchedule": "0 12 * * 1-5",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
-        "TargetEnvironment": "delius-mis-prod",
         "TargetHost": "dsd_primarydb",
         "CronSchedule": "0 3 * * 0",
         "Period": "weekly",
@@ -343,15 +235,6 @@
         "TargetHost": "dsd_primarydb",
         "CronSchedule": "0 3 * * 1-6",
         "Period": "daily",
-        "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
-    },
-    {
-        "TargetEnvironment": "delius-mis-prod",
-        "TargetHost": "dsd_standbydb1",
-        "CronSchedule": "0 12 * * 1-5",
-        "Period": "archivelog",
-        "FixAbsentChunks": "no",
-        "BackupStandbyOnPrimaryFailure": "no",
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     }
 ]
