@@ -3,7 +3,8 @@
 - name: Determine the Environment Type
   include_tasks: is_audit_client.yml
 
-- debug:
+- name: Show Environment Name
+  debug:
     msg: "Finding replication tasks for the {{ target_environment_name }} Delius environment."
 
 - name: Get ARN for Audited Interaction Replication Task
