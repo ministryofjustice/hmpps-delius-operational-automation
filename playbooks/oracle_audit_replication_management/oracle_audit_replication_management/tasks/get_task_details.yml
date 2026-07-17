@@ -3,6 +3,9 @@
 - name: Determine the Environment Type
   include_tasks: is_audit_client.yml
 
+- debug:
+    msg: "Finding replication tasks for the {{ target_environment_name }} Delius environment."
+
 - name: Get ARN for Audited Interaction Replication Task
   shell: |
     aws dms describe-replication-tasks --region {{ region }}  | \  
