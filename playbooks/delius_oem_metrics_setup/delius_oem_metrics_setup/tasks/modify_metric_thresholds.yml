@@ -79,6 +79,7 @@
                     if [[ "$set_threshold" == "true" ]]; then
                         echo "Using workaround to set thresholds for $metric:$column."
                         if [[ "$keyed_metric" == "true" ]]; then
+                          echo "Keyed"
                           {{ emcli }} modify_threshold \
                             -target_name={{ item.0.target_name }} \
                             -target_type={{ item.1.target_type }} \
@@ -87,6 +88,7 @@
                             -critical_threshold="${critical_threshold}" \
                             -key_columns=";"
                         else
+                          echo "Unkeyed"
                           {{ emcli }} modify_threshold \
                             -target_name={{ item.0.target_name }} \
                             -target_type={{ item.1.target_type }} \
@@ -103,6 +105,10 @@
         - item.0.target_type == item.1.target_type
         - (item.0.target_name == item.1.target_name) or (item.1.target_name == 'all')
       register: set_metric_thresholds
+
+    - name: Show Output of Set Metric
+      debug:
+         var: set_metric_thresholds
 
     - name: Enable and Disable Collections
       shell: |
