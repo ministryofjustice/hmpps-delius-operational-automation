@@ -64,11 +64,11 @@
     DATABASE_PASSWORD: "{{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }}"
     ASM_PASSWORD: "{{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }}"
 
-- name: Get ARN for the first DMS replication instance
+- name: Get ARN for the DMS replication instance named {{ target_environment_name.split('-')[0] }}-dms-instance
   shell: |
+    DMS_INSTANCE_IDENTIFIER="{{ target_environment_name.split('-')[0] }}-dms-instance"
     aws dms describe-replication-instances --region {{ region }} \
-      --query "ReplicationInstances[0].ReplicationInstanceArn" \
-      --output text
+      --output json | jq -r --arg instance_id "$DMS_INSTANCE_IDENTIFIER" '.ReplicationInstances[] | select(.ReplicationInstanceIdentifier == $instance_id) | .ReplicationInstanceArn' | head -n1
   delegate_to: localhost
   become: no
   changed_when: false
