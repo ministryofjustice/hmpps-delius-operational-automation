@@ -14,7 +14,8 @@
         --region {{ region }} \
        --namespace 'AWS/DMS' --period 60 --statistics Maximum \
        --dimensions Name=ReplicationInstanceIdentifier,Value={{ get_replication_instance.stdout }} \
-                    Name=ReplicationTaskIdentifier,Value={{ audited_interaction_task_arn.split(':')[-1] }} \
+                      Name=EnvironmentName,Value={{ target_environment_name }} \
+                    Name=ReplicationTaskIdentifier,Value={{ audited_interaction_task_arn[0].split(':')[-1] }} \
        --query "Datapoints[0].Maximum" --output text
   register: get_cdc_throughput_row_source
   until: (get_cdc_throughput_row_source.stdout == '0.0') or (get_cdc_throughput_row_source.stdout == 'null') or  (get_cdc_throughput_row_source.stdout == 'None')
