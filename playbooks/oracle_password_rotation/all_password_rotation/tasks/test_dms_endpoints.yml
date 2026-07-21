@@ -4,7 +4,7 @@
 # manner
 - name: Report Start of Endpoint Testing
   debug:
-     msg: "Testing Endpoint {{ endpoint_arn }} for {{ target_environment_name.split('-') }} using Replication Instance {{ replication_instance_arn }}"
+     msg: "Testing Endpoint {{ endpoint_arn }} for {{ target_environment_name.split('-')[0] }} using Replication Instance {{ replication_instance_arn }}"
 
 - name: Start Test of DMS Endpoint {{ endpoint_arn }}
   shell: |

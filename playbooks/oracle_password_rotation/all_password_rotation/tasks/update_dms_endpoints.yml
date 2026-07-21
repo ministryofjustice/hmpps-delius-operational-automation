@@ -74,6 +74,10 @@
   changed_when: false
   register: get_replication_instance_arn
 
+- name: Report Relication Instance for this Delius Environment
+  debug:
+     msg: "Using {{ target_environment_name.split('-')[0] }}-dms-instance Replication Instance {{ get_replication_instance_arn.stdout }}"
+
 - name: Test All Endpoints Following Password Change
   include_tasks: test_dms_endpoints.yml
   loop: "{{ describe_endpoints.stdout_lines }}"
