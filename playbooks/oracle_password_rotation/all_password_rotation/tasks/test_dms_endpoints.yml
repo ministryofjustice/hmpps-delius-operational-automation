@@ -2,6 +2,10 @@
 # a test may already be in progress when we get here - ignore any error related to this,
 # otherwise start a new test so we can wait for the status to be updated in a timely
 # manner
+- name: Report Start of Endpoint Testing
+  debug:
+     msg: "Testing Endpoint {{ endpoint_arn }} using Replication Instance {{ replication_instance_arn }}"
+
 - name: Start Test of DMS Endpoint {{ endpoint_arn }}
   shell: |
     aws dms test-connection --endpoint-arn {{ endpoint_arn }} \
