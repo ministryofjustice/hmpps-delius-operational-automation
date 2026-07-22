@@ -4,8 +4,12 @@
 # as we simply load all the reference data again).
 - name: Restart the Business Interaction DMS Replication Tasks with Full Load
   shell: |
-    aws dms start-replication-task --replication-task-arn "{{ business_interaction_task_arn }}" \
+    aws dms start-replication-task --replication-task-arn "{{ business_task_arn }}" \
         --region {{ region }}  --start-replication-task-type reload-target
+  loop: "{{ business_interaction_task_arn | default([]) | map('trim') | reject('equalto', '') | list }}"
+  loop_control:
+    loop_var: business_task_arn
+  when: (business_interaction_task_arn | default([]) | map('trim') | reject('equalto', '') | list | length) > 0
 
 # Ensure the Business Interaction Task is Running before we restart the Audit
 # Replication Task since this is required to refresh the Stage Business Interaction
@@ -13,10 +17,14 @@
 - name: Wait for Business Interaction Replication Tasks to Start
   shell: |
     aws dms describe-replication-tasks \
-       --filters Name=replication-task-arn,Values="{{ business_interaction_task_arn }}" \
+       --filters Name=replication-task-arn,Values="{{ business_task_arn }}" \
         --region {{ region }}  --query "ReplicationTasks[0].Status" --output text
   register: task_status
   until: task_status.stdout == "running"
   retries: 60
   delay: 10
+  loop: "{{ business_interaction_task_arn | default([]) | map('trim') | reject('equalto', '') | list }}"
+  loop_control:
+    loop_var: business_task_arn
+  when: (business_interaction_task_arn | default([]) | map('trim') | reject('equalto', '') | list | length) > 0
   changed_when: FALSE

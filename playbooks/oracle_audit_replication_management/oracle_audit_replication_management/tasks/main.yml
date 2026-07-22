@@ -17,19 +17,27 @@
 - name: Get Replication Task Details
   include_tasks: get_task_details.yml
 
-# If we do not find an Audited Interaction replication tasks then this environment is not configured as a client or repository
-# and no further action is needed
+# The audited_interaction_task_arn value is a list (stdout_lines), so we trim each element and
+# remove blanks before checking length. If no non-empty ARNs remain, this environment is not
+# configured as an Audited Interaction client or repository and no further action is needed.
+# This is required because in the production account there may be more than one replication task
+# of the same type (e.g. audit replication from both stage and from pre-prod)
 - name: Skip Message
   debug:
     msg: "This environment is not configured as an Audited Interaction data client or repository.  No action taken."
-  when: audited_interaction_task_arn == ''
+  when: (audited_interaction_task_arn | default([]) | map('trim') | reject('equalto', '') | list | length) == 0
 
 - name: Perform Requested Actions on Replication Tasks
-  when: audited_interaction_task_arn != ''
+  when: (audited_interaction_task_arn | default([]) | map('trim') | reject('equalto', '') | list | length) > 0
   block:
+    # We only need to wait for audit replication to finish on a client.
+    # A repository will continue to receive CDC records in the S3 bucket
+    # so can process these when it resumes.
     - name: Wait for Audit Replication to Finish
       include_tasks: wait_for_zero_throughput.yml
-      when: replication_action == 'stop'
+      when: 
+        - replication_action == 'stop'
+        - audited_interaction_client
 
     - name: Stop Replication Tasks
       include_tasks: stop_tasks.yml
