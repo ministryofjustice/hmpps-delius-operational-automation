@@ -93,15 +93,27 @@ jobs:
     continue-on-error: false
     steps:
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Target Name
         id: preparetargetname
         shell: bash
         run: |
-          environment_name="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')"
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
           IFS="," read -ra targets <<< "${{ github.event.inputs.TargetHost }}"
           for target in "${targets[@]}"
           do
-            TargetHost+=${environment_name}_${target},
+            TargetHost+="$(build_inventory_name "${{ github.event.inputs.TargetEnvironment }}" "_$target"),"
           done
           echo "TargetHost=${TargetHost%?}" >> $GITHUB_OUTPUT
 
