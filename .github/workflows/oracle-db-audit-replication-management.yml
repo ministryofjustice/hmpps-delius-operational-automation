@@ -71,6 +71,16 @@ jobs:
     continue-on-error: false
     steps:
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          fetch-depth: 0
+
       # Always run the stop/start tasks from the Delius primary database host.
       # For stopping it does not really matter, but for restarting we need to read the startup SCN from the database.
       - name: Prepare Inventory Name
