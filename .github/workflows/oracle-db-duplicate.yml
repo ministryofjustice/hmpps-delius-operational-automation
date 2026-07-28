@@ -109,10 +109,23 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Duplicate Target Name
         id: preparation
         shell: bash
         run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
           TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
           TargetHost="${{ github.event.inputs.TargetHost }}"
           SourceLegacy="${{ github.event.inputs.SourceLegacy }}"
@@ -122,7 +135,7 @@ jobs:
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
-          DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/-preprod$/_preproduction_preprod/;s/stage/preproduction_stage/;s/-prod/_production_prod/;s/-/_/g')_${TargetHost}
+          DuplicateTarget="$(build_inventory_name "$TargetEnvironment" "_$TargetHost")"
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           # Check the combination of Source Database and Source Bucket is correct if NOT duplicating from AWS legacy
           if [[ "${SourceLegacy}" == "no" ]]
@@ -505,9 +518,22 @@ jobs:
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.client_payload.SourceCodeVersion || 'main' }}
+          fetch-depth: 0
+
       - name: Responding to Repository Dispatch event
         id: response
         run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
           echo "${{ github.event.client_payload }}"
           Inputs='${{ toJson(github.event.client_payload) }}'
           Inputs=$(echo $Inputs | jq -r)
@@ -518,7 +544,7 @@ jobs:
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
           echo "RestoreDatetime=$(echo $Inputs | jq -r '.RestoreDatetime')" >> $GITHUB_OUTPUT
-          DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/-preprod$/_preproduction_preprod/;s/stage/preproduction_stage/;s/-prod/_production_prod/;s/-/_/g')_${TargetHost}
+          DuplicateTarget="$(build_inventory_name "$TargetEnvironment" "_$TargetHost")"
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           echo "SourceLegacy=$(echo $Inputs | jq -r '.SourceLegacy')" >> $GITHUB_OUTPUT
           Action='${{ github.event.action }}'
