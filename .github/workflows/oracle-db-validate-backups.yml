@@ -132,6 +132,8 @@ jobs:
       - name: Prepare Rman Target Name
         id: preparermantargetname
         run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
           then
             TargetHost="${{ github.event.inputs.TargetHost }}"
@@ -140,7 +142,7 @@ jobs:
             TargetHost="${{ inputs.TargetHost }}"
             TargetEnvironment="${{ inputs.TargetEnvironment }}"
           fi;
-          RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_$TargetHost"
+          RmanTarget="$(build_inventory_name "$TargetEnvironment" "_$TargetHost")"
           echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
           
@@ -165,6 +167,7 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_backup
             playbooks/ansible.cfg
+            common/files/build_inventory_name.sh
           path: operations
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0

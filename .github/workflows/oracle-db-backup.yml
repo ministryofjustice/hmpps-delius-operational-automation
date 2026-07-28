@@ -137,11 +137,13 @@ jobs:
       - name: Prepare Rman Target
         id: preparermantargetname
         run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
           function set_rman_target()
           {
             # Supply 2 parameters:  TargetEnvironment & TargetHost
             # This function determines the inventory name for the RMAN target on which the backup should be run.
-            RmanTarget="environment_name_$(echo $1 | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_$2"
+            RmanTarget="$(build_inventory_name "$1" "_$2")"
             echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
             echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
 
@@ -325,6 +327,7 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_backup
             playbooks/ansible.cfg
+            common/files/build_inventory_name.sh
           path: operations
           ref: "${{ env.SourceCodeVersion }}"
           fetch-depth: 0
