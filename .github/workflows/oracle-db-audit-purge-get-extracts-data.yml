@@ -1,9 +1,6 @@
 name: "Oracle: Audit Purge GET_EXTRACTS_DATA"
 run-name: "Oracle: ${{ github.event.inputs.TargetEnvironment }}-audit-purge-get-extracts-data"
 on:
-  push:
-    branches:
-      - "DBA-1210"
   workflow_dispatch:
     inputs:
       # Note that we use, for example, "dev" here instead of "delius-core-dev"
