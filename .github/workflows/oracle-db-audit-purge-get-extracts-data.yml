@@ -131,7 +131,7 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
             -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-            -e target_dbs=${{ steps.definetargets.outputs.delius_target }} \
+            -e target_hosts=${{ steps.definetargets.outputs.delius_target }} \
             | tee /tmp/ansible_delius.log
           next_partition_high_value=$(grep -oP 'NEXT_PARTITION_HIGH_VALUE=\K[0-9]{4}-[0-9]{2}-[0-9]{2}' /tmp/ansible_delius.log | tail -1)
           echo "next_partition_high_value=${next_partition_high_value}" >> $GITHUB_OUTPUT
@@ -186,8 +186,5 @@ jobs:
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory \
             -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-            -e target_dbs=${{ needs.validate-parameters.outputs.MisTargets }} \
+            -e target_hosts=${{ needs.validate-parameters.outputs.MisTargets }} \
             -e next_partition_high_value=${{ needs.audit-purge-delius.outputs.next_partition_high_value }}
-          export ANSIBLE_CONFIG=$ansible_config
-          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
-          -e target_dbs=${{ needs.validate-parameters.outputs.MisTargets  }}
