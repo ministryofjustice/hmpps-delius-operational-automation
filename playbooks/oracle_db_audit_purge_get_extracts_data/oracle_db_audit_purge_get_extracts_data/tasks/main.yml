@@ -45,14 +45,6 @@
         exchange_partition_rows_kept: "{{ exchange_partition_output.stdout_lines | select('match', '^EXCHANGE_PARTITION_ROWS_AFTER=') | first | regex_replace('^EXCHANGE_PARTITION_ROWS_AFTER=', '') }}"
       when: exchange_partition_output is not skipped
 
-    - name: Broadcast next_partition_high_value to all hosts
-      set_fact:
-        next_partition_high_value: "{{ next_partition_high_value }}"
-      delegate_to: "{{ item }}"
-      delegate_facts: true
-      loop: "{{ groups['all'] }}"
-      when: next_partition_high_value is defined
-
 - name: Lookup Data in MIS
   when: 
      - database_type == 'mis'
