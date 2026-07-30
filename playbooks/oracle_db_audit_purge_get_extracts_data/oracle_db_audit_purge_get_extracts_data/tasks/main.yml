@@ -1,0 +1,81 @@
+- name: Get Primary Database Type And Environment
+  set_fact:
+    database_type: "{{ group_names | select('match','.*_primarydb') | list | first | regex_replace('^.*_(.*)_primarydb', '\\1') }}"
+    database_environment: "{{ group_names | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
+  when: database_primary_sid is defined
+
+- name: Get Standby Database Type And Environment
+  set_fact:
+    database_type: "{{ group_names | select('match','.*_standbydb[12]') | list | first | regex_replace('^.*_(.*)_standbydb[12]', '\\1') }}"
+    database_environment: "{{ group_names | select('match','.*_standbydb[12]') | list | first | regex_replace('^(.*)_standbydb[12]', '\\1') }}"
+  when: not database_primary_sid is defined
+
+- name: Show info
+  debug:
+     msg: "Running against the {{ database_type }} database in the {{ database_environment }} environment"
+
+- name: Purge Data from Delius
+  when: database_type == 'delius'
+  block:
+      
+    - name: Get Next Partition to Process
+      script: get_next_partition.sh
+      register: get_next_partition_output
+      changed_when: false
+
+    - name: Set Next Partition Variables
+      set_fact:
+        next_partition_id: "{{ get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_ID=') | first | regex_replace('^NEXT_PARTITION_ID=', '') }}"
+        next_partition_high_value: "{{ get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_HIGH_VALUE=') | first | regex_replace('^NEXT_PARTITION_HIGH_VALUE=', '') }}"
+        next_partition_compress_for: "{{ get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_COMPRESS_FOR=') | first | regex_replace('^NEXT_PARTITION_COMPRESS_FOR=', '') }}"
+      when: get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_ID=') | list | length > 0
+
+    - name: Report Action to Do
+      debug:
+        msg: "Purging GET_EXTRACTS_DATA from the partition to {{ next_partition_high_value }}"
+
+    - name: Exchange Partition to Remove GET_EXTRACTS_DATA Rows
+      script: exchange_partition.sh {{ next_partition_id }} {{ next_partition_compress_for }}
+      register: exchange_partition_output
+      when: next_partition_id is defined
+
+    - name: Set Exchange Partition Variables
+      set_fact:
+        exchange_partition_status: "{{ exchange_partition_output.stdout_lines | select('match', '^EXCHANGE_PARTITION_STATUS=') | first | regex_replace('^EXCHANGE_PARTITION_STATUS=', '') }}"
+        exchange_partition_rows_kept: "{{ exchange_partition_output.stdout_lines | select('match', '^EXCHANGE_PARTITION_ROWS_AFTER=') | first | regex_replace('^EXCHANGE_PARTITION_ROWS_AFTER=', '') }}"
+      when: exchange_partition_output is not skipped
+
+    - name: Broadcast next_partition_high_value to all hosts
+      set_fact:
+        next_partition_high_value: "{{ next_partition_high_value }}"
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      loop: "{{ groups['all'] }}"
+      when: next_partition_high_value is defined
+
+- name: Lookup Data in MIS
+  when: 
+     - database_type == 'mis'
+     - next_partition_high_value is not null
+  block:
+
+    - name: Get Corresponding Partition in NDMIS_CDC_SUBSCRIBER
+      script: get_partition_for_high_value.sh {{ next_partition_high_value }} NDMIS_CDC_SUBSCRIBER
+      register: get_ndmis_cdc_subscriber_partition
+      changed_when: false
+
+    - name: Set NDMIS_CDC_SUBSCRIBER Partition Variables
+      set_fact:
+        ndmis_cdc_subscriber_partition_name: "{{ get_ndmis_cdc_subscriber_partition.stdout_lines | select('match', '^PARTITION_NAME=') | first | regex_replace('^PARTITION_NAME=', '') }}"
+        ndmis_cdc_subscriber_partition_not_found: "{{ get_ndmis_cdc_subscriber_partition.stdout_lines | select('match', '^PARTITION_NOT_FOUND=') | map('regex_replace', '^PARTITION_NOT_FOUND=', '') | list | first | default('') }}"
+
+    - name: Report NDMIS_CDC_SUBSCRIBER Partition Result
+      debug:
+        msg: >-
+          {% if ndmis_cdc_subscriber_partition_name %}
+          Found partition {{ ndmis_cdc_subscriber_partition_name }} in NDMIS_CDC_SUBSCRIBER for HIGH_VALUE {{ next_partition_high_value }}
+          {% else %}
+          {{ ndmis_cdc_subscriber_partition_not_found }}
+          {% endif %}
+
+
