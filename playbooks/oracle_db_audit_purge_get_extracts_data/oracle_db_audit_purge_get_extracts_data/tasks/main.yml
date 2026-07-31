@@ -82,7 +82,7 @@
   block:
 
     - name: Get Corresponding Partition in NDMIS_CDC_SUBSCRIBER
-      script: get_partition_for_high_value.sh {{ next_partition_high_value }} NDMIS_CDC_SUBSCRIBER
+      script: get_partition_for_high_value.sh {{ next_partition_high_value }} NDMIS_CDC_SUBSCRIBER Z_AUDITED_INTERACTION
       register: get_ndmis_cdc_subscriber_partition
       changed_when: false
 
@@ -100,4 +100,24 @@
           {{ ndmis_cdc_subscriber_partition_not_found }}
           {% endif %}
 
+    # Very old data (before 2015) is not partitioned monthly in MIS so we simply delete the unwanted rows
+    - name: Delete to Remove Old GET_EXTRACTS_DATA Rows
+      script: delete_rows.sh {{ next_partition_high_value }} NDMIS_CDC_SUBSCRIBER Z_AUDITED_INTERACTION
+      register: exchange_partition_output
+      when: 
+         - next_partition_id != 'none'
+         - next_partition_high_value != 'none'
+         - next_partition_high_value < '2015-01-01'
 
+    - name: Exchange Partition to Remove GET_EXTRACTS_DATA Rows
+      script: exchange_partition.sh {{ ndmis_cdc_subscriber_partition_name }} NONE NDMIS_CDC_SUBSCRIBER Z_AUDITED_INTERACTION
+      register: mis_exchange_partition_output
+      when: 
+         - next_partition_id != 'none'
+         - next_partition_high_value != 'none'
+         - next_partition_high_value >= '2015-01-01'
+
+    - name: Log Exchange Partition Statistics
+      debug:
+        msg: "{{ mis_exchange_partition_output.stdout }}"
+      when: mis_exchange_partition_output is not skipped
