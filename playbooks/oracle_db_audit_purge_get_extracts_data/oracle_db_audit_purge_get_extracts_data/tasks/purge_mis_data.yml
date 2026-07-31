@@ -37,3 +37,19 @@
   debug:
     msg: "{{ mis_exchange_partition_output.stdout }}"
   when: mis_exchange_partition_output is not skipped
+
+- name: Set MIS Exchange Partition Variables
+  set_fact:
+    mis_rows_removed: "{{ mis_exchange_partition_output.stdout_lines | select('match', '^PARTITION_ROWS_REMOVED=') | first | regex_replace('^PARTITION_ROWS_REMOVED=', '') }}"
+  when: mis_exchange_partition_output is not skipped
+
+- name: Assert MIS and Delius rows removed match
+  assert:
+    that:
+      - mis_rows_removed | int == delius_rows_removed | int
+    fail_msg: >-
+      Row count mismatch: {{ schema_name }} removed {{ mis_rows_removed }} rows
+      but Delius removed {{ delius_rows_removed }} rows for partition HIGH_VALUE {{ next_partition_high_value }}
+    success_msg: >-
+      Row counts match: both Delius and {{ schema_name }} removed {{ mis_rows_removed }} rows
+  when: mis_exchange_partition_output is not skipped

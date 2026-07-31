@@ -56,11 +56,13 @@
       set_fact:
         exchange_partition_status: "{{ exchange_partition_output.stdout_lines | select('match', '^PARTITION_STATUS=') | first | regex_replace('^PARTITION_STATUS=', '') }}"
         exchange_partition_rows_kept: "{{ exchange_partition_output.stdout_lines | select('match', '^PARTITION_ROWS_AFTER=') | first | regex_replace('^PARTITION_ROWS_AFTER=', '') }}"
+        delius_rows_removed: "{{ exchange_partition_output.stdout_lines | select('match', '^PARTITION_ROWS_REMOVED=') | first | regex_replace('^PARTITION_ROWS_REMOVED=', '') }}"
       when: exchange_partition_output is not skipped
 
     - name: Broadcast next_partition_high_value to all hosts
       set_fact:
         next_partition_high_value: "{{ next_partition_high_value }}"
+        delius_rows_removed: "{{ delius_rows_removed | default('0') }}"
       delegate_to: "{{ item }}"
       delegate_facts: true
       loop: "{{ groups['all'] }}"
@@ -74,6 +76,15 @@
       become: false
       run_once: true
       when: next_partition_high_value != 'none'
+
+    - name: Write delius_rows_removed to controller for workflow extraction
+      local_action:
+        module: ansible.builtin.copy
+        content: "{{ delius_rows_removed }}"
+        dest: /tmp/delius_rows_removed
+      become: false
+      run_once: true
+      when: delius_rows_removed is defined
 
 - name: Purge Data in MIS Schemas
   include_tasks: purge_mis_data.yml
