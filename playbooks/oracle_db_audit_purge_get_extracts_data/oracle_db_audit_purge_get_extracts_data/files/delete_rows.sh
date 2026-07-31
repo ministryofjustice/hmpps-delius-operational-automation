@@ -21,7 +21,7 @@ DECLARE
     l_schema_name           VARCHAR2(128) := '${SCHEMA_NAME}';
     l_table_name            VARCHAR2(128) := '${TABLE_NAME}';
     l_rows_deleted          NUMBER;
-    l_business_interaction_id delius_app_schema.business_interaction.business_interaction_id%TYPE;
+    l_business_interaction_id ${SCHEMA_NAME}.business_interaction.business_interaction_id%TYPE;
 BEGIN
 
     -- Validate HIGH_VALUE format is YYYY-MM-DD
@@ -32,7 +32,7 @@ BEGIN
     -- Get the ID for the GET_EXTRACT_DATA business interaction type
     SELECT business_interaction_id
     INTO   l_business_interaction_id
-    FROM   delius_app_schema.business_interaction
+    FROM   ${SCHEMA_NAME}.business_interaction
     WHERE  UPPER(description) = 'GET_EXTRACTS_DATA';
 
     DBMS_APPLICATION_INFO.SET_ACTION(action_name => 'Deleting rows before '||l_high_value);

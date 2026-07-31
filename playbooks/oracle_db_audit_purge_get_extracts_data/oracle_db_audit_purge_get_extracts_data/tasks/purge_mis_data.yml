@@ -24,14 +24,14 @@
   register: exchange_partition_output
   when: 
       - next_partition_high_value != 'none'
-      - next_partition_high_value < '2015-01-01'
+      - next_partition_high_value <= '2015-01-01'
 
 - name: Exchange Partition to Remove GET_EXTRACTS_DATA Rows
   script: exchange_partition.sh {{ mis_partition_name }} NONE {{ schema_name }} Z_AUDITED_INTERACTION
   register: mis_exchange_partition_output
   when: 
       - next_partition_high_value != 'none'
-      - next_partition_high_value >= '2015-01-01'
+      - next_partition_high_value > '2015-01-01'
 
 - name: Log Exchange Partition Statistics
   debug:
