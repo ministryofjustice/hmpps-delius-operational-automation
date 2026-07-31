@@ -28,6 +28,9 @@
       become: true
       become_user: oracle
 
+    - debug:
+        var: get_next_partition_output.stdout_lines
+
     - name: Set Next Partition Variables
       set_fact:
         next_partition_id: "{{ get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_ID=') | first | regex_replace('^NEXT_PARTITION_ID=', '') }}"
