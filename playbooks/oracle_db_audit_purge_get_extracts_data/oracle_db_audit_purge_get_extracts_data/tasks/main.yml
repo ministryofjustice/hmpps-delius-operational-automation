@@ -30,14 +30,22 @@
         next_partition_compress_for: "{{ get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_COMPRESS_FOR=') | first | regex_replace('^NEXT_PARTITION_COMPRESS_FOR=', '') }}"
       when: get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_ID=') | list | length > 0
 
+    - name: Set Next Partition Variables to Default (None Found)
+      set_fact:
+        next_partition_id: 'none'
+        next_partition_high_value: 'none'
+        next_partition_compress_for: 'none'
+      when: get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_ID=') | list | length == 0
+
     - name: Report Action to Do
       debug:
         msg: "Purging GET_EXTRACTS_DATA from the partition to {{ next_partition_high_value }}"
+      when: next_partition_high_value != 'none'
 
     - name: Exchange Partition to Remove GET_EXTRACTS_DATA Rows
       script: exchange_partition.sh {{ next_partition_id }} {{ next_partition_compress_for }}
       register: exchange_partition_output
-      when: next_partition_id is defined
+      when: next_partition_id != 'none'
 
     - name: Set Exchange Partition Variables
       set_fact:
@@ -51,7 +59,7 @@
       delegate_to: "{{ item }}"
       delegate_facts: true
       loop: "{{ groups['all'] }}"
-      when: next_partition_high_value is defined
+      when: next_partition_high_value != 'none'
 
     - name: Write next_partition_high_value to controller for workflow extraction
       local_action:
@@ -60,12 +68,12 @@
         dest: /tmp/next_partition_high_value
       become: false
       run_once: true
-      when: next_partition_high_value is defined
+      when: next_partition_high_value != 'none'
 
 - name: Lookup Data in MIS
   when: 
      - database_type == 'mis'
-     - next_partition_high_value is not null
+     - next_partition_high_value | default('none') != 'none'
   block:
 
     - name: Get Corresponding Partition in NDMIS_CDC_SUBSCRIBER

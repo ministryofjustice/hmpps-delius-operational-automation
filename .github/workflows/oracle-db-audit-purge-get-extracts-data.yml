@@ -133,10 +133,6 @@ jobs:
             -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
             -e target_hosts=${{ steps.definetargets.outputs.delius_target }} \
             | tee /tmp/ansible_delius.log
-          echo "-----"
-          echo "Output:"
-          cat /tmp/ansible_delius.log
-          echo "-----"
           next_partition_high_value=$(cat /tmp/next_partition_high_value 2>/dev/null | tr -d '\n')
           echo "next_partition_high_value=${next_partition_high_value}" >> $GITHUB_OUTPUT
 
