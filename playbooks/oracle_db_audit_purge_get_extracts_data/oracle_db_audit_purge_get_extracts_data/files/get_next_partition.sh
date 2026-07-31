@@ -27,9 +27,9 @@ BEGIN
     );
 
     -- Enable parallel query when running on ADG standby for better performance.
-    -- PARALLEL_THREADS_PER_CPU * CPU_COUNT determines the default degree.
+    -- Omitting PARALLEL <n> lets Oracle use PARALLEL_THREADS_PER_CPU * CPU_COUNT.
     IF '${USE_PARALLEL}' = '1' THEN
-        EXECUTE IMMEDIATE 'ALTER SESSION FORCE PARALLEL QUERY PARALLEL DEFAULT';
+        EXECUTE IMMEDIATE 'ALTER SESSION FORCE PARALLEL QUERY';
     END IF;
 
     -- Count partitions to support progress reporting
