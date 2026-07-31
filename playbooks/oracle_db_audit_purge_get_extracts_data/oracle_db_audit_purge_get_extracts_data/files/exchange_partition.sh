@@ -10,6 +10,8 @@ TABLE_NAME=${4:?Usage: exchange_partition.sh <partition_name> <compress_for> <sc
 sqlplus -s /nolog <<EOSQL
 connect / as sysdba
 
+WHENEVER SQLERROR EXIT FAILURE
+
 SET SERVEROUT ON
 DECLARE
     l_partition_name VARCHAR2(128) := '${PARTITION_NAME}';
@@ -26,7 +28,7 @@ BEGIN
     -- Get the ID for the GET_EXTRACT_DATA business interaction type
     SELECT business_interaction_id
     INTO   l_business_interaction_id
-    FROM   delius_app_schema.business_interaction
+    FROM   ${SCHEMA_NAME}.business_interaction
     WHERE  UPPER(description) = 'GET_EXTRACTS_DATA';
 
     DBMS_APPLICATION_INFO.SET_MODULE(
