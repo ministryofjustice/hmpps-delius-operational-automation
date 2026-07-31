@@ -105,7 +105,6 @@
       script: delete_rows.sh {{ next_partition_high_value }} NDMIS_CDC_SUBSCRIBER Z_AUDITED_INTERACTION
       register: exchange_partition_output
       when: 
-         - next_partition_id != 'none'
          - next_partition_high_value != 'none'
          - next_partition_high_value < '2015-01-01'
 
@@ -113,7 +112,6 @@
       script: exchange_partition.sh {{ ndmis_cdc_subscriber_partition_name }} NONE NDMIS_CDC_SUBSCRIBER Z_AUDITED_INTERACTION
       register: mis_exchange_partition_output
       when: 
-         - next_partition_id != 'none'
          - next_partition_high_value != 'none'
          - next_partition_high_value >= '2015-01-01'
 
