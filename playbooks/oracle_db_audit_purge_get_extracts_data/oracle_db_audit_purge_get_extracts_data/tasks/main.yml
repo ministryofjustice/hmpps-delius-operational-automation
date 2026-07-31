@@ -54,8 +54,8 @@
 
     - name: Set Exchange Partition Variables
       set_fact:
-        exchange_partition_status: "{{ exchange_partition_output.stdout_lines | select('match', '^EXCHANGE_PARTITION_STATUS=') | first | regex_replace('^EXCHANGE_PARTITION_STATUS=', '') }}"
-        exchange_partition_rows_kept: "{{ exchange_partition_output.stdout_lines | select('match', '^EXCHANGE_PARTITION_ROWS_AFTER=') | first | regex_replace('^EXCHANGE_PARTITION_ROWS_AFTER=', '') }}"
+        exchange_partition_status: "{{ exchange_partition_output.stdout_lines | select('match', '^PARTITION_STATUS=') | first | regex_replace('^PARTITION_STATUS=', '') }}"
+        exchange_partition_rows_kept: "{{ exchange_partition_output.stdout_lines | select('match', '^PARTITION_ROWS_AFTER=') | first | regex_replace('^PARTITION_ROWS_AFTER=', '') }}"
       when: exchange_partition_output is not skipped
 
     - name: Broadcast next_partition_high_value to all hosts
@@ -75,10 +75,15 @@
       run_once: true
       when: next_partition_high_value != 'none'
 
-- name: Purge Data in NDMIS_CDC_SUBSCRIBER
+- name: Purge Data in MIS Schemas
   include_tasks: purge_mis_data.yml
   vars:
-     schema_name: NDMIS_CDC_SUBSCRIBER
+     schema_name: "{{ schema }}"
+  loop:
+     - NDMIS_CDC_SUBSCRIBER
+     - NDMIS_DATA
+  loop_control:
+     loop_var: schema
   when: 
      - database_type == 'mis'
      - next_partition_high_value | default('none') != 'none'
