@@ -20,7 +20,7 @@ DECLARE
     l_compress_for          VARCHAR2(30)  := '${COMPRESS_FOR}';
     l_rows_kept             NUMBER;
     l_rows_before           NUMBER;
-    l_business_interaction_id delius_app_schema.business_interaction.business_interaction_id%TYPE;
+    l_business_interaction_id ${SCHEMA_NAME}.business_interaction.business_interaction_id%TYPE;
     l_partition_bytes_before NUMBER;
     l_partition_bytes_after  NUMBER;
 BEGIN
