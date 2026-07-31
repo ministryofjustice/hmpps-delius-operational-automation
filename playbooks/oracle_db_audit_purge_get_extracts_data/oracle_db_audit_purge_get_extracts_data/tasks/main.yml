@@ -43,9 +43,14 @@
       when: next_partition_high_value != 'none'
 
     - name: Exchange Partition to Remove GET_EXTRACTS_DATA Rows
-      script: exchange_partition.sh {{ next_partition_id }} {{ next_partition_compress_for }}
+      script: exchange_partition.sh {{ next_partition_id }} {{ next_partition_compress_for }} DELIUS_APP_SCHEMA AUDITED_INTERACTION
       register: exchange_partition_output
       when: next_partition_id != 'none'
+
+    - name: Log Exchange Partition Statistics
+      debug:
+        msg: "{{ exchange_partition_output.stdout }}"
+      when: exchange_partition_output is not skipped
 
     - name: Set Exchange Partition Variables
       set_fact:

@@ -2,8 +2,10 @@
 
 . ~/.bash_profile
 
-PARTITION_NAME=${1:?Usage: exchange_partition.sh <partition_name> <compress_for>}
-COMPRESS_FOR=${2:?Usage: exchange_partition.sh <partition_name> <compress_for>}
+PARTITION_NAME=${1:?Usage: exchange_partition.sh <partition_name> <compress_for> <schema_name> <table_name>}
+COMPRESS_FOR=${2:?Usage: exchange_partition.sh <partition_name> <compress_for> <schema_name> <table_name>}
+SCHEMA_NAME=${3:?Usage: exchange_partition.sh <partition_name> <compress_for> <schema_name> <table_name>}
+TABLE_NAME=${4:?Usage: exchange_partition.sh <partition_name> <compress_for> <schema_name> <table_name>}
 
 sqlplus -s /nolog <<EOSQL
 connect / as sysdba
@@ -11,6 +13,8 @@ connect / as sysdba
 SET SERVEROUT ON
 DECLARE
     l_partition_name VARCHAR2(128) := '${PARTITION_NAME}';
+    l_schema_name           VARCHAR2(128) := '${SCHEMA_NAME}';
+    l_table_name            VARCHAR2(128) := '${TABLE_NAME}';
     l_compress_for          VARCHAR2(30)  := '${COMPRESS_FOR}';
     l_rows_kept             NUMBER;
     l_rows_before           NUMBER;
@@ -36,18 +40,18 @@ BEGIN
     SELECT NVL(SUM(bytes), 0)
     INTO   l_partition_bytes_before
     FROM   dba_segments
-    WHERE  owner          = 'DELIUS_APP_SCHEMA'
-    AND    segment_name   = 'AUDITED_INTERACTION'
+    WHERE  owner          = l_schema_name
+    AND    segment_name   = l_table_name
     AND    partition_name = l_partition_name;
 
     -- Record row count before exchange
     EXECUTE IMMEDIATE
-        'SELECT COUNT(*) FROM delius_app_schema.audited_interaction PARTITION (' || l_partition_name || ')'
+        'SELECT COUNT(*) FROM ' || l_schema_name || '.' || l_table_name || ' PARTITION (' || l_partition_name || ')'
     INTO l_rows_before;
 
     -- Drop staging table if it exists from a previous failed run
     BEGIN
-        EXECUTE IMMEDIATE 'DROP TABLE delius_app_schema.z_audited_interaction_xchg PURGE';
+        EXECUTE IMMEDIATE 'DROP TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg PURGE';
     EXCEPTION
         WHEN OTHERS THEN
             IF SQLCODE != -942 THEN RAISE; END IF; -- -942 = table or view does not exist
@@ -56,29 +60,29 @@ BEGIN
     -- Create exchange table with matching structure and storage properties
     -- FOR EXCHANGE WITH TABLE (Oracle 12c+) ensures full compatibility for partition exchange
     EXECUTE IMMEDIATE
-        'CREATE TABLE delius_app_schema.z_audited_interaction_xchg ' ||
-        'FOR EXCHANGE WITH TABLE delius_app_schema.audited_interaction';
+        'CREATE TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg ' ||
+        'FOR EXCHANGE WITH TABLE ' || l_schema_name || '.' || l_table_name;
 
     -- Restore the partition's original compression before inserting so that
     -- the incoming data is stored in the same format as the source partition.
     -- FOR EXCHANGE inherits the table default, which may differ from the partition.
     IF l_compress_for != 'NONE' THEN
         EXECUTE IMMEDIATE
-            'ALTER TABLE delius_app_schema.z_audited_interaction_xchg ' ||
+            'ALTER TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg ' ||
             'COMPRESS ' || l_compress_for;
     END IF;
 
     -- PCTFREE=0: the exchange table is write-once (no subsequent UPDATEs),
     -- so no free space needs to be reserved in each block.
     EXECUTE IMMEDIATE
-        'ALTER TABLE delius_app_schema.z_audited_interaction_xchg PCTFREE 0';
+        'ALTER TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg PCTFREE 0';
 
     DBMS_APPLICATION_INFO.SET_ACTION(action_name => 'Populating exchange table');
 
     -- Populate staging table with all rows except BUSINESS_INTERACTION_ID = l_business_interaction_id
     EXECUTE IMMEDIATE
-        'INSERT /*+ APPEND */ INTO delius_app_schema.z_audited_interaction_xchg ' ||
-        'SELECT * FROM delius_app_schema.audited_interaction PARTITION (' || l_partition_name || ') ' ||
+        'INSERT /*+ APPEND */ INTO ' || l_schema_name || '.z_' || l_table_name || '_xchg ' ||
+        'SELECT * FROM ' || l_schema_name || '.' || l_table_name || ' PARTITION (' || l_partition_name || ') ' ||
         'WHERE business_interaction_id != ' || l_business_interaction_id;
 
     l_rows_kept := SQL%ROWCOUNT;
@@ -89,13 +93,13 @@ BEGIN
     -- Exchange the partition with the staging table.
     -- After the exchange:
     --   the partition holds only the rows kept in the staging table (BID != l_business_interaction_id)
-    --   z_audited_interaction_xchg holds the original partition rows (including BID = l_business_interaction_id)
+    --   z_<table>_xchg holds the original partition rows (including BID = l_business_interaction_id)
     -- WITHOUT VALIDATION is safe here because all retained rows were already in
     -- this partition and therefore already satisfy its key bounds.
     EXECUTE IMMEDIATE
-        'ALTER TABLE delius_app_schema.audited_interaction ' ||
+        'ALTER TABLE ' || l_schema_name || '.' || l_table_name || ' ' ||
         'EXCHANGE PARTITION ' || l_partition_name || ' ' ||
-        'WITH TABLE delius_app_schema.z_audited_interaction_xchg ' ||
+        'WITH TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg ' ||
         'WITHOUT VALIDATION';
 
     DBMS_APPLICATION_INFO.SET_ACTION(action_name => 'Dropping exchange table');
@@ -104,12 +108,12 @@ BEGIN
     SELECT NVL(SUM(bytes), 0)
     INTO   l_partition_bytes_after
     FROM   dba_segments
-    WHERE  owner          = 'DELIUS_APP_SCHEMA'
-    AND    segment_name   = 'AUDITED_INTERACTION'
+    WHERE  owner          = l_schema_name
+    AND    segment_name   = l_table_name
     AND    partition_name = l_partition_name;
 
     -- Drop the staging table (now contains rows to be removed)
-    EXECUTE IMMEDIATE 'DROP TABLE delius_app_schema.z_audited_interaction_xchg PURGE';
+    EXECUTE IMMEDIATE 'DROP TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg PURGE';
 
     DBMS_APPLICATION_INFO.SET_MODULE(module_name => NULL, action_name => NULL);
 
@@ -128,7 +132,7 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('EXCHANGE_PARTITION_STATUS=FAILED');
         DBMS_OUTPUT.PUT_LINE('EXCHANGE_PARTITION_ERROR=' || SQLERRM);
         BEGIN
-            EXECUTE IMMEDIATE 'DROP TABLE delius_app_schema.z_audited_interaction_xchg PURGE';
+            EXECUTE IMMEDIATE 'DROP TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg PURGE';
         EXCEPTION
             WHEN OTHERS THEN NULL;
         END;
