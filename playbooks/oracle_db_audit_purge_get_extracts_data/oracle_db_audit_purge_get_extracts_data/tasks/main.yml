@@ -58,6 +58,7 @@
         module: ansible.builtin.copy
         content: "{{ next_partition_high_value }}"
         dest: /tmp/next_partition_high_value
+      become: false
       run_once: true
       when: next_partition_high_value is defined
 
