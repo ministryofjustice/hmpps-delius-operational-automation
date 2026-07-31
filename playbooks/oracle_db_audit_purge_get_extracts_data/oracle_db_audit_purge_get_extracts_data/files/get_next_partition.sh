@@ -2,6 +2,9 @@
 
 . ~/.bash_profile
 
+# USE_PARALLEL=1 enables parallel query (recommended when running on ADG standby)
+USE_PARALLEL=${1:-0}
+
 sqlplus -s /nolog <<EOSQL
 connect / as sysdba
 
@@ -22,6 +25,12 @@ BEGIN
         module_name => 'get_next_partition',
         action_name => 'Initializing'
     );
+
+    -- Enable parallel query when running on ADG standby for better performance.
+    -- PARALLEL_THREADS_PER_CPU * CPU_COUNT determines the default degree.
+    IF '${USE_PARALLEL}' = '1' THEN
+        EXECUTE IMMEDIATE 'ALTER SESSION FORCE PARALLEL QUERY PARALLEL DEFAULT';
+    END IF;
 
     -- Count partitions to support progress reporting
     SELECT COUNT(*)
