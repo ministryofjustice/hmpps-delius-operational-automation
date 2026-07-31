@@ -1,0 +1,39 @@
+
+- name: Get Corresponding Partition in {{ schema_name }}
+  script: get_partition_for_high_value.sh {{ next_partition_high_value }} {{ schema_name }} Z_AUDITED_INTERACTION
+  register: get_mis_partition
+  changed_when: false
+
+- name: Set {{ schema_name }} Partition Variables
+  set_fact:
+    mis_partition_name: "{{ get_mis_partition.stdout_lines | select('match', '^PARTITION_NAME=') | first | regex_replace('^PARTITION_NAME=', '') }}"
+    mis_partition_not_found: "{{ get_mis_partition.stdout_lines | select('match', '^PARTITION_NOT_FOUND=') | map('regex_replace', '^PARTITION_NOT_FOUND=', '') | list | first | default('') }}"
+
+- name: Report {{ schema_name }} Partition Result
+  debug:
+    msg: >-
+      {% if mis_partition_name %}
+      Found partition {{ mis_partition_name }} in {{ schema_name }} for HIGH_VALUE {{ next_partition_high_value }}
+      {% else %}
+      {{ mis_partition_not_found }}
+      {% endif %}
+
+# Very old data (before 2015) is not partitioned monthly in MIS so we simply delete the unwanted rows
+- name: Delete to Remove Old GET_EXTRACTS_DATA Rows
+  script: delete_rows.sh {{ next_partition_high_value }} {{ schema_name }} Z_AUDITED_INTERACTION
+  register: exchange_partition_output
+  when: 
+      - next_partition_high_value != 'none'
+      - next_partition_high_value < '2015-01-01'
+
+- name: Exchange Partition to Remove GET_EXTRACTS_DATA Rows
+  script: exchange_partition.sh {{ mis_partition_name }} NONE {{ schema_name }} Z_AUDITED_INTERACTION
+  register: mis_exchange_partition_output
+  when: 
+      - next_partition_high_value != 'none'
+      - next_partition_high_value >= '2015-01-01'
+
+- name: Log Exchange Partition Statistics
+  debug:
+    msg: "{{ mis_exchange_partition_output.stdout }}"
+  when: mis_exchange_partition_output is not skipped
