@@ -20,14 +20,14 @@
 
 # Very old data (before 2015) is not partitioned monthly in MIS so we simply delete the unwanted rows
 - name: Delete to Remove Old GET_EXTRACTS_DATA Rows
-  script: delete_rows.sh {{ next_partition_high_value }} {{ schema_name }} Z_AUDITED_INTERACTION
+  script: delete_rows.sh {{ next_partition_high_value }} {{ schema_name }} AUDITED_INTERACTION
   register: exchange_partition_output
   when: 
       - next_partition_high_value != 'none'
       - next_partition_high_value <= '2015-01-01'
 
 - name: Exchange Partition to Remove GET_EXTRACTS_DATA Rows
-  script: exchange_partition.sh {{ mis_partition_name }} NONE {{ schema_name }} Z_AUDITED_INTERACTION
+  script: exchange_partition.sh {{ mis_partition_name }} NONE {{ schema_name }} AUDITED_INTERACTION
   register: mis_exchange_partition_output
   when: 
       - next_partition_high_value != 'none'

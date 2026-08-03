@@ -114,7 +114,7 @@ jobs:
         shell: bash
         run: |
           source "$PWD/operations/common/files/build_inventory_name.sh"
-          delius_target_primary="$(build_inventory_name "delius-core-${{ github.event.inputs.TargetEnvironment }}" "_delius_standbydb1")"
+          delius_target_primary="$(build_inventory_name "delius-core-${{ github.event.inputs.TargetEnvironment }}" "_delius_primarydb")"
           echo "delius_target_primary=${delius_target_primary}" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
