@@ -23,6 +23,10 @@
       register: get_next_partition_output
       changed_when: false
 
+    - name: Log Get Next Partition Output
+      debug:
+        msg: "{{ get_next_partition_output.stdout }}"
+
     - name: Set Next Partition Variables
       set_fact:
         next_partition_id: "{{ get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_ID=') | first | regex_replace('^NEXT_PARTITION_ID=', '') }}"
