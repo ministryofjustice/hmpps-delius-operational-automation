@@ -68,9 +68,23 @@ jobs:
     outputs:
       TargetHost: ${{ steps.preparetargetname.outputs.TargetHost }}
     steps:
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Target Name
         id: preparetargetname
-        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
+        run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
+          TargetHost="$(build_inventory_name "${{ github.event.inputs.TargetEnvironment }}" "_${{ github.event.inputs.TargetHost }}")"
+          echo "TargetHost=$TargetHost" >> $GITHUB_OUTPUT
   deployment:
     name: oracle-db-oem-agent-setup
     needs: build_target_name

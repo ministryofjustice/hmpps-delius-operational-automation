@@ -45,10 +45,24 @@ jobs:
     continue-on-error: false
     steps:
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Delius Inventory Name
         id: prepareinventoryname
+        shell: bash
         run: |
-          target_hosts="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-core-dev/delius_core_development_dev/;s/delius-core-test/delius_core_test_test/;s/delius-core-training/delius_core_test_training/;s/delius-core-stage/delius_core_preproduction_stage/;s/delius-core-preprod/delius_core_preproduction_preprod/;s/delius-core-prod/delius_core_production_prod/')_${{ github.event.inputs.TargetHosts }}"
+          source "${GITHUB_WORKSPACE}/operations/common/files/build_inventory_name.sh"
+
+          target_hosts="$(build_inventory_name "${{ github.event.inputs.TargetEnvironment }}" "_${{ github.event.inputs.TargetHosts }}")"
           echo "target_hosts=${target_hosts}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management

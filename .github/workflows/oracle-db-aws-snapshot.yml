@@ -105,17 +105,31 @@ jobs:
           SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
           SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Target Names
         id: preparetargetnames
         shell: bash
         run: |
-          environment_name="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')"
-          IFS=","
-          for target in ${{ github.event.inputs.TargetHost }}
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
+          TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
+          # TargetHost may contain one or more comma-separated database hosts.
+          IFS=',' read -ra Targets <<< "${{ github.event.inputs.TargetHost }}"
+          # Build each fully-qualified inventory target name and keep comma separation for Ansible input.
+          for target in "${Targets[@]}"
           do
-            IFS=""
-            TargetHostAll+=${environment_name}_${target},
+            TargetHostAll+="$(build_inventory_name "$TargetEnvironment" "_$target"),"
           done
+          # Expose the aggregated host list to downstream steps.
           echo "TargetHost=$TargetHostAll" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
