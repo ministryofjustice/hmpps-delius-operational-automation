@@ -39,7 +39,9 @@ BEGIN
 
     EXECUTE IMMEDIATE
         'DELETE FROM ' || l_schema_name || '.' || l_table_name || ' ' ||
-        'WHERE date_time < DATE ''' || l_high_value || '''' ;
+        'WHERE date_time < DATE ''' || l_high_value || ''' ' ||
+        'AND business_interaction_id = :1'
+    USING l_business_interaction_id;
 
     l_rows_deleted := SQL%ROWCOUNT;
 
