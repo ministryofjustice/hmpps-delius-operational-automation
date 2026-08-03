@@ -92,11 +92,25 @@ jobs:
           ref: ${{ github.event.inputs.SourceConfigVersion }}
           fetch-depth: 0
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Check MIS Exists In Environment
         id: mis_exists
         working-directory: ${{ env.inventory }}
+        shell: bash
         run: |
-          environment_name=environment_name_delius_mis_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/^preprod$/preproduction_preprod/;s/^prod$/production_prod/')
+          source "${GITHUB_WORKSPACE}/operations/common/files/build_inventory_name.sh"
+
+          environment_name="$(build_inventory_name "delius-mis-${{ github.event.inputs.TargetEnvironment }}")"
           # Only required to check if mis_primarydb.yml Ansible inventory group vars file exists
           # to check MIS is in this environment
           if [[ -e group_vars/${environment_name}_mis_primarydb.yml ]]
@@ -158,8 +172,11 @@ jobs:
 
       - name: Define Delius Targets
         id: definetargets
+        shell: bash
         run: |
-          delius_target=environment_name_delius_core_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/^preprod$/preproduction_preprod/;s/-prod/_production_prod/')_delius_dbs
+          source "${GITHUB_WORKSPACE}/operations/common/files/build_inventory_name.sh"
+
+          delius_target="$(build_inventory_name "delius-core-${{ github.event.inputs.TargetEnvironment }}" "_delius_dbs")"
           echo "delius_target=${delius_target}" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials

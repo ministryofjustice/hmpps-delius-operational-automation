@@ -71,9 +71,21 @@ jobs:
       SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
       SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
     steps:
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          fetch-depth: 0
+
       - name: Prepare Rman Target
         id: preparermantargetname
         run: |
+            source "$PWD/operations/common/files/build_inventory_name.sh"
+
             if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
             then
               TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
@@ -86,7 +98,7 @@ jobs:
               TargetEnvironment="${{ inputs.TargetEnvironment }}"
               TargetHost="${{ inputs.TargetHost }}"
             fi
-            RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_$TargetHost"
+            RmanTarget="$(build_inventory_name "$TargetEnvironment" "_$TargetHost")"
             echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
             echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
 
@@ -126,6 +138,7 @@ jobs:
           sparse-checkout: |
             playbooks/oracle_backup
             playbooks/ansible.cfg
+            common/files/build_inventory_name.sh
           path: operations
           ref: "${{ env.SourceCodeVersion }}"
           fetch-depth: 0

@@ -112,14 +112,31 @@ jobs:
     continue-on-error: false
     steps:
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Inventory Names
         id: prepareinventorynames
         shell: bash
         run: |
+          source "${GITHUB_WORKSPACE}/operations/common/files/build_inventory_name.sh"
+
           # We can include more than 1 host in the list of hosts, so ensure each one in the comma-separated list
           # gets prefixed with the entire environment name
-          host_prefix="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_"
-          hosts=$(echo ${{ github.event.inputs.TargetHost }} | awk -v p="$host_prefix" 'BEGIN{FS=OFS=","};{for(i=1;i<=NF;i++)$i=p $i};1')
+          hosts=""
+          IFS=',' read -ra host_parts <<< "${{ github.event.inputs.TargetHost }}"
+          for host_part in "${host_parts[@]}"; do
+            hosts+="$(build_inventory_name "${{ github.event.inputs.TargetEnvironment }}" "${host_part}"),"
+          done
+          hosts="${hosts%,}"
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
           # Mapping from hostname prefix to application name
           declare -A host_to_app=(

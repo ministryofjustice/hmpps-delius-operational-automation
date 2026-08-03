@@ -91,10 +91,22 @@ jobs:
           SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion }}\n\
           SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}"
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Primary And All Inventory Name
         id: prepareinventorynames
         run: |
-          primaryHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}"
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
+          primaryHost="$(build_inventory_name "${{ github.event.inputs.TargetEnvironment }}" "_${{ github.event.inputs.TargetHost }}")"
           echo "primaryHost=${primaryHost}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
@@ -114,7 +126,9 @@ jobs:
         shell: bash
         working-directory: ${{ env.inventory }}
         run: |
-          database_environment="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/-preprod$/_preproduction_preprod/;s/-prod/_production_prod/;s/-/_/g')"
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
+          database_environment="environment_name_$(normalize_environment_name "${{ github.event.inputs.TargetEnvironment }}")"
           database_type=$(echo ${{ github.event.inputs.TargetHost }} | cut -d_ -f1)
           high_availability_count=$(yq .high_availability_count.${database_type} group_vars/${database_environment}_all.yml)
           if [[ ${high_availability_count} -eq 0 ]]
