@@ -64,8 +64,6 @@ BEGIN
             'YYYY-MM-DD'
         );
 
-        CONTINUE WHEN l_high_value < DATE '2015-01-01';
-
         DBMS_APPLICATION_INFO.SET_ACTION(
             action_name => l_partition_num || '/' || l_partition_count ||
                            ' ' || p.partition_name || ' (' || TO_CHAR(l_high_value, 'YYYY-MM-DD') || ')'
