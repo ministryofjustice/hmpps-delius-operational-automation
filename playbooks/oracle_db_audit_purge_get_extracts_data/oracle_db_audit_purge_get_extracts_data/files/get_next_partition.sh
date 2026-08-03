@@ -6,6 +6,8 @@
 sqlplus -s /nolog <<EOSQL
 connect / as sysdba
 
+WHENEVER SQLERROR EXIT FAILURE
+
 SET SERVEROUT ON
 DECLARE
     l_business_interaction_id delius_app_schema.business_interaction.business_interaction_id%TYPE;
@@ -61,7 +63,7 @@ BEGIN
         -- If no previous partition processed started from the beginning
         WHEN NO_DATA_FOUND 
         THEN
-           l_skip_before_partition := 0;
+           l_skip_before_position := 0;
     END;
 
     FOR p IN (
