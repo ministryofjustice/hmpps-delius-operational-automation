@@ -12,9 +12,11 @@ DECLARE
     l_dummy               NUMBER;
     l_high_value_raw      VARCHAR2(255);
     l_high_value          DATE;
-    l_compress_for        VARCHAR2(30);
-    l_partition_count     NUMBER;
-    l_partition_num  NUMBER := 0;
+    l_compress_for                VARCHAR2(30);
+    l_partition_count             NUMBER;
+    l_partition_num               NUMBER := 0;
+    l_highest_processed_name      VARCHAR2(128);
+    l_skip_before_position        NUMBER := 0;
     l_rindex         BINARY_INTEGER := DBMS_APPLICATION_INFO.set_session_longops_nohint;
     l_slno           BINARY_INTEGER;
 BEGIN
@@ -38,11 +40,36 @@ BEGIN
     FROM   delius_app_schema.business_interaction
     WHERE  UPPER(description) = 'GET_EXTRACTS_DATA';
 
+    -- Resume after the highest partition already processed (recorded in the table comment)
+    -- (This is simply a performance optimisation to avoid us having to check
+    --  all the partitions from the beginning each time we run)
+    BEGIN
+        SELECT REGEXP_SUBSTR(comments, '[^ ]+$')
+        INTO   l_highest_processed_name
+        FROM   dba_tab_comments
+        WHERE  owner      = 'DELIUS_APP_SCHEMA'
+        AND    table_name = 'AUDITED_INTERACTION'
+        AND    comments   LIKE 'Highest partition purged of GET_EXTRACTS_DATA rows by exchange_partition: %';
+
+        SELECT partition_position
+        INTO   l_skip_before_position
+        FROM   all_tab_partitions
+        WHERE  table_owner    = 'DELIUS_APP_SCHEMA'
+        AND    table_name     = 'AUDITED_INTERACTION'
+        AND    partition_name = l_highest_processed_name;
+    EXCEPTION
+        -- If no previous partition processed started from the beginning
+        WHEN NO_DATA_FOUND 
+        THEN
+           l_skip_before_partition := 0;
+    END;
+
     FOR p IN (
         SELECT partition_name
         FROM   all_tab_partitions
-        WHERE  table_name = 'AUDITED_INTERACTION'
-        AND    table_owner = 'DELIUS_APP_SCHEMA'
+        WHERE  table_name      = 'AUDITED_INTERACTION'
+        AND    table_owner     = 'DELIUS_APP_SCHEMA'
+        AND    partition_position > l_skip_before_position
         ORDER BY partition_position
     )
     LOOP
@@ -94,6 +121,7 @@ BEGIN
             DBMS_OUTPUT.PUT_LINE('NEXT_PARTITION_ID=' || p.partition_name);
             DBMS_OUTPUT.PUT_LINE('NEXT_PARTITION_HIGH_VALUE=' || TO_CHAR(l_high_value, 'YYYY-MM-DD'));
             DBMS_OUTPUT.PUT_LINE('NEXT_PARTITION_COMPRESS_FOR=' || NVL(l_compress_for, 'NONE'));
+            DBMS_OUTPUT.PUT_LINE('SEARCH_RESUMED_AFTER=' || NVL(l_highest_processed_name, 'NONE'));
             RETURN;
 
         EXCEPTION
