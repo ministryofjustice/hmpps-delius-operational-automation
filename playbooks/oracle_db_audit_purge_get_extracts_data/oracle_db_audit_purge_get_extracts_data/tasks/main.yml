@@ -1,0 +1,104 @@
+- name: Get Primary Database Type And Environment
+  set_fact:
+    database_type: "{{ group_names | select('match','.*_primarydb') | list | first | regex_replace('^.*_(.*)_primarydb', '\\1') }}"
+    database_environment: "{{ group_names | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
+  when: database_primary_sid is defined
+
+- name: Get Standby Database Type And Environment
+  set_fact:
+    database_type: "{{ group_names | select('match','.*_standbydb[12]') | list | first | regex_replace('^.*_(.*)_standbydb[12]', '\\1') }}"
+    database_environment: "{{ group_names | select('match','.*_standbydb[12]') | list | first | regex_replace('^(.*)_standbydb[12]', '\\1') }}"
+  when: not database_primary_sid is defined
+
+- name: Show info
+  debug:
+     msg: "Running against the {{ database_type }} database in the {{ database_environment }} environment"
+
+- name: Purge Data from Delius
+  when: database_type == 'delius'
+  block:
+      
+    - name: Get Next Partition to Process
+      script: get_next_partition.sh
+      register: get_next_partition_output
+      changed_when: false
+
+    - name: Log Get Next Partition Output
+      debug:
+        msg: "{{ get_next_partition_output.stdout }}"
+
+    - name: Set Next Partition Variables
+      set_fact:
+        next_partition_id: "{{ get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_ID=') | first | regex_replace('^NEXT_PARTITION_ID=', '') }}"
+        next_partition_high_value: "{{ get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_HIGH_VALUE=') | first | regex_replace('^NEXT_PARTITION_HIGH_VALUE=', '') }}"
+        next_partition_compress_for: "{{ get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_COMPRESS_FOR=') | first | regex_replace('^NEXT_PARTITION_COMPRESS_FOR=', '') }}"
+      when: get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_ID=') | list | length > 0
+
+    - name: Set Next Partition Variables to Default (None Found)
+      set_fact:
+        next_partition_id: 'none'
+        next_partition_high_value: 'none'
+        next_partition_compress_for: 'none'
+      when: get_next_partition_output.stdout_lines | select('match', '^NEXT_PARTITION_ID=') | list | length == 0
+
+    - name: Report Action to Do
+      debug:
+        msg: "Purging GET_EXTRACTS_DATA from the partition to {{ next_partition_high_value }}"
+      when: next_partition_high_value != 'none'
+
+    - name: Exchange Partition to Remove GET_EXTRACTS_DATA Rows
+      script: exchange_partition.sh {{ next_partition_id }} {{ next_partition_compress_for }} DELIUS_APP_SCHEMA AUDITED_INTERACTION
+      register: exchange_partition_output
+      when: next_partition_id != 'none'
+
+    - name: Log Exchange Partition Statistics
+      debug:
+        msg: "{{ exchange_partition_output.stdout }}"
+      when: exchange_partition_output is not skipped
+
+    - name: Set Exchange Partition Variables
+      set_fact:
+        exchange_partition_status: "{{ exchange_partition_output.stdout_lines | select('match', '^PARTITION_STATUS=') | first | regex_replace('^PARTITION_STATUS=', '') }}"
+        exchange_partition_rows_kept: "{{ exchange_partition_output.stdout_lines | select('match', '^PARTITION_ROWS_AFTER=') | first | regex_replace('^PARTITION_ROWS_AFTER=', '') }}"
+        delius_rows_removed: "{{ exchange_partition_output.stdout_lines | select('match', '^PARTITION_ROWS_REMOVED=') | first | regex_replace('^PARTITION_ROWS_REMOVED=', '') }}"
+      when: exchange_partition_output is not skipped
+
+    - name: Broadcast next_partition_high_value to all hosts
+      set_fact:
+        next_partition_high_value: "{{ next_partition_high_value }}"
+        delius_rows_removed: "{{ delius_rows_removed | default('0') }}"
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      loop: "{{ groups['all'] }}"
+      when: next_partition_high_value != 'none'
+
+    - name: Write next_partition_high_value to controller for workflow extraction
+      local_action:
+        module: ansible.builtin.copy
+        content: "{{ next_partition_high_value }}"
+        dest: /tmp/next_partition_high_value
+      become: false
+      run_once: true
+      when: next_partition_high_value != 'none'
+
+    - name: Write delius_rows_removed to controller for workflow extraction
+      local_action:
+        module: ansible.builtin.copy
+        content: "{{ delius_rows_removed }}"
+        dest: /tmp/delius_rows_removed
+      become: false
+      run_once: true
+      when: delius_rows_removed is defined
+
+- name: Purge Data in MIS Schemas
+  include_tasks: purge_mis_data.yml
+  vars:
+     schema_name: "{{ schema }}"
+  loop:
+     - NDMIS_CDC_SUBSCRIBER
+     - NDMIS_DATA
+  loop_control:
+     loop_var: schema
+  when: 
+     - database_type == 'mis'
+     - next_partition_high_value | default('none') != 'none'
