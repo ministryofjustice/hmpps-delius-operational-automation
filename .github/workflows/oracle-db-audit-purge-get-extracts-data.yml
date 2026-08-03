@@ -113,15 +113,7 @@ jobs:
         id: definetargets
         run: |
           delius_target_primary=environment_name_delius_core_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/^preprod$/preproduction_preprod/;s/^prod$/production_prod/')_delius_standbydb1
-          delius_target_adg=${delius_target_primary%_*}_standbydb2
-          # If no group_vars file exists for the ADG Standby assume it does
-          # not exist and use the primary host instead
-          if [[ ! -e group_vars/${delius_target_adg}.yml ]]
-          then
-            delius_target_adg=${delius_target_primary}
-          fi
           echo "delius_target_primary=${delius_target_primary}" >> $GITHUB_OUTPUT
-          echo "delius_target_adg=${delius_target_adg}" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
         id: login-aws
@@ -142,7 +134,6 @@ jobs:
             -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
             -e target_hosts=${{ steps.definetargets.outputs.delius_target_primary }} \
             -e delius_target_primary=${{ steps.definetargets.outputs.delius_target_primary }} \
-            -e delius_target_adg=${{ steps.definetargets.outputs.delius_target_adg }} \
             | tee /tmp/ansible_delius.log
           next_partition_high_value=$(cat /tmp/next_partition_high_value 2>/dev/null | tr -d '\n')
           echo "next_partition_high_value=${next_partition_high_value}" >> $GITHUB_OUTPUT

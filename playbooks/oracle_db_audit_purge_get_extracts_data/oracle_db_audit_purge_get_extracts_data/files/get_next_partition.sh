@@ -2,8 +2,6 @@
 
 . ~/.bash_profile
 
-# USE_PARALLEL=1 enables parallel query (recommended when running on ADG standby)
-USE_PARALLEL=${1:-0}
 
 sqlplus -s /nolog <<EOSQL
 connect / as sysdba
@@ -26,11 +24,6 @@ BEGIN
         action_name => 'Initializing'
     );
 
-    -- Enable parallel query when running on ADG standby for better performance.
-    -- Omitting PARALLEL <n> lets Oracle use PARALLEL_THREADS_PER_CPU * CPU_COUNT.
-    IF '${USE_PARALLEL}' = '1' THEN
-        EXECUTE IMMEDIATE 'ALTER SESSION FORCE PARALLEL QUERY';
-    END IF;
 
     -- Count partitions to support progress reporting
     SELECT COUNT(*)

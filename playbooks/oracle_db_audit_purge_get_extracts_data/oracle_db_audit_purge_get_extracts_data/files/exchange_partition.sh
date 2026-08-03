@@ -133,6 +133,30 @@ BEGIN
     -- Drop the staging table (now contains rows to be removed)
     EXECUTE IMMEDIATE 'DROP TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg PURGE';
 
+    -- Record successfully processed partition names as a CSV list in the table comment
+    IF l_schema_name = 'DELIUS_APP_SCHEMA' THEN
+        DECLARE
+            l_comment  VARCHAR2(4000);
+            l_prologue CONSTANT VARCHAR2(200) := 'Partitions purged of GET_EXTRACTS_DATA rows by exchange_partition: ';
+        BEGIN
+            SELECT NVL(comments, '')
+            INTO   l_comment
+            FROM   dba_tab_comments
+            WHERE  owner      = l_schema_name
+            AND    table_name = l_table_name;
+
+            IF l_comment LIKE l_prologue || '%' THEN
+                l_comment := l_comment || ',' || l_partition_name;
+            ELSE
+                l_comment := l_prologue || l_partition_name;
+            END IF;
+
+            EXECUTE IMMEDIATE
+                'COMMENT ON TABLE ' || l_schema_name || '.' || l_table_name ||
+                ' IS ''' || REPLACE(l_comment, '''', '''''') || '''';
+        END;
+    END IF;
+
     DBMS_APPLICATION_INFO.SET_MODULE(module_name => NULL, action_name => NULL);
 
     DBMS_OUTPUT.PUT_LINE('PARTITION_STATUS=SUCCESS');

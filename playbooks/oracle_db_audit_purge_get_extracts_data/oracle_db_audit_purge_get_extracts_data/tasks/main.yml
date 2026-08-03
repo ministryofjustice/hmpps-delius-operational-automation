@@ -19,14 +19,9 @@
   block:
       
     - name: Get Next Partition to Process
-      script: >-
-        get_next_partition.sh
-        {{ '1' if (delius_target_adg is defined and delius_target_adg != delius_target_primary) else '0' }}
+      script: get_next_partition.sh
       register: get_next_partition_output
       changed_when: false
-      delegate_to: "{{ groups[delius_target_adg | default(delius_target_primary)][0] }}"
-      become: true
-      become_user: oracle
 
     - name: Set Next Partition Variables
       set_fact:
