@@ -111,6 +111,7 @@ jobs:
 
       - name: Define Delius Targets
         id: definetargets
+        shell: bash
         run: |
           source "$PWD/operations/common/files/build_inventory_name.sh"
           delius_target_primary="$(build_inventory_name "delius-core-${{ github.event.inputs.TargetEnvironment }}" "_delius_standbydb1")"
