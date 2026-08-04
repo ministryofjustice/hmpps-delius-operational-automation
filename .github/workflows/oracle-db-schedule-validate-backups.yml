@@ -101,4 +101,5 @@ jobs:
           TextHeader: "Backup Validation Job Scheduling Failure"
           TextBody: ":cross-red: Backup Validation job could not be scheduled"
           TargetEnvironment: "GHA(Scheduling)"
+          TargetHost: "unknown"
           JobName: "prepare-run-matrix"
