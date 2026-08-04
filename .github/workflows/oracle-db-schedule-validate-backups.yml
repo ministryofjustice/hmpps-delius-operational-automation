@@ -77,14 +77,15 @@ jobs:
   # any specific environment to use yet, so we default to running the failure notification from
   # the development OEM environment (this is arbitrary)
   setup-notification-failure-slack:
-    if: failure()
+    if: ${{ always() && needs.prepare-run-matrix.result == 'failure' }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     needs: [prepare-run-matrix]
     environment: "hmpps-oem-development-preapproved"
     permissions:
-       id-token: write
+      contents: read
+      id-token: write
     steps:
 
       - name: Checkout Local Repo to get Composite Action
@@ -100,4 +101,5 @@ jobs:
           TextHeader: "Backup Validation Job Scheduling Failure"
           TextBody: ":cross-red: Backup Validation job could not be scheduled"
           TargetEnvironment: "GHA(Scheduling)"
+          TargetHost: "unknown"
           JobName: "prepare-run-matrix"
