@@ -531,6 +531,7 @@ jobs:
 
       - name: Responding to Repository Dispatch event
         id: response
+        shell: bash
         run: |
           source "$PWD/operations/common/files/build_inventory_name.sh"
 

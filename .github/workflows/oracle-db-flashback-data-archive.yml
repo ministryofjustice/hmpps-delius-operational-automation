@@ -57,6 +57,7 @@ jobs:
 
       - name: Prepare Delius Primary And All Inventory Name
         id: prepareinventorynames
+        shell: bash
         run: |
           source "$PWD/operations/common/files/build_inventory_name.sh"
 

@@ -85,6 +85,7 @@ jobs:
       # For stopping it does not really matter, but for restarting we need to read the startup SCN from the database.
       - name: Prepare Inventory Name
         id: prepareinventorynames
+        shell: bash
         run: |
           source "$PWD/operations/common/files/build_inventory_name.sh"
 
