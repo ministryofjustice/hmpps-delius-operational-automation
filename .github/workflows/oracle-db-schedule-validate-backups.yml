@@ -84,7 +84,8 @@ jobs:
     needs: [prepare-run-matrix]
     environment: "hmpps-oem-development-preapproved"
     permissions:
-       id-token: write
+      contents: read
+      id-token: write
     steps:
 
       - name: Checkout Local Repo to get Composite Action
