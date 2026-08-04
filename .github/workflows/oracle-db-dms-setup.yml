@@ -87,6 +87,7 @@ jobs:
 
       - name: Prepare Target Name
         id: preparetargetname
+        shell: bash
         run: |
           source "$PWD/operations/common/files/build_inventory_name.sh"
 
