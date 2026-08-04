@@ -77,7 +77,7 @@ jobs:
   # any specific environment to use yet, so we default to running the failure notification from
   # the development OEM environment (this is arbitrary)
   setup-notification-failure-slack:
-    if: failure()
+    if: ${{ always() && needs.prepare-run-matrix.result == 'failure' }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
