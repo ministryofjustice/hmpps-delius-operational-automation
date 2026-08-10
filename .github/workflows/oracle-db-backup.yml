@@ -338,6 +338,7 @@ jobs:
             playbooks/oracle_backup
             playbooks/ansible.cfg
             common/files/build_inventory_name.sh
+            common/files/github_dispatch.sh
           path: operations
           ref: "${{ env.SourceCodeVersion }}"
           fetch-depth: 0
