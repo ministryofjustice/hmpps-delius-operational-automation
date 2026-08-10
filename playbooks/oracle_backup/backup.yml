@@ -79,6 +79,14 @@
             group: oinstall
             mode: 0544
 
+        - name: Install shared GitHub dispatch script
+          copy:
+            src: "{{ playbook_dir }}/../../common/files/github_dispatch.sh"
+            dest: /home/oracle/admin/rman_scripts/github_dispatch.sh
+            owner: oracle
+            group: oinstall
+            mode: 0544
+
         - name: Set rman_options when "daily"
           set_fact:
             rman_options: "-t HOT -i 1 -b Y"

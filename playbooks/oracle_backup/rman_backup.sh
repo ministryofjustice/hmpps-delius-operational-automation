@@ -91,7 +91,7 @@ usage () {
 
 
 # shellcheck source=../../common/files/github_dispatch.sh
-source "$(dirname "$0")/../../common/files/github_dispatch.sh"
+source "$(dirname "$0")/github_dispatch.sh"
 
 info () {
   T=`date +"%D %T"`
