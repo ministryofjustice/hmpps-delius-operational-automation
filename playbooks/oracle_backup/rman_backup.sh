@@ -91,7 +91,16 @@ usage () {
 
 
 # shellcheck source=../../common/files/github_dispatch.sh
-source "$(dirname "$0")/github_dispatch.sh"
+
+# We do not use the error() function if the check of the auxiliary script
+# existence fails as it expects it to exist, so just echo to the log directly 
+_dispatch_lib="$(dirname "$0")/github_dispatch.sh"
+if [[ ! -f "$_dispatch_lib" ]]; then
+  echo "ERROR : $THISSCRIPT : $(date +"%D %T") : Cannot find github_dispatch.sh at $_dispatch_lib - repository dispatch events will not be sent" | tee -a "${RMANOUTPUT}"
+elif ! source "$_dispatch_lib"; then
+  echo "ERROR : $THISSCRIPT : $(date +"%D %T") : Failed to source $_dispatch_lib - repository dispatch events will not be sent" | tee -a "${RMANOUTPUT}"
+fi
+unset _dispatch_lib
 
 info () {
   T=`date +"%D %T"`
