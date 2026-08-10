@@ -747,6 +747,9 @@ dms_tables:
   - name: R_SUPERVISION_PACKAGE_TYPE
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
+  - name: R_SUPERVISION_PACKAGE_USAGE
+    owner: DELIUS_APP_SCHEMA
+    log_data: ALL
   - name: R_TEAM_LONG_POSTCODE
     owner: DELIUS_APP_SCHEMA
     log_data: ALL
