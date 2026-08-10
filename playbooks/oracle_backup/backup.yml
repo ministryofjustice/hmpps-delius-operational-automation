@@ -79,6 +79,20 @@
             group: oinstall
             mode: 0544
 
+
+
+
+        - name: Find github_dispatch.sh on controller
+          local_action:
+            module: shell
+            cmd: find / -name github_dispatch.sh 2>/dev/null | head -5; echo "playbook_dir={{ playbook_dir }}"
+          register: find_dispatch_script
+          changed_when: false
+
+        - name: Show github_dispatch.sh location
+          debug:
+            msg: "{{ find_dispatch_script.stdout_lines }}"
+
         - name: Install shared GitHub dispatch script
           copy:
             src: "{{ playbook_dir }}/../../common/files/github_dispatch.sh"
