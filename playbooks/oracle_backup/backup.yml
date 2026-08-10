@@ -82,18 +82,23 @@
 
 
 
-        - name: Find github_dispatch.sh on controller
-          local_action:
-            module: shell
-            cmd: find / -name github_dispatch.sh 2>/dev/null | head -5; echo "playbook_dir={{ playbook_dir }}"
-          register: find_dispatch_script
-          changed_when: false
+        - name: Validate shared GitHub dispatch script exists in checkout
+          delegate_to: localhost
+          run_once: true
           become: false
+          ansible.builtin.stat:
+            path: "{{ playbook_dir }}/../../common/files/github_dispatch.sh"
+          register: dispatch_script_stat
+          changed_when: false
 
-        - name: Show github_dispatch.sh location
-          debug:
-            msg: "{{ find_dispatch_script.stdout_lines }}"
-
+        - name: Fail if shared GitHub dispatch script is missing
+          delegate_to: localhost
+          run_once: true
+          become: false
+          ansible.builtin.assert:
+            that:
+              - dispatch_script_stat.stat.exists
+            fail_msg: "github_dispatch.sh not found at {{ playbook_dir }}/../../common/files/github_dispatch.sh"
         - name: Install shared GitHub dispatch script
           copy:
             src: "{{ playbook_dir }}/../../common/files/github_dispatch.sh"
