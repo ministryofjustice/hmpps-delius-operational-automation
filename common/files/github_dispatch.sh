@@ -106,7 +106,7 @@ JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r 'del(.TargetHost)')
 info "Repository Dispatch Payload: $JSON_PAYLOAD"
 JSON_DATA="{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}"
 info "Posting repository dispatch event"
-curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data-raw "${JSON_DATA}" ${REPOSITORY_DISPATCH}
+curl -sSf -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}" --data-raw "${JSON_DATA}" "${REPOSITORY_DISPATCH}"
 RC=$?
 if [[ $RC -ne 0 ]]; then
       # We cannot use the error function for dispatch failures as it contains its own dispatch call
