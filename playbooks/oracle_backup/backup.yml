@@ -88,6 +88,7 @@
             cmd: find / -name github_dispatch.sh 2>/dev/null | head -5; echo "playbook_dir={{ playbook_dir }}"
           register: find_dispatch_script
           changed_when: false
+          become: false
 
         - name: Show github_dispatch.sh location
           debug:
