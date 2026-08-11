@@ -283,6 +283,12 @@
         dest: "/tmp/run_backup_validation.sh"
         mode: 0744
 
+    - name: Copy helper script for sending GitHub Repository Dispatch Events
+      copy:
+        src: "{{ playbook_dir }}/../../common/files/github_dispatch.sh"
+        dest: "/tmp/github_dispatch.sh"
+        mode: 0744
+
     # Validation must run in the background to avoid GHA 1 hour time-limit.
     # Therefore we set the polling to zero
     - name: Run Database and Archivelog Backup Validation
