@@ -1,5 +1,13 @@
 #!/bin/bash
 
+THISSCRIPT=${THISSCRIPT:-$(basename "$0")}
+INFO_LOG_FILE=${INFO_LOG_FILE:-/tmp/run_backup_validation_info$$.log}
+
+info() {
+  T=$(date +"%D %T")
+  echo "INFO : ${THISSCRIPT} : $T : $1" >> "$INFO_LOG_FILE"
+}
+
 get_rman_password () {
   ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
   ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ASSUME_ROLE_NAME}"
@@ -10,6 +18,21 @@ get_rman_password () {
   export AWS_SESSION_TOKEN=$(echo "${CREDS}" | tail -1 | cut -f3)
   SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:${SECRET}"
   RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
+}
+
+create_client_payload() {
+# Create a payload for Repository Dispatch events from environment variables.
+  CLIENT_PAYLOAD=$(jq -n \
+    --arg target_environment "${TargetEnvironment:-unknown}" \
+    --arg target_host "${TargetHost:-unknown}" \
+    --arg source_code_version "${SourceCodeVersion:-main}" \
+    --arg source_config_version "${SourceConfigVersion:-main}" \
+    '{
+      TargetEnvironment: $target_environment,
+      TargetHost: $target_host,
+      SourceCodeVersion: $source_code_version,
+      SourceConfigVersion: $source_config_version
+    }')
 }
 
 export ORACLE_SID=$1
@@ -49,7 +72,15 @@ then
    CONNECT_TO_CATALOG="connect catalog rcvcatowner/${RMANPASS}@${CATALOG}"
 fi
 
-rman target / <<EOF  | tee /tmp/rman_validation$$.log
+# shellcheck source=../../common/files/github_dispatch.sh
+LOG_FILE="/tmp/rman_validation$$.log"
+EVENT_TYPE="oracle-db-backup-validation-failure"
+
+_dispatch_lib="$(dirname "$0")/github_dispatch.sh"
+if ! source "$_dispatch_lib"; then
+  echo "ERROR : $THISSCRIPT : $(date +"%D %T") : Failed to source $_dispatch_lib" | tee "$LOG_FILE"
+else
+  rman target / <<EOF  | tee "$LOG_FILE"
 set echo on
 ${CONNECT_TO_CATALOG}
 configure device type 'SBT_TAPE' parallelism ${PARALLELISM};
@@ -60,3 +91,15 @@ ${VALIDATE_ARCHIVELOG_COMMAND}
 ${VALIDATE_RESTORE_ARCHIVELOG_COMMAND}
 exit
 EOF
+
+  RMAN_RC=${PIPESTATUS[0]}
+  if [[ $RMAN_RC -eq 0 ]] && ! grep -Eq 'ORA-|ERROR MESSAGE STACK FOLLOWS' "$LOG_FILE"; then
+    EVENT_TYPE="oracle-db-backup-validation-success"
+  fi
+
+  create_client_payload
+  github_repository_dispatch "$EVENT_TYPE" "$CLIENT_PAYLOAD"
+fi
+
+unset _dispatch_lib
+ 

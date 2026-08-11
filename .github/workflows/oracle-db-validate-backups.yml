@@ -172,6 +172,7 @@ jobs:
     env:
       RmanTarget: ${{ needs.build_rman_target_name.outputs.RmanTarget }}
       SlackChannel: ${{ needs.build_rman_target_name.outputs.SlackChannel }}
+      TargetEnvironment: ${{ needs.build_rman_target_name.outputs.TargetEnvironment }}
     continue-on-error: false
     steps:
 
@@ -245,7 +246,12 @@ jobs:
           [[ ! -z "${{ steps.randomizetargethost.outputs.RmanTarget }}" ]] && RmanTarget="${{ steps.randomizetargethost.outputs.RmanTarget }}"
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget $VerboseOutput
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+             -e rman_target=$RmanTarget \
+             -e target_environment="${{ needs.build_rman_target_name.outputs.TargetEnvironment }}" \
+             -e source_code_version=${{ github.event.inputs.SourceCodeVersion || 'main' }} \
+             -e source_config_version=${{ github.event.inputs.SourceConfigVersion || 'main' }} \
+             $VerboseOutput
 
       - name: Checkout Local Repo to get Composite Action
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
