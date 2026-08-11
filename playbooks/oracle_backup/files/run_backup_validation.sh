@@ -23,10 +23,10 @@ get_rman_password () {
 create_client_payload() {
 # Create a payload for Repository Dispatch events from environment variables.
   CLIENT_PAYLOAD=$(jq -n \
-    --arg target_environment "${TargetEnvironment:-unknown}" \
-    --arg target_host "${TargetHost:-unknown}" \
-    --arg source_code_version "${SourceCodeVersion:-main}" \
-    --arg source_config_version "${SourceConfigVersion:-main}" \
+    --arg target_environment "${TARGET_ENVIRONMENT:-unknown}" \
+    --arg target_host "${TARGET_HOST:-unknown}" \
+    --arg source_code_version "${SOURCE_CODE_VERSION:-main}" \
+    --arg source_config_version "${SOURCE_CONFIG_VERSION:-main}" \
     '{
       TargetEnvironment: $target_environment,
       TargetHost: $target_host,

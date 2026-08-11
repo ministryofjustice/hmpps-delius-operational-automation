@@ -102,7 +102,7 @@ fi
 # determines what the workflow does next.
 if [[ "$EVENT_TYPE" == "oracle-db-backup-success" ]]; then
   JSON_PAYLOAD=$(echo "$JSON_PAYLOAD" | jq -r '.Phase = "Backup Succeeded"')
-else
+elif [[ "$EVENT_TYPE" == "oracle-db-backup-failure" ]]; then
   JSON_PAYLOAD=$(echo "$JSON_PAYLOAD" | jq -r '.Phase = "Backup Failed"')
 fi
 # GitHub Actions only allows us to have 10 elements in the payload so we remove those which are
