@@ -306,29 +306,3 @@
       async: 21600
       poll: 0
       register: backup_validation
-
-
-    #     - name: Running RMAN script in Background
-    #       shell: "{{ rman_command }}"
-    #       async: "{{ allowable_duration|default(28800) }}"
-    #       poll: 0
-    #       environment:
-    #         ASSUME_ROLE_NAME: "{{ assume_role_name | default() }}"
-    #         SECRET_ACCOUNT_ID: "{{ account_ids[account_name] | default() }}"
-    #         SECRET: "{{ secretsmanager_passwords['catalog'].secret | default() }}"
-    #       register: backup_cmd_output
-    #       when: not (run_in_foreground | default(false))
-
-
-    # - name: Report Validation Output
-    #   debug: var=backup_validation.stdout_lines
-
-    # - name: Fail if Error Messages in RMAN Validation Output
-    #   assert:
-    #     that:
-    #       - backup_validation.stdout is not search('ORA-')
-    #       - backup_validation.stdout is not search('ERROR MESSAGE STACK FOLLOWS')
-
-    # # Reset Tape Device Parallelism to Original Value
-    # - name: Reset SBT_TAPE device configuration
-    #   script: set_sbt_parallelism.sh {{ database_standby_sid | default(database_primary_sid) }} "{{ existing_sbt_parallelism.stdout_lines[0] }}"

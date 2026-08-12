@@ -20,12 +20,48 @@ if ! declare -f update_ssm_parameter > /dev/null 2>&1; then
   update_ssm_parameter() { :; }
 fi
 
+validate_regex() {
+  local value="$1"
+  local regex="$2"
+  local field_name="$3"
+
+  if [[ ! "$value" =~ $regex ]]; then
+    echo "ERROR : ${THISSCRIPT:-$(basename "$0")} : $(date +"%D %T") : Invalid ${field_name}" >&2
+    return 1
+  fi
+}
+
+require_non_empty() {
+  local value="$1"
+  local field_name="$2"
+
+  if [[ -z "${value//[[:space:]]/}" ]]; then
+    echo "ERROR : ${THISSCRIPT:-$(basename "$0")} : $(date +"%D %T") : Missing required ${field_name}" >&2
+    return 1
+  fi
+}
+
+assert_dispatch_endpoint() {
+  # In GitHub Actions, lock dispatch URL to this repository to prevent token misuse.
+  if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
+    local expected_dispatch
+    expected_dispatch="https://api.github.com/repos/${GITHUB_REPOSITORY}/dispatches"
+    if [[ "${REPOSITORY_DISPATCH:-}" != "$expected_dispatch" ]]; then
+      echo "ERROR : ${THISSCRIPT:-$(basename "$0")} : $(date +"%D %T") : Invalid REPOSITORY_DISPATCH endpoint" >&2
+      return 1
+    fi
+  fi
+}
+
 function generate_jwt()
 {
 # Get a JSON Web Token to authenicate against the HMPPS Bot.
 # The HMPPS bot can provide exchange this for a GitHub Token for action GitHub workflows.
 BOT_APP_ID=$(aws ssm get-parameter --name "/github/hmpps_bot_app_id" --query "Parameter.Value" --with-decryption --output text)
 BOT_PRIVATE_KEY=$(aws ssm get-parameter --name "/github/hmpps_bot_priv_key" --query "Parameter.Value" --with-decryption --output text)
+require_non_empty "$BOT_APP_ID" "BOT_APP_ID" || return 1
+require_non_empty "$BOT_PRIVATE_KEY" "BOT_PRIVATE_KEY" || return 1
+validate_regex "$BOT_APP_ID" '^[0-9]+$' 'BOT_APP_ID' || return 1
 
 # Define expiry time for JWT - we will be using it immediately so just use a 10 minute expiry time.
 NOW=$(date +%s)
@@ -67,8 +103,11 @@ function get_github_token()
 {
 # Generate JSON Web Token to authenticate to HMPPS Bot
 JWT=$(generate_jwt)
+require_non_empty "$JWT" "JWT" || return 1
 # Fetch Installation ID for App in target Repository
 BOT_INSTALL_ID=$(aws ssm get-parameter --name "/github/hmpps_bot_installation_id" --query "Parameter.Value" --with-decryption --output text)
+require_non_empty "$BOT_INSTALL_ID" "BOT_INSTALL_ID" || return 1
+validate_regex "$BOT_INSTALL_ID" '^[0-9]+$' 'BOT_INSTALL_ID' || return 1
 GITHUB_TOKEN=$(curl --request POST --url "https://api.github.com/app/installations/${BOT_INSTALL_ID}/access_tokens" --header "Accept: application/vnd.github+json" --header "Authorization: Bearer $JWT" --header "X-GitHub-Api-Version: 2022-11-28")
 printf '%s\n' "$GITHUB_TOKEN"
 }
@@ -90,7 +129,10 @@ function github_repository_dispatch()
 #  and period of the backup, along with any associated parameters.
 EVENT_TYPE=$1
 JSON_PAYLOAD=$2
+assert_dispatch_endpoint || exit 1
+validate_regex "$EVENT_TYPE" '^oracle-[a-z0-9-]+-(success|failure)$' 'EVENT_TYPE' || exit 1
 GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
+require_non_empty "$GITHUB_TOKEN_VALUE" "GITHUB_TOKEN_VALUE" || exit 1
 
 # Allow callers to omit payload; use an empty JSON object as a safe default.
 if [[ -z "${JSON_PAYLOAD//[[:space:]]/}" || "$JSON_PAYLOAD" == "null" ]]; then

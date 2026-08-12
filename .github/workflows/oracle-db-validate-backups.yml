@@ -293,9 +293,12 @@ jobs:
           SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion || 'main' }}
 
   repository_dispatch_notification:
-    if: ${{ github.event_name == 'repository_dispatch' }}
+    if: ${{ github.event_name == 'repository_dispatch' && github.event.sender.type == 'Bot' && (github.actor == 'hmpps-bot[bot]' || github.actor == 'github-actions[bot]') }}
     runs-on: ubuntu-latest
     environment: "hmpps-oem-development-preapproved"
+    concurrency:
+      group: repository-dispatch-${{ github.event.action }}-${{ github.event.client_payload.TargetEnvironment || github.event.client_payload.targetEnvironment || github.event.client_payload.target_environment || github.run_id }}
+      cancel-in-progress: true
     permissions:
       contents: read
       id-token: write
@@ -308,20 +311,96 @@ jobs:
       - name: Checkout Local Repo to get Composite Action
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Validate Repository Dispatch Source Metadata
+        shell: bash
+        env:
+          DISPATCH_ACTION: ${{ github.event.action }}
+          DISPATCH_ACTOR: ${{ github.actor }}
+          DISPATCH_SENDER: ${{ github.event.sender.login }}
+          DISPATCH_SENDER_TYPE: ${{ github.event.sender.type }}
+        run: |
+          if [[ ! "$DISPATCH_ACTION" =~ ^oracle-db-backup-validation-(success|failure)$ ]]; then
+            echo "Invalid repository_dispatch action: $DISPATCH_ACTION" >&2
+            exit 1
+          fi
+
+          if [[ "$DISPATCH_SENDER_TYPE" != "Bot" ]]; then
+            echo "Invalid repository_dispatch sender type: $DISPATCH_SENDER_TYPE" >&2
+            exit 1
+          fi
+
+          if [[ "$DISPATCH_SENDER" != "$DISPATCH_ACTOR" ]]; then
+            echo "Sender/actor mismatch: sender=$DISPATCH_SENDER actor=$DISPATCH_ACTOR" >&2
+            exit 1
+          fi
+
+          if [[ "$DISPATCH_SENDER" != "hmpps-bot[bot]" && "$DISPATCH_SENDER" != "github-actions[bot]" ]]; then
+            echo "Unauthorized repository_dispatch sender: $DISPATCH_SENDER" >&2
+            exit 1
+          fi
+
       - name: Prepare Repository Dispatch Inputs
         id: prepare-repository-dispatch-inputs
         shell: bash
         env:
           CLIENT_PAYLOAD: ${{ toJson(github.event.client_payload) }}
         run: |
-          target_environment=$(echo "$CLIENT_PAYLOAD" | jq -r '.TargetEnvironment // .targetEnvironment // .target_environment // "unknown"')
-          target_host=$(echo "$CLIENT_PAYLOAD" | jq -r '.TargetHost // .targetHost // .target_host // "unknown"')
-          source_code_version=$(echo "$CLIENT_PAYLOAD" | jq -r '.SourceCodeVersion // .sourceCodeVersion // .source_code_version // "main"')
-          source_config_version=$(echo "$CLIENT_PAYLOAD" | jq -r '.SourceConfigVersion // .sourceConfigVersion // .source_config_version // "main"')
-          echo "TargetEnvironment=${target_environment}" >> "$GITHUB_OUTPUT"
-          echo "TargetHost=${target_host}" >> "$GITHUB_OUTPUT"
-          echo "SourceCodeVersion=${source_code_version}" >> "$GITHUB_OUTPUT"
-          echo "SourceConfigVersion=${source_config_version}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+
+          payload_file="$(mktemp)"
+          trap 'rm -f "$payload_file"' EXIT
+          printf '%s' "$CLIENT_PAYLOAD" > "$payload_file"
+
+          read_payload_value() {
+            jq -er "$1 // empty | tostring" "$payload_file" 2>/dev/null || true
+          }
+
+          # Ensure all values are a single line before writing to GitHub output.
+          trim_to_single_line() {
+            printf '%s' "$1" | tr -d '\r\n'
+          }
+
+          target_environment="$(trim_to_single_line "$(read_payload_value '.TargetEnvironment // .targetEnvironment // .target_environment')")"
+          target_host="$(trim_to_single_line "$(read_payload_value '.TargetHost // .targetHost // .target_host')")"
+          source_code_version="$(trim_to_single_line "$(read_payload_value '.SourceCodeVersion // .sourceCodeVersion // .source_code_version')")"
+          source_config_version="$(trim_to_single_line "$(read_payload_value '.SourceConfigVersion // .sourceConfigVersion // .source_config_version')")"
+          dispatch_source="$(trim_to_single_line "$(read_payload_value '.DispatchSource // .dispatchSource // .dispatch_source')")"
+
+          # Reject untrusted values that contain characters outside expected formats.
+          [[ "$target_environment" =~ ^[a-z0-9-]+$ ]] || target_environment="unknown"
+          [[ "$target_host" =~ ^[A-Za-z0-9._-]+$ ]] || target_host="unknown"
+          [[ "$source_code_version" =~ ^[A-Za-z0-9._/-]+$ ]] || source_code_version="main"
+          [[ "$source_config_version" =~ ^[A-Za-z0-9._/-]+$ ]] || source_config_version="main"
+          [[ "$dispatch_source" == "oracle-backup-validation" ]] || {
+            echo "Invalid repository_dispatch source marker" >&2
+            exit 1
+          }
+
+          [[ -n "$target_environment" ]] || target_environment="unknown"
+          [[ -n "$target_host" ]] || target_host="unknown"
+          [[ -n "$source_code_version" ]] || source_code_version="main"
+          [[ -n "$source_config_version" ]] || source_config_version="main"
+
+          printf 'TargetEnvironment=%s\n' "$target_environment" >> "$GITHUB_OUTPUT"
+          printf 'TargetHost=%s\n' "$target_host" >> "$GITHUB_OUTPUT"
+          printf 'SourceCodeVersion=%s\n' "$source_code_version" >> "$GITHUB_OUTPUT"
+          printf 'SourceConfigVersion=%s\n' "$source_config_version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Repository Dispatch Payload
+        shell: bash
+        env:
+          TARGET_ENVIRONMENT: ${{ steps.prepare-repository-dispatch-inputs.outputs.TargetEnvironment }}
+          TARGET_HOST: ${{ steps.prepare-repository-dispatch-inputs.outputs.TargetHost }}
+        run: |
+          if [[ ! "$TARGET_ENVIRONMENT" =~ ^(delius-core-dev|delius-core-test|delius-core-training|delius-core-stage|delius-core-preprod|delius-core-prod|delius-mis-dev|delius-mis-stage|delius-mis-preprod|delius-mis-prod)$ ]]; then
+            echo "Invalid repository_dispatch TargetEnvironment: $TARGET_ENVIRONMENT" >&2
+            exit 1
+          fi
+
+          if [[ ! "$TARGET_HOST" =~ ^((delius|mis|boe|dsd)_(primarydb|standbydb[1-2]))$ ]]; then
+            echo "Invalid repository_dispatch TargetHost: $TARGET_HOST" >&2
+            exit 1
+          fi
 
       - name: Send Slack Repository Dispatch Success Notification
         if: ${{ github.event.action == 'oracle-db-backup-validation-success' }}
