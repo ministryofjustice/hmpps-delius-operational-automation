@@ -303,6 +303,7 @@
         TARGET_HOST: "{{ rman_target }}"
         SOURCE_CODE_VERSION: "{{ source_code_version }}"
         SOURCE_CONFIG_VERSION: "{{ source_config_version }}"
+        REPOSITORY_DISPATCH: "{{ github_repository }}"
       async: 21600
       poll: 0
       register: backup_validation

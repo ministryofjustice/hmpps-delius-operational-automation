@@ -255,6 +255,7 @@ jobs:
              -e target_environment="${TargetEnvironment}" \
              -e source_code_version=${{ github.event.inputs.SourceCodeVersion || 'main' }} \
              -e source_config_version=${{ github.event.inputs.SourceConfigVersion || 'main' }} \
+             -e github_repository="${{ github.repository }}" \
              $VerboseOutput
 
       - name: Checkout Local Repo to get Composite Action
@@ -397,7 +398,7 @@ jobs:
             exit 1
           fi
 
-          if [[ ! "$TARGET_HOST" =~ ^((delius|mis|boe|dsd)_(primarydb|standbydb[1-2]))$ ]]; then
+          if [[ ! "$TARGET_HOST" =~ ((delius|mis|boe|dsd)_(primarydb|standbydb[1-2]))$ ]]; then
             echo "Invalid repository_dispatch TargetHost: $TARGET_HOST" >&2
             exit 1
           fi

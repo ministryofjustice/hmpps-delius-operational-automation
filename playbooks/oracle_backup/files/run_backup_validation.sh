@@ -151,6 +151,11 @@ export PATH="$PATH:/usr/local/bin"
 export ORAENV_ASK="NO"
 . oraenv >/dev/null;
 
+if [[ ! -z "$REPOSITORY_DISPATCH" ]]; then
+   REPOSITORY_DISPATCH="https://api.github.com/repos/${REPOSITORY_DISPATCH}/dispatches"
+   info "GitHub Actions Repository Dispatch Events will be sent to : $REPOSITORY_DISPATCH"
+fi
+
 VALIDATE_RESTORE_CONTROLFILE_COMMAND="restore controlfile validate;"
 VALIDATE_RESTORE_DATABASE_COMMAND="restore database validate;"
 VALIDATE_RESTORE_ARCHIVELOG_COMMAND="restore archivelog from scn ${START_SCN} validate;"
