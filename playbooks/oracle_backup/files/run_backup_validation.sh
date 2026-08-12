@@ -2,7 +2,6 @@
 
 THISSCRIPT=${THISSCRIPT:-$(basename "$0")}
 INFO_LOG_FILE=${INFO_LOG_FILE:-/tmp/run_backup_validation_info$$.log}
-RUN_LOG_FILE=${RUN_LOG_FILE:-/tmp/run_backup_validation_run$$.log}
 
 info() {
   T=$(date +"%D %T")
@@ -10,10 +9,10 @@ info() {
 }
 
 init_run_logging() {
-  mkdir -p "$(dirname "$RUN_LOG_FILE")"
-  touch "$RUN_LOG_FILE"
-  exec > >(tee -a "$RUN_LOG_FILE") 2>&1
-  echo "INFO : ${THISSCRIPT} : $(date +"%D %T") : Logging script output to ${RUN_LOG_FILE}"
+  mkdir -p "$(dirname "$INFO_LOG_FILE")"
+  touch "$INFO_LOG_FILE"
+  exec > >(tee -a "$INFO_LOG_FILE") 2>&1
+  echo "INFO : ${THISSCRIPT} : $(date +"%D %T") : Logging script output to ${INFO_LOG_FILE}"
 }
 
 validate_regex() {
@@ -142,7 +141,7 @@ export TARGET_ENVIRONMENT
 export TARGET_HOST
 export SOURCE_CODE_VERSION
 export SOURCE_CONFIG_VERSION
-export RUN_LOG_FILE
+export INFO_LOG_FILE
 
 export PATH="$PATH:/usr/local/bin"
 export ORAENV_ASK="NO"
@@ -202,7 +201,9 @@ EOF
   fi
 
   create_client_payload
+  info "Dispatching repository event ${EVENT_TYPE}"
   github_repository_dispatch "$EVENT_TYPE" "$CLIENT_PAYLOAD"
+  info "Repository dispatch completed for event ${EVENT_TYPE}"
 fi
 
 unset _dispatch_lib
