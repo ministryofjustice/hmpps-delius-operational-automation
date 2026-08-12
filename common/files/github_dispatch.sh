@@ -45,6 +45,8 @@ assert_dispatch_endpoint() {
   # In GitHub Actions, lock dispatch URL to this repository to prevent token misuse.
   info "Asserting GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
   echo "Asserting GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+  info "REPOSITORY_DISPATCH: $REPOSITORY_DISPATCH"
+  echo "REPOSITORY_DISPATCH: $REPOSITORY_DISPATCH"  
   if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
     local expected_dispatch
     expected_dispatch="https://api.github.com/repos/${GITHUB_REPOSITORY}/dispatches"
