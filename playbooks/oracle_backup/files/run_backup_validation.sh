@@ -2,10 +2,18 @@
 
 THISSCRIPT=${THISSCRIPT:-$(basename "$0")}
 INFO_LOG_FILE=${INFO_LOG_FILE:-/tmp/run_backup_validation_info$$.log}
+RUN_LOG_FILE=${RUN_LOG_FILE:-/tmp/run_backup_validation_run$$.log}
 
 info() {
   T=$(date +"%D %T")
   echo "INFO : ${THISSCRIPT} : $T : $1" >> "$INFO_LOG_FILE"
+}
+
+init_run_logging() {
+  mkdir -p "$(dirname "$RUN_LOG_FILE")"
+  touch "$RUN_LOG_FILE"
+  exec > >(tee -a "$RUN_LOG_FILE") 2>&1
+  echo "INFO : ${THISSCRIPT} : $(date +"%D %T") : Logging script output to ${RUN_LOG_FILE}"
 }
 
 validate_regex() {
@@ -98,6 +106,8 @@ VALIDATE_INCREMENTAL_COMMAND="$4"
 VALIDATE_ARCHIVELOG_COMMAND="$5"
 END_SCN="$6"
 
+init_run_logging
+
 TARGET_ENVIRONMENT="${TARGET_ENVIRONMENT:-unknown}"
 TARGET_HOST="${TARGET_HOST:-unknown}"
 SOURCE_CODE_VERSION="${SOURCE_CODE_VERSION:-main}"
@@ -132,6 +142,7 @@ export TARGET_ENVIRONMENT
 export TARGET_HOST
 export SOURCE_CODE_VERSION
 export SOURCE_CONFIG_VERSION
+export RUN_LOG_FILE
 
 export PATH="$PATH:/usr/local/bin"
 export ORAENV_ASK="NO"
