@@ -255,6 +255,7 @@ jobs:
              -e target_environment="${TargetEnvironment}" \
              -e source_code_version=${{ github.event.inputs.SourceCodeVersion || 'main' }} \
              -e source_config_version=${{ github.event.inputs.SourceConfigVersion || 'main' }} \
+             -e github_repository="${{ github.repository }}" \
              $VerboseOutput
 
       - name: Checkout Local Repo to get Composite Action
