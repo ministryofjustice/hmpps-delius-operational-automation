@@ -66,6 +66,9 @@ on:
         required: true
         type: string
 
+  repository_dispatch:
+    types: ["oracle-db-backup-validation-success","oracle-db-backup-validation-failure"]
+
 env:
   ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/playbooks/oracle_backup/validate_backup.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }}
@@ -79,6 +82,7 @@ permissions:
 
 jobs:
   build_rman_target_name:
+    if: ${{ github.event_name != 'repository_dispatch' }}
     runs-on: ubuntu-latest
     outputs:
       RmanTarget: ${{ steps.preparermantargetname.outputs.RmanTarget }}
@@ -157,6 +161,7 @@ jobs:
           echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
           
   deployment:
+    if: ${{ github.event_name != 'repository_dispatch' }}
     name: oracle-validate-backup
     needs: build_rman_target_name
     environment: ${{ needs.build_rman_target_name.outputs.TargetEnvironment}}
@@ -167,6 +172,7 @@ jobs:
     env:
       RmanTarget: ${{ needs.build_rman_target_name.outputs.RmanTarget }}
       SlackChannel: ${{ needs.build_rman_target_name.outputs.SlackChannel }}
+      TargetEnvironment: ${{ needs.build_rman_target_name.outputs.TargetEnvironment }}
     continue-on-error: false
     steps:
 
@@ -178,6 +184,7 @@ jobs:
             playbooks/oracle_backup
             playbooks/ansible.cfg
             common/files/build_inventory_name.sh
+            common/files/github_dispatch.sh
           path: operations
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
@@ -238,30 +245,191 @@ jobs:
         shell: bash
         run: |
           [[ ! -z "${{ steps.randomizetargethost.outputs.RmanTarget }}" ]] && RmanTarget="${{ steps.randomizetargethost.outputs.RmanTarget }}"
+          TargetEnvironment="${{ needs.build_rman_target_name.outputs.TargetEnvironment }}"
+          # For readability we don't include the -preapproved suffix when reporting the environment
+          TargetEnvironment="${TargetEnvironment%-preapproved}"
           export ANSIBLE_CONFIG=$ansible_config
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_backup/roles
-          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e rman_target=$RmanTarget $VerboseOutput
+          $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
+             -e rman_target=$RmanTarget \
+             -e target_environment="${TargetEnvironment}" \
+             -e source_code_version=${{ github.event.inputs.SourceCodeVersion || 'main' }} \
+             -e source_config_version=${{ github.event.inputs.SourceConfigVersion || 'main' }} \
+             $VerboseOutput
 
-      - name: Get Slack Token
-        id: get-slack-token
-        if: failure()
-        run: |
-               ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-               OEM_ACCOUNT_ID=$(aws ssm get-parameter --name account_ids --region eu-west-2 --with-decryption  --output json | \
-                     jq '.Parameter.Value' | tr -d '\' | sed 's/^\"//' | sed 's/\"$//' | \
-                     jq -r 'to_entries | map(select(.key | contains("hmpps-oem-"))) | first' | jq -r '.value' )
-               SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${OEM_ACCOUNT_ID}:secret:/oracle/database/EMREP/shared-passwords"
-               SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output json)
-               SLACK_TOKEN=$(echo ${SECRET_VALUE} | jq -r | jq -r 'to_entries[] | select(.key=="slack_token").value')
-               echo "slack_token=${SLACK_TOKEN}" >> $GITHUB_OUTPUT
+      - name: Checkout Local Repo to get Composite Action
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Slack Failure Notification
-        id: slack
+      - name: Send Slack Failure Notification
+        id: foreground_slack_notification
         if: failure()
-        uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.27.0
-        with:
-            channel-id: "${{ env.SlackChannel }}"
-            payload: |
-              {"icon_emoji":"broken_record","text":"Failed Backup Validation","blocks":[{"type": "section","text": {"type": "mrkdwn","text": ":no_entry: Failed Backup Validation:"}},{"type": "section","fields":[{"type": "mrkdwn","text": "*Workflow:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.workflow }}>"},{"type": "mrkdwn","text": "*Job:*\n${{ github.job }}"},{"type": "mrkdwn","text": "*Repo:*\n${{ github.repository }}"},{"type": "mrkdwn","text": "*Rman Target:*\n${{ env.RmanTarget }}"}]}]}
+        uses: ./.github/actions/send-slack-notification
         env:
-          SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
+            AWS_ACCOUNT_ID: "${{ vars.AWS_ACCOUNT_ID }}"
+        with:
+          Emoji: ":github-red:"
+          TextHeader: "Failed Backup Validation"
+          TextBody: ":no_entry: Failed Backup Validation"
+          TargetHost: "${{ env.RmanTarget }}"
+          TargetEnvironment: "${{ needs.build_rman_target_name.outputs.TargetEnvironment }}"
+          JobName: "${{ github.job }}"
+          SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion || 'main' }}
+          SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion || 'main' }}
+
+      - name: Send Slack Success Notification
+        id: foreground_success_slack_notification
+        if: success()
+        uses: ./.github/actions/send-slack-notification
+        env:
+            AWS_ACCOUNT_ID: "${{ vars.AWS_ACCOUNT_ID }}"
+        with:
+          Emoji: ":github-green:"
+          TextHeader: "Successful Backup Validation"
+          TextBody: ":github-tick: Backup validation completed successfully"
+          TargetHost: "${{ env.RmanTarget }}"
+          TargetEnvironment: "${{ needs.build_rman_target_name.outputs.TargetEnvironment }}"
+          JobName: "${{ github.job }}"
+          SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion || 'main' }}
+          SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion || 'main' }}
+
+  repository_dispatch_notification:
+    if: ${{ github.event_name == 'repository_dispatch' && github.event.sender.type == 'Bot' && (github.actor == 'hmpps-bot[bot]' || github.actor == 'github-actions[bot]') }}
+    runs-on: ubuntu-latest
+    environment: "hmpps-oem-development-preapproved"
+    concurrency:
+      group: repository-dispatch-${{ github.event.action }}-${{ github.event.client_payload.TargetEnvironment || github.event.client_payload.targetEnvironment || github.event.client_payload.target_environment || github.run_id }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      TargetEnvironment: ${{ steps.prepare-repository-dispatch-inputs.outputs.TargetEnvironment }}
+      TargetHost: ${{ steps.prepare-repository-dispatch-inputs.outputs.TargetHost }}
+      SourceCodeVersion: ${{ steps.prepare-repository-dispatch-inputs.outputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ steps.prepare-repository-dispatch-inputs.outputs.SourceConfigVersion }}
+    steps:
+      - name: Checkout Local Repo to get Composite Action
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Validate Repository Dispatch Source Metadata
+        shell: bash
+        env:
+          DISPATCH_ACTION: ${{ github.event.action }}
+          DISPATCH_ACTOR: ${{ github.actor }}
+          DISPATCH_SENDER: ${{ github.event.sender.login }}
+          DISPATCH_SENDER_TYPE: ${{ github.event.sender.type }}
+        run: |
+          if [[ ! "$DISPATCH_ACTION" =~ ^oracle-db-backup-validation-(success|failure)$ ]]; then
+            echo "Invalid repository_dispatch action: $DISPATCH_ACTION" >&2
+            exit 1
+          fi
+
+          if [[ "$DISPATCH_SENDER_TYPE" != "Bot" ]]; then
+            echo "Invalid repository_dispatch sender type: $DISPATCH_SENDER_TYPE" >&2
+            exit 1
+          fi
+
+          if [[ "$DISPATCH_SENDER" != "$DISPATCH_ACTOR" ]]; then
+            echo "Sender/actor mismatch: sender=$DISPATCH_SENDER actor=$DISPATCH_ACTOR" >&2
+            exit 1
+          fi
+
+          if [[ "$DISPATCH_SENDER" != "hmpps-bot[bot]" && "$DISPATCH_SENDER" != "github-actions[bot]" ]]; then
+            echo "Unauthorized repository_dispatch sender: $DISPATCH_SENDER" >&2
+            exit 1
+          fi
+
+      - name: Prepare Repository Dispatch Inputs
+        id: prepare-repository-dispatch-inputs
+        shell: bash
+        env:
+          CLIENT_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: |
+          set -euo pipefail
+
+          payload_file="$(mktemp)"
+          trap 'rm -f "$payload_file"' EXIT
+          printf '%s' "$CLIENT_PAYLOAD" > "$payload_file"
+
+          read_payload_value() {
+            jq -er "$1 // empty | tostring" "$payload_file" 2>/dev/null || true
+          }
+
+          # Ensure all values are a single line before writing to GitHub output.
+          trim_to_single_line() {
+            printf '%s' "$1" | tr -d '\r\n'
+          }
+
+          target_environment="$(trim_to_single_line "$(read_payload_value '.TargetEnvironment // .targetEnvironment // .target_environment')")"
+          target_host="$(trim_to_single_line "$(read_payload_value '.TargetHost // .targetHost // .target_host')")"
+          source_code_version="$(trim_to_single_line "$(read_payload_value '.SourceCodeVersion // .sourceCodeVersion // .source_code_version')")"
+          source_config_version="$(trim_to_single_line "$(read_payload_value '.SourceConfigVersion // .sourceConfigVersion // .source_config_version')")"
+          dispatch_source="$(trim_to_single_line "$(read_payload_value '.DispatchSource // .dispatchSource // .dispatch_source')")"
+
+          # Reject untrusted values that contain characters outside expected formats.
+          [[ "$target_environment" =~ ^[a-z0-9-]+$ ]] || target_environment="unknown"
+          [[ "$target_host" =~ ^[A-Za-z0-9._-]+$ ]] || target_host="unknown"
+          [[ "$source_code_version" =~ ^[A-Za-z0-9._/-]+$ ]] || source_code_version="main"
+          [[ "$source_config_version" =~ ^[A-Za-z0-9._/-]+$ ]] || source_config_version="main"
+          [[ "$dispatch_source" == "oracle-backup-validation" ]] || {
+            echo "Invalid repository_dispatch source marker" >&2
+            exit 1
+          }
+
+          [[ -n "$target_environment" ]] || target_environment="unknown"
+          [[ -n "$target_host" ]] || target_host="unknown"
+          [[ -n "$source_code_version" ]] || source_code_version="main"
+          [[ -n "$source_config_version" ]] || source_config_version="main"
+
+          printf 'TargetEnvironment=%s\n' "$target_environment" >> "$GITHUB_OUTPUT"
+          printf 'TargetHost=%s\n' "$target_host" >> "$GITHUB_OUTPUT"
+          printf 'SourceCodeVersion=%s\n' "$source_code_version" >> "$GITHUB_OUTPUT"
+          printf 'SourceConfigVersion=%s\n' "$source_config_version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Repository Dispatch Payload
+        shell: bash
+        env:
+          TARGET_ENVIRONMENT: ${{ steps.prepare-repository-dispatch-inputs.outputs.TargetEnvironment }}
+          TARGET_HOST: ${{ steps.prepare-repository-dispatch-inputs.outputs.TargetHost }}
+        run: |
+          if [[ ! "$TARGET_ENVIRONMENT" =~ ^(delius-core-dev|delius-core-test|delius-core-training|delius-core-stage|delius-core-preprod|delius-core-prod|delius-mis-dev|delius-mis-stage|delius-mis-preprod|delius-mis-prod)$ ]]; then
+            echo "Invalid repository_dispatch TargetEnvironment: $TARGET_ENVIRONMENT" >&2
+            exit 1
+          fi
+
+          if [[ ! "$TARGET_HOST" =~ ^((delius|mis|boe|dsd)_(primarydb|standbydb[1-2]))$ ]]; then
+            echo "Invalid repository_dispatch TargetHost: $TARGET_HOST" >&2
+            exit 1
+          fi
+
+      - name: Send Slack Repository Dispatch Success Notification
+        if: ${{ github.event.action == 'oracle-db-backup-validation-success' }}
+        id: repository_dispatch_success_slack_notification
+        uses: ./.github/actions/send-slack-notification
+        env:
+          AWS_ACCOUNT_ID: "${{ vars.AWS_ACCOUNT_ID }}"
+        with:
+          Emoji: ":github-green:"
+          TextHeader: "Backup Validation Success"
+          TextBody: ":github-tick: Backup validation completed successfully"
+          TargetHost: "${{ steps.prepare-repository-dispatch-inputs.outputs.TargetHost }}"
+          TargetEnvironment: "${{ steps.prepare-repository-dispatch-inputs.outputs.TargetEnvironment }}"
+          JobName: "${{ github.event.action }}"
+          SourceCodeVersion: ${{ steps.prepare-repository-dispatch-inputs.outputs.SourceCodeVersion }}
+          SourceConfigVersion: ${{ steps.prepare-repository-dispatch-inputs.outputs.SourceConfigVersion }}
+
+      - name: Send Slack Repository Dispatch Failure Notification
+        if: ${{ github.event.action == 'oracle-db-backup-validation-failure' }}
+        id: repository_dispatch_failure_slack_notification
+        uses: ./.github/actions/send-slack-notification
+        env:
+          AWS_ACCOUNT_ID: "${{ vars.AWS_ACCOUNT_ID }}"
+        with:
+          Emoji: ":github-red:"
+          TextHeader: "Backup Validation Failure"
+          TextBody: ":cross-red: Backup validation failed"
+          TargetHost: "${{ steps.prepare-repository-dispatch-inputs.outputs.TargetHost }}"
+          TargetEnvironment: "${{ steps.prepare-repository-dispatch-inputs.outputs.TargetEnvironment }}"
+          JobName: "${{ github.event.action }}"
+          SourceCodeVersion: ${{ steps.prepare-repository-dispatch-inputs.outputs.SourceCodeVersion }}
+          SourceConfigVersion: ${{ steps.prepare-repository-dispatch-inputs.outputs.SourceConfigVersion }}

@@ -82,8 +82,16 @@ runs:
       # temporary file which can then be grepped to get the required property.
       - name: Get Target Slack Channel
         shell: bash
+        env:
+         INPUT_TARGET_HOST: ${{ inputs.TargetHost }}
         run: |
-             if [ -z ${{ inputs.TargetHost }} ]
+           set -euo pipefail
+
+           target_host="${INPUT_TARGET_HOST}"
+           # Restrict host values to expected hostname characters.
+           [[ "$target_host" =~ ^[A-Za-z0-9._-]+$ ]] || target_host=""
+
+           if [[ -z "$target_host" ]]
              then
                 # If this alert is not for a specific host then we cannot 
                 # determine which Slack channel to use; so default it instead
@@ -93,7 +101,7 @@ runs:
                 ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_get_slack_channel/roles
                 ansible-playbook operations/playbooks/oracle_get_slack_channel/playbook.yml \
                     -i inventory/ansible \
-                    -e target_host=${{ inputs.TargetHost }} | tee /tmp/get_slack_channel.out
+                -e "target_host=$target_host" | tee /tmp/get_slack_channel.out
               fi
 
       - name: Report Slack Channel
