@@ -398,7 +398,7 @@ jobs:
             exit 1
           fi
 
-          if [[ ! "$TARGET_HOST" =~ ^((delius|mis|boe|dsd)_(primarydb|standbydb[1-2]))$ ]]; then
+          if [[ ! "$TARGET_HOST" =~ ((delius|mis|boe|dsd)_(primarydb|standbydb[1-2]))$ ]]; then
             echo "Invalid repository_dispatch TargetHost: $TARGET_HOST" >&2
             exit 1
           fi
