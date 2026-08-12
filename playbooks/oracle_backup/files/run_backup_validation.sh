@@ -32,6 +32,10 @@ escape_rman_single_quotes() {
 }
 
 get_rman_password () {
+  local assumed_access_key
+  local assumed_secret_key
+  local assumed_session_token
+
   validate_regex "${ASSUME_ROLE_NAME:-}" '^[A-Za-z0-9+=,.@_-]{1,128}$' 'ASSUME_ROLE_NAME'
   validate_regex "${SECRET_ACCOUNT_ID:-}" '^[0-9]{12}$' 'SECRET_ACCOUNT_ID'
 
@@ -39,22 +43,22 @@ get_rman_password () {
   ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ASSUME_ROLE_NAME}"
   SESSION="catalog-ansible"
   CREDS_JSON=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION}" --duration-seconds 900 --output json)
-  export AWS_ACCESS_KEY_ID=$(jq -r '.Credentials.AccessKeyId' <<< "$CREDS_JSON")
-  export AWS_SECRET_ACCESS_KEY=$(jq -r '.Credentials.SecretAccessKey' <<< "$CREDS_JSON")
-  export AWS_SESSION_TOKEN=$(jq -r '.Credentials.SessionToken' <<< "$CREDS_JSON")
+  assumed_access_key=$(jq -r '.Credentials.AccessKeyId' <<< "$CREDS_JSON")
+  assumed_secret_key=$(jq -r '.Credentials.SecretAccessKey' <<< "$CREDS_JSON")
+  assumed_session_token=$(jq -r '.Credentials.SessionToken' <<< "$CREDS_JSON")
 
-  validate_regex "${AWS_ACCESS_KEY_ID}" '^ASIA[0-9A-Z]{16}$' 'AWS_ACCESS_KEY_ID'
-  validate_regex "${AWS_SECRET_ACCESS_KEY}" '^[A-Za-z0-9/+=]{40}$' 'AWS_SECRET_ACCESS_KEY'
-  validate_regex "${AWS_SESSION_TOKEN}" '^[A-Za-z0-9/+=._-]{100,}$' 'AWS_SESSION_TOKEN'
+  validate_regex "${assumed_access_key}" '^ASIA[0-9A-Z]{16}$' 'AWS_ACCESS_KEY_ID'
+  validate_regex "${assumed_secret_key}" '^[A-Za-z0-9/+=]{40}$' 'AWS_SECRET_ACCESS_KEY'
+  validate_regex "${assumed_session_token}" '^[A-Za-z0-9/+=._-]{100,}$' 'AWS_SESSION_TOKEN'
 
-  ASSUMED_ARN=$(aws sts get-caller-identity --query Arn --output text)
+  ASSUMED_ARN=$(AWS_ACCESS_KEY_ID="$assumed_access_key" AWS_SECRET_ACCESS_KEY="$assumed_secret_key" AWS_SESSION_TOKEN="$assumed_session_token" aws sts get-caller-identity --query Arn --output text)
   if [[ "$ASSUMED_ARN" != *":assumed-role/${ASSUME_ROLE_NAME}/"* ]]; then
     echo "ERROR : ${THISSCRIPT} : $(date +"%D %T") : Unexpected assumed role identity ${ASSUMED_ARN}" >&2
     exit 1
   fi
 
   SECRET_ARN="arn:aws:secretsmanager:eu-west-2:${SECRET_ACCOUNT_ID}:secret:${SECRET}"
-  RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
+  RMANPASS=$(AWS_ACCESS_KEY_ID="$assumed_access_key" AWS_SECRET_ACCESS_KEY="$assumed_secret_key" AWS_SESSION_TOKEN="$assumed_session_token" aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
 }
 
 create_client_payload() {
