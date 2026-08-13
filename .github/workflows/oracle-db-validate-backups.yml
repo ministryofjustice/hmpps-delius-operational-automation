@@ -298,7 +298,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
-    environment: "${{ github.event.client_payload.TargetEnvironment || github.event.client_payload.targetEnvironment || github.event.client_payload.target_environment || 'hmpps-oem-development' }}-preapproved"
+    environment: "${{ (contains(fromJson('[\"delius-core-dev\",\"delius-core-test\",\"delius-core-training\",\"delius-core-stage\",\"delius-core-preprod\",\"delius-core-prod\",\"delius-mis-dev\",\"delius-mis-stage\",\"delius-mis-preprod\",\"delius-mis-prod\"]'), github.event.client_payload.TargetEnvironment || github.event.client_payload.targetEnvironment || github.event.client_payload.target_environment) && format('{0}-preapproved', github.event.client_payload.TargetEnvironment || github.event.client_payload.targetEnvironment || github.event.client_payload.target_environment)) || 'hmpps-oem-development-preapproved' }}"
     concurrency:
       group: repository-dispatch-${{ github.event.action }}-${{ github.event.client_payload.TargetEnvironment || github.event.client_payload.targetEnvironment || github.event.client_payload.target_environment || github.run_id }}
       cancel-in-progress: true
