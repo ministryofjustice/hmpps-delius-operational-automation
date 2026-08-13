@@ -1,5 +1,5 @@
 name: "Oracle: Validate Backup"
-run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_validate_backup"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) || github.event_name == 'repository_dispatch' && format('{0}_{1}', github.event.client_payload.TargetEnvironment || github.event.client_payload.targetEnvironment || github.event.client_payload.target_environment || 'unknown-environment', github.event.client_payload.TargetHost || github.event.client_payload.targetHost || github.event.client_payload.target_host || 'unknown-host') || github.event_name }}_validate_backup"
 on:
   workflow_dispatch:
     inputs:
@@ -259,6 +259,7 @@ jobs:
              $VerboseOutput
 
       - name: Checkout Local Repo to get Composite Action
+        if: always()
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Send Slack Failure Notification
@@ -271,22 +272,6 @@ jobs:
           Emoji: ":github-red:"
           TextHeader: "Failed Backup Validation"
           TextBody: ":no_entry: Failed Backup Validation"
-          TargetHost: "${{ env.RmanTarget }}"
-          TargetEnvironment: "${{ needs.build_rman_target_name.outputs.TargetEnvironment }}"
-          JobName: "${{ github.job }}"
-          SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion || 'main' }}
-          SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion || 'main' }}
-
-      - name: Send Slack Success Notification
-        id: foreground_success_slack_notification
-        if: success()
-        uses: ./.github/actions/send-slack-notification
-        env:
-            AWS_ACCOUNT_ID: "${{ vars.AWS_ACCOUNT_ID }}"
-        with:
-          Emoji: ":github-green:"
-          TextHeader: "Successful Backup Validation"
-          TextBody: ":github-tick: Backup validation completed successfully"
           TargetHost: "${{ env.RmanTarget }}"
           TargetEnvironment: "${{ needs.build_rman_target_name.outputs.TargetEnvironment }}"
           JobName: "${{ github.job }}"
