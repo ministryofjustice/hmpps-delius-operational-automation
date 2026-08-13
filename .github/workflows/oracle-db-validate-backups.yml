@@ -1,5 +1,5 @@
 name: "Oracle: Validate Backup"
-run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) }}_validate_backup"
+run-name: "Oracle: ${{ github.event_name == 'workflow_dispatch' && format('{0}_{1}', github.event.inputs.TargetEnvironment, github.event.inputs.TargetHost) || github.event_name == 'repository_dispatch' && format('{0}_{1}', github.event.client_payload.TargetEnvironment || github.event.client_payload.targetEnvironment || github.event.client_payload.target_environment || 'unknown-environment', github.event.client_payload.TargetHost || github.event.client_payload.targetHost || github.event.client_payload.target_host || 'unknown-host') || github.event_name }}_validate_backup"
 on:
   workflow_dispatch:
     inputs:
