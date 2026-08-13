@@ -278,22 +278,6 @@ jobs:
           SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion || 'main' }}
           SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion || 'main' }}
 
-      - name: Send Slack Success Notification
-        id: foreground_success_slack_notification
-        if: success()
-        uses: ./.github/actions/send-slack-notification
-        env:
-            AWS_ACCOUNT_ID: "${{ vars.AWS_ACCOUNT_ID }}"
-        with:
-          Emoji: ":github-green:"
-          TextHeader: "Successful Backup Validation"
-          TextBody: ":github-tick: Backup validation completed successfully"
-          TargetHost: "${{ env.RmanTarget }}"
-          TargetEnvironment: "${{ needs.build_rman_target_name.outputs.TargetEnvironment }}"
-          JobName: "${{ github.job }}"
-          SourceCodeVersion: ${{ github.event.inputs.SourceCodeVersion || 'main' }}
-          SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion || 'main' }}
-
   repository_dispatch_notification:
     if: ${{ github.event_name == 'repository_dispatch' && github.event.sender.type == 'Bot' && (github.actor == 'hmpps-bot[bot]' || github.actor == 'github-actions[bot]') }}
     runs-on: ubuntu-latest
