@@ -296,6 +296,8 @@ jobs:
   repository_dispatch_notification:
     if: ${{ github.event_name == 'repository_dispatch' && github.event.sender.type == 'Bot' && (github.actor == 'hmpps-bot[bot]' || github.actor == 'github-actions[bot]') }}
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     environment: "hmpps-oem-development-preapproved"
     concurrency:
       group: repository-dispatch-${{ github.event.action }}-${{ github.event.client_payload.TargetEnvironment || github.event.client_payload.targetEnvironment || github.event.client_payload.target_environment || github.run_id }}
