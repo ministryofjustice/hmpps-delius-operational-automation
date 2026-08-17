@@ -390,6 +390,8 @@ jobs:
             exit 1
           fi
 
+      # Successful validations are sent to the #delius-aws-oracle-backups to keep the alerting
+      # channels clear for genuine problems
       - name: Send Slack Repository Dispatch Success Notification
         if: ${{ github.event.action == 'oracle-db-backup-validation-success' }}
         id: repository_dispatch_success_slack_notification
@@ -405,6 +407,7 @@ jobs:
           JobName: "${{ github.event.action }}"
           SourceCodeVersion: ${{ steps.prepare-repository-dispatch-inputs.outputs.SourceCodeVersion }}
           SourceConfigVersion: ${{ steps.prepare-repository-dispatch-inputs.outputs.SourceConfigVersion }}
+          SlackChannel: "#delius-aws-oracle-backups"
 
       - name: Send Slack Repository Dispatch Failure Notification
         if: ${{ github.event.action == 'oracle-db-backup-validation-failure' }}
