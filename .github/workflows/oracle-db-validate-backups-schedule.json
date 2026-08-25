@@ -43,6 +43,12 @@
     },
     {
         "TargetEnvironment":"delius-mis-stage",
+        "TargetHost":"boe_primarydb",
+        "CronSchedule":"00 18 * * SAT",
+        "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
+    },
+    {
+        "TargetEnvironment":"delius-mis-stage",
         "TargetHost":"dsd_primarydb",
         "CronSchedule":"00 18 * * SAT",
         "Comment": "Specify validation times using Europe/London timezone (not UTC). DST will be automatically handled."
