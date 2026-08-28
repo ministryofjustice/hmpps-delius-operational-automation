@@ -127,7 +127,7 @@ jobs:
         shell: bash
         working-directory: ${{ env.inventory }}
         run: |
-          source "$PWD/operations/common/files/build_inventory_name.sh"
+          source "$GITHUB_WORKSPACE/operations/common/files/build_inventory_name.sh"
 
           database_environment="environment_name_$(normalize_environment_name "${{ github.event.inputs.TargetEnvironment }}")"
           database_type=$(echo ${{ github.event.inputs.TargetHost }} | cut -d_ -f1)
