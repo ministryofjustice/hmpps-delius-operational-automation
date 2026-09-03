@@ -29,6 +29,7 @@ on:
 concurrency:
   group: oracle-audit-purge-${{ github.event.inputs.TargetEnvironment }}
   cancel-in-progress: false
+  queue: max
 
 env:
   ansible_config: operations/playbooks/ansible.cfg
