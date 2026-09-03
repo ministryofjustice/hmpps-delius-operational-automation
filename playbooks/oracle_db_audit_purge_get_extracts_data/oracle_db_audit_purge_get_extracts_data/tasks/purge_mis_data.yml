@@ -1,6 +1,6 @@
 
 - name: Get Corresponding Partition in {{ schema_name }}
-  script: get_partition_for_high_value.sh {{ next_partition_high_value }} {{ schema_name }} Z_AUDITED_INTERACTION
+  script: get_partition_for_high_value.sh {{ next_partition_high_value }} {{ schema_name }} AUDITED_INTERACTION
   register: get_mis_partition
   changed_when: false
 
