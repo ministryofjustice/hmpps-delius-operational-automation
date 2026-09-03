@@ -25,6 +25,8 @@ DECLARE
     l_partition_bytes_after  NUMBER;
     l_table_bytes_before     NUMBER;
     l_table_bytes_after      NUMBER;
+    l_partition_read_only    VARCHAR2(3);
+    l_partition_made_read_write BOOLEAN := FALSE;
 BEGIN
 
     -- Get the ID for the GET_EXTRACT_DATA business interaction type
@@ -101,6 +103,20 @@ BEGIN
 
     DBMS_APPLICATION_INFO.SET_ACTION(action_name => 'Exchanging partition');
 
+    SELECT read_only
+    INTO   l_partition_read_only
+    FROM   dba_tab_partitions
+    WHERE  table_owner    = l_schema_name
+    AND    table_name     = l_table_name
+    AND    partition_name = l_partition_name;
+
+    IF l_partition_read_only = 'YES' THEN
+        EXECUTE IMMEDIATE
+            'ALTER TABLE ' || l_schema_name || '.' || l_table_name || ' ' ||
+            'MODIFY PARTITION ' || l_partition_name || ' READ WRITE';
+        l_partition_made_read_write := TRUE;
+    END IF;
+
     -- Exchange the partition with the staging table.
     -- After the exchange:
     --   the partition holds only the rows kept in the staging table (BID != l_business_interaction_id)
@@ -112,6 +128,13 @@ BEGIN
         'EXCHANGE PARTITION ' || l_partition_name || ' ' ||
         'WITH TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg ' ||
         'WITHOUT VALIDATION';
+
+    IF l_partition_made_read_write THEN
+        EXECUTE IMMEDIATE
+            'ALTER TABLE ' || l_schema_name || '.' || l_table_name || ' ' ||
+            'MODIFY PARTITION ' || l_partition_name || ' READ ONLY';
+        l_partition_made_read_write := FALSE;
+    END IF;
 
     DBMS_APPLICATION_INFO.SET_ACTION(action_name => 'Dropping exchange table');
 
@@ -159,6 +182,15 @@ EXCEPTION
         DBMS_APPLICATION_INFO.SET_MODULE(module_name => NULL, action_name => NULL);
         DBMS_OUTPUT.PUT_LINE('PARTITION_STATUS=FAILED');
         DBMS_OUTPUT.PUT_LINE('PARTITION_ERROR=' || SQLERRM);
+        IF l_partition_made_read_write THEN
+            BEGIN
+                EXECUTE IMMEDIATE
+                    'ALTER TABLE ' || l_schema_name || '.' || l_table_name || ' ' ||
+                    'MODIFY PARTITION ' || l_partition_name || ' READ ONLY';
+            EXCEPTION
+                WHEN OTHERS THEN NULL;
+            END;
+        END IF;
         BEGIN
             EXECUTE IMMEDIATE 'DROP TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg PURGE';
         EXCEPTION
