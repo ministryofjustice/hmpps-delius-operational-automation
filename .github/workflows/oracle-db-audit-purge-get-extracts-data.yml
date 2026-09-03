@@ -25,6 +25,11 @@ on:
         type: string
         default: "main"
 
+# Only allow one purge run at a time so partitions are processed sequentially
+concurrency:
+  group: oracle-audit-purge-${{ github.event.inputs.TargetEnvironment }}
+  cancel-in-progress: false
+
 env:
   ansible_config: operations/playbooks/ansible.cfg
   command: ansible-playbook operations/playbooks/oracle_db_audit_purge_get_extracts_data/playbook.yml
