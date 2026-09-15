@@ -19,8 +19,6 @@ on:
     - cron: '0 23 * * 6' # Midnight BST Runs (Sun)
     - cron: '0 0 * * 1-6' # Midnight GMT Runs (Mon-Sat)
     - cron: '0 23 * * 0-5' # Midnight BST Runs (Mon-Sat)
-    - cron: '0 11 * * 1-6'       # 11am GMT Runs (Mon-Sat)
-    - cron: '0 10 * * 1-6'       # 11am BST Runs (Mon-Sat)
 
 jobs:
   prepare-run-matrix:
