@@ -204,8 +204,8 @@
     },
     {
         "TargetEnvironment": "delius-mis-prod",
-        "TargetHost": "mis_primarydb",
-        "CronSchedule": "0 0 * * 1-6",
+        "TargetHost": "mis_standbydb1",
+        "CronSchedule": "0 11 * * 1-6",
         "Period": "daily",
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
