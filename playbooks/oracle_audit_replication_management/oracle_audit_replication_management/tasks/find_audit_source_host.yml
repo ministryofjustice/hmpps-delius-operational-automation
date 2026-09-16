@@ -1,6 +1,12 @@
+- name: Use Environment Name to Disambiguate Endpoints in Shared Accounts
+  set_fact:
+      short_environment_name: "{{ environment_name.split('-')[-1] }}"
+
+# We get the database environment by checking all Ansible groups that this standby is a member of, and find the corresponding primary.
+# We are only interested in Delius groups
 - name: Get Database Environment
   set_fact:
-    database_environment: "{{ groups | select('match','.*_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
+    database_environment: "{{ groups | select('match','.*_' + short_environment_name + '_delius_primarydb') | list | first | regex_replace('^(.*)_primarydb', '\\1') }}"
 
 - name: Get All Possible databases
   set_fact:
