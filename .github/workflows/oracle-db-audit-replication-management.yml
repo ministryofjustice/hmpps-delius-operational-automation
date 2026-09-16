@@ -135,4 +135,5 @@ jobs:
           [ ! -z '${{ github.event.inputs.Action }}' ] && REPLICATION_ACTION='${{ github.event.inputs.Action }}' || REPLICATION_ACTION='${{ inputs.Action }}'
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
              -e replication_action=$REPLICATION_ACTION \
+             -e target_environment_name='${{ github.event_name == 'workflow_dispatch' && github.event.inputs['TargetEnvironment'] || inputs['TargetEnvironment'] }}' \
              -e target_hosts=${{ steps.prepareinventorynames.outputs.hosts }}
