@@ -18,6 +18,8 @@ DECLARE
     l_schema_name           VARCHAR2(128) := '${SCHEMA_NAME}';
     l_table_name            VARCHAR2(128) := '${TABLE_NAME}';
     l_compress_for          VARCHAR2(30)  := '${COMPRESS_FOR}';
+    l_tablespace_name       VARCHAR2(128);
+    l_created_tablespace_name VARCHAR2(128);
     l_rows_kept             NUMBER;
     l_rows_before           NUMBER;
     l_business_interaction_id ${SCHEMA_NAME}.business_interaction.business_interaction_id%TYPE;
@@ -70,11 +72,37 @@ BEGIN
             IF SQLCODE != -942 THEN RAISE; END IF; -- -942 = table or view does not exist
     END;
 
+    SELECT tablespace_name
+    INTO   l_tablespace_name
+    FROM   dba_tab_partitions
+    WHERE  table_owner    = l_schema_name
+    AND    table_name     = l_table_name
+    AND    partition_name = l_partition_name;
+
+    DBMS_OUTPUT.PUT_LINE('EXCHANGE_TABLE_TABLESPACE_EXPECTED=' || l_tablespace_name);
+
     -- Create exchange table with matching structure and storage properties
     -- FOR EXCHANGE WITH TABLE (Oracle 12c+) ensures full compatibility for partition exchange
     EXECUTE IMMEDIATE
         'CREATE TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg ' ||
+        'TABLESPACE ' || l_tablespace_name || ' ' ||
         'FOR EXCHANGE WITH TABLE ' || l_schema_name || '.' || l_table_name;
+
+    SELECT tablespace_name
+    INTO   l_created_tablespace_name
+    FROM   dba_tables
+    WHERE  owner      = l_schema_name
+    AND    table_name = 'Z_' || l_table_name || '_XCHG';
+
+    DBMS_OUTPUT.PUT_LINE('EXCHANGE_TABLE_TABLESPACE_ACTUAL=' || l_created_tablespace_name);
+
+    IF l_created_tablespace_name != l_tablespace_name THEN
+        RAISE_APPLICATION_ERROR(
+            -20001,
+            'Exchange table created in incorrect tablespace: expected ' ||
+            l_tablespace_name || ', actual ' || l_created_tablespace_name
+        );
+    END IF;
 
     -- Restore the partition's original compression before inserting so that
     -- the incoming data is stored in the same format as the source partition.
