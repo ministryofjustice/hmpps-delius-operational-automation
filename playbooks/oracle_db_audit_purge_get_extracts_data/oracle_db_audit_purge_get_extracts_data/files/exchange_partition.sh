@@ -18,6 +18,7 @@ DECLARE
     l_schema_name           VARCHAR2(128) := '${SCHEMA_NAME}';
     l_table_name            VARCHAR2(128) := '${TABLE_NAME}';
     l_compress_for          VARCHAR2(30)  := '${COMPRESS_FOR}';
+    l_tablespace_clause     VARCHAR2(128);
     l_rows_kept             NUMBER;
     l_rows_before           NUMBER;
     l_business_interaction_id ${SCHEMA_NAME}.business_interaction.business_interaction_id%TYPE;
@@ -72,9 +73,18 @@ BEGIN
 
     -- Create exchange table with matching structure and storage properties
     -- FOR EXCHANGE WITH TABLE (Oracle 12c+) ensures full compatibility for partition exchange
+    IF l_schema_name = 'NDMIS_CDC_SUBSCRIBER' THEN
+        l_tablespace_clause := ' TABLESPACE NDMIS_SUBS_AREA_LRG_DATA';
+    ELSIF l_schema_name = 'NDMIS_DATA' THEN
+        l_tablespace_clause := ' TABLESPACE NDMIS_FACT_LRG_DATA';
+    ELSE
+        l_tablespace_clause := NULL;
+    END IF;
+
     EXECUTE IMMEDIATE
         'CREATE TABLE ' || l_schema_name || '.z_' || l_table_name || '_xchg ' ||
-        'FOR EXCHANGE WITH TABLE ' || l_schema_name || '.' || l_table_name;
+        'FOR EXCHANGE WITH TABLE ' || l_schema_name || '.' || l_table_name ||
+        l_tablespace_clause;
 
     -- Restore the partition's original compression before inserting so that
     -- the incoming data is stored in the same format as the source partition.
