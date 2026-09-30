@@ -13,6 +13,8 @@ GRANT SELECT ON sys.v_\$sqlarea TO delius_user_support;
 
 GRANT SELECT ON sys.v_\$sql_shared_cursor TO delius_user_support;
 
+GRANT SELECT ON sys.v_\$db_object_cache TO delius_user_support;
+
 SET SERVEROUT ON
 
 DECLARE
@@ -54,6 +56,8 @@ BEGIN
        1. They contain an MV_REFRESH comment or a DELETE from a MV, and
        2. They are not sharable due to the use of Flashback, and
        3. They have a child version count above 5
+       4. They do not have cursor stats which Oracle has pinned in the shared pool
+          (as these prevent the cursor itself being purged)
     */
     FOR x IN (
         SELECT
@@ -77,6 +81,16 @@ BEGIN
                         c.sql_id = s.sql_id
                     AND c.flashback_cursor = 'Y'
             )
+            AND NOT EXISTS (
+                SELECT 
+                    1
+                FROM 
+                    v\$db_object_cache d
+                WHERE
+                        d.hash_value = s.hash_value
+                        AND d.kept = 'YES'
+                        AND d.type = 'CURSOR STATS'
+            )  
     ) LOOP
         sys.DBMS_SHARED_POOL.purge(x.address|| ','|| x.hash_value, 'C');
 
