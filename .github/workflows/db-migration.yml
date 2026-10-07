@@ -9,12 +9,20 @@ on:
         type: choice
         options:
           - delius-mis-dev
+          - delius-test
+          - delius-stage
+          - delius-pre-prod
+          - delius-prod
       env_dest:
         description: "Environment where db migration will be done (dev)"
         required: true
         type: choice
         options:
           - dev
+          - test
+          - stage
+          - preprod
+          - prod
       app:
         description: "Application DB to migrated ('gdpr' or 'merge')"
         required: true
@@ -22,10 +30,6 @@ on:
         options:
           - gdpr
           - merge
-      ssm_prefix:
-        description: "SSM Parameter Store prefix for legacy RDS credentials (e.g. '/delius-mis-dev/delius/merge/db/')"
-        required: true
-        type: string
 
 jobs:
   get-source-rds-creds:
@@ -66,10 +70,10 @@ jobs:
       - name: Get RDS credentials from SSM
         id: rds_creds
         run: |
-          DB_USER=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}db-username" --query "Parameter.Value" --output text)
-          DB_PASS=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}admin_password" --query "Parameter.Value" --output text)
-          DB_NAME=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}db-name" --query "Parameter.Value" --output text)
-          DB_HOST=$(aws ssm get-parameter --with-decryption --name "${{ github.event.inputs.ssm_prefix }}db-endpoint" --query "Parameter.Value" --output text)
+          DB_USER=$(aws ssm get-parameter --with-decryption --name "/${{ github.event.inputs.env_source }}/delius/${{ github.event.inputs.app }}/db/db-username" --query "Parameter.Value" --output text)
+          DB_PASS=$(aws ssm get-parameter --with-decryption --name "/${{ github.event.inputs.env_source }}/delius/${{ github.event.inputs.app }}/db/admin_password" --query "Parameter.Value" --output text)
+          DB_NAME=$(aws ssm get-parameter --with-decryption --name "/${{ github.event.inputs.env_source }}/delius/${{ github.event.inputs.app }}/db/db-name" --query "Parameter.Value" --output text)
+          DB_HOST=$(aws ssm get-parameter --with-decryption --name "/${{ github.event.inputs.env_source }}/delius/${{ github.event.inputs.app }}/db/db-endpoint" --query "Parameter.Value" --output text)
 
           echo "db_user=$DB_USER" >> $GITHUB_OUTPUT
           echo "db_pass=$DB_PASS" >> $GITHUB_OUTPUT
@@ -90,25 +94,25 @@ jobs:
           echo "${{ secrets.KUBE_CERT }}" > ca.crt
           kubectl config set-cluster ${KUBE_CLUSTER} --certificate-authority=./ca.crt --server=https://${KUBE_CLUSTER}
           kubectl config set-credentials deploy-user --token=${{ secrets.KUBE_TOKEN }}
-          kubectl config set-context ${KUBE_CLUSTER} --cluster=${KUBE_CLUSTER} --user=deploy-user --namespace=hmpps-delius-core-${{ github.event.inputs.destination_env }}
+          kubectl config set-context ${KUBE_CLUSTER} --cluster=${KUBE_CLUSTER} --user=deploy-user --namespace=${{ secrets.KUBE_NAMESPACE }}
           kubectl config use-context ${KUBE_CLUSTER}
         env:
           KUBE_CLUSTER: ${{ secrets.KUBE_CLUSTER }}
 
       - name: Create Kubernetes Secret
         run: |
-          kubectl delete secret legacy-rds-creds --ignore-not-found --namespace=hmpps-delius-core-${{ github.event.inputs.env_dest }}
+          kubectl delete secret legacy-rds-creds --ignore-not-found --namespace=${{ secrets.KUBE_NAMESPACE }}
           kubectl create secret generic legacy-rds-creds \
             --from-literal=DATABASE_USERNAME=${{ needs.get-source-rds-creds.outputs.db_user }} \
             --from-literal=DATABASE_PASSWORD=${{ needs.get-source-rds-creds.outputs.db_pass }} \
             --from-literal=DATABASE_NAME=${{ needs.get-source-rds-creds.outputs.db_name }} \
             --from-literal=RDS_INSTANCE_ADDRESS=${{ needs.get-source-rds-creds.outputs.db_host }} \
-            --namespace=hmpps-delius-core-${{ github.event.inputs.env_dest}}
+            --namespace=${{ secrets.KUBE_NAMESPACE }}
 
       - name: Deploy Migration Job via Helm
         run: |
           helm upgrade --install db-migration ./helm/migrate-db \
-            --namespace=hmpps-delius-core-${{ github.event.inputs.env_dest }} \
+            --namespace=${{ secrets.KUBE_NAMESPACE }} \
             --set appName=${{ github.event.inputs.app }} \
             --set job.environment=${{ github.event.inputs.env_dest }} \
             --wait
