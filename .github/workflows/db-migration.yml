@@ -109,10 +109,10 @@ jobs:
             --from-literal=RDS_INSTANCE_ADDRESS=${{ needs.get-source-rds-creds.outputs.db_host }} \
             --namespace=${{ secrets.KUBE_NAMESPACE }}
 
-      # - name: Deploy Migration Job via Helm
-      #   run: |
-      #     helm upgrade --install db-migration ./helm/migrate-db \
-      #       --namespace=${{ secrets.KUBE_NAMESPACE }} \
-      #       --set appName=${{ github.event.inputs.app }} \
-      #       --set job.environment=${{ github.event.inputs.env_dest }} \
-      #       --wait
+      - name: Deploy Migration Job via Helm
+        run: |
+          helm upgrade --install db-migration ./helm/migrate-db \
+            --namespace=${{ secrets.KUBE_NAMESPACE }} \
+            --set appName=${{ github.event.inputs.app }} \
+            --set job.environment=${{ github.event.inputs.env_dest }} \
+            --wait
