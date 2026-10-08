@@ -10,19 +10,20 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to rotate password (dev/stage/preprod)'
+        description: 'Environment to rotate password (dev/stage/preprod/prod)'
         required: true
         type: choice
         options:
           - dev
           - stage
           - preprod
+          - prod
 
 jobs:
   rotate-passwords:
     strategy:
       matrix:
-        env_name: ${{ github.event_name == 'schedule' && fromJson('["dev", "stage", "preprod"]') || fromJson(format('["{0}"]', github.event.inputs.environment)) }}
+        env_name: ${{ github.event_name == 'schedule' && fromJson('["dev", "stage", "preprod", "prod"]') || fromJson(format('["{0}"]', github.event.inputs.environment)) }}
     
     runs-on: ubuntu-latest
     environment: delius-mis-${{ matrix.env_name }}-preapproved
