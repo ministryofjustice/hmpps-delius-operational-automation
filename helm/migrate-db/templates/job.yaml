@@ -46,7 +46,7 @@ spec:
           imagePullPolicy: IfNotPresent
           resources:
             limits:
-              cpu: 4
+              cpu: 1
               memory: 4Gi
           command:
             - /bin/entrypoint.sh
