@@ -19,14 +19,41 @@
       {% endif %}
 
 # Very old data (before 2015) is not partitioned monthly in MIS so we simply delete the unwanted rows
-- name: Delete to Remove Old GET_EXTRACTS_DATA Rows
-  script: delete_rows.sh {{ next_partition_high_value }} {{ schema_name }} AUDITED_INTERACTION
-  register: exchange_partition_output
-  async: 1800
-  poll: 60
+- name: Remove Old GET_EXTRACTS_DATA Rows
   when:
       - next_partition_high_value != 'none'
       - next_partition_high_value <= '2015-01-01'
+  block:
+    - name: Create Temporary Delete Script
+      tempfile:
+        state: file
+        suffix: _delete_rows.sh
+      register: mis_delete_script
+
+    # The script action does not support async execution.
+    - name: Copy Delete Script
+      copy:
+        src: delete_rows.sh
+        dest: "{{ mis_delete_script.path }}"
+        mode: '0700'
+
+    - name: Delete to Remove Old GET_EXTRACTS_DATA Rows
+      command:
+        argv:
+          - /bin/bash
+          - "{{ mis_delete_script.path }}"
+          - "{{ next_partition_high_value }}"
+          - "{{ schema_name }}"
+          - AUDITED_INTERACTION
+      register: exchange_partition_output
+      async: 2400
+      poll: 60
+  always:
+    - name: Remove Temporary Delete Script
+      file:
+        path: "{{ mis_delete_script.path }}"
+        state: absent
+      when: mis_delete_script.path is defined
 
 - name: Exchange Partition to Remove GET_EXTRACTS_DATA Rows
   script: exchange_partition.sh {{ mis_partition_name }} NONE {{ schema_name }} AUDITED_INTERACTION
