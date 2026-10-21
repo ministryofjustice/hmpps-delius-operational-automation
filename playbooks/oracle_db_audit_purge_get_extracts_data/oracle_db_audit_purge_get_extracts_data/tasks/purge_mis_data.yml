@@ -22,7 +22,9 @@
 - name: Delete to Remove Old GET_EXTRACTS_DATA Rows
   script: delete_rows.sh {{ next_partition_high_value }} {{ schema_name }} AUDITED_INTERACTION
   register: exchange_partition_output
-  when: 
+  async: 1800
+  poll: 60
+  when:
       - next_partition_high_value != 'none'
       - next_partition_high_value <= '2015-01-01'
 
