@@ -35,7 +35,7 @@ permissions:
 
 jobs:
   stop-destination-environment:
-    name: Stop ${{ inputs.destination_env }} Environment
+    name: Stop ${{ inputs.destination_env }} Environment (Destination)
     runs-on: ubuntu-22.04
     environment:
       name: ${{ inputs.destination_env }}
@@ -80,7 +80,7 @@ jobs:
         done
 
   refresh-db:
-    name: Refresh DB
+    name: Refresh DB (${{ inputs.source_env }} -> ${{ inputs.destination_env }})
     runs-on: ubuntu-22.04
     environment:
       name: ${{ inputs.source_env }}
@@ -135,10 +135,11 @@ jobs:
             --set destinationEnvironment=${{ inputs.destination_env }} \
             --set component=${{ inputs.component }} \
             --wait \
+            --wait-for-jobs \
             --timeout 15m
 
   start-destination-environment:
-    name: Start ${{ inputs.destination_env }} Environment
+    name: Start ${{ inputs.destination_env }} Environment (Destination)
     runs-on: ubuntu-22.04
     environment:
       name: ${{ inputs.destination_env }}
