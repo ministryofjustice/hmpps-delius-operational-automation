@@ -133,7 +133,10 @@ jobs:
           helm install refresh-db-${{ inputs.component }} . \
             --set sourceEnvironment=${{ inputs.source_env }} \
             --set destinationEnvironment=${{ inputs.destination_env }} \
-            --set component=${{ inputs.component }}
+            --set component=${{ inputs.component }} \
+            --wait \
+            --timeout 20m
+
 
   start-destination-environment:
     name: Start ${{ inputs.destination_env }} Environment

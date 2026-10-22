@@ -35,7 +35,7 @@ spec:
   template:
     spec:
       containers:
-        - name: refresh-db
+        - name: '{{ .Values.component }}-refresh-db'
           image: ghcr.io/ministryofjustice/hmpps-delius-alfresco-db-utils:latest
           imagePullPolicy: IfNotPresent
           resources:
