@@ -52,7 +52,8 @@ jobs:
 
     - name: Stop ${{ github.event.inputs.destination_env }} Environment
       run: |
-        kubectl scale deployment ${{ github.event.inputs.component }} --replicas=0
+        kubectl scale deployment "delius-${{ github.event.inputs.component }}-ui" --replicas=0
+        kubectl scale deployment "delius-${{ github.event.inputs.component }}-api" --replicas=0
 
   refresh-db:
     name: Refresh DB
@@ -116,5 +117,5 @@ jobs:
 
     - name: Start ${{ github.event.inputs.destination_env }} Environment
       run: |
-
-        kubectl scale deployment ${{ github.event.inputs.component }} --replicas=1
+        kubectl scale deployment "delius-${{ github.event.inputs.component }}-ui" --replicas=1
+        kubectl scale deployment "delius-${{ github.event.inputs.component }}-api" --replicas=1
