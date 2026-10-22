@@ -35,7 +35,7 @@ permissions:
 
 jobs:
   stop-destination-environment:
-    name: Stop ${{ inputs.destination_env }} Environment (Destination)
+    name: Stop ${{ inputs.destination_env }} ${{ inputs.component }} pods (Destination)
     runs-on: ubuntu-22.04
     environment:
       name: ${{ inputs.destination_env }}
@@ -139,7 +139,7 @@ jobs:
             --timeout 15m
 
   start-destination-environment:
-    name: Start ${{ inputs.destination_env }} Environment (Destination)
+    name: Start ${{ inputs.destination_env }} ${{ inputs.component }} pods (Destination)
     runs-on: ubuntu-22.04
     environment:
       name: ${{ inputs.destination_env }}

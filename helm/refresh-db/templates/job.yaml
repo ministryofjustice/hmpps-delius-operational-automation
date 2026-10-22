@@ -29,7 +29,7 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: refresh-db
+  name: '{{ .Release.Name }}-job'
 spec:
   backoffLimit: 0
   template:
