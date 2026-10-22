@@ -137,7 +137,6 @@ jobs:
             --wait \
             --timeout 15m
 
-
   start-destination-environment:
     name: Start ${{ inputs.destination_env }} Environment
     runs-on: ubuntu-22.04
