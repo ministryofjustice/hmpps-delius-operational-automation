@@ -1,5 +1,5 @@
 ---
-name: CP RDS Data Refresh
+name: "Delius Core: GDPR/Merge RDS Data Refresh"
 
 on:
   workflow_dispatch:
@@ -17,12 +17,18 @@ on:
         type: choice
         options:
           - test
+          - stage
+          - preprod
+          - prod
       destination_env:
         description: Environment to copy data to
         required: true
         type: choice
         options:
           - dev
+          - test
+          - stage
+          - preprod
 
 permissions:
   contents: read
