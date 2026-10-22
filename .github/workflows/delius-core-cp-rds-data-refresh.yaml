@@ -135,7 +135,7 @@ jobs:
             --set destinationEnvironment=${{ inputs.destination_env }} \
             --set component=${{ inputs.component }} \
             --wait \
-            --timeout 20m
+            --timeout 15m
 
 
   start-destination-environment:
