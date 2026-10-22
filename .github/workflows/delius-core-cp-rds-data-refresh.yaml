@@ -55,12 +55,41 @@ jobs:
         kubectl scale deployment "delius-${{ inputs.component }}-ui" --replicas=0
         kubectl scale deployment "delius-${{ inputs.component }}-api" --replicas=0
 
+    - name: 'Get ${{ inputs.component }} (${{ inputs.destination_env }}) Database Credentials'
+      id: get_dest_rds_creds
+      env:
+        K8S_SECRET: ${{ inputs.component }}-rds-instance-output
+      run: |
+        set -euo pipefail
+
+        secret=$(kubectl get secret "$K8S_SECRET" -o json)
+
+        for key in DATABASE_NAME DATABASE_PASSWORD DATABASE_USERNAME RDS_INSTANCE_ADDRESS; do
+          value=$(jq -r --arg key "$key" '.data[$key] // empty' <<< "$secret" | base64 --decode)
+
+          if [[ -z "$value" ]]; then
+            echo "::error::Missing or empty secret value: $key"
+            exit 1
+          fi
+
+          if [[ "$key" == "DATABASE_PASSWORD" || "$key" == "DATABASE_USERNAME" ]]; then
+            echo "::add-mask::$value"
+          fi
+
+          echo "$key=$value" >> "$GITHUB_OUTPUT"
+        done
+
   refresh-db:
     name: Refresh DB
     runs-on: ubuntu-22.04
     environment:
       name: ${{ inputs.source_env }}
     needs: stop-destination-environment
+    outputs:
+      db_user: ${{ steps.get_dest_rds_creds.outputs.DATABASE_USERNAME }}
+      db_pass: ${{ steps.get_dest_rds_creds.outputs.DATABASE_PASSWORD }}
+      db_name: ${{ steps.get_dest_rds_creds.outputs.DATABASE_NAME }}
+      db_host: ${{ steps.get_dest_rds_creds.outputs.RDS_INSTANCE_ADDRESS }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -84,6 +113,16 @@ jobs:
           kubectl config use-context ${KUBE_CLUSTER}
         env:
           KUBE_CLUSTER: ${{ secrets.KUBE_CLUSTER }}
+
+      - name: Create Kubernetes Secret to store credentials
+        run: |
+          kubectl delete secret ${{ inputs.destination_env }}-${{ inputs.component }}-rds-instance-output --ignore-not-found
+          kubectl create secret generic ${{ inputs.destination_env }}-${{ inputs.component }}-rds-instance-output \
+            --from-literal=DATABASE_USERNAME=${{ needs.stop-destination-environment.db_user }} \
+            --from-literal=DATABASE_PASSWORD=${{ needs.stop-destination-environment.db_pass }} \
+            --from-literal=DATABASE_NAME=${{ needs.stop-destination-environment.db_name }} \
+            --from-literal=RDS_INSTANCE_ADDRESS=${{ needs.stop-destination-environment.db_host }} \
+            --namespace=${{ secrets.KUBE_NAMESPACE }}
 
       - name: Uninstall DB Refresh chart
         run: helm uninstall refresh-db-${{ inputs.component }} --ignore-not-found

@@ -7,19 +7,7 @@ data:
   entrypoint.sh: |-
     #!/bin/bash
     set -e
-    trap 'send_slack_notification $?' EXIT
-
-    function send_slack_notification() {
-      STATUS=$1
-      if [ "$STATUS" -eq 0 ]; then
-        JSON_PAYLOAD=$(jq -n --arg text "Refresh DB (${SRC_ENV} to ${DST_ENV}) job succeeded" '{text: $text}')
-      else
-        ERROR_MSG=$(tail -n 10 ~/error.log) || ERROR_MSG="Unknown error"
-        JSON_PAYLOAD=$(jq -n --arg text "Refresh DB (${SRC_ENV} to ${DST_ENV}) job failed with error: $ERROR_MSG" '{text: $text}')
-      fi
-      curl -X POST -H 'Content-type: application/json' --data "$JSON_PAYLOAD" $SLACK_WEBHOOK_URL
-    }
-
+ 
     echo "${SRC_DB_HOST}:5432:${SRC_DB_NAME}:${SRC_DB_USER}:${SRC_DB_PASS}" > ~/.pgpass
     echo "${DST_DB_HOST}:5432:${DST_DB_NAME}:${DST_DB_USER}:${DST_DB_PASS}" >> ~/.pgpass
     cat ~/.pgpass
@@ -48,7 +36,7 @@ spec:
     spec:
       containers:
         - name: refresh-db
-          image: ghcr.io/ministryofjustice/REPLACE ME # replace with image similar to the afresco db utils
+          image: ghcr.io/ministryofjustice/hmpps-delius-alfresco-db-utils:latest
           imagePullPolicy: IfNotPresent
           resources:
             limits:
@@ -57,54 +45,46 @@ spec:
           command:
             - /bin/entrypoint.sh
           env:
-            - name: HOME
-              value: "/home/job"
             - name: SRC_DB_NAME
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.component }}
+                  name: '{{ .Values.component }}-rds-instance-output'
                   key: DATABASE_NAME
             - name: SRC_DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.component }}
+                  name: '{{ .Values.component }}-rds-instance-output'
                   key: DATABASE_USERNAME
             - name: SRC_DB_PASS
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.component }}
+                  name: '{{ .Values.component }}-rds-instance-output'
                   key: DATABASE_PASSWORD
             - name: SRC_DB_HOST
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.component }}
+                  name: '{{ .Values.component }}-rds-instance-output'
                   key: RDS_INSTANCE_ADDRESS
             - name: DST_DB_NAME
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.destinationEnvironment }}-{{ .Values.component }}
+                  name: '{{ .Values.destinationEnvironment }}-{{ .Values.component }}-rds-instance-output'
                   key: DATABASE_NAME
             - name: DST_DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.destinationEnvironment }}-{{ .Values.component }}
+                  name: '{{ .Values.destinationEnvironment }}-{{ .Values.component }}-rds-instance-output'
                   key: DATABASE_USERNAME
             - name: DST_DB_PASS
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.destinationEnvironment }}-{{ .Values.component }}
+                  name: '{{ .Values.destinationEnvironment }}-{{ .Values.component }}-rds-instance-output'
                   key: DATABASE_PASSWORD
             - name: DST_DB_HOST
               valueFrom:
                 secretKeyRef:
-                  name: rds-instance-output-{{ .Values.destinationEnvironment }}-{{ .Values.component }}
+                  name: '{{ .Values.destinationEnvironment }}-{{ .Values.component }}-rds-instance-output'
                   key: RDS_INSTANCE_ADDRESS
-            - name: SLACK_WEBHOOK_URL
-              value: "{{ .Values.slackWebhookUrl }}"
-            - name: SRC_ENV
-              value: "{{ .Values.sourceEnvironment }}"
-            - name: DST_ENV
-              value: "{{ .Values.destinationEnvironment }}"
           volumeMounts:
             - name: refresh-db-script
               mountPath: /bin/entrypoint.sh
