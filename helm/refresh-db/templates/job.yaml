@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: refresh-db-script
+  name: '{{ .Release.Name }}-script'
 data:
   entrypoint.sh: |-
     #!/bin/bash
@@ -107,6 +107,6 @@ spec:
       volumes:
         - name: refresh-db-script
           configMap:
-            name: refresh-db-script
+            name: '{{ .Release.Name }}-script'
             defaultMode: 0755
   backoffLimit: 0
