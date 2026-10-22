@@ -127,16 +127,16 @@ jobs:
       - name: Uninstall DB Refresh chart
         run: helm uninstall refresh-db-${{ inputs.component }} --ignore-not-found
 
-      # - name: DB Refresh
-      #   working-directory: helm/refresh-db
-      #   run: |
-      #     helm install refresh-db-${{ inputs.component }} . \
-      #       --set sourceEnvironment=${{ inputs.source_env }} \
-      #       --set destinationEnvironment=${{ inputs.destination_env }} \
-      #       --set component=${{ inputs.component }} \
-      #       --wait \
-      #       --wait-for-jobs \
-      #       --timeout 15m
+      - name: DB Refresh
+        working-directory: helm/refresh-db
+        run: |
+          helm install refresh-db-${{ inputs.component }} . \
+            --set sourceEnvironment=${{ inputs.source_env }} \
+            --set destinationEnvironment=${{ inputs.destination_env }} \
+            --set component=${{ inputs.component }} \
+            --wait \
+            --wait-for-jobs \
+            --timeout 15m
 
   start-destination-environment:
     name: Start ${{ inputs.destination_env }} ${{ inputs.component }} pods (Destination)
