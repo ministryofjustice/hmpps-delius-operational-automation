@@ -1,5 +1,5 @@
 ---
-name: CP RDS Data Refresh
+name: "Delius Core: GDPR/Merge RDS Data Refresh"
 
 on:
   workflow_dispatch:
@@ -17,43 +17,79 @@ on:
         type: choice
         options:
           - test
+          - stage
+          - preprod
+          - prod
       destination_env:
         description: Environment to copy data to
         required: true
         type: choice
         options:
           - dev
+          - test
+          - stage
+          - preprod
 
 permissions:
   contents: read
 
 jobs:
   stop-destination-environment:
-    name: Stop ${{ github.event.inputs.destination_env }} Environment
+    name: Stop ${{ inputs.destination_env }} ${{ inputs.component }} pods (Destination)
     runs-on: ubuntu-22.04
     environment:
-      name: ${{ github.event.inputs.destination_env }}
+      name: ${{ inputs.destination_env }}
     steps:
     - name: Configure kubectl
       run: |
         echo "${{ secrets.KUBE_CERT }}" > ca.crt
         kubectl config set-cluster ${KUBE_CLUSTER} --certificate-authority=./ca.crt --server=https://${KUBE_CLUSTER}
         kubectl config set-credentials deploy-user --token=${{ secrets.KUBE_TOKEN }}
-        kubectl config set-context ${KUBE_CLUSTER} --cluster=${KUBE_CLUSTER} --user=deploy-user --namespace=hmpps-delius-core-${{ github.event.inputs.destination_env }}
+        kubectl config set-context ${KUBE_CLUSTER} --cluster=${KUBE_CLUSTER} --user=deploy-user --namespace=hmpps-delius-core-${{ inputs.destination_env }}
         kubectl config use-context ${KUBE_CLUSTER}
       env:
         KUBE_CLUSTER: ${{ secrets.KUBE_CLUSTER }}
 
-    - name: Stop ${{ github.event.inputs.destination_env }} Environment
+    - name: Stop ${{ inputs.destination_env }} Environment
       run: |
-        kubectl scale deployment ${{ github.event.inputs.component }} --replicas=0
+        kubectl scale deployment "delius-${{ inputs.component }}-ui" --replicas=0
+        kubectl scale deployment "delius-${{ inputs.component }}-api" --replicas=0
+
+    - name: 'Get ${{ inputs.component }} (${{ inputs.destination_env }}) Database Credentials'
+      id: get_dest_rds_creds
+      env:
+        K8S_SECRET: ${{ inputs.component }}-rds-instance-output
+      run: |
+        set -euo pipefail
+
+        secret=$(kubectl get secret "$K8S_SECRET" -o json)
+
+        for key in DATABASE_NAME DATABASE_PASSWORD DATABASE_USERNAME RDS_INSTANCE_ADDRESS; do
+          value=$(jq -r --arg key "$key" '.data[$key] // empty' <<< "$secret" | base64 --decode)
+
+          if [[ -z "$value" ]]; then
+            echo "::error::Missing or empty secret value: $key"
+            exit 1
+          fi
+
+          if [[ "$key" == "DATABASE_PASSWORD" || "$key" == "DATABASE_USERNAME" ]]; then
+            echo "::add-mask::$value"
+          fi
+
+          echo "$key=$value" >> "$GITHUB_OUTPUT"
+        done
 
   refresh-db:
-    name: Refresh DB
+    name: Refresh DB (${{ inputs.source_env }} -> ${{ inputs.destination_env }})
     runs-on: ubuntu-22.04
     environment:
-      name: ${{ github.event.inputs.source_env }}
+      name: ${{ inputs.source_env }}
     needs: stop-destination-environment
+    outputs:
+      db_user: ${{ steps.get_dest_rds_creds.outputs.DATABASE_USERNAME }}
+      db_pass: ${{ steps.get_dest_rds_creds.outputs.DATABASE_PASSWORD }}
+      db_name: ${{ steps.get_dest_rds_creds.outputs.DATABASE_NAME }}
+      db_host: ${{ steps.get_dest_rds_creds.outputs.RDS_INSTANCE_ADDRESS }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -73,28 +109,40 @@ jobs:
           echo "${{ secrets.KUBE_CERT }}" > ca.crt
           kubectl config set-cluster ${KUBE_CLUSTER} --certificate-authority=./ca.crt --server=https://${KUBE_CLUSTER}
           kubectl config set-credentials deploy-user --token=${{ secrets.KUBE_TOKEN }}
-          kubectl config set-context ${KUBE_CLUSTER} --cluster=${KUBE_CLUSTER} --user=deploy-user --namespace=hmpps-delius-core-${{ github.event.inputs.destination_env }}
+          kubectl config set-context ${KUBE_CLUSTER} --cluster=${KUBE_CLUSTER} --user=deploy-user --namespace=hmpps-delius-core-${{ inputs.source_env }}
           kubectl config use-context ${KUBE_CLUSTER}
         env:
           KUBE_CLUSTER: ${{ secrets.KUBE_CLUSTER }}
 
+      - name: Create Kubernetes Secret to store credentials
+        run: |
+          kubectl delete secret ${{ inputs.destination_env }}-${{ inputs.component }}-rds-instance-output --ignore-not-found
+          kubectl create secret generic ${{ inputs.destination_env }}-${{ inputs.component }}-rds-instance-output \
+            --from-literal=DATABASE_USERNAME=${{ needs.stop-destination-environment.db_user }} \
+            --from-literal=DATABASE_PASSWORD=${{ needs.stop-destination-environment.db_pass }} \
+            --from-literal=DATABASE_NAME=${{ needs.stop-destination-environment.db_name }} \
+            --from-literal=RDS_INSTANCE_ADDRESS=${{ needs.stop-destination-environment.db_host }} \
+            --namespace=${{ secrets.KUBE_NAMESPACE }}
+
       - name: Uninstall DB Refresh chart
-        run: helm uninstall refresh-db-${{ github.events.inputs.component }} --ignore-not-found
+        run: helm uninstall refresh-db-${{ inputs.component }} --ignore-not-found
 
       - name: DB Refresh
         working-directory: helm/refresh-db
         run: |
-          helm install refresh-db-${{ github.events.inputs.component }} . \
-            --set sourceEnvironment=${{ github.event.inputs.source_env }} \
-            --set destinationEnvironment=${{ github.event.inputs.destination_env }} \
-            --set slackWebhookUrl=${{ secrets.SLACK_WEBHOOK_URL }} \ 
-            --set component=${{ github.events.inputs.component }}
+          helm install refresh-db-${{ inputs.component }} . \
+            --set sourceEnvironment=${{ inputs.source_env }} \
+            --set destinationEnvironment=${{ inputs.destination_env }} \
+            --set component=${{ inputs.component }} \
+            --wait \
+            --wait-for-jobs \
+            --timeout 15m
 
   start-destination-environment:
-    name: Start ${{ github.event.inputs.destination_env }} Environment
+    name: Start ${{ inputs.destination_env }} ${{ inputs.component }} pods (Destination)
     runs-on: ubuntu-22.04
     environment:
-      name: ${{ github.event.inputs.destination_env }}
+      name: ${{ inputs.destination_env }}
     needs:
       - refresh-db
     steps:
@@ -103,12 +151,12 @@ jobs:
         echo "${{ secrets.KUBE_CERT }}" > ca.crt
         kubectl config set-cluster ${KUBE_CLUSTER} --certificate-authority=./ca.crt --server=https://${KUBE_CLUSTER}
         kubectl config set-credentials deploy-user --token=${{ secrets.KUBE_TOKEN }}
-        kubectl config set-context ${KUBE_CLUSTER} --cluster=${KUBE_CLUSTER} --user=deploy-user --namespace=hmpps-delius-core-${{ github.event.inputs.destination_env }}
+        kubectl config set-context ${KUBE_CLUSTER} --cluster=${KUBE_CLUSTER} --user=deploy-user --namespace=hmpps-delius-core-${{ inputs.destination_env }}
         kubectl config use-context ${KUBE_CLUSTER}
       env:
         KUBE_CLUSTER: ${{ secrets.KUBE_CLUSTER }}
 
-    - name: Start ${{ github.event.inputs.destination_env }} Environment
+    - name: Start ${{ inputs.destination_env }} Environment
       run: |
-
-        kubectl scale deployment ${{ github.event.inputs.component }} --replicas=1
+        kubectl scale deployment "delius-${{ inputs.component }}-ui" --replicas=1
+        kubectl scale deployment "delius-${{ inputs.component }}-api" --replicas=1
