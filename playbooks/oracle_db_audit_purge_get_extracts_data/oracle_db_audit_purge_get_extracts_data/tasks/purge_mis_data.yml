@@ -56,11 +56,40 @@
       when: mis_delete_script.path is defined
 
 - name: Exchange Partition to Remove GET_EXTRACTS_DATA Rows
-  script: exchange_partition.sh {{ mis_partition_name }} NONE {{ schema_name }} AUDITED_INTERACTION
-  register: mis_exchange_partition_output
-  when: 
+  when:
       - next_partition_high_value != 'none'
       - next_partition_high_value > '2015-01-01'
+  block:
+    - name: Create Temporary Exchange Partition Script
+      tempfile:
+        state: file
+        suffix: _exchange_partition.sh
+      register: mis_exchange_script
+
+    - name: Copy Exchange Partition Script
+      copy:
+        src: exchange_partition.sh
+        dest: "{{ mis_exchange_script.path }}"
+        mode: '0700'
+
+    - name: Run Exchange Partition Script
+      command:
+        argv:
+          - /bin/bash
+          - "{{ mis_exchange_script.path }}"
+          - "{{ mis_partition_name }}"
+          - NONE
+          - "{{ schema_name }}"
+          - AUDITED_INTERACTION
+      register: mis_exchange_partition_output
+      async: 900
+      poll: 60
+  always:
+    - name: Remove Temporary Exchange Partition Script
+      file:
+        path: "{{ mis_exchange_script.path }}"
+        state: absent
+      when: mis_exchange_script.path is defined
 
 - name: Log Exchange Partition Statistics
   debug:
