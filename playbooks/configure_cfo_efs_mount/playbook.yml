@@ -18,6 +18,12 @@
 # same EFS which was previously used by NextCloud when it
 # was in existence.   It is now just used as a staging area
 # and the contents are replicated to an S3 bucket using rclone.
+- name: Validate CFO EFS endpoint is configured
+  ansible.builtin.assert:
+    that:
+      - cfo_efs_endpoint_ip is defined
+    fail_msg: "cfo_efs_endpoint_ip must be defined to mount the CFO EFS share"
+
 - name: Mount Nextcloud NFS share
   ansible.posix.mount:
     path: /mnt/nextcloud
