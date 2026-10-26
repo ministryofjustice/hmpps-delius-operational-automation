@@ -21,8 +21,8 @@ on:
         options:
           - "yes"
           - "no"
-      DeployDavfs:
-        description: "Configure davfs for CFO?"
+      DeployCFOEFS:
+        description: "Configure EFS Mount for CFO?"
         type: choice
         default: "no"
         options:
@@ -148,6 +148,6 @@ jobs:
           -e deploy_alfresco_wallet=${{ github.event.inputs.DeployAlfrescoWallet }} \
           -e deploy_gdpr=${{ github.event.inputs.DeployGdpr }} \
           -e deploy_mms=${{ github.event.inputs.DeployMMSApi }} \
-          -e deploy_davfs=${{ github.event.inputs.DeployDavfs }} \
+          -e deploy_cfo_efs_mount=${{ github.event.inputs.DeployCFOEFS }} \
           -e deploy_cfo=${{ github.event.inputs.DeployCfo }} \
           -e application=delius

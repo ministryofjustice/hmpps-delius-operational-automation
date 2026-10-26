@@ -8,9 +8,9 @@
 
   tasks:
     - block:
-        - name: Configure CFO EFS Mount
+        - name: Deploy CFO EFS Mount
           include_tasks: configure_cfo_efs_mount/playbook.yml
-          when: configure_cfo_efs_mount | default('no') == "yes"
+          when: deploy_cfo_efs_mount | default('no') == "yes"
 
       become: yes
       become_user: root
