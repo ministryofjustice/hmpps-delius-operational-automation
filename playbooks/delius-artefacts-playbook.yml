@@ -8,9 +8,9 @@
 
   tasks:
     - block:
-        - name: Deploy Davfs
-          include_tasks: configure_davfs2/playbook.yml
-          when: deploy_davfs | default('no') == "yes"
+        - name: Configure CFO EFS Mount
+          include_tasks: configure_cfo_efs_mount/playbook.yml
+          when: configure_cfo_efs_mount | default('no') == "yes"
 
       become: yes
       become_user: root

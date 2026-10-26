@@ -1,0 +1,43 @@
+---
+
+# Always create the mount point directory so lower envs will write the extract files to the local directory instead of failing
+- name: Set cfo mountpoint
+  set_fact:
+    cfo_mountpoint: "/u01/app/oracle/admin/{{ database_primary_unique }}/cfo"
+
+- name: Create cfo mountpoint
+  file:
+    path: "{{ cfo_mountpoint }}"
+    state: directory
+    owner: oracle
+    group: oinstall
+
+# The NFS share is an AWS EFS.
+# Although the mount point is /mnt/nextcloud, NextCloud is no
+# longer used.  This name is due to the fact that this is the
+# same EFS which was previously used by NextCloud when it
+# was in existence.   It is now just used as a staging area
+# and the contents are replicated to an S3 bucket using rclone.
+- name: Mount Nextcloud NFS share
+  ansible.posix.mount:
+    path: /mnt/nextcloud
+    src: "{{ cfo_efs_endpoint_ip }}:/"
+    fstype: nfs
+    opts: "nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,nofail"
+    state: mounted
+
+# CFO Extracts are written to the local file system shortly after midnight.
+# We enable a cron job to move them to the NextCloud EFS at 5am - this allows
+# plenty of time for file creation (monthly full extracts take about 1 hour)
+# before they are moved.  
+- name: Move CFO files to Nextcloud at 05:00
+  ansible.builtin.cron:
+    name: "Move CFO files to Nextcloud"
+    minute: "0"
+    hour: "5"
+    job: >-
+      /bin/bash -o pipefail -c '/bin/mv /u01/app/oracle/admin/{{ database_primary_unique }}/cfo/shared_files/National/cfo/*.txt
+      /mnt/nextcloud/delius-{{ simple_environment_name | replace('preprod','pre-prod') }}-mis-nextcloud/files/shared_files/National/cfo
+      2>&1 | logger -p local3.info -t cfo && /bin/chown 48:48
+      /mnt/nextcloud/delius-{{ simple_environment_name | replace('preprod','pre-prod') }}-mis-nextcloud/files/shared_files/National/cfo/*.txt
+      2>&1 | logger -p local3.info -t cfo'
