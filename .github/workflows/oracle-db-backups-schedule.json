@@ -212,7 +212,7 @@
     {
         "TargetEnvironment": "delius-mis-prod",
         "TargetHost": "boe_primarydb",
-        "CronSchedule": "0 3 * * 0",
+        "CronSchedule": "0 2 * * 0",
         "Period": "weekly",
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
@@ -226,7 +226,7 @@
     {
         "TargetEnvironment": "delius-mis-prod",
         "TargetHost": "dsd_primarydb",
-        "CronSchedule": "0 3 * * 0",
+        "CronSchedule": "0 2 * * 0",
         "Period": "weekly",
         "Comment": "Specify backup times using Europe/London timezone (not UTC). DST will be automatically handled."
     },
