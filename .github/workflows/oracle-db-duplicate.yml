@@ -334,7 +334,10 @@ jobs:
             test)
               TargetOemEnvironment=test
               ;;
-            stage|prod)
+            stage|preprod)
+              TargetOemEnvironment=preproduction
+              ;;              
+            prod)
               TargetOemEnvironment=production
               ;;
           esac
