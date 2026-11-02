@@ -310,10 +310,13 @@ jobs:
         id: preparation
         shell: bash
         run: |
-          case $(echo ${{ github.event.inputs.S3SourceBucket }} | awk -F- '{print $1}') in
+          case $(echo ${{ github.event.inputs.S3SourceBucket }} | sed 's/-oracle-db-backups.*//' | awk -F- '{print $NF}') in
             dev)
               SourceOemEnvironment=development
               ;;
+            stage|preprod)
+              SourceOemEnvironment=preproduction
+              ;;            
             prod)
               SourceOemEnvironment=production
               ;;
