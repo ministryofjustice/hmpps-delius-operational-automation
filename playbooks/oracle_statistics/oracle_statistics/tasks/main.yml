@@ -3,7 +3,7 @@
   set_fact:
     statistics_backup_bucket: "{{ environment_name }}-oracle-db-statistics-backup-data"
 
-- name: Get Locatio n of Statistics Dump File
+- name: Get Location of Statistics Dump File
   script: get_dump_location.sh
   register: get_dump_location
 
@@ -92,7 +92,7 @@
     - name: Copy Backup Statistics Dump File to S3
       amazon.aws.s3_object:
         bucket: "{{ statistics_backup_bucket }}"
-        object: "/datapump/{{ statid }}.{{ item }}"
+        object: "datapump/{{ statid }}.{{ item }}"
         src: "{{ get_dump_location.stdout | trim }}/statistics_backup.{{ item }}"
         mode: put
       loop: ["dmp", "log"]

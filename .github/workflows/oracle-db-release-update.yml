@@ -59,6 +59,7 @@ on:
           - "36522439:p36522439_190000_Linux-x86-64.zip:(19.24)"
           - "36866740:p36866740_190000_Linux-x86-64.zip:(19.25)"
           - "37591516:p37591516_190000_Linux-x86-64.zip:(19.27)"
+          - "37952382:p37952382_190000_Linux-x86-64.zip:(19.28)"
       AWSSnapshot:
         description: "Number of Days to Keep AWS Snapshot of Primary Database Host"
         required: true
@@ -111,19 +112,36 @@ jobs:
     continue-on-error: false
     steps:
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Inventory Names
         id: prepareinventorynames
         shell: bash
         run: |
+          source "${GITHUB_WORKSPACE}/operations/common/files/build_inventory_name.sh"
+
           # We can include more than 1 host in the list of hosts, so ensure each one in the comma-separated list
           # gets prefixed with the entire environment name
-          host_prefix="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_"
-          hosts=$(echo ${{ github.event.inputs.TargetHost }} | awk -v p="$host_prefix" 'BEGIN{FS=OFS=","};{for(i=1;i<=NF;i++)$i=p $i};1')
+          hosts=""
+          IFS=',' read -ra host_parts <<< "${{ github.event.inputs.TargetHost }}"
+          for host_part in "${host_parts[@]}"; do
+            hosts+="$(build_inventory_name "${{ github.event.inputs.TargetEnvironment }}" "${host_part}"),"
+          done
+          hosts="${hosts%,}"
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
           # Mapping from hostname prefix to application name
           declare -A host_to_app=(
-            [boe]=misboe
-            [dsd]=misdsd
+            [boe]=boe
+            [dsd]=dsd
             [mis]=mis
             [delius]=delius
           )
@@ -133,9 +151,23 @@ jobs:
           # Lookup application
           application="${host_to_app[$host_prefix_key]}"
           echo "application=$(echo ${application} | sed 's/_.*//')" >> $GITHUB_OUTPUT
+          # Mapping from application to line of business
+          # (Used for setting dynamic group membership in OEM)
+          declare -A application_to_line_of_business=(
+             [delius]=delius
+             [boe]=delius-mis
+             [dsd]=delius-mis
+             [mis]=delius-mis
+          )
+          line_of_business="${application_to_line_of_business[$application]}"
+          if [[ -z "$line_of_business" ]]; then
+            echo "No line_of_business mapping for application: $application" >&2
+            exit 1
+          fi
+          echo "line_of_business=${line_of_business}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -147,7 +179,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Role From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -160,7 +192,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout From hmpps-delius-operational-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
@@ -177,7 +209,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -211,4 +243,5 @@ jobs:
           -e gi_ru_patch_info='' \
           -e ojvm_ru_patch_info='' \
           -e application=${{ steps.prepareinventorynames.outputs.application }} \
+          -e line_of_business=${{ steps.prepareinventorynames.outputs.line_of_business }} \
           ${{ github.event.inputs.VerboseOutput }}

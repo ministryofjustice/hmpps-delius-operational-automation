@@ -42,7 +42,7 @@ BEGIN
   AND    object_type = 'TABLE';
 
   IF l_obj_exists = 1 THEN
-    EXECUTE IMMEDIATE 'GRANT INSERT ON '||l_owner||'.'||l_obj_name||' TO AUDSYS';
+    EXECUTE IMMEDIATE 'GRANT INSERT,DELETE ON '||l_owner||'.'||l_obj_name||' TO AUDSYS';
   END IF;
 
 END;
@@ -82,6 +82,49 @@ END delius_audit_management;
 
 CREATE OR REPLACE PACKAGE BODY AUDSYS.delius_audit_management
 AS
+
+-- Private helper: retry a DBMS_AUDIT_MGMT operation that may raise ORA-46277
+-- (Conflicting operation on unified audit trail) for up to p_max_retries attempts,
+-- sleeping p_retry_delay seconds between each attempt.
+-- Supported operations: 'CLEAN_AUDIT_TRAIL', 'LOAD_UNIFIED_AUDIT_FILES'
+PROCEDURE retry_on_conflict (
+  p_operation   IN VARCHAR2,
+  p_max_retries IN INTEGER DEFAULT 60,
+  p_retry_delay IN INTEGER DEFAULT 60  -- seconds
+)
+AS
+  conflicting_operation EXCEPTION;
+  PRAGMA EXCEPTION_INIT(conflicting_operation, -46277);
+  l_done    BOOLEAN := FALSE;
+  l_retries INTEGER := 0;
+BEGIN
+  WHILE l_retries < p_max_retries AND NOT l_done LOOP
+    BEGIN
+      IF p_operation = 'CLEAN_AUDIT_TRAIL' THEN
+        DBMS_AUDIT_MGMT.CLEAN_AUDIT_TRAIL(
+          audit_trail_type        => DBMS_AUDIT_MGMT.audit_trail_unified_table,
+          use_last_arch_timestamp => TRUE
+        );
+      ELSIF p_operation = 'LOAD_UNIFIED_AUDIT_FILES' THEN
+        DBMS_AUDIT_MGMT.LOAD_UNIFIED_AUDIT_FILES;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20001, 'retry_on_conflict: unknown operation: ' || p_operation);
+      END IF;
+      l_done := TRUE;
+    EXCEPTION
+      -- ORA-46277: Conflicting operation on unified audit trail
+      -- Retry until success or the retry limit is reached
+      WHEN conflicting_operation THEN
+        l_retries := l_retries + 1;
+        IF l_retries < p_max_retries THEN
+          DBMS_LOCK.SLEEP(p_retry_delay);
+        ELSE
+          RAISE;
+        END IF;
+    END;
+  END LOOP;
+END retry_on_conflict;
+
 -- Archive audit records to history table
 -- Apply a cap on the number of days data to be archived at once to prevent overloading
 PROCEDURE     archive_audit_trail (p_day_cap IN INTEGER DEFAULT 2)
@@ -128,6 +171,8 @@ BEGIN
   FROM v$option
   WHERE parameter = 'Unified Auditing';
 
+  l_output := 'Unified Auditing set to '||l_audit_option;
+
   --
   -- UNIFIED AUDITING
   --
@@ -148,12 +193,9 @@ BEGIN
     END IF;
 
     -- Direct DML can't be used on the unified audit trail so we use the built-in cleanup procedure.
-    DBMS_AUDIT_MGMT.CLEAN_AUDIT_TRAIL(
-      audit_trail_type => DBMS_AUDIT_MGMT.audit_trail_unified_table,
-      use_last_arch_timestamp => TRUE
-      );
+    retry_on_conflict('CLEAN_AUDIT_TRAIL');
     -- Check output in DBA_SCHEDULER_JOB_RUN_DETAILS
-    l_output := 'Unified recs archived to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.';
+    l_output := l_output || 'Unified recs archived to '||TO_CHAR(l_archive_date,'DD Mon YYYY')||'.';
   END IF;
 
   -- TRADITIONAL AUDITING
@@ -245,7 +287,7 @@ BEGIN
       -- which should run with minimal impact on other users.
       EXECUTE IMMEDIATE 'INSERT /*+ APPEND NOPARALLEL */ INTO sys.hist_aud$
       SELECT * FROM sys.aud$
-      WHERE  ntimestamp# <= :archive_date' using l_archive_date;
+      WHERE  ntimestamp# <= TO_TIMESTAMP(''' || TO_CHAR(l_archive_date, 'YYYY-MM-DD HH24:MI:SS.FF') || ''', ''YYYY-MM-DD HH24:MI:SS.FF'')';
     END IF;
     
     -- Delete the old records from the audit table irrespective of whether the hist table exists
@@ -323,9 +365,13 @@ PROCEDURE set_last_archive_timestamp (
     p_unified_cap IN INTEGER DEFAULT 13 -- months
     )
 AS
+  l_output            VARCHAR2(4000);
 BEGIN
+  l_output := 'Setting last archive timestamp for audit trails.';
+
   IF DBMS_AUDIT_MGMT.IS_CLEANUP_INITIALIZED(DBMS_AUDIT_MGMT.audit_trail_aud_std)
   THEN
+    l_output := l_output ||' STD:'||TO_CHAR(SYSTIMESTAMP-p_day_cap,'DD Mon YYYY HH24:MI:SS');
     -- set the last archive timestamp to n days ago for Standard Audit Trail and FGA Audit Trails
     DBMS_AUDIT_MGMT.set_last_archive_timestamp(
       audit_trail_type => DBMS_AUDIT_MGMT.audit_trail_aud_std, 
@@ -334,12 +380,14 @@ BEGIN
   END IF;
   IF DBMS_AUDIT_MGMT.IS_CLEANUP_INITIALIZED(DBMS_AUDIT_MGMT.audit_trail_fga_std)
   THEN
+    l_output := l_output ||' FGA:'||TO_CHAR(SYSTIMESTAMP-p_day_cap,'DD Mon YYYY HH24:MI:SS');
     DBMS_AUDIT_MGMT.set_last_archive_timestamp(
       audit_trail_type => DBMS_AUDIT_MGMT.audit_trail_fga_std, 
       last_archive_time => SYSTIMESTAMP-p_day_cap
       );
   END IF;
-  
+
+  l_output := l_output ||' UNI:'||TO_CHAR(ADD_MONTHS(SYSTIMESTAMP, p_unified_cap*-1),'DD Mon YYYY HH24:MI:SS');
   -- Unified auditing changes:
   -- Set the last archive timestamp to 13 months ago for Unified Audit Trail per retentions rules in Security Guidance
   DBMS_AUDIT_MGMT.set_last_archive_timestamp(
@@ -348,7 +396,8 @@ BEGIN
     );
 
   -- Load the os unified audit files from the audit directory if any exist
-  DBMS_AUDIT_MGMT.LOAD_UNIFIED_AUDIT_FILES;
+  retry_on_conflict('LOAD_UNIFIED_AUDIT_FILES');
+  DBMS_OUTPUT.put_line(l_output);
 
 END set_last_archive_timestamp;
 

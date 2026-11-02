@@ -6,10 +6,25 @@
   become_user: oracle
   become_method: sudo
   tasks:
+    # Allow overwrite of the PRDDSD database during migration
     - name: Bomb out if target is production db
       fail:
         msg: "Cannot refresh any production database !"
-      when: database_primary_sid | regex_search('PRD.*')
+      when: 
+         - database_primary_sid | regex_search('PRD.*')
+         - source_legacy == 'no'
+         - not source_db in ['PRDDXB']
+
+    - name: When duplicating from legacy assume the DB name will stay the same
+      set_fact:
+         source_db: "{{ database_primary_sid }}"
+      when:
+        - source_legacy != 'no'
+        - source_db is not defined
+
+    - name: Show Duplication
+      debug:
+         msg: "Duplication is from {{ source_db }} to {{ database_primary_sid }}"
 
     - name: Exit if rman catalog not specified
       fail:
@@ -19,7 +34,7 @@
     - name: Set S3 Source Bucket And Catalog To Handle Legacy
       set_fact:
         s3_source_bucket: "{{ s3_source_bucket if (source_legacy != 'no') else db_backup_s3_bucket_name }}"
-        catalog: "{{ catalog_tns if (source_legacy != 'no') else catalog }}"
+        catalog: "{{ catalog_tns if ((source_legacy != 'no') or (source_db in ['PREDXB','PREBXE','PRDDXB'])) else catalog }}"
 
     - name: Check s3 bucket is accessible
       block:

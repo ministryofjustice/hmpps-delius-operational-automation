@@ -11,8 +11,10 @@ on:
           - "delius-core-test"
           - "delius-core-stage"
           - "delius-core-preprod"
+          - "delius-core-prod"
           - "delius-mis-stage"
           - "delius-mis-preprod"
+          - "delius-mis-prod"
       TargetHost:
         description: "Duplicate to target host"
         type: choice
@@ -40,6 +42,9 @@ on:
           - "DMDNDA"
           - "PRDNDA"
           - "PRDMIS"
+          - "PREDXB"
+          - "PREBXE"
+          - "PRDDXB"
       S3SourceBucket: 
         description: "Source s3 bucket containing backups"
         type: choice
@@ -50,6 +55,8 @@ on:
           - "delius-core-dev-oracle-db-backups"
           - "delius-mis-prod-oracle-mis-db-backups"
           - "delius-core-prod-oracle-db-backups"
+          - "eu-west-2-del-pre-prod-oracledb-backups"
+          - "eu-west-2-del-prod-oracledb-backups"
       RestoreDatetime:
         description: Restore datetime from source database, format [YYMMDDHH24MISS] (use the value '0' if you wish to skip duplicate altogether -- development purposes only)
         type: string
@@ -96,16 +103,29 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Duplicate Target Name
         id: preparation
         shell: bash
         run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
           TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
           TargetHost="${{ github.event.inputs.TargetHost }}"
           SourceLegacy="${{ github.event.inputs.SourceLegacy }}"
@@ -115,7 +135,7 @@ jobs:
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
-          DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
+          DuplicateTarget="$(build_inventory_name "$TargetEnvironment" "_$TargetHost")"
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           # Check the combination of Source Database and Source Bucket is correct if NOT duplicating from AWS legacy
           if [[ "${SourceLegacy}" == "no" ]]
@@ -184,7 +204,7 @@ jobs:
           isDateInvalid '${{ github.event.inputs.RestoreDatetime }}'
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -201,7 +221,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -213,7 +233,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -263,7 +283,7 @@ jobs:
     steps:
           
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -274,7 +294,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -319,7 +339,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -349,7 +369,7 @@ jobs:
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -360,7 +380,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -373,7 +393,7 @@ jobs:
         
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -407,7 +427,7 @@ jobs:
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -418,7 +438,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -431,7 +451,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -456,7 +476,13 @@ jobs:
                 dev) SourceOemEnvironment=development ;;
                prod) SourceOemEnvironment=production ;;
              esac
-             SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
+             # Handle Special Case of MIS databases which need to be renamed
+             if [[ "${{ github.event.inputs.SourceDb }}" == "PREDXB" || "${{ github.event.inputs.SourceDb }}" == "PREBXE" || "${{ github.event.inputs.SourceDb }}" == "PRDDXB" ]]
+             then
+                SourceCatalogSchema=rman19c
+             else
+                SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
+             fi
              extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }} -e noop_mode=$NoOpMode"
           else
              extra_vars="-e source_legacy=${{ github.event.inputs.SourceLegacy }} -e noop_mode=$NoOpMode"
@@ -486,15 +512,29 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.client_payload.SourceCodeVersion || 'main' }}
+          fetch-depth: 0
+
       - name: Responding to Repository Dispatch event
         id: response
+        shell: bash
         run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
           echo "${{ github.event.client_payload }}"
           Inputs='${{ toJson(github.event.client_payload) }}'
           Inputs=$(echo $Inputs | jq -r)
@@ -505,7 +545,7 @@ jobs:
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
           echo "RestoreDatetime=$(echo $Inputs | jq -r '.RestoreDatetime')" >> $GITHUB_OUTPUT
-          DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
+          DuplicateTarget="$(build_inventory_name "$TargetEnvironment" "_$TargetHost")"
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           echo "SourceLegacy=$(echo $Inputs | jq -r '.SourceLegacy')" >> $GITHUB_OUTPUT
           Action='${{ github.event.action }}'
@@ -537,7 +577,7 @@ jobs:
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -559,7 +599,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -571,7 +611,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -585,7 +625,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -620,7 +660,7 @@ jobs:
     steps:
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -662,7 +702,7 @@ jobs:
           fi
 
       - name: Checkout From hmpps-delius-operational-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
@@ -675,7 +715,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -747,7 +787,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -791,7 +831,7 @@ jobs:
 
       - name: Slack Failure Notification
         id: slack
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.27.0
         with:
             channel-id: "delius-aws-oracle-dev-alerts"
             payload: |

@@ -86,6 +86,17 @@
     - name: Register Database with RMAN Catalog
       include_tasks: register_with_rman.yml
 
+    - name: Create MIS database links
+      include_tasks: ../mis_database_links/playbook.yml
+      when: duplicate_target | regex_search('.*_mis_primarydb')
+
+    - name: Create and restore users
+      include_tasks: ../delius_users/playbook.yml
+      when: ( duplicate_target | regex_search('.*_delius_primarydb')) or ( duplicate_target | regex_search('.*_mis_primarydb') )
+      vars:
+        action_type: "all"
+        application_type: "{{ 'delius' if (duplicate_target | regex_search('.*_delius_primarydb')) else 'mis' }}"
+
     - block:
         # Ensure that no sequences in duplicated environments overlap IDs
         # with production IDs by incrementing these to a higher range
@@ -94,12 +105,6 @@
 
         - name: Update objects
           include_tasks: ../delius_objects/playbook.yml
-
-        - name: Create and restore delius users
-          include_tasks: ../delius_users/playbook.yml
-          vars:
-            action_type: "all"
-            application_type: "delius"
 
         - name: Create Delius gdpr_pool database user
           include_tasks: ../delius_gdpr/playbook.yml
@@ -176,17 +181,6 @@
   vars:
     target_hosts: "{{ duplicate_target }}"
 
-- name: Create mis database links if required
-  hosts: "{{ duplicate_target }}"
-  gather_facts: no
-  become: yes
-  become_user: oracle
-
-  tasks:
-    - name: create database links
-      include_tasks: ../mis_database_links/playbook.yml
-      when: duplicate_target | regex_search('.*_mis_primarydb')
-
 - name: Import dfi schemas only for STGMIS
   import_playbook: dfi-schemas.yml
   vars:
@@ -194,12 +188,6 @@
   when:
     - duplicate_target | regex_search('.*_mis_primarydb')
     - database_primary_sid | regex_search('STGMIS.*$')
-
-- name: Create and restore MIS users
-  include_tasks: ../delius_users/playbook.yml
-  vars:
-    action_type: "all"
-    application_type: "mis"
 
 - name: Copy delius datasets required
   import_playbook: delius-datasets.yml

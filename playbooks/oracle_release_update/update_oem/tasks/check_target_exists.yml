@@ -4,6 +4,8 @@
 
 - name: Check if Given Target Exists
   shell: |
+    . ~/.bash_profile
+    export JAVA_HOME=$ORACLE_HOME/jdk/jre
     {{ emcli }} get_targets -targets="{{ target_name }}:{{ target_type }}" -script -noheader | wc -l
   register: get_target_exists
   changed_when: false

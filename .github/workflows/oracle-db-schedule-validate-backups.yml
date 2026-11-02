@@ -10,6 +10,9 @@ on:
     - cron: '20 15 * * THU'     # 3pm GMT Runs (Thu)
     - cron: '00 18 * * TUE'     # 6pm GMT Runs (Tue)
     - cron: '00 17 * * TUE'     # 6pm BST Runs (Tue)
+    - cron: '00 18 * * SAT'     # 6pm BST Runs (Sat)
+    - cron: '00 17 * * SAT'     # 6pm BST Runs (Sat)
+
 jobs:
   prepare-run-matrix:
     runs-on: ubuntu-latest
@@ -17,7 +20,7 @@ jobs:
       scheduled_matrix: ${{ steps.filter-validate-schedule.outputs.scheduling_matrix }}
     steps:
       - name: Checkout Validate Backups Schedule
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -26,6 +29,9 @@ jobs:
           path: operations
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
           fetch-depth: 0
+
+      - name: Validate Backup Schedule JSON
+        run: jq empty operations/.github/workflows/oracle-db-validate-backups-schedule.json
 
       - name: Filter Validate Schedule
         id: filter-validate-schedule
@@ -66,3 +72,34 @@ jobs:
     with:
       TargetEnvironment: ${{ matrix.TargetEnvironment }}
       TargetHost: ${{ matrix.TargetHost }}
+
+  # If the GHA fails during calculation of the scheduling matrix we will not have configured
+  # any specific environment to use yet, so we default to running the failure notification from
+  # the development OEM environment (this is arbitrary)
+  setup-notification-failure-slack:
+    if: ${{ always() && needs.prepare-run-matrix.result == 'failure' }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
+    needs: [prepare-run-matrix]
+    environment: "hmpps-oem-development-preapproved"
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+
+      - name: Checkout Local Repo to get Composite Action
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Send Slack Failure Notification
+        id: foreground_slack_notification
+        uses: ./.github/actions/send-slack-notification
+        env:
+            AWS_ACCOUNT_ID: "${{ vars.AWS_ACCOUNT_ID }}"
+        with:
+          Emoji: ":github-red:"
+          TextHeader: "Backup Validation Job Scheduling Failure"
+          TextBody: ":cross-red: Backup Validation job could not be scheduled"
+          TargetEnvironment: "GHA(Scheduling)"
+          TargetHost: "unknown"
+          JobName: "prepare-run-matrix"

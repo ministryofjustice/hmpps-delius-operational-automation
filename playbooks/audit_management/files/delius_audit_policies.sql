@@ -13,7 +13,8 @@ SET VERIFY OFF
 
 prompt --Monitor common security relevant activities
 
-AUDIT POLICY ORA_SECURECONFIG;
+-- Removed due to excessive noise from users granted EXEMPT ACCESS POLICY through the DELIUS_READ_ONLY_ROLE role
+-- AUDIT POLICY ORA_SECURECONFIG;
 
 AUDIT POLICY ORA_ACCOUNT_MGMT;
 
