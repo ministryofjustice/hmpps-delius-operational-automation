@@ -44,12 +44,12 @@ jobs:
           source_env="${{ github.event.inputs.source_env }}"
           destination_env="${{ github.event.inputs.destination_env }}"
           
-          if [[ "${source_env}" == "prod" && "${destination_env}" != "preprod" ]]; then
+          if [[ "${source_env}" == "prod" && "${destination_env}" != "preprod" && "${destination_env}" != "stage" ]]; then
             echo "Cannot copy from prod to ${destination_env}"
             exit 1
           fi
           
-          env_list=("dev" "test" "preprod" "prod") 
+          env_list=("dev" "test" "stage" "preprod" "prod") 
                    
           index_of() {
             local word="$1"
@@ -76,13 +76,6 @@ jobs:
             echo "Destination environment must be a higher environment than the source environment"
             exit 1
           fi
-          
-          # check that the difference between the two indexes is 1
-          # enable this once migrated
-          #          if [ $((source_env_index - destination_env_index)) -ne 1 ]; then
-          #              echo "Data refresh can only be performed between adjacent environments"
-          #              exit 1
-          #          fi
           
           echo "Copying from ${source_env} to ${destination_env}"
 
