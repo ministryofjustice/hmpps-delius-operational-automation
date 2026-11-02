@@ -6,21 +6,23 @@ on:
   workflow_dispatch:
     inputs:
       source_env:
-        description: environment to copy data from [dev|test|preprod|prod]
+        description: environment to copy data from [dev|test|stage|preprod|prod]
         required: true
         type: choice
         options:
           - dev
           - test
+          - stage
           - preprod
           - prod
       destination_env:
-        description: environment to copy data to [dev|test|preprod|prod]
+        description: environment to copy data to [dev|test|stage|preprod|prod]
         required: true
         type: choice
         options:
           - dev
           - test
+          - stage
           - preprod
       source_recovery_point_id:
         description: AWS Backup ID of the source EFS backup. Leaving this blank will use the latest backup
