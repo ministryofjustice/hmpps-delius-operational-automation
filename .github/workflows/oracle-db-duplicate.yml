@@ -478,10 +478,17 @@ jobs:
           # Only pass extra variables if NOT duplicating from AWS legacy
           if [[ "${{ github.event.inputs.SourceLegacy }}" == "no" ]]
           then
-             case $(echo ${{ github.event.inputs.S3SourceBucket }} | awk -F- '{print $1}') in
-                dev) SourceOemEnvironment=development ;;
-               prod) SourceOemEnvironment=production ;;
-             esac
+            case $(echo ${{ github.event.inputs.S3SourceBucket }} | sed 's/-oracle-db-backups.*//' | awk -F- '{print $NF}') in
+              dev)
+                SourceOemEnvironment=development
+                ;;
+              stage|preprod)
+                SourceOemEnvironment=preproduction
+                ;;            
+              prod)
+                SourceOemEnvironment=production
+                ;;
+            esac
              # Handle Special Case of MIS databases which need to be renamed
              if [[ "${{ github.event.inputs.SourceDb }}" == "PREDXB" || "${{ github.event.inputs.SourceDb }}" == "PREBXE" || "${{ github.event.inputs.SourceDb }}" == "PRDDXB" ]]
              then
