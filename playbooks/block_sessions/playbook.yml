@@ -49,6 +49,11 @@
         database_environment: "{{ target_host | replace(target_host.split('_')[-2] + '_' + target_host.split('_')[-1],'') }}"
         database_type: "{{ target_host.split('_')[-2] }}"
 
+    - name: Show database environment and type
+      debug:
+        msg: "Database environment: {{ database_environment }}, database type: {{ database_type }}"
+   
+
     - name: Get ip address of standby database 1 if high_availability_count >= 1
       shell: hostname -i
       delegate_to: "{{ hostvars[groups[database_environment + database_type + '_standbydb1'][0]]['inventory_hostname'] }}"
