@@ -107,6 +107,11 @@
         dms_replication_instance_ips: "{{ dms_replication_instance_ip_result.stdout | from_json | default([], true) }}"
       when: action in ['block', 'unblock']
 
+    - name: Show DMS replication instance IP addresses
+      debug:
+        var: dms_replication_instance_ips
+      when: action in ['block', 'unblock']
+
     - block:
         - name: Accept inbound access on database port 1521
           iptables:
