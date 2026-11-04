@@ -49,9 +49,13 @@
         database_environment: "{{ target_host | replace(target_host.split('_')[-2] + '_' + target_host.split('_')[-1],'') }}"
         database_type: "{{ target_host.split('_')[-2] }}"
 
+    - name: Set DMS replication instance name
+      set_fact:
+        replication_instance_name: "{{ database_environment.split('_') | reject('equalto', '') | list | last }}-dms-instance"
+
     - name: Show database environment and type
       debug:
-        msg: "Database environment: {{ database_environment }}, database type: {{ database_type }}"
+        msg: "Database environment: {{ database_environment }}, database type: {{ database_type }}, replication instance: {{ replication_instance_name }}"
    
 
     - name: Get ip address of standby database 1 if high_availability_count >= 1
@@ -96,10 +100,10 @@
       set_fact:
         database_open: "{{ ('READ WRITE' in get_database_state.stdout) }}"
 
-    - name: Get private IP addresses of the first DMS replication instance
+    - name: Get private IP addresses of the matching DMS replication instance
       shell: >-
         aws dms describe-replication-instances --region eu-west-2
-        --query "ReplicationInstances[?ReplicationInstanceIdentifier=='{{ target_environment_name }}-dms-instance'] | [0].ReplicationInstancePrivateIpAddresses"
+        --query "ReplicationInstances[?ReplicationInstanceIdentifier=='{{ replication_instance_name }}'] | [0].ReplicationInstancePrivateIpAddresses"
         --output json
       delegate_to: localhost
       become: no
