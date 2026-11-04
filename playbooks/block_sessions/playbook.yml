@@ -91,6 +91,22 @@
       set_fact:
         database_open: "{{ ('READ WRITE' in get_database_state.stdout) }}"
 
+    - name: Get private IP addresses of the first DMS replication instance
+      shell: >-
+        aws dms describe-replication-instances --region eu-west-2
+        --query 'ReplicationInstances[0].ReplicationInstancePrivateIpAddresses'
+        --output json
+      delegate_to: localhost
+      become: no
+      register: dms_replication_instance_ip_result
+      changed_when: false
+      when: action in ['block', 'unblock']
+
+    - name: Set DMS replication instance IP addresses
+      set_fact:
+        dms_replication_instance_ips: "{{ dms_replication_instance_ip_result.stdout | from_json | default([], true) }}"
+      when: action in ['block', 'unblock']
+
     - block:
         - name: Accept inbound access on database port 1521
           iptables:
@@ -106,6 +122,21 @@
             - { source: "{{ oem_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb1_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb2_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
+
+        # We don't block replication of audit just because we are blocking
+        # other components from accessing the database, since it still needs
+        # to be replicated regardless of the source of the inserts.
+        # If replication needs to be stopped, using audit replication management
+        # to stop the tasks instead.
+        - name: Accept inbound access from DMS replication instance on database port 1521
+          iptables:
+            chain: INPUT
+            protocol: tcp
+            source: "{{ item }}"
+            destination_port: 1521
+            jump: ACCEPT
+            state: present
+          loop: "{{ dms_replication_instance_ips }}"
 
         - name: Reject inbound access on database port 1521
           iptables:
@@ -139,6 +170,16 @@
             - { source: "{{ oem_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb1_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
             - { source: "{{ standbydb2_ip.stdout | default(localhost_ip) }}", jump: ACCEPT }
+
+        - name: Remove accepted DMS replication instance access on database port 1521
+          iptables:
+            chain: INPUT
+            protocol: tcp
+            source: "{{ item }}"
+            destination_port: 1521
+            jump: ACCEPT
+            state: absent
+          loop: "{{ dms_replication_instance_ips }}"
 
         - name: Remove rejected access on database port 1521
           iptables:
