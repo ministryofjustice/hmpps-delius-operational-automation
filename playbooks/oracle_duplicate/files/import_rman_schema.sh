@@ -13,4 +13,4 @@ sqlplus / as sysdba <<EOF
 CREATE USER ${EXPORT_NAME} IDENTIFIED BY p${TEMP_IMPORT_PASSWORD}# DEFAULT TABLESPACE rcvcat_${SOURCE_CATALOG_DB}_tbs TEMPORARY TABLESPACE temp;
 EOF
 
-impdp \"/ as sysdba\" dumpfile=${EXPORT_NAME}.dmp logfile=${EXPORT_NAME}.import.log schemas=rcvcatowner job_name=${EXPORT_NAME} remap_schema=rcvcatowner:${EXPORT_NAME} remap_tablespace=rcvcat_tbs:rcvcat_${SOURCE_CATALOG_DB}_tbs directory=DATA_PUMP_DIR
+impdp \"/ as sysdba\" exclude=USER dumpfile=${EXPORT_NAME}.dmp logfile=${EXPORT_NAME}.import.log schemas=rcvcatowner job_name=${EXPORT_NAME} remap_schema=rcvcatowner:${EXPORT_NAME} remap_tablespace=rcvcat_tbs:rcvcat_${SOURCE_CATALOG_DB}_tbs directory=DATA_PUMP_DIR
