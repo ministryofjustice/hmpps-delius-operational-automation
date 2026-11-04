@@ -605,6 +605,7 @@ jobs:
             playbooks/mis_database_links
             playbooks/delius_objects
             playbooks/oem_blackout
+            playbooks/block_sessions
             common/*
             playbooks/ansible.cfg
           path: operations

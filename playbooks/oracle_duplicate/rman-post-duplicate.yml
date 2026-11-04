@@ -176,6 +176,13 @@
   vars:
     target_host: "{{ duplicate_target }}"
 
+- name: Unblock all database sessions
+  import_playbook: ../block_sessions/playbook.yml
+  vars:
+    target_host: "{{ duplicate_target }}"
+    action: "unblock"
+  when: duplicate_target |  regex_search('.*_delius_primarydb')
+
 - name: "Setup Oracle Statspack"
   import_playbook: ../oracle_statspack/playbook.yml
   vars:
