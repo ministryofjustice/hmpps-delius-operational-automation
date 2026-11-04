@@ -105,7 +105,7 @@
 # (Only required for Delius, to ensure that any auditable activity has been preserved)
 
 - name: Block all database sessions
-  import_playbook: ../block_sessions/playbook.yml
+  import_playbook: "{{ playbook_dir | dirname }}/block_sessions/playbook.yml"
   vars:
     target_host: "{{ duplicate_target }}"
     action: "block"
