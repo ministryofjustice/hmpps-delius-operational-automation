@@ -94,7 +94,7 @@
     - name: Get private IP addresses of the first DMS replication instance
       shell: >-
         aws dms describe-replication-instances --region eu-west-2
-        --query 'ReplicationInstances[0].ReplicationInstancePrivateIpAddresses'
+        --query "ReplicationInstances[?ReplicationInstanceIdentifier=='{{ target_environment_name }}-dms-instance'] | [0].ReplicationInstancePrivateIpAddresses"
         --output json
       delegate_to: localhost
       become: no
