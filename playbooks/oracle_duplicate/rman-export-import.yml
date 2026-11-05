@@ -61,14 +61,12 @@
           loop: ["dmp", "log"]
 
         - name: Import RCVCATOWNER schema
-          shell: |
-            . ~/.bash_profile
-            PATH=$PATH:/usr/local/bin
-            export ORACLE_SID={{ catalog_db }}
-            export ORAENV_ASK=NO
-            . oraenv
-            impdp \"/ as sysdba\" dumpfile={{ export_name }}.dmp logfile={{ export_name }}.import.log schemas=rcvcatowner job_name={{ export_name }} remap_schema=rcvcatowner:{{ export_name }} remap_tablespace=rcvcat_tbs:rcvcat_{{ source_catalog_db }}_tbs directory=DATA_PUMP_DIR
+          script: import_rman_schema.sh
           register: import_rman_schema
+          environment:
+            CATALOG_DB: "{{ catalog_db }}"
+            EXPORT_NAME: "{{ export_name }}"
+            SOURCE_CATALOG_DB: "{{ source_catalog_db }}"
 
         - name: Change Imported RCVCATOWNER Schema Password
           script: rman_change_password.sh

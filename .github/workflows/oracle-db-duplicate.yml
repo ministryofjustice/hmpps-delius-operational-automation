@@ -310,10 +310,13 @@ jobs:
         id: preparation
         shell: bash
         run: |
-          case $(echo ${{ github.event.inputs.S3SourceBucket }} | awk -F- '{print $1}') in
+          case $(echo ${{ github.event.inputs.S3SourceBucket }} | sed -E 's/-oracle-(mis-)?db-backups.*//' | awk -F- '{print $NF}') in
             dev)
               SourceOemEnvironment=development
               ;;
+            stage|preprod)
+              SourceOemEnvironment=preproduction
+              ;;            
             prod)
               SourceOemEnvironment=production
               ;;
@@ -331,7 +334,10 @@ jobs:
             test)
               TargetOemEnvironment=test
               ;;
-            stage|prod)
+            stage|preprod)
+              TargetOemEnvironment=preproduction
+              ;;              
+            prod)
               TargetOemEnvironment=production
               ;;
           esac
@@ -472,10 +478,17 @@ jobs:
           # Only pass extra variables if NOT duplicating from AWS legacy
           if [[ "${{ github.event.inputs.SourceLegacy }}" == "no" ]]
           then
-             case $(echo ${{ github.event.inputs.S3SourceBucket }} | awk -F- '{print $1}') in
-                dev) SourceOemEnvironment=development ;;
-               prod) SourceOemEnvironment=production ;;
-             esac
+            case $(echo ${{ github.event.inputs.S3SourceBucket }} | sed -E 's/-oracle-(mis-)?db-backups.*//' | awk -F- '{print $NF}') in
+              dev)
+                SourceOemEnvironment=development
+                ;;
+              stage|preprod)
+                SourceOemEnvironment=preproduction
+                ;;            
+              prod)
+                SourceOemEnvironment=production
+                ;;
+            esac
              # Handle Special Case of MIS databases which need to be renamed
              if [[ "${{ github.event.inputs.SourceDb }}" == "PREDXB" || "${{ github.event.inputs.SourceDb }}" == "PREBXE" || "${{ github.event.inputs.SourceDb }}" == "PRDDXB" ]]
              then
@@ -592,6 +605,7 @@ jobs:
             playbooks/mis_database_links
             playbooks/delius_objects
             playbooks/oem_blackout
+            playbooks/block_sessions
             common/*
             playbooks/ansible.cfg
           path: operations

@@ -1,3 +1,31 @@
+- name: Show files in the playbook directory and its parent
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Find files in the parent of the playbook directory
+      ansible.builtin.find:
+        paths: "{{ playbook_dir | dirname }}"
+        recurse: yes
+        file_type: file
+        hidden: yes
+      register: parent_directory_files
+
+    - name: Show files in the parent of the playbook directory
+      debug:
+        msg: "Directory: {{ playbook_dir | dirname }}; files: {{ parent_directory_files.files | map(attribute='path') | list }}"
+
+    - name: Find files in the playbook directory
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}"
+        recurse: yes
+        file_type: file
+        hidden: yes
+      register: playbook_directory_files
+
+    - name: Show files in the playbook directory
+      debug:
+        msg: "Directory: {{ playbook_dir }}; files: {{ playbook_directory_files.files | map(attribute='path') | list }}"
+
 - name: Setup Oracle database parameters, autotasks and post tasks
   hosts: "{{ duplicate_target }}"
   gather_facts: no
@@ -175,6 +203,16 @@
   import_playbook: unblock_listener.yml
   vars:
     target_host: "{{ duplicate_target }}"
+
+
+
+
+- name: Unblock all database sessions
+  import_playbook: "{{ playbook_dir | dirname }}/block_sessions/playbook.yml"
+  vars:
+    target_host: "{{ duplicate_target }}"
+    action: "unblock"
+  when: duplicate_target |  regex_search('.*_delius_primarydb')
 
 - name: "Setup Oracle Statspack"
   import_playbook: ../oracle_statspack/playbook.yml
