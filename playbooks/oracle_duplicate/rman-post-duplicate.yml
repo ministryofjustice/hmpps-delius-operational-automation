@@ -208,7 +208,7 @@
 
 
 - name: Unblock all database sessions
-  import_playbook: ../block_sessions/playbook.yml
+  import_playbook: "{{ playbook_dir | dirname }}/block_sessions/playbook.yml"
   vars:
     target_host: "{{ duplicate_target }}"
     action: "unblock"
