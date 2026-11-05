@@ -1,6 +1,7 @@
 - name: Show files in the playbook directory and its parent
   hosts: localhost
   gather_facts: no
+  become: no
   tasks:
     - name: Find files in the parent of the playbook directory
       ansible.builtin.find:
