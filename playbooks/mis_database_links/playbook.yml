@@ -80,6 +80,7 @@
   shell:
     cmd: |
       . ~/.bash_profile
+      echo "Creating database link to {{ delius_database }}"
       DELIUS_AWS_ACCOUNT_ID=$({{ emcli }} execute_sql -sql="{{ sql_cmd }}" -targets="EMREP:oracle_database" | grep -v "*" | tail -3 | head -1)
       DELIUS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id "arn:aws:secretsmanager:eu-west-2:${DELIUS_AWS_ACCOUNT_ID}:secret:{{ delius_environment_name }}-oracle-db-application-passwords" --query SecretString --output text| jq -r .delius_app_schema)
       USER_PASSWORD=$(aws secretsmanager get-secret-value --secret-id {{ environment_name }}-oracle-mis-db-application-passwords --query SecretString --output text| jq -r .{{ item.user }})
