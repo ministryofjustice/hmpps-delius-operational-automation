@@ -17,6 +17,7 @@ on:
           - "delius-mis-prod"
       TargetHost:
         description: "Duplicate to target host"
+        required: true
         type: choice
         options:
           - "delius_primarydb"
@@ -33,6 +34,10 @@ on:
           - "restore"
           - "recover"
           - "open"
+      RunPostDuplicateOnly:
+        description: "Run only the post-duplicate tasks"
+        type: boolean
+        default: false
       SourceDb: 
         description: "Source database to duplicate"
         type: choice
@@ -87,7 +92,7 @@ permissions:
 jobs:
 
   oracle-rman-pre-duplicate:
-    if: ${{ always() && (github.event_name != 'repository_dispatch') }}
+    if: ${{ always() && github.event_name != 'repository_dispatch' && inputs.RunPostDuplicateOnly != true }}
     name: oracle-rman-pre-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -255,7 +260,7 @@ jobs:
           -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} 
 
   stop-audit-replication:
-    if: ${{ success('oracle-rman-pre-duplicate') && (github.event_name != 'repository_dispatch') && (startsWith(github.event.inputs.TargetHost, 'delius_')) }}
+    if: ${{ success('oracle-rman-pre-duplicate') && (github.event_name != 'repository_dispatch') && (startsWith(github.event.inputs.TargetHost, 'delius_')) && inputs.RunPostDuplicateOnly != true }}
     needs: oracle-rman-pre-duplicate
     uses: ./.github/workflows/oracle-db-audit-replication-management.yml
     with:
@@ -265,7 +270,7 @@ jobs:
       SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
 
   oracle-rman-export-schema:
-    if: ${{ github.event.inputs.SourceLegacy == 'no' && github.event_name != 'repository_dispatch'  && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' )  }}
+    if: ${{ github.event.inputs.SourceLegacy == 'no' && github.event_name != 'repository_dispatch' && inputs.RunPostDuplicateOnly != true && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
     needs: stop-audit-replication
     name: oracle-rman-export-schema
     environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }}-preapproved
@@ -361,7 +366,7 @@ jobs:
           -e export_name=${{ steps.preparation.outputs.ExportName }}
 
   oracle-rman-import-schema:
-    if: ${{ github.event_name != 'repository_dispatch' }}
+    if: ${{ github.event_name != 'repository_dispatch' && inputs.RunPostDuplicateOnly != true }}
     needs: [oracle-rman-export-schema]
     name: oracle-rman-import-schema
     environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }}-preapproved
@@ -417,7 +422,7 @@ jobs:
           -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   oracle-rman-duplicate:
-    if: ${{ success('oracle-rman-pre-duplicate') && github.event_name != 'repository_dispatch' && (needs.oracle-rman-import-schema.result == 'skipped' || needs.oracle-rman-import-schema.result == 'success') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
+    if: ${{ success('oracle-rman-pre-duplicate') && github.event_name != 'repository_dispatch' && inputs.RunPostDuplicateOnly != true && (needs.oracle-rman-import-schema.result == 'skipped' || needs.oracle-rman-import-schema.result == 'success') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
     name: oracle-rman-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -572,9 +577,9 @@ jobs:
           fi
 
   oracle-rman-post-duplicate:
-    if: ${{ (github.event_name == 'repository_dispatch') && (needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'duplicate' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'open') }}
+    if: ${{ always() && ((github.event_name == 'workflow_dispatch' && inputs.RunPostDuplicateOnly == true && (github.event.inputs.SourceLegacy == 'no' || github.event.inputs.SourceLegacy == 'duplicate' || github.event.inputs.SourceLegacy == 'open')) || (github.event_name == 'repository_dispatch' && (needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'duplicate' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'open'))) }}
     name: oracle-rman-post-duplicate
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
@@ -582,9 +587,8 @@ jobs:
     timeout-minutes: 1440
     continue-on-error: false
     env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
+      SourceCodeVersion: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
     outputs:
       JobId: ${{ github.job }}
     steps:
@@ -637,6 +641,17 @@ jobs:
           ref: ${{ env.SourceConfigVersion }}
           fetch-depth: 0
 
+      - name: Prepare post-duplicate target
+        id: preparation
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+          TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
+          TargetHost="${{ github.event.inputs.TargetHost }}"
+          DuplicateTarget="$(build_inventory_name "$TargetEnvironment" "_$TargetHost")"
+          echo "DuplicateTarget=${DuplicateTarget}" >> "$GITHUB_OUTPUT"
+
       - name: Configure AWS Credentials
         id: login-aws
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
@@ -652,7 +667,8 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oem_blackout/roles
           $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ env.DuplicateTarget }} -e source_legacy=${{ needs.oracle-rman-duplicate-check.outputs.SourceLegacy }}
+          -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget || needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }} \
+          -e source_legacy=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceLegacy || needs.oracle-rman-duplicate-check.outputs.SourceLegacy }}
 
   oracle-build-ha:
     if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0' || needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == null) && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && (needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'duplicate' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'open') }}
@@ -769,7 +785,7 @@ jobs:
   # Set new passwords for the database and associated components for monitoring
   password-rotation:
     needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
-    if:  ${{ ( needs.oracle-rman-post-duplicate.result == 'success' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
+    if:  ${{ inputs.RunPostDuplicateOnly != true && ( needs.oracle-rman-post-duplicate.result == 'success' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
     name: Password Rotation
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-password-rotation.yml@main
