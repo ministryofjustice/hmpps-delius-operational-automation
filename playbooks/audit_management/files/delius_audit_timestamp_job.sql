@@ -60,7 +60,13 @@ BEGIN
         name => '"AUDSYS"."SET_LAST_ARCHIVE_TIMESTAMP"',
         attribute => 'repeat_interval',
         value => 'freq=daily; byhour=2; byminute=0; bysecond=0;');
-
+      -- job in preprod and prod was disabled, so we explicitly enable it here by setting the start date and enabling the job
+      DBMS_SCHEDULER.SET_ATTRIBUTE(
+        name      => '"AUDSYS"."SET_LAST_ARCHIVE_TIMESTAMP"',
+        attribute => 'START_DATE',
+        value     => TRUNC(SYSTIMESTAMP) + 1 + 2/24
+      );
+      DBMS_SCHEDULER.enable('"AUDSYS"."SET_LAST_ARCHIVE_TIMESTAMP"');
       DBMS_SCHEDULER.drop_job(job_name => '"SYS"."SET_LAST_ARCHIVE_TIMESTAMP"');
       v_job_status := 'Rescheduled';
     ELSE
