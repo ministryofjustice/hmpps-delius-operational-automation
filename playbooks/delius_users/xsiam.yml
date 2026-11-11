@@ -87,7 +87,7 @@
           whenever oserror exit failure
           set feedback off
           grant CREATE SESSION to xsiam_ro;
-          grant SELECT on SYS.UNIFIED_AUDIT_TRAIL to xsiam_ro;
+          grant SELECT on AUDSYS.UNIFIED_AUDIT_TRAIL to xsiam_ro;
           exit
         SQL
       register: xsiam_grants
