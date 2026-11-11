@@ -1,0 +1,95 @@
+---
+- name: Configure XSIAM
+  block:
+    - name: Check whether XSIAM account exists
+      shell: |
+        . ~/.bash_profile
+        export ORACLE_SID={{ database_primary_sid | quote }}
+        ORAENV_ASK=NO
+        . oraenv > /dev/null
+        sqlplus -L -s / as sysdba <<'SQL'
+          whenever sqlerror exit failure
+          whenever oserror exit failure
+          set pages 0 heading off feedback off
+          select count(*) from dba_users where username = 'XSIAM_RO';
+          exit
+        SQL
+      register: xsiam_account
+      changed_when: false
+      failed_when: xsiam_account.rc != 0 or xsiam_account.stdout | trim not in ['0', '1']
+
+    - name: Configure XSIAM password
+      no_log: true
+      block:
+        - name: Initialise XSIAM secret facts
+          set_fact:
+            secretsmanager_passwords_dict: {}
+
+        - name: Ensure XSIAM password exists in application secrets
+          include_role:
+            name: secretsmanager-passwords
+            apply:
+              no_log: true
+          vars:
+            secretsmanager_passwords:
+              xsiam:
+                secret: "{{ environment_name }}-oracle-db-application-passwords"
+                users:
+                  - xsiam_ro: auto
+            secretsmanager_passwords_force_rotate: ""
+
+        - name: Validate stored XSIAM password
+          assert:
+            that:
+              - xsiam_password is string
+              - xsiam_password | length > 0
+              - xsiam_password | length <= 128
+              - xsiam_password is not search('["\r\n\x00]')
+            fail_msg: "XSIAM requires a non-empty Oracle password without double quotes, newlines or NUL characters."
+          vars:
+            xsiam_password: "{{ secretsmanager_passwords_dict.xsiam.passwords.xsiam_ro }}"
+
+        # Existing credentials are left alone on routine create runs.
+        - name: Create XSIAM account or restore its environment password
+          shell: |
+            . ~/.bash_profile
+            export ORACLE_SID={{ database_primary_sid | quote }}
+            ORAENV_ASK=NO
+            . oraenv > /dev/null
+            sqlplus -L -s / as sysdba <<'SQL'
+              whenever sqlerror exit failure
+              whenever oserror exit failure
+              set echo off feedback off verify off define off
+            {% if xsiam_account.stdout | trim == '0' %}
+              create user xsiam_ro identified by "{{ secretsmanager_passwords_dict.xsiam.passwords.xsiam_ro }}" default tablespace users;
+            {% else %}
+              alter user xsiam_ro identified by "{{ secretsmanager_passwords_dict.xsiam.passwords.xsiam_ro }}" account unlock;
+            {% endif %}
+              exit
+            SQL
+          when:
+            - >-
+              xsiam_account.stdout | trim == '0'
+              or action_type in ['restore', 'all']
+              or secretsmanager_passwords_dict.xsiam.oldpasswords.xsiam_ro
+                 != secretsmanager_passwords_dict.xsiam.passwords.xsiam_ro
+          register: xsiam_password_result
+          failed_when: xsiam_password_result.rc != 0 or xsiam_password_result.stdout is search('ORA-|SP2-|PLS-')
+
+    - name: Grant XSIAM access to the unified audit trail
+      shell: |
+        . ~/.bash_profile
+        export ORACLE_SID={{ database_primary_sid | quote }}
+        ORAENV_ASK=NO
+        . oraenv > /dev/null
+        sqlplus -L -s / as sysdba <<'SQL'
+          whenever sqlerror exit failure
+          whenever oserror exit failure
+          set feedback off
+          grant CREATE SESSION to xsiam_ro;
+          grant SELECT on SYS.UNIFIED_AUDIT_TRAIL to xsiam_ro;
+          exit
+        SQL
+      register: xsiam_grants
+      failed_when: xsiam_grants.rc != 0 or xsiam_grants.stdout is search('ORA-|SP2-|PLS-')
+
