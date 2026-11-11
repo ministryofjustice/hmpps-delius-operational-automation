@@ -49,6 +49,11 @@ on:
         required: true
         type: boolean
         default: false
+      SkipStandby2:
+        description: "Skip Build High Availability Standby 2 Database"
+        required: true
+        type: boolean
+        default: false
       SourceCodeVersion:
         description: "Source version for the  hmpps-delius-operation-automation. Enter a pull request, branch, commit ID, tag, or reference."
         type: string
@@ -196,7 +201,7 @@ jobs:
           -e primary_source_type=${{ github.event.inputs.PrimarySourceType }}
 
       - name: Build High Availability Standby 2 Database
-        if: ${{ steps.standbydbsconfigured.outputs.standbydb2Host != '' }}
+        if: ${{ !inputs.SkipStandby2 && steps.standbydbsconfigured.outputs.standbydb2Host != '' }}
         run: |
           export ANSIBLE_CONFIG=$ansible_config
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
