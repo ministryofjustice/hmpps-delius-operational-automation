@@ -15,6 +15,9 @@
 # Attempt analysis using the superset patch ID, but if this is not defined then use the Combo patch ID, appending the GI patch ID
 - name: Analyze Existing Home for Patch Conflicts
   shell: |
+    . ~/.bash_profile
+    # Ensure we are using a recent version of Java to start opatchauto
+    export PATH=$PATH:{{ source_home }}/jdk/jre
     {{ source_home }}/OPatch/opatchauto apply {{ oracle_patch_directory }}/{{ superset_patch_id | default(combo_patch_id + '/' + combo_gi_patch_id) }} -analyze -oh {{ source_home }} -silent /tmp/home_map.properties -outofplace
   register: analyze_db
   changed_when: false
