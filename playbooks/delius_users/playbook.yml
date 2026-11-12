@@ -365,7 +365,7 @@
 
         audit create session by {{ item.key }};
       EOF
-  when: delius_users is defined and ( action_type=="create" or action_type == "all") and not item.value.drop_user | default(false)
+  when: delius_users is defined and ( action_type=="create" or action_type == "all") and not item.value.drop_user | default(false) and item.key != 'xsiam_ro'
   with_dict: "{{ delius_users }}"
   register: plsql
   changed_when: false
@@ -390,6 +390,7 @@
     - item.key | lower is search('.*_ro$')
     - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
     - not item.value.drop_user | default(false)
+    - item.key != 'xsiam_ro'
     - application_type == 'delius'
 
 # Create a trigger to prevent Standby Database Only Read-Only Users logging into the Primary database.
@@ -643,7 +644,11 @@
       EOF
       echo "Password restored for {{ item.key }}"
   with_dict: "{{ delius_users }}"
-  when: delius_users is defined and (action_type=="restore" or action_type == "all") and not item.value.drop_user | default(false)
+  when:
+    - delius_users is defined
+    - action_type == "restore" or action_type == "all"
+    - not item.value.drop_user | default(false)
+    - item.key != 'xsiam_ro'
   changed_when: false
   register: plsql
 
@@ -655,18 +660,31 @@
     label: "{{ item.item.key }}"
   when: delius_users is defined and (action_type=="restore" or action_type == "all")
 
+- name: Configure XSIAM monitoring account
+  include_tasks: xsiam.yml
+  when:
+    - action_type in ["create", "restore", "all"]
+    - "'xsiam_ro' in (delius_users | default({}))"
+    - not (delius_users.xsiam_ro.drop_user | default(false) | bool)
+
 - name: Store Database User Passwords
   when: delius_users is defined and action_type == "store"
   block:
+    - name: Initialise legacy password user list
+      set_fact:
+        user_list: []
+
     - name: Create List Users
       set_fact:
         user_list: "{{ user_list | default([]) + [item.key | upper] }}"
       with_dict: "{{ delius_users }}"
-      when: not item.value.drop_user | default(false)
+      when:
+        - not item.value.drop_user | default(false)
+        - item.key != 'xsiam_ro'
 
     - name: Place read only users in variable if read only users defined
       set_fact:
-        readonly_users: '{{ user_list | join("'',''") | regex_replace(''^|$'',"''") }}'
+        readonly_users: '{{ (user_list | join("'',''") | regex_replace(''^|$'',"''")) if user_list | length > 0 else "NULL" }}'
 
     - name: Store database user passwords
       shell:

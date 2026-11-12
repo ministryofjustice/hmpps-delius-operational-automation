@@ -15,7 +15,7 @@ on:
           - "delius-core-preprod"
           - "delius-core-prod"
       DeployUsers:
-        description: "Create Delius database users? (Read-Only, Read-Write, DBA)"
+        description: "Create Delius database users? (Read-Only, Read-Write, DBA, XSIAM)"
         type: choice
         default: "no"
         options: 
@@ -133,6 +133,19 @@ jobs:
           ref: ${{ github.event.inputs.SourceCodeVersion }}
           fetch-depth: 0
 
+      - name: Checkout Secrets Manager Roles
+        if: ${{ github.event.inputs.DeployUsers == 'yes' }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/modernisation-platform-configuration-management
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ansible/roles/secretsmanager-passwords
+            ansible/roles/get-modernisation-platform-facts
+          path: roles
+          ref: ${{ github.event.inputs.SourceConfigVersion }}
+          fetch-depth: 0
+
       - name: Generate Token For Access To hmpps-delius-audit-stub-accounts
         if: ${{ github.event.inputs.DeployAuditStubUsers == 'yes' }}
         uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
@@ -166,6 +179,9 @@ jobs:
       - name: Run Delius Artefacts Playbook
         run: |
           export ANSIBLE_CONFIG=$ansible_config
+          if [ "${{ github.event.inputs.DeployUsers }}" = "yes" ]; then
+            ln -s "$PWD/roles/ansible/roles" "$PWD/operations/playbooks/roles"
+          fi
           $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} \
           -e @$inventory/group_vars/${{ steps.prepareinventorynames.outputs.allHost }}.yml \
           -e hosts=${{ steps.prepareinventorynames.outputs.hosts }} \
