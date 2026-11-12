@@ -21,7 +21,7 @@
   register: opatch_versions
 
 - name: Report OPatch Versions Available
-  debug: opatch_versions
+  debug: var=opatch_versions
 
 - name: Set Latest OPatch Software Value
   set_fact:
