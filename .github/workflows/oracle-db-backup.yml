@@ -33,12 +33,13 @@ on:
           - "dsd_standbydb1"
           - "delius_standbydb2"
       Period: 
-        description: "Is this a daily or weekly backup?"
+        description: "Is this a daily, weekly or archivelog backup?"
         required: true
         type: choice
         options: 
           - "daily"
           - "weekly"
+          - "archivelog"
       BackupStandbyOnPrimaryFailure:
         description: "Retry the backup on the standby if primary backup fails"
         type: choice
@@ -94,9 +95,19 @@ on:
         required: true
         type: string
       Period:
-        description: "Is this a daily or weekly backup?"
+        description: "Is this a daily, weekly or archivelog backup?"
         required: true
         type: string
+      BackupStandbyOnPrimaryFailure:
+        description: "Retry the backup on the standby if primary backup fails"
+        required: false
+        type: string
+        default: "no"
+      FixAbsentChunks:
+        description: "Validate and fix absent S3 missing backup chunks"
+        required: false
+        type: string
+        default: "yes"
 
   repository_dispatch:
     types: ["oracle-db-backup-success","oracle-db-backup-failure"]
@@ -117,18 +128,32 @@ jobs:
       BackupStandbyOnPrimaryFailure: ${{ steps.preparermantargetname.outputs.BackupStandbyOnPrimaryFailure }}
       SourceCodeVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
       SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceConfigVersion }}
+      FixAbsentChunks: ${{ steps.preparermantargetname.outputs.FixAbsentChunks }}
       Inputs: ${{ steps.preparermantargetname.outputs.Inputs }}
       SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
       IsRetryJob: ${{ steps.preparermantargetname.outputs.IsRetryJob }}
+      VerboseOutput: ${{ steps.preparermantargetname.outputs.VerboseOutput }}
     steps:
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          fetch-depth: 0
+
       - name: Prepare Rman Target
         id: preparermantargetname
         run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
           function set_rman_target()
           {
             # Supply 2 parameters:  TargetEnvironment & TargetHost
             # This function determines the inventory name for the RMAN target on which the backup should be run.
-            RmanTarget="environment_name_$(echo $1 | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_$2"
+            RmanTarget="$(build_inventory_name "$1" "_$2")"
             echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
             echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
 
@@ -234,6 +259,7 @@ jobs:
               TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')
               Period=$(echo $Inputs | jq -r '.Period')
               IsRetryJob=$(echo $Inputs | jq -r '.IsRetryJob // "no"')
+              FixAbsentChunks=$(echo $Inputs | jq -r '.FixAbsentChunks // "yes"')
               # The following 2 parameters are mandatory; abort if they are missing from JSON inputs
               [[ -z $TargetEnvironment ]] && "Target Environment is not specified in JSON inputs" && exit 3
               [[ -z $Period ]] && "Backup Period (daily/weekly) is not specified in JSON inputs" && exit 4
@@ -257,11 +283,20 @@ jobs:
           echo "SourceCodeVersion=$SourceCodeVersion" >> $GITHUB_OUTPUT
           echo "SourceConfigVersion=$SourceConfigVersion" >> $GITHUB_OUTPUT
           echo "IsRetryJob=$IsRetryJob" >> $GITHUB_OUTPUT
+          echo "FixAbsentChunks=$FixAbsentChunks" >> $GITHUB_OUTPUT
+          echo "VerboseOutput=$VerboseOutput" >> $GITHUB_OUTPUT
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
         run: |
-            if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
+            if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+                 echo "Responding to Repository Dispatch event"
+                 Inputs='${{ toJson(github.event.client_payload) }}'
+                 Inputs=$(echo $Inputs | jq -r)
+                 TargetEnvironment=$(echo $Inputs | jq -r '.TargetEnvironment')
+                 echo "Target Environment: $TargetEnvironment"
+            fi
+            if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" || "${{ github.event.inputs.TargetEnvironment }}" == "delius-mis-prod" || "${{inputs.TargetEnvironment}}" == "delius-core-prod" || "${{inputs.TargetEnvironment}}" == "delius-mis-prod" || "$TargetEnvironment" == "delius-core-prod" || "$TargetEnvironment" == "delius-mis-prod" ]]; then
               echo "SlackChannel=delius-aws-oracle-prod-alerts" >> $GITHUB_OUTPUT
             else
               echo "SlackChannel=delius-aws-oracle-dev-alerts" >> $GITHUB_OUTPUT
@@ -286,26 +321,30 @@ jobs:
       BackupStandbyOnPrimaryFailure: "${{needs.build_rman_target_name.outputs.BackupStandbyOnPrimaryFailure}}"
       SourceCodeVersion:  "${{needs.build_rman_target_name.outputs.SourceCodeVersion}}"
       SourceConfigVersion:  "${{needs.build_rman_target_name.outputs.SourceConfigVersion}}"
+      FixAbsentChunks:  "${{needs.build_rman_target_name.outputs.FixAbsentChunks}}" 
       Inputs:  "${{needs.build_rman_target_name.outputs.Inputs}}"
       SlackChannel: ${{ needs.build_rman_target_name.outputs.SlackChannel }}
       IsRetryJob: "${{needs.build_rman_target_name.outputs.IsRetryJob }}"
+      VerboseOutput: "${{needs.build_rman_target_name.outputs.VerboseOutput }}"
       ansible_config: operations/playbooks/ansible.cfg
     continue-on-error: false
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/oracle_backup
             playbooks/ansible.cfg
+            common/files/build_inventory_name.sh
+            common/files/github_dispatch.sh
           path: operations
           ref: "${{ env.SourceCodeVersion }}"
           fetch-depth: 0
 
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -317,7 +356,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -330,7 +369,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -392,7 +431,7 @@ jobs:
                     LAST_UPDATED=$(aws ssm get-parameter --region ${AWS_REGION} --name "$SSMParameter" --query "Parameter.LastModifiedDate" --output text | cut -d. -f1)
                     CURRENT_EPOCH=$(date +%s)
                     if [[ $((CURRENT_EPOCH-LAST_UPDATED)) -le 82800 ]]; then
-                        echo "Backup is already active on this host.  Multiple concurrent runs are not allowed."
+                        echo "Backup is already active on this host ($PHASE).  Multiple concurrent runs are not allowed."
                         Inputs=$(echo $Inputs | jq -r | jq '.Phase == "Concurrent Backup Attempt"' | jq @json)
                         exit 1
                     fi
@@ -436,6 +475,19 @@ jobs:
           # This allows the primary job to run on the standby if needed (so this is a different type
           # of failure to running it on the primary and getting an RMAN error, i.e. it doesn't run at all,
           # but we just want to do the same thing, which is to re-try on standby).
+          if [[ "${VerboseOutput}" == "-vv" || "${VerboseOutput}" == "-vvv" || "${VerboseOutput}" == "-vvvv" ]]
+          then 
+              echo "==============================================================================="
+              echo "Inventory: $inventory"
+              ls -l $inventory
+              echo "Contents:"
+              find $inventory
+              echo "Ansible Inventory:"
+              ansible-inventory -i $inventory --list
+              echo "Looking for: $RmanTarget"
+              ansible-inventory -i $inventory --list | grep -c $RmanTarget
+              echo "==============================================================================="
+          fi
           if [[ $(ansible-inventory -i $inventory --list | grep -c $RmanTarget) -eq 0 ]]; then
              echo "Target does not appear in the inventory"
              BackupStatus="failed"
@@ -491,7 +543,7 @@ jobs:
       - name: Report Backup Retry Attempt
         id: slack-retry
         if: env.BackupStatus == 'failed'
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.27.0
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |
@@ -503,7 +555,7 @@ jobs:
       - name: Report Backup Retry Attempt Success
         id: slack-retry-success
         if: env.BackupStatus == 'success' && env.IsRetryJob == 'yes'
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.27.0
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |
@@ -512,7 +564,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ steps.get-slack-token.outputs.slack_token }}
 
       - name: Run Ansible Validate And Fix Absent Chunks
-        if: env.BackupStatus == 'success'
+        if: env.BackupStatus == 'success' && env.FixAbsentChunks != 'no'
         run: |
           # We only come here by a repository_dispatch event which reports that the backup was successful.
           # If this is the case then we run a second Ansible play which checks that all backup chunk pieces are available
@@ -546,7 +598,7 @@ jobs:
       - name: Slack Failure Notification
         id: slack-failure
         if: failure()
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.27.0
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |

@@ -80,9 +80,20 @@
   shell:
     cmd: |
       . ~/.bash_profile
+      echo "Creating database link to {{ delius_database }}"
+      export JAVA_HOME=$ORACLE_HOME/jdk/jre
       DELIUS_AWS_ACCOUNT_ID=$({{ emcli }} execute_sql -sql="{{ sql_cmd }}" -targets="EMREP:oracle_database" | grep -v "*" | tail -3 | head -1)
       DELIUS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id "arn:aws:secretsmanager:eu-west-2:${DELIUS_AWS_ACCOUNT_ID}:secret:{{ delius_environment_name }}-oracle-db-application-passwords" --query SecretString --output text| jq -r .delius_app_schema)
       USER_PASSWORD=$(aws secretsmanager get-secret-value --secret-id {{ environment_name }}-oracle-mis-db-application-passwords --query SecretString --output text| jq -r .{{ item.user }})
+      if [[ -z "${DELIUS_PASSWORD:-}" ]]; then
+        echo "ERROR: DELIUS_PASSWORD is undefined or empty" >&2
+        exit 1
+      fi
+      if [[ -z "${USER_PASSWORD:-}" ]]; then
+        echo "ERROR: USER_PASSWORD is undefined or empty" >&2
+        exit 1
+      fi
+      echo "CREATE DATABASE LINK {{ item.dblink }} CONNECT TO delius_app_schema IDENTIFIED BY \"********\" USING '{{ delius_database }}';"
       ORACLE_SID={{ database_primary_sid }}
       ORAENV_ASK=NO
       . oraenv > /dev/null;

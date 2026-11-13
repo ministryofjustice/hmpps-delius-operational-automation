@@ -71,9 +71,21 @@ jobs:
       SourceConfigVersion: ${{ steps.preparermantargetname.outputs.SourceCodeVersion }}
       SlackChannel: ${{ steps.prepare-slack-channel-name.outputs.SlackChannel }}
     steps:
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || 'main' }}
+          fetch-depth: 0
+
       - name: Prepare Rman Target
         id: preparermantargetname
         run: |
+            source "$PWD/operations/common/files/build_inventory_name.sh"
+
             if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]
             then
               TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
@@ -86,14 +98,14 @@ jobs:
               TargetEnvironment="${{ inputs.TargetEnvironment }}"
               TargetHost="${{ inputs.TargetHost }}"
             fi
-            RmanTarget="environment_name_$(echo $TargetEnvironment | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_$TargetHost"
+            RmanTarget="$(build_inventory_name "$TargetEnvironment" "_$TargetHost")"
             echo "RmanTarget=$RmanTarget" >> $GITHUB_OUTPUT
             echo "TargetEnvironment=$TargetEnvironment" >> $GITHUB_OUTPUT
 
       - name: Prepare Slack Channel Name
         id: prepare-slack-channel-name
         run: |
-            if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
+            if [[ "${{ github.event.inputs.TargetEnvironment }}" == "delius-core-prod" || "${{ inputs.TargetEnvironment }}" == "delius-core-prod" ]]; then
               echo "SlackChannel=delius-aws-oracle-prod-alerts" >> $GITHUB_OUTPUT
             else
               echo "SlackChannel=delius-aws-oracle-dev-alerts" >> $GITHUB_OUTPUT
@@ -120,18 +132,19 @@ jobs:
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/oracle_backup
             playbooks/ansible.cfg
+            common/files/build_inventory_name.sh
           path: operations
           ref: "${{ env.SourceCodeVersion }}"
           fetch-depth: 0
 
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -143,7 +156,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -156,7 +169,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -193,7 +206,7 @@ jobs:
       - name: Slack Failure Notification
         id: slack
         if: failure()
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.27.0
         with:
             channel-id: "${{ env.SlackChannel }}"
             payload: |

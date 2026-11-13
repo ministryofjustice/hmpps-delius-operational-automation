@@ -1,3 +1,32 @@
+- name: Show files in the playbook directory and its parent
+  hosts: localhost
+  gather_facts: no
+  become: no
+  tasks:
+    - name: Find files in the parent of the playbook directory
+      ansible.builtin.find:
+        paths: "{{ playbook_dir | dirname }}"
+        recurse: yes
+        file_type: file
+        hidden: yes
+      register: parent_directory_files
+
+    - name: Show files in the parent of the playbook directory
+      debug:
+        msg: "Directory: {{ playbook_dir | dirname }}; files: {{ parent_directory_files.files | map(attribute='path') | list }}"
+
+    - name: Find files in the playbook directory
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}"
+        recurse: yes
+        file_type: file
+        hidden: yes
+      register: playbook_directory_files
+
+    - name: Show files in the playbook directory
+      debug:
+        msg: "Directory: {{ playbook_dir }}; files: {{ playbook_directory_files.files | map(attribute='path') | list }}"
+
 - name: Setup Oracle database parameters, autotasks and post tasks
   hosts: "{{ duplicate_target }}"
   gather_facts: no
@@ -97,6 +126,17 @@
     - name: Register Database with RMAN Catalog
       include_tasks: register_with_rman.yml
 
+    - name: Create MIS database links
+      include_tasks: ../mis_database_links/playbook.yml
+      when: duplicate_target | regex_search('.*_mis_primarydb')
+
+    - name: Create and restore users
+      include_tasks: ../delius_users/playbook.yml
+      when: ( duplicate_target | regex_search('.*_delius_primarydb')) or ( duplicate_target | regex_search('.*_mis_primarydb') )
+      vars:
+        action_type: "all"
+        application_type: "{{ 'delius' if (duplicate_target | regex_search('.*_delius_primarydb')) else 'mis' }}"
+
     - block:
         # Ensure that no sequences in duplicated environments overlap IDs
         # with production IDs by incrementing these to a higher range
@@ -187,21 +227,20 @@
   vars:
     target_host: "{{ duplicate_target }}"
 
+
+
+
+- name: Unblock all database sessions
+  import_playbook: "{{ playbook_dir | dirname }}/block_sessions/playbook.yml"
+  vars:
+    target_host: "{{ duplicate_target }}"
+    action: "unblock"
+  when: duplicate_target |  regex_search('.*_delius_primarydb')
+
 - name: "Setup Oracle Statspack"
   import_playbook: ../oracle_statspack/playbook.yml
   vars:
     target_hosts: "{{ duplicate_target }}"
-
-- name: Create mis database links if required
-  hosts: "{{ duplicate_target }}"
-  gather_facts: no
-  become: yes
-  become_user: oracle
-
-  tasks:
-    - name: create database links
-      include_tasks: ../mis_database_links/playbook.yml
-      when: duplicate_target | regex_search('.*_mis_primarydb')
 
 - name: Import dfi schemas only for STGMIS
   import_playbook: dfi-schemas.yml
@@ -210,12 +249,6 @@
   when:
     - duplicate_target | regex_search('.*_mis_primarydb')
     - database_primary_sid | regex_search('STGMIS.*$')
-
-- name: Create and restore MIS users
-  include_tasks: ../delius_users/playbook.yml
-  vars:
-    action_type: "all"
-    application_type: "mis"
 
 - name: Copy delius datasets required
   import_playbook: delius-datasets.yml

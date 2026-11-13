@@ -68,9 +68,23 @@ jobs:
     outputs:
       TargetHost: ${{ steps.preparetargetname.outputs.TargetHost }}
     steps:
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Target Name
         id: preparetargetname
-        run: echo TargetHost="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/stage/preproduction_stage/;s/pre-prod/preproduction_pre_prod/;s/-prod/_production_prod/;s/-/_/g')_${{ github.event.inputs.TargetHost }}" >> $GITHUB_OUTPUT
+        run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
+          TargetHost="$(build_inventory_name "${{ github.event.inputs.TargetEnvironment }}" "_${{ github.event.inputs.TargetHost }}")"
+          echo "TargetHost=$TargetHost" >> $GITHUB_OUTPUT
   deployment:
     name: oracle-db-oem-agent-setup
     needs: build_target_name
@@ -80,13 +94,13 @@ jobs:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
     timeout-minutes: 1440
     env:
-      command: ansible-playbook operations/ansible/site.yml -e force_role=oracle-oem-agent-setup -e role=oracle-oem-agent-setup
+      command: ansible-playbook operations/ansible/site.yml -e force_role=oracle-oem-agent-setup -e role=oracle-oem-agent-setup --tags all,oem_agent_target_promote,update_target_properties
       inventory: inventory/ansible
     continue-on-error: false
     steps:
 
       - name: Checkout From hmpps-delius-operational-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
@@ -97,7 +111,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout From hmpps-delius-operational-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
@@ -108,13 +122,14 @@ jobs:
           fetch-depth: 0
   
       - name: Checkout Role From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
           sparse-checkout: |
                ansible/roles/oracle-oem-blackout
                ansible/roles/oracle-oem-agent-setup
+               ansible/roles/oracle-oms-setup
                ansible/roles/get-ec2-facts
                ansible/roles/secretsmanager-passwords
                ansible/roles/get-modernisation-platform-facts
@@ -125,7 +140,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -138,7 +153,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -149,5 +164,6 @@ jobs:
         run: | 
             export ANSIBLE_CONFIG=$ansible_config
             ln -svf $PWD/roles/playbooks/oem_blackout/oem-blackout $PWD/operations/ansible/roles/oem_blackout
-            ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oem_blackout/roles
+            ln -s $PWD/roles/ansible/roles $PWD/operations/ansible/roles/oracle-oem-blackout
+            ln -s $PWD/roles/ansible/roles $PWD/operations/ansible/roles/oracle-oms-setup
             $command -i $inventory -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -e target=${{needs.build_target_name.outputs.TargetHost}} ${{ github.event.inputs.VerboseOutput }}

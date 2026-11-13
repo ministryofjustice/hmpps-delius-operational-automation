@@ -79,6 +79,10 @@
         -- links which do not exist.  Handle this case of exceptions by ignoring them.
         table_does_not_exist exception;
         pragma               exception_init(table_does_not_exist,-942);
+        service_does_not_exist exception;
+        pragma               exception_init(service_does_not_exist,-12514);
+        connection_description_not_found exception;
+        pragma               exception_init(connection_description_not_found,-2019);
 
       begin
 
@@ -101,7 +105,9 @@
           begin
               EXECUTE IMMEDIATE l_command;
           exception
-              when table_does_not_exist
+              when table_does_not_exist 
+              or service_does_not_exist
+              or connection_description_not_found
               then 
                 null; -- Ignore missing remote tables using database links
           end;
@@ -333,6 +339,8 @@
             dbms_output.put_line('Role granted to user {{ item.key }}');
           elsif substr('{{ item.key }}',-3) = '_rw'
           then
+            execute immediate 'grant '||v_role||' to {{ item.key }}';
+            dbms_output.put_line('Role granted to user {{ item.key }}');
             execute immediate 'grant create session to {{ item.key }}';
             execute immediate 'grant exempt access policy to {{ item.key }}';
             dbms_output.put_line('Grant exempt access policy user {{ item.key }}');
@@ -358,7 +366,7 @@
 
         audit create session by {{ item.key }};
       EOF
-  when: delius_users is defined and ( action_type=="create" or action_type == "all") and not item.value.drop_user | default(false)
+  when: delius_users is defined and ( action_type=="create" or action_type == "all") and not item.value.drop_user | default(false) and item.key != 'xsiam_ro'
   with_dict: "{{ delius_users }}"
   register: plsql
   changed_when: false
@@ -383,6 +391,7 @@
     - item.key | lower is search('.*_ro$')
     - delius_users is defined and ( action_type=="create" or action_type == "restore" or action_type == "all")
     - not item.value.drop_user | default(false)
+    - item.key != 'xsiam_ro'
     - application_type == 'delius'
   register: ro_logon_trigger
   changed_when: ro_logon_trigger.stdout is search('.*Trigger was created.*')
@@ -404,8 +413,9 @@
 # These type of database users are scarce.
 # Object privileges granted are not generic and vary on a user by user basis.
 # User custom sql files have been created containing the granted object privileges required.
-# The custom sql files MUST reside in the files directory with file format of grant_<database user name>_user.sql
-# where the <database user name> is the key defined in the delius_users dictionary
+# The custom sql files MUST reside in the files directory under the database SID with file format of grant_<database user name>_user.sql
+# where the <database user name> is the key defined in the delius_users dictionary.
+# If the file doesn't exist then their account will just get the read-only role.
 
 # Note that Ansible does the file lookup before it evaluates the when condition, so default non-existent files to be empty,
 # otherwise it will complain that the file does not exist.
@@ -443,7 +453,11 @@
       EOF
       echo "Password restored for {{ item.key }}"
   with_dict: "{{ delius_users }}"
-  when: delius_users is defined and (action_type=="restore" or action_type == "all") and not item.value.drop_user | default(false)
+  when:
+    - delius_users is defined
+    - action_type == "restore" or action_type == "all"
+    - not item.value.drop_user | default(false)
+    - item.key != 'xsiam_ro'
   changed_when: false
   register: plsql
 
@@ -455,18 +469,31 @@
     label: "{{ item.item.key }}"
   when: delius_users is defined and (action_type=="restore" or action_type == "all")
 
+- name: Configure XSIAM monitoring account
+  include_tasks: xsiam.yml
+  when:
+    - action_type in ["create", "restore", "all"]
+    - "'xsiam_ro' in (delius_users | default({}))"
+    - not (delius_users.xsiam_ro.drop_user | default(false) | bool)
+
 - name: Store Database User Passwords
   when: delius_users is defined and action_type == "store"
   block:
+    - name: Initialise legacy password user list
+      set_fact:
+        user_list: []
+
     - name: Create List Users
       set_fact:
         user_list: "{{ user_list | default([]) + [item.key | upper] }}"
       with_dict: "{{ delius_users }}"
-      when: not item.value.drop_user | default(false)
+      when:
+        - not item.value.drop_user | default(false)
+        - item.key != 'xsiam_ro'
 
     - name: Place read only users in variable if read only users defined
       set_fact:
-        readonly_users: '{{ user_list | join("'',''") | regex_replace(''^|$'',"''") }}'
+        readonly_users: '{{ (user_list | join("'',''") | regex_replace(''^|$'',"''")) if user_list | length > 0 else "NULL" }}'
 
     - name: Store database user passwords
       shell:

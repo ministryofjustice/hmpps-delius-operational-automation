@@ -11,10 +11,13 @@ on:
           - "delius-core-test"
           - "delius-core-stage"
           - "delius-core-preprod"
+          - "delius-core-prod"
           - "delius-mis-stage"
           - "delius-mis-preprod"
+          - "delius-mis-prod"
       TargetHost:
         description: "Duplicate to target host"
+        required: true
         type: choice
         options:
           - "delius_primarydb"
@@ -31,6 +34,10 @@ on:
           - "restore"
           - "recover"
           - "open"
+      RunPostDuplicateOnly:
+        description: "Run only the post-duplicate tasks"
+        type: boolean
+        default: false
       SourceDb: 
         description: "Source database to duplicate"
         type: choice
@@ -40,6 +47,9 @@ on:
           - "DMDNDA"
           - "PRDNDA"
           - "PRDMIS"
+          - "PREDXB"
+          - "PREBXE"
+          - "PRDDXB"
       S3SourceBucket: 
         description: "Source s3 bucket containing backups"
         type: choice
@@ -50,6 +60,8 @@ on:
           - "delius-core-dev-oracle-db-backups"
           - "delius-mis-prod-oracle-mis-db-backups"
           - "delius-core-prod-oracle-db-backups"
+          - "eu-west-2-del-pre-prod-oracledb-backups"
+          - "eu-west-2-del-prod-oracledb-backups"
       RestoreDatetime:
         description: Restore datetime from source database, format [YYMMDDHH24MISS] (use the value '0' if you wish to skip duplicate altogether -- development purposes only)
         type: string
@@ -80,7 +92,7 @@ permissions:
 jobs:
 
   oracle-rman-pre-duplicate:
-    if: ${{ always() && (github.event_name != 'repository_dispatch') }}
+    if: ${{ always() && github.event_name != 'repository_dispatch' && inputs.RunPostDuplicateOnly != true }}
     name: oracle-rman-pre-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -96,16 +108,29 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Duplicate Target Name
         id: preparation
         shell: bash
         run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
           TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
           TargetHost="${{ github.event.inputs.TargetHost }}"
           SourceLegacy="${{ github.event.inputs.SourceLegacy }}"
@@ -115,7 +140,7 @@ jobs:
           SkipAudit="${{ github.event.inputs.SkipAudit }}"
           SourceCodeVersion="${{ github.event.inputs.SourceCodeVersion }}"
           SourceConfigVersion="${{ github.event.inputs.SourceConfigVersion }}"
-          DuplicateTarget=environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
+          DuplicateTarget="$(build_inventory_name "$TargetEnvironment" "_$TargetHost")"
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           # Check the combination of Source Database and Source Bucket is correct if NOT duplicating from AWS legacy
           if [[ "${SourceLegacy}" == "no" ]]
@@ -184,7 +209,7 @@ jobs:
           isDateInvalid '${{ github.event.inputs.RestoreDatetime }}'
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -201,7 +226,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -213,7 +238,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -235,7 +260,7 @@ jobs:
           -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget }} 
 
   stop-audit-replication:
-    if: ${{ success('oracle-rman-pre-duplicate') && (github.event_name != 'repository_dispatch') && (startsWith(github.event.inputs.TargetHost, 'delius_')) }}
+    if: ${{ success('oracle-rman-pre-duplicate') && (github.event_name != 'repository_dispatch') && (startsWith(github.event.inputs.TargetHost, 'delius_')) && inputs.RunPostDuplicateOnly != true }}
     needs: oracle-rman-pre-duplicate
     uses: ./.github/workflows/oracle-db-audit-replication-management.yml
     with:
@@ -245,7 +270,7 @@ jobs:
       SourceConfigVersion: ${{ github.event.inputs.SourceConfigVersion }}
 
   oracle-rman-export-schema:
-    if: ${{ github.event.inputs.SourceLegacy == 'no' && github.event_name != 'repository_dispatch'  && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' )  }}
+    if: ${{ github.event.inputs.SourceLegacy == 'no' && github.event_name != 'repository_dispatch' && inputs.RunPostDuplicateOnly != true && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
     needs: stop-audit-replication
     name: oracle-rman-export-schema
     environment: hmpps-oem-${{ github.event.inputs.S3SourceBucket == 'dev-oracle-database-backups' && 'development' || 'production' }}-preapproved
@@ -263,7 +288,7 @@ jobs:
     steps:
           
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -274,7 +299,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -290,10 +315,13 @@ jobs:
         id: preparation
         shell: bash
         run: |
-          case $(echo ${{ github.event.inputs.S3SourceBucket }} | awk -F- '{print $1}') in
+          case $(echo ${{ github.event.inputs.S3SourceBucket }} | sed -E 's/-oracle-(mis-)?db-backups.*//' | awk -F- '{print $NF}') in
             dev)
               SourceOemEnvironment=development
               ;;
+            stage|preprod)
+              SourceOemEnvironment=preproduction
+              ;;            
             prod)
               SourceOemEnvironment=production
               ;;
@@ -311,7 +339,10 @@ jobs:
             test)
               TargetOemEnvironment=test
               ;;
-            stage|prod)
+            stage|preprod)
+              TargetOemEnvironment=preproduction
+              ;;              
+            prod)
               TargetOemEnvironment=production
               ;;
           esac
@@ -319,7 +350,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -335,7 +366,7 @@ jobs:
           -e export_name=${{ steps.preparation.outputs.ExportName }}
 
   oracle-rman-import-schema:
-    if: ${{ github.event_name != 'repository_dispatch' }}
+    if: ${{ github.event_name != 'repository_dispatch' && inputs.RunPostDuplicateOnly != true }}
     needs: [oracle-rman-export-schema]
     name: oracle-rman-import-schema
     environment: ${{ needs.oracle-rman-export-schema.outputs.TargetOemEnvironment }}-preapproved
@@ -349,7 +380,7 @@ jobs:
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -360,7 +391,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -373,7 +404,7 @@ jobs:
         
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -391,7 +422,7 @@ jobs:
           -e source_db_backup_s3_bucket_name=${{ needs.oracle-rman-export-schema.outputs.SourceDbBackupS3BucketName }}
 
   oracle-rman-duplicate:
-    if: ${{ success('oracle-rman-pre-duplicate') && github.event_name != 'repository_dispatch' && (needs.oracle-rman-import-schema.result == 'skipped' || needs.oracle-rman-import-schema.result == 'success') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
+    if: ${{ success('oracle-rman-pre-duplicate') && github.event_name != 'repository_dispatch' && inputs.RunPostDuplicateOnly != true && (needs.oracle-rman-import-schema.result == 'skipped' || needs.oracle-rman-import-schema.result == 'success') && ( needs.stop-audit-replication.result == 'success' || needs.stop-audit-replication.result == 'skipped' ) }}
     name: oracle-rman-duplicate
     environment: ${{ github.event.inputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
@@ -407,7 +438,7 @@ jobs:
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -418,7 +449,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -431,7 +462,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -452,11 +483,24 @@ jobs:
           # Only pass extra variables if NOT duplicating from AWS legacy
           if [[ "${{ github.event.inputs.SourceLegacy }}" == "no" ]]
           then
-             case $(echo ${{ github.event.inputs.S3SourceBucket }} | awk -F- '{print $1}') in
-                dev) SourceOemEnvironment=development ;;
-               prod) SourceOemEnvironment=production ;;
-             esac
-             SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
+            case $(echo ${{ github.event.inputs.S3SourceBucket }} | sed -E 's/-oracle-(mis-)?db-backups.*//' | awk -F- '{print $NF}') in
+              dev)
+                SourceOemEnvironment=development
+                ;;
+              stage|preprod)
+                SourceOemEnvironment=preproduction
+                ;;            
+              prod)
+                SourceOemEnvironment=production
+                ;;
+            esac
+             # Handle Special Case of MIS databases which need to be renamed
+             if [[ "${{ github.event.inputs.SourceDb }}" == "PREDXB" || "${{ github.event.inputs.SourceDb }}" == "PREBXE" || "${{ github.event.inputs.SourceDb }}" == "PRDDXB" ]]
+             then
+                SourceCatalogSchema=rman19c
+             else
+                SourceCatalogSchema=RCVCATOWNER_$(yq .db_configs.RCVCAT.rcvcat_db_name ${{ env.inventory }}/group_vars/environment_name_hmpps_oem_${SourceOemEnvironment}.yml)
+             fi
              extra_vars="-e source_legacy=no -e source_catalog_schema=${SourceCatalogSchema} -e source_db=${{ github.event.inputs.SourceDb }} -e s3_source_bucket=${{ github.event.inputs.S3SourceBucket }} -e noop_mode=$NoOpMode"
           else
              extra_vars="-e source_legacy=${{ github.event.inputs.SourceLegacy }} -e noop_mode=$NoOpMode"
@@ -486,15 +530,29 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
           aws-region: "eu-west-2"
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.client_payload.SourceCodeVersion || 'main' }}
+          fetch-depth: 0
+
       - name: Responding to Repository Dispatch event
         id: response
+        shell: bash
         run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
           echo "${{ github.event.client_payload }}"
           Inputs='${{ toJson(github.event.client_payload) }}'
           Inputs=$(echo $Inputs | jq -r)
@@ -505,7 +563,7 @@ jobs:
           echo "SourceConfigVersion=$(echo $Inputs | jq -r '.SourceConfigVersion')" >> $GITHUB_OUTPUT
           echo "SourceCodeVersion=$(echo $Inputs | jq -r '.SourceCodeVersion')" >> $GITHUB_OUTPUT
           echo "RestoreDatetime=$(echo $Inputs | jq -r '.RestoreDatetime')" >> $GITHUB_OUTPUT
-          DuplicateTarget=environment_name_$(echo ${TargetEnvironment} | sed 's/dev/development_dev/;s/test/test_test/;s/training/test_training/;s/preprod/preproduction_preprod/;s/stage/preproduction_stage/;s/-/_/g')_${TargetHost}
+          DuplicateTarget="$(build_inventory_name "$TargetEnvironment" "_$TargetHost")"
           echo "DuplicateTarget=${DuplicateTarget}" >> $GITHUB_OUTPUT
           echo "SourceLegacy=$(echo $Inputs | jq -r '.SourceLegacy')" >> $GITHUB_OUTPUT
           Action='${{ github.event.action }}'
@@ -519,9 +577,9 @@ jobs:
           fi
 
   oracle-rman-post-duplicate:
-    if: ${{ (github.event_name == 'repository_dispatch') && (needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'duplicate' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'open') }}
+    if: ${{ always() && ((github.event_name == 'workflow_dispatch' && inputs.RunPostDuplicateOnly == true && (github.event.inputs.SourceLegacy == 'no' || github.event.inputs.SourceLegacy == 'duplicate' || github.event.inputs.SourceLegacy == 'open')) || (github.event_name == 'repository_dispatch' && (needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'duplicate' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'open'))) }}
     name: oracle-rman-post-duplicate
-    environment: ${{ needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.TargetEnvironment || needs.oracle-rman-duplicate-check.outputs.TargetEnvironment }}-preapproved
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ministryofjustice/hmpps-delius-operational-automation:0.80.0
@@ -529,15 +587,14 @@ jobs:
     timeout-minutes: 1440
     continue-on-error: false
     env:
-      DuplicateTarget: ${{ needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }}
-      SourceConfigVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
-      SourceCodeVersion: ${{ needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
+      SourceConfigVersion: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceConfigVersion || needs.oracle-rman-duplicate-check.outputs.SourceConfigVersion }}
+      SourceCodeVersion: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceCodeVersion || needs.oracle-rman-duplicate-check.outputs.SourceCodeVersion }}
     outputs:
       JobId: ${{ github.job }}
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -552,6 +609,7 @@ jobs:
             playbooks/mis_database_links
             playbooks/delius_objects
             playbooks/oem_blackout
+            playbooks/block_sessions
             common/*
             playbooks/ansible.cfg
           path: operations
@@ -559,7 +617,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -571,7 +629,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -583,9 +641,20 @@ jobs:
           ref: ${{ env.SourceConfigVersion }}
           fetch-depth: 0
 
+      - name: Prepare post-duplicate target
+        id: preparation
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+          TargetEnvironment="${{ github.event.inputs.TargetEnvironment }}"
+          TargetHost="${{ github.event.inputs.TargetHost }}"
+          DuplicateTarget="$(build_inventory_name "$TargetEnvironment" "_$TargetHost")"
+          echo "DuplicateTarget=${DuplicateTarget}" >> "$GITHUB_OUTPUT"
+
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -598,7 +667,8 @@ jobs:
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oracle_duplicate/roles
           ln -s $PWD/roles/ansible/roles $PWD/operations/playbooks/oem_blackout/roles
           $ansible_playbook_directory/rman-post-duplicate.yml -e ansible_aws_ssm_bucket_name=${{ vars.ANSIBLE_AWS_SSM_BUCKET_NAME }} -i $inventory \
-          -e duplicate_target=${{ env.DuplicateTarget }} -e source_legacy=${{ needs.oracle-rman-duplicate-check.outputs.SourceLegacy }}
+          -e duplicate_target=${{ steps.preparation.outputs.DuplicateTarget || needs.oracle-rman-duplicate-check.outputs.DuplicateTarget }} \
+          -e source_legacy=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.SourceLegacy || needs.oracle-rman-duplicate-check.outputs.SourceLegacy }}
 
   oracle-build-ha:
     if:  ${{ (needs.oracle-rman-duplicate-check.outputs.RestoreDatetime != '0' || needs.oracle-rman-duplicate-check.outputs.RestoreDatetime == null) && ( needs.oracle-rman-post-duplicate.result == 'success' || needs.oracle-rman-post-duplicate.result == 'skipped' ) && (needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'no' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'duplicate' || needs.oracle-rman-duplicate-check.outputs.SourceLegacy == 'open') }}
@@ -620,7 +690,7 @@ jobs:
     steps:
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -662,12 +732,13 @@ jobs:
           fi
 
       - name: Checkout From hmpps-delius-operational-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             playbooks/oracle_ha
+            playbooks/oracle_parameters
             playbooks/ansible.cfg
           path: operations
           ref: ${{ env.SourceCodeVersion }}
@@ -675,7 +746,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -715,7 +786,7 @@ jobs:
   # Set new passwords for the database and associated components for monitoring
   password-rotation:
     needs: [oracle-rman-duplicate-check,oracle-build-ha,oracle-rman-post-duplicate]
-    if:  ${{ ( needs.oracle-rman-post-duplicate.result == 'success' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
+    if:  ${{ inputs.RunPostDuplicateOnly != true && ( needs.oracle-rman-post-duplicate.result == 'success' ) &&  ( needs.oracle-build-ha.result == 'success' || needs.oracle-build-ha.result == 'skipped' ) }}
     name: Password Rotation
     uses:
       ministryofjustice/hmpps-delius-operational-automation/.github/workflows/oracle-db-password-rotation.yml@main
@@ -747,7 +818,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"
@@ -791,7 +862,7 @@ jobs:
 
       - name: Slack Failure Notification
         id: slack
-        uses: slackapi/slack-github-action@v1.27.0
+        uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.27.0
         with:
             channel-id: "delius-aws-oracle-dev-alerts"
             payload: |

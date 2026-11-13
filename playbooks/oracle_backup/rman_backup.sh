@@ -46,6 +46,7 @@ usage () {
   echo "                                              [ -s <SSM Parameter Path where Runtime details are written>]"
   echo "                                              [ -r <GitHub repository for sending repository dispatch events back to the calling workflow>] "
   echo "                                              [ -j <JSON formatted string of inputs to the Github backup workflow>] "
+  echo "                                              [ -C <RMAN backup channel cap>]"
   echo ""
   echo "where"
   echo ""
@@ -65,6 +66,7 @@ usage () {
   echo "  archivelogs = range of archivelogs to backup in format of minimum sequence,maximum sequence (e.g. 100,110 ).  Do not put spaces around the comma."
   echo "                Using -a indicates that the specified range should be backed up regardless of any previous backups."
   echo "                Using -A indicates that only archivelogs not already backed up in the specified range should be included."
+  echo "                  * Instead of minimum sequence,maximum sequence to specify a range you can use "ALL" to backup all archivelogs on disk."
   echo "  "
   echo "  If (-a|-A) or -l is NOT specified then a full backup of the database and all archivelogs not already backed up is performed."
   echo "     (-a|-A) and -l are mutually exclusive.  If you wish to backup a range of archivelogs and some datafiles then call the script twice "
@@ -81,107 +83,24 @@ usage () {
   echo ""
   echo "  The SSM parameter path optionally specified with -s is used to identify the path for storing the phase, "
   echo "     status, and status messages for a backup held in a JSON string at this location."
+  echo ""
+  echo "  RMAN backup channel cap = maximum channels to use (if unspecified defaults to number of CPUs)"
 
   exit $ERROR_STATUS
 }
 
 
-function generate_jwt()
-{
-# Get a JSON Web Token to authenicate against the HMPPS Bot.
-# The HMPPS bot can provide exchange this for a GitHub Token for action GitHub workflows.
-BOT_APP_ID=$(aws ssm get-parameter --name "/github/hmpps_bot_app_id" --query "Parameter.Value" --with-decryption --output text)
-BOT_PRIVATE_KEY=$(aws ssm get-parameter --name "/github/hmpps_bot_priv_key" --query "Parameter.Value" --with-decryption --output text)
+# shellcheck source=../../common/files/github_dispatch.sh
 
-# Define expiry time for JWT - we will be using it immediately so just use a 10 minute expiry time.
-NOW=$(date +%s)
-INITIAL=$((${NOW} - 60)) # Issues 60 seconds in the past (avoid time jitter problem)
-EXPIRY=$((${NOW} + 600)) # Expires 10 minutes in the future
-
-# This function is used to apply Base64 encoding for the token to allow it to be passed on.
-b64enc() { openssl base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n'; }
-
-# The JWT requires a Header, Payload and Signature as defined here.
-HEADER_JSON='{
-    "typ":"JWT",
-    "alg":"RS256"
-}'
-# Header encode
-HEADER=$( echo -n "${HEADER_JSON}" | b64enc )
-
-PAYLOAD_JSON='{
-    "iat":'"${INITIAL}"',
-    "exp":'"${EXPIRY}"',
-    "iss":'"${BOT_APP_ID}"'
-}'
-# Payload encode in Base64
-PAYLOAD=$( echo -n "${PAYLOAD_JSON}" | b64enc )
-
-# Signature
-HEADER_PAYLOAD="${HEADER}"."${PAYLOAD}"
-SIGNATURE=$(
-    openssl dgst -sha256 -sign <(echo -n "${BOT_PRIVATE_KEY}") \
-    <(echo -n "${HEADER_PAYLOAD}") | b64enc
-)
-
-# Create JWT
-JWT="${HEADER_PAYLOAD}"."${SIGNATURE}"
-printf '%s\n' "$JWT"
-}
-
-function get_github_token()
-{
-# Generate JSON Web Token to authenticate to HMPPS Bot
-JWT=$(generate_jwt)
-# Fetch Installation ID for App in target Repository
-BOT_INSTALL_ID=$(aws ssm get-parameter --name "/github/hmpps_bot_installation_id" --query "Parameter.Value" --with-decryption --output text)
-GITHUB_TOKEN=$(curl --request POST --url "https://api.github.com/app/installations/${BOT_INSTALL_ID}/access_tokens" --header "Accept: application/vnd.github+json" --header "Authorization: Bearer $JWT" --header "X-GitHub-Api-Version: 2022-11-28")
-printf '%s\n' "$GITHUB_TOKEN"
-}
-
-function github_repository_dispatch()
-{
-# Because this script is intended to run asynchronously and may be called by a GitHub Workflow, we use
-# GitHub Repository Dispatch events to call back to the Workflow to allow it to continue.  This is a 
-# workaround to avoid two issues:
-# (1) Timeout of GitHub actions lasting over 6 hours.
-# (2) Billing costs associated with the GitHub hosted runner actively waiting whilst the backup runs.
-#
-# We supply 2 parameters to this function:
-#  EVENT_TYPE is a user-defined event to pass to the GitHub repository.   The backup worflow is triggered
-#  for either oracle-db-backup-sucess or oracle-db-backup-failure events.   These are the only 2 which
-#  should be used.
-#  JSON_PAYLOAD is the JSON originally passed to the script using the -j switch.  This allows the
-#  workflow to continue where it left off because this JSON contains the name of the environment, host
-#  and period of the backup, along with any associated parameters.
-EVENT_TYPE=$1
-JSON_PAYLOAD=$2
-GITHUB_TOKEN_VALUE=$(get_github_token | jq -r '.token')
-# We set the Phase in the JSON payload corresponding to whether the backup has succeeded or failed.
-# This is informational only - it is GitHub event type (oracle-db-backup-success/failure) which 
-# determines what the workflow does next.
-if [[ "$EVENT_TYPE" == "oracle-db-backup-success" ]]; then
-    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Succeeded"')
-else
-    JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r '.Phase = "Backup Failed"')
+# We do not use the error() function if the check of the auxiliary script
+# existence fails as it expects it to exist, so just echo to the log directly 
+_dispatch_lib="$(dirname "$0")/github_dispatch.sh"
+if [[ ! -f "$_dispatch_lib" ]]; then
+  echo "ERROR : $THISSCRIPT : $(date +"%D %T") : Cannot find github_dispatch.sh at $_dispatch_lib - repository dispatch events will not be sent" | tee -a "${RMANOUTPUT}"
+elif ! source "$_dispatch_lib"; then
+  echo "ERROR : $THISSCRIPT : $(date +"%D %T") : Failed to source $_dispatch_lib - repository dispatch events will not be sent" | tee -a "${RMANOUTPUT}"
 fi
-# GitHub Actions only allows us to have 10 elements in the payload so we remove those which are
-# not necessary.  In this case we remove TargetHost since that is only relevant to the original
-# backup; any retries will use RmanTarget instead.
-JSON_PAYLOAD=$(echo $JSON_PAYLOAD | jq -r 'del(.TargetHost)')
-info "Repository Dispatch Payload: $JSON_PAYLOAD"
-JSON_DATA="{\"event_type\": \"${EVENT_TYPE}\",\"client_payload\":${JSON_PAYLOAD}}"
-info "Posting repository dispatch event"
-curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: token ${GITHUB_TOKEN_VALUE}"  --data-raw "${JSON_DATA}" ${REPOSITORY_DISPATCH}
-RC=$?
-if [[ $RC -ne 0 ]]; then
-      # We cannot use the error function for dispatch failures as it contains its own dispatch call   
-      T=`date +"%D %T"`
-      echo "ERROR : $THISSCRIPT : $T : Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}" | tee -a ${RMANOUTPUT}
-      update_ssm_parameter  "Error" "Failed to dispatch ${EVENT_TYPE} event to ${REPOSITORY_DISPATCH}"
-      exit 1
-fi
-}
+unset _dispatch_lib
 
 info () {
   T=`date +"%D %T"`
@@ -206,7 +125,7 @@ update_ssm_parameter () {
   if [[ "$STATUS" == "Success" ]]; then
      NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup Succeeded"')
   elif [[ "$STATUS" == "Running" ]]; then
-     NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup In Progress"') 
+     NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup In Progress"')
   else
      NEW_SSM_VALUE=$(echo ${NEW_SSM_VALUE} | jq -r '.Phase = "Backup Failed"')
   fi
@@ -245,6 +164,21 @@ get_rman_password () {
   RMANPASS=$(AWS_ACCESS_KEY_ID=$RMAN_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$RMAN_SECRET_ACCESS_KEY AWS_SESSION_TOKEN=$RMAN_SESSION_TOKEN aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
 }
 
+get_sys_password () {
+  INSTANCEID=$(wget -q -O - --tries=1 --timeout=20 http://169.254.169.254/latest/meta-data/instance-id)
+  ENVIRONMENT_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=environment-name"  --query "Tags[].Value" --output text)
+  DELIUS_ENVIRONMENT=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=delius-environment"  --query "Tags[].Value" --output text)
+  APPLICATION_NAME=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${INSTANCEID}" "Name=key,Values=database" --query "Tags[].Value" --output text | cut -d_ -f1)
+  if [[ "${APPLICATION_NAME}" == "delius" ]]
+  then
+    # There is only one set of DBA secrets for Delius, whereas MIS has one per application name (MIS, BOE, DSD)
+    APPLICATION_SECRET_PATH="oracle-db"
+  else
+    APPLICATION_SECRET_PATH="oracle-${APPLICATION_NAME}-db"
+  fi
+  SYS_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${ENVIRONMENT_NAME%-*}-${DELIUS_ENVIRONMENT}-${APPLICATION_SECRET_PATH}-dba-passwords --query SecretString --output text| jq -r .sys)
+}
+
 validate () {
   ACTION=$1
   case "$ACTION" in
@@ -267,10 +201,10 @@ validate () {
                           then
                             case $LEVEL in
                               0|1) ;;
-                                *) error "Please secify correct incremental level"
+                                *) error "Please specify correct incremental level"
                             esac
                           fi ;;
-                      * ) usage ;;
+                      * ) error "${BACKUP_TYPE} is not a valid backup type (must be HOLD or COLD)" ;;
              esac
              info "Backup type ok"
              ;;
@@ -306,10 +240,11 @@ validate () {
               fi
               HOURS=$( echo $MINIMIZE_LOAD | cut -d: -f1 )
               MINS=$( echo $MINIMIZE_LOAD | cut -d: -f2 )
-              if [[ $MINS =~ ^[0-9][0-9]$ && $MINS -ge 0 && $MINS -lt 60 ]]; 
+              if [[ $MINS =~ ^[0-9][0-9]$ && $MINS -ge 0 && $MINS -lt 60 ]];
               then
-                 if [[ $HOURS =~ ^[0-9]+$ && $HOURS -ge 0 && $HOURS -lt 100 ]]; 
-                 then   
+                 # Force base 10 for hours check (since leading 0 is otherwise treated as Octal)
+                 if [[ $HOURS =~ ^[0-9]+$ && $(10#$HOURS) -ge 0 && $(10#$HOURS) -lt 100 ]];
+                 then
                     info "Load duration ok at $HOURS hours and $MINS minutes"
                  else
                     error "Incorrect number of hours in load duration"
@@ -323,18 +258,23 @@ validate () {
                  then
                     error "Archivelog and Datafiles backups are mutually exclusive"
                  fi
-                 MIN_ARCHIVELOG=$(echo $ARCHIVELOGS | cut -d, -f1)
-                 MAX_ARCHIVELOG=$(echo $ARCHIVELOGS | cut -d, -f2)
-                 if [[ $MIN_ARCHIVELOG =~ ^[0-9]+$ && $MAX_ARCHIVELOG =~ ^[0-9]+$ ]];
-                 then 
-                    if [[ $MIN_ARCHIVELOG -le $MAX_ARCHIVELOG ]];
+		 if [[ "${ARCHIVELOGS,,}" == "all" ]]
+		 then
+			 info "Backing up all archivelogs"
+		 else
+                    MIN_ARCHIVELOG=$(echo $ARCHIVELOGS | cut -d, -f1)
+                    MAX_ARCHIVELOG=$(echo $ARCHIVELOGS | cut -d, -f2)
+                    if [[ $MIN_ARCHIVELOG =~ ^[0-9]+$ && $MAX_ARCHIVELOG =~ ^[0-9]+$ ]];
                     then
-                       info "Backing archivelog sequence between $MIN_ARCHIVELOG and $MAX_ARCHIVELOG"
+                       if [[ $MIN_ARCHIVELOG -le $MAX_ARCHIVELOG ]];
+                       then
+                          info "Backing up archivelog sequence between $MIN_ARCHIVELOG and $MAX_ARCHIVELOG"
+                       else
+                          error "Maximum archivelog sequence must be equal or higher than Minimum archivelog sequence"
+                       fi
                     else
-                       error "Maximum archivelog sequence must be equal or higher than Minimum archivelog sequence"
-                    fi
-                 else
-                    error "Non-numeric archivelog sequence specified"
+                       error "Non-numeric archivelog sequence specified"
+	            fi
                  fi
                  ;;
     catalog) info "Validating catalog flag"
@@ -487,8 +427,8 @@ EOF
 `
   [ $? -ne 0 ] && error "Cannot determine control_file_record_keep_time"
   eval $X
-  info "control file record keep time = $CONTROL_FILE_RECORD_KEEP_TIME"  
-   
+  info "control file record keep time = $CONTROL_FILE_RECORD_KEEP_TIME"
+
   RETENTION_POLICY=`rman target / <<EOF
      show retention policy;
      exit
@@ -497,18 +437,18 @@ EOF
 
   MATCH_REGEX="CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF [0-9]+ DAYS;"
   if [[ $RETENTION_POLICY =~ $MATCH_REGEX ]];
-  then 
+  then
       RECOVERY_WINDOW=$(echo $RETENTION_POLICY | grep -P "(?<=WINDOW OF )\d+(?= DAYS)" -o)
       if [[ $RECOVERY_WINDOW -gt $CONTROL_FILE_RECORD_KEEP_TIME ]];
       then
           sqlplus -s "/ as sysdba" <<EOF
           whenever sqlerror exit 1
           alter system set control_file_record_keep_time=${RECOVERY_WINDOW};
-          exit       
+          exit
 EOF
       [ $? -ne 0 ] && error "Cannot set control file record keep time to accommodate recovery window of ${RECOVERY_WINDOW} days"
       eval $X
-      info "Increased the control file record keep time to ${RECOVERY_WINDOW} due to size of RMAN Recovery Window (and no catalog in use)"  
+      info "Increased the control file record keep time to ${RECOVERY_WINDOW} due to size of RMAN Recovery Window (and no catalog in use)"
       fi
       # Nothing to do if control_file_record_keep_time is already large enough
   fi
@@ -536,7 +476,7 @@ EOF
 
   if [ "$CATALOGMODE" = "Y" ]
   then
-    CONNECT_TO_CATALOG=$(echo "connect catalog $CATALOG_CONNECT;")								
+    CONNECT_TO_CATALOG=$(echo "connect catalog $CATALOG_CONNECT;")
   else
      check_control_file_record_keep_time
   fi
@@ -554,14 +494,29 @@ EOF
   else
     TYPE="disk;"
   fi
-  for (( i=1; i<=${CPU_COUNT}; i++ ))
+
+  # Cap the number of backup channels to use if specified, otherwise
+  # use the number of CPUs.
+  if [ "$TOTAL_CHANNEL_CAP" == "UNCAPPED" ]
+  then
+     MAX_CHANNELS=$CPU_COUNT
+  else
+     if [ $TOTAL_CHANNEL_CAP -lt $CPU_COUNT ]
+     then
+        MAX_CHANNELS=$TOTAL_CHANNEL_CAP
+     else
+        MAX_CHANNELS=$CPU_COUNT
+     fi
+  fi
+
+  for (( i=1; i<=${MAX_CHANNELS}; i++ ))
   do
     echo -e "  allocate channel c${i} device type $TYPE" 						>> $RMANCMDFILE
   done
   if [[ "$DATABASE_ROLE" = "PHYSICAL_STANDBY" ]]
   then
     # If we are running the backup on a standby database it is possible that some archivelogs may have already
-    # been deleted by the ARCHIVELOG DELETION POLICY of APPLIED ON STANDBY.  Therefore we need to run a 
+    # been deleted by the ARCHIVELOG DELETION POLICY of APPLIED ON STANDBY.  Therefore we need to run a
     # crosscheck and delete first, otherwise any deleted archivelogs could case the script to error.
     echo "  crosscheck archivelog all;"                                                                   >>$RMANCMDFILE
     echo "  delete noprompt expired archivelog all;"                                                      >>$RMANCMDFILE
@@ -585,7 +540,7 @@ EOF
     echo "  alter database open;"                                                                        >> $RMANCMDFILE
   elif [ "$BACKUP_TYPE" = "HOT" ]
   then
-    if [[ "$ARCHIVELOGS" = "UNSPECIFIED" && $DATAFILES = "UNSPECIFIED" ]]    
+    if [[ "$ARCHIVELOGS" = "UNSPECIFIED" && $DATAFILES = "UNSPECIFIED" ]]
     then
         # Backups may fail when FRA is full, therefore backup archivelogs pior to archiving current log
         echo "  backup archivelog all not backed up 1 times  $AL_TAG_FORMAT;"                             >>$RMANCMDFILE
@@ -600,12 +555,15 @@ EOF
     else
         echo "  backup as backupset"                                                                      >>$RMANCMDFILE
     fi
-    echo "  incremental level $LEVEL cumulative "                                                         >>$RMANCMDFILE
+    if [[ "$ARCHIVELOGS" = "UNSPECIFIED" && $DATAFILES = "UNSPECIFIED" ]]
+    then
+       echo "  incremental level $LEVEL cumulative "                                                         >>$RMANCMDFILE
+    fi
     if [[ "$MINIMIZE_LOAD" != "UNSPECIFIED" ]]
     then
         echo "  duration $MINIMIZE_LOAD minimize load "                                                  >> $RMANCMDFILE
     fi
-    if [[ "$ARCHIVELOGS" = "UNSPECIFIED" && $DATAFILES = "UNSPECIFIED" ]]    
+    if [[ "$ARCHIVELOGS" = "UNSPECIFIED" && $DATAFILES = "UNSPECIFIED" ]]
     then
         echo "  database $DB_TAG_FORMAT;"                                                                     >>$RMANCMDFILE
         if [ "$DB_STATUS" = "READ WRITE" ]
@@ -632,29 +590,39 @@ EOF
        then
            # We do not want Backup Optimization to prevent us backing up the archivelogs again if we specifically want
            # to do that, so we add "not backed up 1000 times" to allow us to override skipping of backed up archivelogs
-           echo " archivelog sequence between $MIN_ARCHIVELOG and $MAX_ARCHIVELOG not backed up 1000 times   $AL_TAG_FORMAT;"            >>$RMANCMDFILE
+	   if [[ "${ARCHIVELOGS,,}" == "all" ]]
+	   then
+              echo " archivelog all not backed up 1000 times   $AL_TAG_FORMAT;"            >>$RMANCMDFILE
+           else
+              echo " archivelog sequence between $MIN_ARCHIVELOG and $MAX_ARCHIVELOG not backed up 1000 times   $AL_TAG_FORMAT;"            >>$RMANCMDFILE
+           fi
        else
-           echo " archivelog sequence between $MIN_ARCHIVELOG and $MAX_ARCHIVELOG   $AL_TAG_FORMAT;"            >>$RMANCMDFILE
+	   if [[ "${ARCHIVELOGS,,}" == "all" ]]
+           then
+              echo " archivelog all not backed up 1 times  $AL_TAG_FORMAT;"            >>$RMANCMDFILE
+           else
+              echo " archivelog sequence between $MIN_ARCHIVELOG and $MAX_ARCHIVELOG   $AL_TAG_FORMAT;"            >>$RMANCMDFILE
+           fi
        fi
     fi
     if [[ "$DATAFILES" != "UNSPECIFIED" ]]
-    then 
+    then
         echo " datafile $DATAFILES   $DF_TAG_FORMAT;"                                                         >>$RMANCMDFILE
         echo " backup archivelog all not backed up 1 times  $AL_TAG_FORMAT;"                    		          >>$RMANCMDFILE
     fi
   fi
-  for (( i=1; i<=${CPU_COUNT}; i++ ))
+  for (( i=1; i<=${MAX_CHANNELS}; i++ ))
   do
     echo "  release channel c${i};"                                                   			  >> $RMANCMDFILE
   done
   # We only need to release the disk channel if allocated for the database backup
   # (Archive log and Data file backups will not have this channel as they do not perform expired and obsolete cleanup)
-  if [[ "$ARCHIVELOGS" = "UNSPECIFIED" && $DATAFILES = "UNSPECIFIED" ]]   
+  if [[ "$ARCHIVELOGS" = "UNSPECIFIED" && $DATAFILES = "UNSPECIFIED" ]]
   then
      echo "  release channel d1;"        >> $RMANCMDFILE
   fi
-  echo "}"                            >> $RMANCMDFILE       
-  
+  echo "}"                            >> $RMANCMDFILE
+
   if [ "$TRACE_FILE" = "Y" ]
   then
      echo "debug off;"                >>$RMANCMDFILE
@@ -682,7 +650,7 @@ EOF
   if [[ "$STATUS" == "DISABLED" ]]
   then
      if [[ "${START_OPTIONS}" == "open" || "${START_OPTIONS}" == "readonly" ]]
-     then 
+     then
         sqlplus -s / as sysdba <<EOF
         whenever sqlerror exit 1
         set feedback off heading off verify off echo off
@@ -708,6 +676,27 @@ EOF
   [ $? -ne 0 ] && error "Unable to enable block change tracking"
 }
 
+get_rman_target_connection () {
+   # Normally we will use OS Authentication to connect to the local database.
+   # For Archivelog Backups from Standby we need to use the SYS password so that
+   # we can force an archivelog switch on the Primary
+   get_db_role
+   DATABASE_ROLE_SIMPLE=$(echo "$DATABASE_ROLE" | sed 's/.*_STANDBY/STANDBY/')
+   if [[ "$DATABASE_ROLE_SIMPLE" != "PRIMARY" && "$DATABASE_ROLE_SIMPLE" != "STANDBY" ]]
+   then
+      error "Unknown database role: $DATABASE_ROLE"
+   fi
+   if [[ "$DATABASE_ROLE_SIMPLE" == "STANDBY" &&  "$ARCHIVELOGS" != "UNSPECIFIED"  ]]
+   then
+      info "Running archivelog backup from Standby (must connect with password)"
+      get_sys_password
+      RMAN_TARGET_CONNECTION="connect target sys/${SYS_PASSWORD}"
+   else
+      info "Using OS Authentication to connect to target database"
+      RMAN_TARGET_CONNECTION="connect target /"
+   fi
+}
+
 # ------------------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------------------
@@ -726,7 +715,7 @@ MINIMIZE_LOAD=UNSPECIFIED
 TRACE_FILE=N
 ARCHIVELOGS=UNSPECIFIED
 DATAFILES=UNSPECIFIED
-while getopts "d:t:b:f:i:n:m:u:c:e:a:A:l:g:p:s:r:j:" opt
+while getopts "d:t:b:f:i:n:m:u:c:e:a:A:l:g:p:s:r:j:C:" opt
 do
   case $opt in
     d) TARGET_DB_SID=$OPTARG ;;
@@ -750,10 +739,12 @@ do
     s) SSM_PARAMETER=$OPTARG ;;
     r) REPOSITORY_DISPATCH=$OPTARG ;;
     j) JSON_INPUTS=$OPTARG ;;
+    C) TOTAL_CHANNEL_CAP=$OPTARG ;;
     *) usage ;;
   esac
 done
 [ -z $TARGET_DB_NAME ] && TARGET_DB_NAME=$TARGET_DB_SID
+[ -z $TOTAL_CHANNEL_CAP ] && TOTAL_CHANNEL_CAP="UNCAPPED"
 info "Target SID          = $TARGET_DB_SID"
 info "Target Name         = $TARGET_DB_NAME"
 info "Backup type         = $BACKUP_TYPE"
@@ -797,7 +788,7 @@ validate catalog
 validate uncompressed
 validate duration
 if [ "$ARCHIVELOGS" != "UNSPECIFIED" ]
-then  
+then
    validate archivelogs
 fi
 get_db_status
@@ -837,9 +828,11 @@ info "Generating rman command file"
 build_rman_command_file
 info "Running rman cmd file $RMANCMDFILE"
 info "Please check progress ${RMANLOGFILE} ..."
+get_rman_target_connection
+
 rman log $RMANLOGFILE $ENABLE_TRACE <<ERMAN > /dev/null
-connect target /
 $CONNECT_TO_CATALOG
+$RMAN_TARGET_CONNECTION
 @$RMANCMDFILE
 ERMAN
 info "Checking for errors"

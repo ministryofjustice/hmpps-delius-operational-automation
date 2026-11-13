@@ -88,20 +88,32 @@ jobs:
     continue-on-error: false
     steps:
 
+      - name: Checkout Helper Script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ministryofjustice/hmpps-delius-operational-automation
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            common/files/build_inventory_name.sh
+          path: operations
+          ref: ${{ github.event.inputs.SourceCodeVersion }}
+          fetch-depth: 0
+
       - name: Prepare Mis Primary Inventory Names
         id: prepareinventorynames
         shell: bash
         run: |
-          environment_name="environment_name_$(echo ${{ github.event.inputs.TargetEnvironment }} | sed 's/delius-mis-dev/delius_mis_development_dev/;s/delius-mis-stage/delius_mis_preproduction_stage/;s/delius-mis-preprod/delius_mis_preproduction_pre_prod/;s/delius-mis-prod/delius_mis_production_prod/')"
+          source "$PWD/operations/common/files/build_inventory_name.sh"
+
           IFS="," read -ra targets <<< "${{ github.event.inputs.TargetHosts }}"
           for target in "${targets[@]}"
           do
-            TargetHost+=${environment_name}_${target},
+            TargetHost+="$(build_inventory_name "${{ github.event.inputs.TargetEnvironment }}" "_$target"),"
           done
           echo "TargetHost=${TargetHost%?}" >> $GITHUB_OUTPUT
 
       - name: Checkout Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -113,7 +125,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout From hmpps-delius-operational-automation
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
@@ -131,7 +143,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Role From modernisation-platform-configuration-management
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -145,7 +157,7 @@ jobs:
 
       - name: Configure AWS Credentials
         id: login-aws
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: "arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "hmpps-delius-operational-automation-${{ github.run_number }}"

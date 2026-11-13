@@ -13,6 +13,28 @@
       debug:
         msg: "{{ json_inputs | string }}"
 
+    - name: Get Oracle Database Home
+      shell: |
+             . ~/.bash_profile
+             echo $ORACLE_HOME
+      register: get_database_home
+      changed_when: false
+
+    - name: Set Oracle Database Home
+      set_fact:
+         database_home: "{{ get_database_home.stdout }}"
+
+    # The OSB WS Chunk Size may be specified to optimize memory usage during backups
+    # Update the osbws.ora file if this has been specified and does not match the current setting
+    - name: Set OSB_WS_CHUNK_SIZE
+      become: true
+      become_user: oracle
+      ansible.builtin.lineinfile:
+        path: "{{ database_home }}/dbs/osbws.ora"
+        regexp: "^OSB_WS_CHUNK_SIZE="
+        line: "OSB_WS_CHUNK_SIZE={{ oracle_osbws_chunk_size }}"
+      when: oracle_osbws_chunk_size is defined
+
     - name: RMAN script
       block:
         # Under normal circumstances, the primary host will be up and running so we can get the database_global_database name from the inventory
@@ -57,6 +79,34 @@
             group: oinstall
             mode: 0544
 
+
+
+
+        - name: Validate shared GitHub dispatch script exists in checkout
+          delegate_to: localhost
+          run_once: true
+          become: false
+          ansible.builtin.stat:
+            path: "{{ playbook_dir }}/../../common/files/github_dispatch.sh"
+          register: dispatch_script_stat
+          changed_when: false
+
+        - name: Fail if shared GitHub dispatch script is missing
+          delegate_to: localhost
+          run_once: true
+          become: false
+          ansible.builtin.assert:
+            that:
+              - dispatch_script_stat.stat.exists
+            fail_msg: "github_dispatch.sh not found at {{ playbook_dir }}/../../common/files/github_dispatch.sh"
+        - name: Install shared GitHub dispatch script
+          copy:
+            src: "{{ playbook_dir }}/../../common/files/github_dispatch.sh"
+            dest: /home/oracle/admin/rman_scripts/github_dispatch.sh
+            owner: oracle
+            group: oinstall
+            mode: 0544
+
         - name: Set rman_options when "daily"
           set_fact:
             rman_options: "-t HOT -i 1 -b Y"
@@ -67,27 +117,19 @@
             rman_options: "-t HOT -i 0 -b Y"
           when: daily_weekly == 'weekly'
 
-        - fail:
-            msg: "The range of sequence numbers to be backed up must be specified in archivelog mode"
-          when:
-            - daily_weekly == 'archivelog'
-            - min_seq is not defined
-
-        - name: Set rman_options when "archivelog"
+        - name: Set rman_options when "archivelog" and sequence range given
           set_fact:
             rman_options: "-t HOT -i 0 -b Y -A {{ min_seq }},{{ max_seq | default(min_seq) }}"
-          when: daily_weekly == 'archivelog'
-
-        - fail:
-            msg: "The range of sequence numbers to be backed up must be specified in archivelog mode"
           when:
             - daily_weekly == 'archivelog'
-            - min_seq is not defined
+            - min_seq is defined
 
-        - name: Set rman_options when "archivelog"
+        - name: Set rman_options when "archivelog" and no sequence range given (backup all sequences)
           set_fact:
-            rman_options: "-t HOT -i 0 -b Y -a {{ min_seq }},{{ max_seq | default(min_seq) }}"
-          when: daily_weekly == 'archivelog'
+            rman_options: "-t HOT -i 0 -b Y -A all"
+          when:
+            - daily_weekly == 'archivelog'
+            - not min_seq is defined
 
         - name: Setup catalog connect identifier in tnsnames if catalog defined
           include_tasks: setup-catalog-tnsnames.yml
@@ -184,7 +226,7 @@
 
         - name: Create RMAN Command
           set_fact:
-            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ ssm_parameter_path | default() }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }} {{ repository_dispatch_flag|default() }}"
+            rman_command: "/home/oracle/admin/rman_scripts/rman_backup.sh -d {{ database_primary_sid | default(database_standby_sid) }} -g {{ database_global_database }} {{ rman_options }} {{ ssm_parameter_path | default() }} {{ duration_options|default() }} {{ uncompress_options|default() }} {{ catalog_options|default() }} {{ enable_trace_flag|default() }} {{ ('-C '+(rman_channel_cap|string)) if rman_channel_cap is defined else '' }} {{ repository_dispatch_flag|default() }}"
 
         - name: Show RMAN Command
           debug:

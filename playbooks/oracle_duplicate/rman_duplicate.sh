@@ -196,6 +196,7 @@ get_catalog_connection () {
   # Determine the rman password depending where the catalog database resides
   if [[ ! ${CATALOG_DB} =~ ^\(DESCRIPTION.* ]]
   then
+    info "Using method #1 to get the catalog password (MP catalog)"
     ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
     ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${OEM_SECRET_ROLE}"
     SESSION="catalog-ansible"
@@ -209,6 +210,7 @@ get_catalog_connection () {
     RMANPASS=$(aws secretsmanager get-secret-value --secret-id "${SECRET_ARN}" --query SecretString --output text | jq -r .rcvcatowner)
     unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
   else
+    info "Using method #2 to get the catalog password (legacy catalog)"
     INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
     APPLICATION=$(aws ec2 describe-tags --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=application" --query 'Tags[0].Value' --output text)
     RMANUSER=rman19c
@@ -492,11 +494,14 @@ add_spfile_asm () {
 
   info "Restart database using asm spfile"
   TARGET_DB_STATUS=$(srvctl status database -d ${TARGET_DB})
+  info "Current Database Status: ${TARGET_DB_STATUS}"
   if [[ ${TARGET_DB_STATUS} =~ 'Database is running' ]]
   then
     srvctl stop database -d ${TARGET_DB} || error "Stopping database ${TARGET_DB}"
   fi
   srvctl start database -d ${TARGET_DB} || error "Starting database ${TARGET_DB}"
+  TARGET_DB_STATUS=$(srvctl status database -d ${TARGET_DB})
+  info "Updated Database Status: ${TARGET_DB_STATUS}"
 }
 
 enable_bct () {
@@ -779,6 +784,12 @@ then
   done
 fi
 
+# Workaround for MIS DB migration and rename
+if [[ -z "${COMPATIBLE}" && "${SOURCE_DB}" =~ ^(PREDXB|PREBXE)$ ]]
+then
+  COMPATIBLE="compatible='19.14.0'"
+fi
+
 if [[ ! "${LEGACY_OPTION}" =~ ^(recover|open)$ ]]
 then
   info "Shutdown ${TARGET_DB}"
@@ -812,8 +823,12 @@ EOF
 
   DUPLICATEPFILE=${ORACLE_HOME}/dbs/init${TARGET_DB}_duplicate.ora
   info "Create ${DUPLICATEPFILE} pfile"
+  info "Setting db_name to ${TARGET_DB}"
   echo "db_name=${TARGET_DB}" > ${DUPLICATEPFILE}
+  info "Setting compatible to ${COMPATIBLE}"
   echo "${COMPATIBLE}" >> ${DUPLICATEPFILE}
+
+  info $(cat ${DUPLICATEPFILE})
 
   info "Place ${TARGET_DB} in nomount mode"
   if ! sqlplus -s / as sysdba << EOF
@@ -838,7 +853,15 @@ $CONNECT_TO_CATALOG
 @$RMANDUPLICATECMDFILE
 EOF
     info "Checking for errors"
-    grep -i "ERROR MESSAGE STACK" $RMANDUPLICATELOGFILE>/dev/null 2>&1 && error "Rman Duplicate reported errors" || info "RMAN Duplicate Completed successfully"
+    if grep -i "ERROR MESSAGE STACK" $RMANDUPLICATELOGFILE>/dev/null 2>&1; then
+        if ! grep -A 10 "ERROR MESSAGE STACK" $RMANDUPLICATELOGFILE | grep -i "ORA-38713" >/dev/null 2>&1; then
+            error "Rman Duplicate reported errors"
+        else
+            info "RMAN Duplicate Completed successfully (ignoring ORA-38713: Flashback Database logging is already turned on)"
+        fi
+    else
+        info "RMAN Duplicate Completed successfully"
+    fi
     # Do not perform post actions when duplicating from legacy when the following options are specified
     if [[ ! "${LEGACY_OPTION}" =~ ^(restore|recover)$ ]]; then
       info "Perform post actions"

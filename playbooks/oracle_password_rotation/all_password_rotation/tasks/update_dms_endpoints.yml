@@ -1,0 +1,100 @@
+# Set passwords for the Audited Interaction DMS Endpoints
+
+# Include role inside a block so that it may be delegated
+- name: Stop Audited Interaction Replication
+  when:
+    - rotate_groups | regex_search('delius_dbs')
+    - database_primary_sid is defined
+  delegate_to: localhost
+  become: no
+  block:
+    - include_role:
+        name: oracle_audit_replication_management
+      vars:
+        replication_action: stop
+        target_hosts: "{{ rotate_groups | replace('dbs','primarydb') }}"
+
+- name: Get a List of Endpoints for Password update
+  shell: |
+    aws dms describe-endpoints --region eu-west-2 \
+    --query "Endpoints[?EngineName=='oracle' && starts_with(DatabaseName,'{{ database_primary_sid }}') && (contains(EndpointIdentifier,'audit-data') || contains(EndpointIdentifier,'user-data')) ].EndpointArn" \
+    --output json | jq -r | jq -r '.[]'
+  delegate_to: localhost
+  become: no
+  changed_when: false
+  register: describe_endpoints
+  when: database_primary_sid is defined
+
+# Unlike the database account, the DELIUS_AUDIT_DMS_POOL password must be changed
+# individually on each host in the database system (do not restrict to primary)
+# This account will only exist in the primary database and any ADG standby in the system
+- name: Update DELIUS_AUDIT_DMS_POOL password in ASM to match database
+  script: set_asm_password.sh
+  environment:
+    SECRET_NAME: "{{ secret_name }}"
+    ASM_USERNAME: "delius_audit_dms_pool"
+    ASM_USERNAME_SECRET_KEY: "delius_audit_dms_pool"
+  when: (database_primary_sid is defined) or (active_data_guard | default(false))
+  register: set_asm_password
+  no_log: true
+
+- name: Update DELIUS_AUDIT_DMS_POOL password for the AWSDMS_DBLINK database link
+  script: set_awsdms_dblink_password.sh
+  environment:
+    SECRET_NAME: "{{ secret_name }}"
+  when: database_primary_sid is defined
+
+# We use the same password for the database and ASM instance
+- name: Loop through the Endpoints and Update the Database and ASM Passwords
+  shell: |
+    aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
+       --password ${DATABASE_PASSWORD} \
+        --region {{ region }}
+          aws dms modify-endpoint --endpoint-arn {{ endpoint_arn }} \
+        --oracle-settings "{\"AsmPassword\":\"${ASM_PASSWORD}\"}" \
+        --no-exact-settings \
+        --region {{ region }}
+  delegate_to: localhost
+  become: no
+  loop: "{{ describe_endpoints.stdout_lines }}"
+  loop_control:
+    loop_var: endpoint_arn
+  when: database_primary_sid is defined
+  environment:
+    DATABASE_PASSWORD: "{{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }}"
+    ASM_PASSWORD: "{{ secretsmanager_passwords_dict['account']['passwords']['delius_audit_dms_pool'] }}"
+
+- name: Get ARN for the DMS replication instance named {{ target_environment_name.split('-')[0] }}-dms-instance
+  shell: |
+    DMS_INSTANCE_IDENTIFIER="{{ target_environment_name.split('-') | last }}-dms-instance"
+    aws dms describe-replication-instances --region {{ region }} \
+      --output json | jq -r --arg instance_id "$DMS_INSTANCE_IDENTIFIER" '.ReplicationInstances[] | select(.ReplicationInstanceIdentifier == $instance_id) | .ReplicationInstanceArn' | head -n1
+  delegate_to: localhost
+  become: no
+  changed_when: false
+  register: get_replication_instance_arn
+
+- name: Report Relication Instance for this Delius Environment
+  debug:
+     msg: "Using {{ target_environment_name.split('-')[0] }}-dms-instance Replication Instance {{ get_replication_instance_arn.stdout }}"
+
+- name: Test All Endpoints Following Password Change
+  include_tasks: test_dms_endpoints.yml
+  loop: "{{ describe_endpoints.stdout_lines }}"
+  vars:
+    endpoint_arn: "{{ item }}"
+    replication_instance_arn: "{{ get_replication_instance_arn.stdout }}"
+  when: database_primary_sid is defined
+
+- name: Resume Audited Interaction Replication
+  when:
+    - rotate_groups | regex_search('delius_dbs')
+    - database_primary_sid is defined
+  delegate_to: localhost
+  become: no
+  block:
+    - include_role:
+        name: oracle_audit_replication_management
+      vars:
+        replication_action: resume
+        target_hosts: "{{ rotate_groups | replace('dbs','primarydb') }}"

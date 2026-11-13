@@ -15,6 +15,8 @@
     - name: Run SQL to Update Alert Log Filter Expression
       become_user: oracle
       ansible.builtin.shell: |
+        . ~/.bash_profile
+        export JAVA_HOME=$ORACLE_HOME/jdk/jre
         {{ emcli }} execute_sql -sql="FILE" -input_file="FILE:{{ stage }}/set_alert_log_filter_expression.sql" -targets="EMREP:oracle_database" -credential_set_name="DBCredsNormal"
       register: update_alert_log_filter_expression
 
