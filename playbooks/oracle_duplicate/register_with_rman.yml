@@ -8,6 +8,7 @@
     . ~/.bash_profile > /dev/null 1>&2
     grep {{ catalog }} ${ORACLE_HOME}/network/admin/tnsnames.ora | wc -l | cat
   register: catalog_exists
+  changed_when: false
 
 # Ignore RMAN-20002 when database has already been registered
 - name: Register Database with RMAN Catalog
