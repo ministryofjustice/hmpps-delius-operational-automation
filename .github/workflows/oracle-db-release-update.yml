@@ -134,7 +134,7 @@ jobs:
           hosts=""
           IFS=',' read -ra host_parts <<< "${{ github.event.inputs.TargetHost }}"
           for host_part in "${host_parts[@]}"; do
-            hosts+="$(build_inventory_name "${{ github.event.inputs.TargetEnvironment }}" "${host_part}"),"
+            hosts+="$(build_inventory_name "${{ github.event.inputs.TargetEnvironment }}" "_${host_part}"),"
           done
           hosts="${hosts%,}"
           echo "hosts=${hosts}" >> $GITHUB_OUTPUT
