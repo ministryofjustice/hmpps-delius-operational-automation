@@ -57,9 +57,6 @@
       register: emcli_login_result
       failed_when: emcli_login_result.rc != 0
       no_log: true
-      retries: 5
-      delay: 30
-      until: emcli_login_result is succeeded
 
   always:
     - name: Ensure temp password file is deleted (cleanup)
