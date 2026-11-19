@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: "arn:aws:iam::${{ env.SOURCE_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "iaps-data-refresh-${{ github.run_number }}"
@@ -81,7 +81,7 @@ jobs:
             --values-to-add "${{ env.DEST_ACCOUNT_ID }}"
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: "arn:aws:iam::${{ env.DEST_ACCOUNT_ID }}:role/modernisation-platform-oidc-cicd"
           role-session-name: "iaps-data-refresh-${{ github.run_number }}"
