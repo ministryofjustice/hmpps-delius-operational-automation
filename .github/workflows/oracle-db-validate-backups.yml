@@ -134,7 +134,7 @@ jobs:
           isDateInvalid '${{ github.event.inputs.RestoreDatetime }}'
 
       - name: Checkout Helper Script
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -177,7 +177,7 @@ jobs:
     steps:
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -190,7 +190,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Ansible Inventory From modernisation-platform-configuration-management
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -202,7 +202,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Ansible Required Roles From modernisation-platform-configuration-management
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
@@ -260,7 +260,7 @@ jobs:
 
       - name: Checkout Local Repo to get Composite Action
         if: always()
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Send Slack Failure Notification
         id: foreground_slack_notification
@@ -297,7 +297,7 @@ jobs:
       SourceConfigVersion: ${{ steps.prepare-repository-dispatch-inputs.outputs.SourceConfigVersion }}
     steps:
       - name: Checkout Local Repo to get Composite Action
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Validate Repository Dispatch Source Metadata
         shell: bash
