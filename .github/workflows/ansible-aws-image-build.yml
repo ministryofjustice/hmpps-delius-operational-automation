@@ -73,7 +73,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: ansible-aws-image
           path: /tmp
@@ -124,7 +124,7 @@ jobs:
           echo "SAFE_TAG=$(echo ${{ steps.bump-version.outputs.new_tag }} | sed 's/[^a-zA-Z0-9.]/-/g')" >> $GITHUB_OUTPUT
 
       - name: Download Artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: ansible-aws-image
           path: /tmp
