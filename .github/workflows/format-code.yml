@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run Format Code Action
-        uses: ministryofjustice/modernisation-platform-github-actions/format-code@63cbaa1433a76ff95f7433b7454915b928c1b955 # v5.0.0
+        uses: ministryofjustice/modernisation-platform-github-actions/format-code@09f7bbe4b51fbdfc068014571c201d2c5b3704c0 # v6.3.0
         with:
           ignore_files: "README.md"
 
