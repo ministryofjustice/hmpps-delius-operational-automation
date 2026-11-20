@@ -6,21 +6,23 @@ on:
   workflow_dispatch:
     inputs:
       source_env:
-        description: environment to copy data from [dev|test|preprod|prod]
+        description: environment to copy data from [dev|test|stage|preprod|prod]
         required: true
         type: choice
         options:
           - dev
           - test
+          - stage
           - preprod
           - prod
       destination_env:
-        description: environment to copy data to [dev|test|preprod|prod]
+        description: environment to copy data to [dev|test|stage|preprod|prod]
         required: true
         type: choice
         options:
           - dev
           - test
+          - stage
           - preprod
       source_recovery_point_id:
         description: AWS Backup ID of the source EFS backup. Leaving this blank will use the latest backup
@@ -42,12 +44,12 @@ jobs:
           source_env="${{ github.event.inputs.source_env }}"
           destination_env="${{ github.event.inputs.destination_env }}"
           
-          if [[ "${source_env}" == "prod" && "${destination_env}" != "preprod" ]]; then
+          if [[ "${source_env}" == "prod" && "${destination_env}" != "preprod" && "${destination_env}" != "stage" ]]; then
             echo "Cannot copy from prod to ${destination_env}"
             exit 1
           fi
           
-          env_list=("dev" "test" "preprod" "prod") 
+          env_list=("dev" "test" "stage" "preprod" "prod") 
                    
           index_of() {
             local word="$1"
@@ -75,13 +77,6 @@ jobs:
             exit 1
           fi
           
-          # check that the difference between the two indexes is 1
-          # enable this once migrated
-          #          if [ $((source_env_index - destination_env_index)) -ne 1 ]; then
-          #              echo "Data refresh can only be performed between adjacent environments"
-          #              exit 1
-          #          fi
-          
           echo "Copying from ${source_env} to ${destination_env}"
 
   destination-pre:
@@ -100,13 +95,13 @@ jobs:
       - name: Scale ECS Service to 0
         id: scale-ecs-service
         run: |
-          aws ecs update-service --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --service delius-core-${{ github.event.inputs.destination_env }}-openldap --desired-count 0
+          aws ecs update-service --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --service ${{ github.event.inputs.destination_env }}-ldap --desired-count 0
 
       - name: Confirm ECS Service is scaled to 0
         id: confirm-ecs-service-scaled
         run: |
           while true; do
-            DESIRED_COUNT=$(aws ecs describe-services --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --services delius-core-${{ github.event.inputs.destination_env }}-openldap --query 'services[0].desiredCount' --output text)
+            DESIRED_COUNT=$(aws ecs describe-services --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --service ${{ github.event.inputs.destination_env }}-ldap --query 'services[0].desiredCount' --output text)
             if [[ "${DESIRED_COUNT}" == "0" ]]; then
               echo "DESIRED_COUNT=${DESIRED_COUNT}" >> $GITHUB_OUTPUT
               break
@@ -133,7 +128,7 @@ jobs:
         if: ${{ github.event.inputs.source_recovery_point_id == '' }}
         run: |
             echo "No RECOVERY_POINT_ARN ID provided, using latest backup"
-            echo RECOVERY_POINT_ARN=$(aws backup list-recovery-points-by-backup-vault --backup-vault-name ${{ github.event.inputs.source_env }}-ldap-efs-backup-vault --query 'reverse(sort_by(RecoveryPoints[?ResourceType==`EFS`], &CreationDate))[0].RecoveryPointArn' --output text | head -n 1) >> $GITHUB_ENV
+            echo RECOVERY_POINT_ARN=$(aws backup list-recovery-points-by-backup-vault --backup-vault-name ${{ github.event.inputs.source_env }}-ldap-efs-vault --query 'reverse(sort_by(RecoveryPoints[?ResourceType==`EFS`], &CreationDate))[0].RecoveryPointArn' --output text | head -n 1) >> $GITHUB_ENV
 
       - name: Use provided recovery point arn
         if: ${{ github.event.inputs.source_recovery_point_id != '' }}
@@ -197,8 +192,8 @@ jobs:
           echo SUBNET_ARNS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-private-eu-west-2*" --query "Subnets[].SubnetArn" --output json |  jq -r '. | @csv') >> $GITHUB_OUTPUT
           echo SUBNET_ARN=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-private-eu-west-2*" --query "Subnets [0].SubnetArn" --output text) >> $GITHUB_OUTPUT
           echo SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-private-eu-west-2*" --query "Subnets[].SubnetId" --output json |  jq -r '. | @csv') >> $GITHUB_OUTPUT
-          echo SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ldap-efs-${{ github.event.inputs.source_env }}" --query "SecurityGroups[].GroupId" --output text) >> $GITHUB_OUTPUT
-          SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ldap-efs-${{ github.event.inputs.source_env }}" --query "SecurityGroups[].GroupId" --output text)
+          echo SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=${{ github.event.inputs.source_env }}-ldap-efs" --query "SecurityGroups[].GroupId" --output text) >> $GITHUB_OUTPUT
+          SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=${{ github.event.inputs.source_env }}-ldap-efs" --query "SecurityGroups[].GroupId" --output text)
           echo SECURITY_GROUP_ARN="arn:aws:ec2:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:security-group/${SECURITY_GROUP_ID}" >> $GITHUB_OUTPUT
 
       - name: Create EFS mount and access point
@@ -322,8 +317,8 @@ jobs:
           echo SUBNET_ARNS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-private-eu-west-2*" --query "Subnets[].SubnetArn" --output json |  jq -r '. | @csv') >> $GITHUB_OUTPUT
           echo SUBNET_ARN=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-private-eu-west-2*" --query "Subnets [0].SubnetArn" --output text) >> $GITHUB_OUTPUT
           echo SUBNET_IDS=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=*-private-eu-west-2*" --query "Subnets[].SubnetId" --output json |  jq -r '. | @csv') >> $GITHUB_OUTPUT
-          echo SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ldap-efs-${{ github.event.inputs.destination_env }}" --query "SecurityGroups[].GroupId" --output text) >> $GITHUB_OUTPUT
-          SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=ldap-efs-${{ github.event.inputs.destination_env }}" --query "SecurityGroups[].GroupId" --output text)
+          echo SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=${{ github.event.inputs.destination_env }}-ldap-efs" --query "SecurityGroups[].GroupId" --output text) >> $GITHUB_OUTPUT
+          SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=${{ github.event.inputs.destination_env }}-ldap-efs" --query "SecurityGroups[].GroupId" --output text)
           echo SECURITY_GROUP_ARN="arn:aws:ec2:eu-west-2:${{ vars.AWS_ACCOUNT_ID }}:security-group/${SECURITY_GROUP_ID}" >> $GITHUB_OUTPUT
 
       - name: Create datasync source (s3)
@@ -379,12 +374,12 @@ jobs:
       - name: Scale ECS Service back to 1
         id: scale-ecs-service
         run: |
-          aws ecs update-service --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --service delius-core-${{ github.event.inputs.destination_env }}-openldap --desired-count 1
+          aws ecs update-service --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --service ${{ github.event.inputs.destination_env }}-ldap --desired-count 1
           echo "ECS Service scaled back to 1"
 
       - name: Ensure service stability
         run: |
-          aws ecs wait services-stable --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --services delius-core-${{ github.event.inputs.destination_env }}-openldap
+          aws ecs wait services-stable --cluster delius-core-${{ github.event.inputs.destination_env }}-cluster --services ${{ github.event.inputs.destination_env }}-ldap
           echo "ECS Service stable"
           echo "Data refresh complete"
   cleanup:
@@ -496,10 +491,10 @@ jobs:
             echo "At least one step failed, marking the job as failed"
             exit 1
           fi
-  remove-passwords:
-    needs:
-      - cleanup
-    uses: ./.github/workflows/ldap-remove-user-passwords.yml
-    with:
-      environment: ${{ github.event.inputs.destination_env }}
-    secrets: inherit
+  # remove-passwords:
+  #   needs:
+  #     - cleanup
+  #   uses: ./.github/workflows/ldap-remove-user-passwords.yaml
+  #   with:
+  #     environment: ${{ github.event.inputs.destination_env }}
+  #   secrets: inherit
