@@ -68,6 +68,8 @@
             EMCLI_COMMANDS: "{{ emcli_commands }}"
           register: getslackchannel
           changed_when: false
+          vars:
+             ansible_aws_ssm_retries: 3
 
         - name: Setup Slack Configuration
           set_fact:
