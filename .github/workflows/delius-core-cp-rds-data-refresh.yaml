@@ -39,6 +39,11 @@ jobs:
     runs-on: ubuntu-22.04
     environment:
       name: ${{ inputs.destination_env }}
+    outputs:
+      DATABASE_USERNAME: ${{ steps.get_dest_rds_creds.outputs.DATABASE_USERNAME }}
+      DATABASE_PASSWORD: ${{ steps.get_dest_rds_creds.outputs.DATABASE_PASSWORD }}
+      DATABASE_NAME: ${{ steps.get_dest_rds_creds.outputs.DATABASE_NAME }}
+      RDS_INSTANCE_ADDRESS: ${{ steps.get_dest_rds_creds.outputs.RDS_INSTANCE_ADDRESS }}
     steps:
     - name: Configure kubectl
       run: |
@@ -70,10 +75,6 @@ jobs:
           if [[ -z "$value" ]]; then
             echo "::error::Missing or empty secret value: $key"
             exit 1
-          fi
-
-          if [[ "$key" == "DATABASE_PASSWORD" || "$key" == "DATABASE_USERNAME" ]]; then
-            echo "::add-mask::$value"
           fi
 
           echo "$key=$value" >> "$GITHUB_OUTPUT"
@@ -118,10 +119,10 @@ jobs:
         run: |
           kubectl delete secret ${{ inputs.destination_env }}-${{ inputs.component }}-rds-instance-output --ignore-not-found
           kubectl create secret generic ${{ inputs.destination_env }}-${{ inputs.component }}-rds-instance-output \
-            --from-literal=DATABASE_USERNAME=${{ needs.stop-destination-environment.db_user }} \
-            --from-literal=DATABASE_PASSWORD=${{ needs.stop-destination-environment.db_pass }} \
-            --from-literal=DATABASE_NAME=${{ needs.stop-destination-environment.db_name }} \
-            --from-literal=RDS_INSTANCE_ADDRESS=${{ needs.stop-destination-environment.db_host }} \
+            --from-literal=DATABASE_USERNAME=${{ needs.stop-destination-environment.DATABASE_USERNAME }} \
+            --from-literal=DATABASE_PASSWORD=${{ needs.stop-destination-environment.DATABASE_PASSWORD }} \
+            --from-literal=DATABASE_NAME=${{ needs.stop-destination-environment.DATABASE_NAME }} \
+            --from-literal=RDS_INSTANCE_ADDRESS=${{ needs.stop-destination-environment.RDS_INSTANCE_ADDRESS }} \
             --namespace=${{ secrets.KUBE_NAMESPACE }}
 
       - name: Uninstall DB Refresh chart
