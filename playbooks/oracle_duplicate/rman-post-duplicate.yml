@@ -290,3 +290,17 @@
       when:
         - duplicate_target | regex_replace('^.*_(.*)_(.*)_primarydb$','\\1_\\2') == 'preprod_delius'
         - source_legacy | default() == 'no'
+      ignore_errors: true
+      register: switch_integration_services
+
+    - name: Notify on Integration Services Error
+      community.general.slack:
+        token: "{{ slack_token }}"
+        msg: "Switching integration services to read-write mode failed on {{ inventory_hostname }}.  The response was {{ switch_integration_services.stdout | default('unknown') }}.  Ignoring errors and continuing."
+        channel: "#delius-aws-oracle-dev-alerts"
+        username: "Delius Database Duplicate on {{ inventory_hostname }}"
+        icon_emoji: ":sign-warning:"
+      delegate_to: localhost
+      become: no
+      ignore_errors: true
+      when: switch_integration_services.failed
