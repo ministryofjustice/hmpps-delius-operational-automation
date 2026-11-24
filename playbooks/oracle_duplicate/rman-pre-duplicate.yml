@@ -62,6 +62,18 @@
   when:
     - duplicate_target | regex_search('.*_delius_primarydb')
 
+- name: Trigger GitHub Actions workflow to switch probation integration services to read-only mode
+  shell: |
+    token=$(aws secretsmanager get-secret-value --secret-id {{ environment_name }}-probation-integration --region {{ region }} --query SecretString --output text| jq -r .github_token)
+    curl -fsSL -X POST -H 'Accept: application/vnd.github+json' -H "Authorization: token $token" \
+      --data '{"ref": "main", "inputs": {"action": "enable", "environment": "preprod"}}' \
+      https://api.github.com/repos/ministryofjustice/hmpps-probation-integration-services/actions/workflows/readonly.yml/dispatches
+  environment:
+    environment_name: "{{ environment_name }}"
+  when:
+     - environment_name == 'delius-pre-prod' 
+     - duplicate_target | regex_search('.*_delius_primarydb')
+
 # Allow jobs during the blackout so the Audited Interaction archival job may run
 - name: Start database monitoring blackout
   hosts: "{{ duplicate_target }}"
