@@ -227,8 +227,11 @@
   vars:
     target_host: "{{ duplicate_target }}"
 
-
-
+- name: Disable Update of USER_ Table Where Audited Interaction Data to be Preserved
+  include_role: 
+      name: "{{ playbook_dir }}/../delius_audit_replication_schema/delius_audit_replication_schema"
+      tasks_from: disable_user_update.yml
+  when: duplicate_target |  regex_search('.*_delius_primarydb')
 
 - name: Unblock all database sessions
   import_playbook: "{{ playbook_dir | dirname }}/block_sessions/playbook.yml"
