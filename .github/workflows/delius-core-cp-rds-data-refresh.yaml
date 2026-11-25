@@ -86,11 +86,6 @@ jobs:
     environment:
       name: ${{ inputs.source_env }}
     needs: stop-destination-environment
-    outputs:
-      db_user: ${{ steps.get_dest_rds_creds.outputs.DATABASE_USERNAME }}
-      db_pass: ${{ steps.get_dest_rds_creds.outputs.DATABASE_PASSWORD }}
-      db_name: ${{ steps.get_dest_rds_creds.outputs.DATABASE_NAME }}
-      db_host: ${{ steps.get_dest_rds_creds.outputs.RDS_INSTANCE_ADDRESS }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
