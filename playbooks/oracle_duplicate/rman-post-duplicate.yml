@@ -274,6 +274,10 @@
   import_playbook: update-nd-parameters.yml
   when: duplicate_target | regex_search('.*_delius_primarydb')
 
+- name: Set Status of Audited Interaction Replication Jobs
+  script: audited_interaction_scheduler_jobs.sh
+  when: duplicate_target | regex_search('.*_delius_primarydb')
+
 - name: Re-enable probation integration updates
   hosts: "{{ duplicate_target }}"
   gather_facts: no
