@@ -166,7 +166,7 @@ BEGIN
         stage_business_interaction
     WHERE
             business_interaction_id = p_business_interaction_id
-        AND client_db = client_db;
+        AND client_db = p_client_db;
 
     RETURN l_business_interaction_code;
 EXCEPTION
