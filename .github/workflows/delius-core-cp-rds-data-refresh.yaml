@@ -114,10 +114,10 @@ jobs:
         run: |
           kubectl delete secret ${{ inputs.destination_env }}-${{ inputs.component }}-rds-instance-output --ignore-not-found
           kubectl create secret generic ${{ inputs.destination_env }}-${{ inputs.component }}-rds-instance-output \
-            --from-literal=DATABASE_USERNAME=${{ needs.stop-destination-environment.DATABASE_USERNAME }} \
-            --from-literal=DATABASE_PASSWORD=${{ needs.stop-destination-environment.DATABASE_PASSWORD }} \
-            --from-literal=DATABASE_NAME=${{ needs.stop-destination-environment.DATABASE_NAME }} \
-            --from-literal=RDS_INSTANCE_ADDRESS=${{ needs.stop-destination-environment.RDS_INSTANCE_ADDRESS }} \
+            --from-literal=DATABASE_USERNAME=${{ needs.stop-destination-environment.outputs.DATABASE_USERNAME }} \
+            --from-literal=DATABASE_PASSWORD=${{ needs.stop-destination-environment.outputs.DATABASE_PASSWORD }} \
+            --from-literal=DATABASE_NAME=${{ needs.stop-destination-environment.outputs.DATABASE_NAME }} \
+            --from-literal=RDS_INSTANCE_ADDRESS=${{ needs.stop-destination-environment.outputs.RDS_INSTANCE_ADDRESS }} \
             --namespace=${{ secrets.KUBE_NAMESPACE }}
 
       - name: Uninstall DB Refresh chart
