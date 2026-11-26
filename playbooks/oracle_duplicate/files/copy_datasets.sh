@@ -157,7 +157,11 @@ BEGIN
         s.created_by_user_id,
         LC_DATE_TIME,
         s.last_updated_user_id,
-        s.training_session_id);
+        s.training_session_id)
+    WHERE EXISTS (
+        SELECT 1 FROM delius_app_schema.user_ u
+        WHERE u.user_id = s.user_id
+    );
 
     DBMS_OUTPUT.PUT_LINE('No of probation_area_user rows created: '||SQL%ROWCOUNT);
 
