@@ -65,7 +65,7 @@ jobs:
     steps:
 
       - name: Checkout Helper Script
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ministryofjustice/hmpps-delius-operational-automation
           sparse-checkout-cone-mode: false
@@ -91,7 +91,7 @@ jobs:
           echo "TargetHost=$(build_inventory_name "${{ github.event.inputs.TargetEnvironment }}" "_${{ github.event.inputs.TargetHost }}")" >> $GITHUB_OUTPUT
 
       - name: Checkout hmpps-delius-operation-automation
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -103,7 +103,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout modernisation-platform-configuration-management
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ministryofjustice/modernisation-platform-configuration-management
           sparse-checkout-cone-mode: false
